@@ -894,14 +894,11 @@ async function handleInteraction(interaction) {
     }
 
     // ── Rock Paper Scissors ────────────────────────────────────────────────────
-    if (customId.startsWith('rps_rock_') || customId.startsWith('rps_paper_') || customId.startsWith('rps_scissors_')) {
-        const choice = customId.split('_')[1];
-        if (!['rock', 'paper', 'scissors'].includes(choice)) return false;
-        const choices = ['rock', 'paper', 'scissors'];
-        const botChoice = choices[Math.floor(Math.random() * 3)];
-        await interaction.update({ components: [rpsBuildResult(choice, botChoice)], flags: CV2 });
-        return true;
-    }
+    // Routed by index.js to commands/economy/rps.js — the legacy free
+    // RPS panel in this file was removed so its `rps_*` buttons no
+    // longer mean anything. Returning false here so the umbrella
+    // dispatcher can stop walking past stale handlers.
+    if (customId.startsWith('rps_')) return false;
 
     // ── Hangman: guess button ─────────────────────────────────────────────────
     if (customId.startsWith('hgm_guess_')) {
@@ -1228,7 +1225,6 @@ module.exports = {
         .setDescription('Play interactive button games')
         .addSubcommand(sub => sub.setName('minesweeper').setDescription('5x5 Minesweeper — reveal all safe cells without hitting a mine'))
         .addSubcommand(sub => sub.setName('tictactoe').setDescription('Tic-Tac-Toe against an unbeatable bot'))
-        .addSubcommand(sub => sub.setName('rps').setDescription('Rock Paper Scissors against the bot'))
         .addSubcommand(sub => sub.setName('hangman').setDescription('Guess the hidden word one letter at a time'))
         .addSubcommand(sub => sub.setName('numguess').setDescription('Guess the secret number (1–100) in 7 tries'))
         .addSubcommand(sub => sub.setName('memory').setDescription('Flip cards to find all 8 matching emoji pairs'))
@@ -1238,10 +1234,6 @@ module.exports = {
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
-
-        if (sub === 'rps') {
-            return interaction.reply({ components: [rpsBuildContainer(interaction.id)], flags: CV2 });
-        }
 
         await interaction.deferReply();
         const msg = await interaction.fetchReply();
@@ -1296,21 +1288,15 @@ module.exports = {
             '**🎮 xNico Games — pick a game:**\n\n' +
             '`-games minesweeper` — 💣 5×5 Minesweeper\n' +
             '`-games tictactoe`   — ✖⭕ Tic-Tac-Toe vs AI\n' +
-            '`-games rps`         — 🪨📜🔪 Rock Paper Scissors\n' +
             '`-games hangman`     — 🔤 Hangman (guess the word)\n' +
             '`-games numguess`    — 🔢 Number Guess (1–100, 7 tries)\n' +
             '`-games memory`      — 🃏 Memory Card Game (8 pairs)\n' +
             '`-games 2048`        — 🎮 2048 (slide tiles)\n' +
             '`-games battleship`  — 🚢 Battleship (sink the fleet)\n' +
             '`-games connect4`    — 🔵 Connect 4 vs AI\n\n' +
-            '-# Tip: standalone commands like `-tictactoe @user` let you play against friends!';
+            '-# Tip: try `-rps <choice> <bet>` for the new bet-based Rock Paper Scissors in the economy.';
 
         if (!sub) return message.reply(HELP);
-
-        if (sub === 'rps') {
-            const nonce = Date.now().toString();
-            return message.reply({ components: [rpsBuildContainer(nonce)], flags: CV2 });
-        }
 
         const reply = await message.reply({ content: '🎮 Starting game…' });
         const id = reply.id;

@@ -1254,6 +1254,7 @@ client.on(Events.ClientReady, async () => {
             // Economy
             'balance', 'daily', 'weekly', 'shop', 'profile', 'pay', 'deposit', 'withdraw',
             'slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice',
+            'blackjack', 'roulette', 'rps',
             'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'farm', 'heist',
             'buy', 'sell', 'inventory', 'trade', 'craft', 'gift', 'loan', 'economy-leaderboard',
             'battle', 'pets',
@@ -1262,8 +1263,8 @@ client.on(Events.ClientReady, async () => {
             // Social
             'socialprofile', 'badges',
             // Games
-            'trivia', 'wordle', 'hangman', 'blackjack', 'connect4', 'tictactoe',
-            'rps', 'akinator', 'coinflip', 'scramble', 'mathgame', 'fasttype',
+            'trivia', 'wordle', 'hangman', 'connect4', 'tictactoe',
+            'akinator', 'scramble', 'mathgame', 'fasttype',
             // Fun
             'meme', 'joke', 'gif', 'fact', 'riddle', 'ship', 'rate', '8ball',
             // Backup
@@ -2706,11 +2707,11 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
-            // Route games buttons (all 9 games)
+            // Route games buttons (8 fun games — RPS moved to economy as a bet
+            // and uses no buttons).
             if (
                 interaction.customId.startsWith('msw_') ||
                 interaction.customId.startsWith('gm_ttt_') ||
-                interaction.customId.startsWith('rps_') ||
                 interaction.customId.startsWith('hgm_') ||
                 interaction.customId.startsWith('ngr_') ||
                 interaction.customId.startsWith('mem_') ||
