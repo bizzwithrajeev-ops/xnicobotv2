@@ -1,0 +1,67 @@
+const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+const { buildErrorResponse } = require('../../utils/responseBuilder');
+
+module.exports = {
+    prefix: 'autoplay',
+    description: 'Toggle autoplay mode',
+    usage: 'autoplay',
+    category: 'music',
+    aliases: ['ap', 'auto'],
+    
+    data: new SlashCommandBuilder()
+        .setName('autoplay')
+        .setDescription('Toggle autoplay mode (plays related songs automatically)'),
+    
+    async execute(interaction, lavalinkManager) {
+        try {
+            const player = lavalinkManager.getPlayer(interaction.guild.id);
+            if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            if (!interaction.member.voice.channel) return interaction.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+
+            const autoplayStatus = interaction.client.autoplayStatus;
+            const currentStatus = autoplayStatus.get(interaction.guild.id) || false;
+            autoplayStatus.set(interaction.guild.id, !currentStatus);
+
+            const container = new ContainerBuilder()
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder()
+                        .setContent(`# <:Refresh:1473037911581528165> Autoplay ${!currentStatus ? 'Enabled' : 'Disabled'}\n\n${!currentStatus ? 'Related songs will be played automatically when the queue ends' : 'Autoplay has been turned off'}`)
+                );
+
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch (error) {
+            console.error('Autoplay Error:', error);
+            const msg = error.message || 'An unknown error occurred';
+            if (interaction.replied || interaction.deferred) await interaction.followUp({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
+            else await interaction.reply({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
+        }
+    },
+
+    async executePrefix(message, args, lavalinkManager) {
+        try {
+            const player = lavalinkManager.getPlayer(message.guild.id);
+            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
+            if (!message.member.voice.channel) return message.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel!')], flags: MessageFlags.IsComponentsV2 });
+
+            const autoplayStatus = message.client.autoplayStatus;
+            const currentStatus = autoplayStatus.get(message.guild.id) || false;
+            autoplayStatus.set(message.guild.id, !currentStatus);
+
+            const container = new ContainerBuilder()
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder()
+                        .setContent(`# <:Refresh:1473037911581528165> Autoplay ${!currentStatus ? 'Enabled' : 'Disabled'}\n\n${!currentStatus ? 'Related songs will be played automatically when the queue ends' : 'Autoplay has been turned off'}`)
+                );
+
+            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch (error) {
+            console.error('Autoplay Error:', error);
+            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+    },
+
+    getAutoplayStatus(guildId, client) {
+        if (!client || !client.autoplayStatus) return false;
+        return client.autoplayStatus.get(guildId) || false;
+    }
+};

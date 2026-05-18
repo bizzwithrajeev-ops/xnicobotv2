@@ -1,0 +1,76 @@
+'use strict';
+
+const { MessageFlags } = require('discord.js');
+const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const economyManager = require('../../utils/economyManager');
+
+const OWNER_IDS = process.env.OWNER_ID ? [process.env.OWNER_ID] : [];
+
+module.exports = {
+    data: new (require('discord.js').SlashCommandBuilder)()
+        .setName('addcoins')
+        .setDescription('(Owner only) Add coins to a user')
+        .addUserOption(o => o.setName('user').setDescription('Target user').setRequired(true))
+        .addIntegerOption(o => o.setName('amount').setDescription('Amount to add').setRequired(true).setMinValue(1).setMaxValue(1_000_000_000)),
+    prefix: 'addcoins',
+    aliases: ['givecoins', 'admincoins'],
+    category: 'economy',
+
+    async executePrefix(message, args) {
+        if (!OWNER_IDS.includes(message.author.id)) {
+            const c = createContainer(0xED4245);
+            addTextDisplay(c, '<:Cancel:1473037949187657818> This command is owner-only.');
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        const target = message.mentions.users.first();
+        const amount = parseInt(args[1], 10);
+
+        if (!target || !amount || isNaN(amount) || amount <= 0) {
+            const container = createContainer(0xCAD7E6);
+            addTextDisplay(container, [
+                `# 🛠️ Add Coins (Owner Only)`,
+                '',
+                `**Usage:** \`addcoins @user <amount>\``,
+                '',
+                `**Example:**`,
+                `\`addcoins @User 10000\``,
+            ].join('\n'));
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        if (amount > 1_000_000_000) {
+            const c = createContainer(0xED4245);
+            addTextDisplay(c, '<:Cancel:1473037949187657818> Amount too large.');
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        const economy = economyManager.loadEconomy();
+        const { userData: user } = economyManager.getUser(economy, target.id);
+
+        user.coins = Number(user.coins || 0) + amount;
+        economyManager.saveEconomy(economy);
+
+        const container = createContainer(0xCAD7E6);
+        addTextDisplay(container, [
+            `# 🪙 Coins Added`,
+            '',
+            `<:Checkedbox:1473038547165384804> **${formatNumber(amount)}** coins added to **${target.username}**`,
+            '',
+            `💰 **New Balance:** ${formatNumber(user.coins)} coins`,
+        ].join('\n'));
+
+        return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    },
+
+    async execute(interaction) {
+        const target = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        const fakeMessage = {
+            author: interaction.user,
+            mentions: { users: { first: () => target } },
+            reply: interaction.reply.bind(interaction),
+        };
+        return module.exports.executePrefix(fakeMessage, [null, amount]);
+    },
+};

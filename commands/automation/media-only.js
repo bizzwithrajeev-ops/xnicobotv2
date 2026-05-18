@@ -1,0 +1,187 @@
+const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { buildErrorResponse } = require('../../utils/responseBuilder');
+
+const jsonStore = require('../../utils/jsonStore');
+module.exports = {
+    category: 'automation',
+    data: new SlashCommandBuilder()
+        .setName('media-only')
+        .setDescription('Configure media-only channels (only images/videos/files allowed)')
+        .addSubcommand(subcommand =>
+            subcommand.setName('add').setDescription('Make a channel media-only')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel to make media-only').addChannelTypes(ChannelType.GuildText).setRequired(true)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand.setName('remove').setDescription('Remove media-only restriction from a channel')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel to remove restriction from').addChannelTypes(ChannelType.GuildText).setRequired(true)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand.setName('list').setDescription('List all media-only channels in this server')
+        )
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+    async execute(interaction) {
+        try {
+        const subcommand = interaction.options.getSubcommand();
+
+        let config = {};
+        if (jsonStore.has('media-only')) {
+            config = jsonStore.read('media-only');
+        }
+
+        if (!config[interaction.guild.id]) {
+            config[interaction.guild.id] = { channels: [] };
+        }
+
+        if (subcommand === 'add') {
+            const channel = interaction.options.getChannel('channel');
+
+            if (config[interaction.guild.id].channels.includes(channel.id)) {
+                const container = new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(
+                            `# <:Cancel:1473037949187657818> Already Media-Only\n\n${channel} is already configured as a media-only channel.`
+                        )
+                    );
+
+                return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            }
+
+            config[interaction.guild.id].channels.push(channel.id);
+            jsonStore.write('media-only', config);
+
+            const container = new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Media-Only Channel Added\n\n` +
+                        `${channel} is now a media-only channel.\n\n` +
+                        `Only messages with attachments (images, videos, files) will be allowed.\n\n` +
+                        `**<:Bookopen:1473038576391557130> Rules:**\n` +
+                        `• Messages must contain at least one attachment\n` +
+                        `• Text-only messages will be auto-deleted\n` +
+                        `• Moderators and admins are exempt\n\n` +
+                        `*Users will be notified when their messages are deleted*`
+                    )
+                );
+
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } else if (subcommand === 'remove') {
+            const channel = interaction.options.getChannel('channel');
+
+            if (!config[interaction.guild.id].channels.includes(channel.id)) {
+                const container = new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(
+                            `# <:Cancel:1473037949187657818> Not Media-Only\n\n${channel} is not configured as a media-only channel.`
+                        )
+                    );
+
+                return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            }
+
+            config[interaction.guild.id].channels = config[interaction.guild.id].channels.filter(id => id !== channel.id);
+            jsonStore.write('media-only', config);
+
+            const container = new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Media-Only Restriction Removed\n\n${channel} is no longer a media-only channel.\n\nAll message types are now allowed.`
+                    )
+                );
+
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } else if (subcommand === 'list') {
+            const channels = config[interaction.guild.id]?.channels || [];
+
+            if (channels.length === 0) {
+                const container = new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(
+                            `# <:wcamera:1386229251895857304> No Media-Only Channels\n\n` +
+                            `There are no media-only channels configured in this server.\n\n` +
+                            `*Use /media-only add to create one*`
+                        )
+                    );
+
+                return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            }
+
+            const container = new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `# <:wcamera:1386229251895857304> Media-Only Channels\n\n` +
+                        `This server has **${channels.length}** media-only channel(s):\n\n` +
+                        `${channels.map(id => `• <#${id}>`).join('\n')}\n\n` +
+                        `*Only messages with attachments are allowed in these channels*`
+                    )
+                );
+
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+        } catch (error) {
+            console.error('[MediaOnly] Error:', error);
+            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
+            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+    },
+
+    async executePrefix(message, args) {
+        if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
+            return message.reply(`<:Cancel:1473037949187657818> You need Manage Channels permission to use this command.`);
+        }
+
+        try {
+        let config = {};
+        if (jsonStore.has('media-only')) {
+            config = jsonStore.read('media-only');
+        }
+
+        if (!config[message.guild.id]) {
+            config[message.guild.id] = { channels: [] };
+        }
+
+        const channels = config[message.guild.id]?.channels || [];
+
+        if (channels.length === 0) {
+            const container = new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `# <:wcamera:1386229251895857304> No Media-Only Channels\n\n` +
+                        `There are no media-only channels configured in this server.\n\n` +
+                        `*Use /media-only add to create one*`
+                    )
+                );
+
+            return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        const container = new ContainerBuilder()
+            .setAccentColor(0xCAD7E6)
+            .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                    `# <:wcamera:1386229251895857304> Media-Only Channels\n\n` +
+                    `This server has **${channels.length}** media-only channel(s):\n\n` +
+                    `${channels.map(id => `• <#${id}>`).join('\n')}\n\n` +
+                    `*Only messages with attachments are allowed in these channels*`
+                )
+            );
+
+        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch (error) {
+            console.error('[MediaOnly] Error:', error);
+            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+    }
+};

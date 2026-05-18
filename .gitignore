@@ -1,0 +1,48 @@
+# ── Secrets ─────────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.pem
+*.key
+
+# ── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+dashboard/node_modules/
+
+# ── Editor / OS ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+logs/
+
+# ── Lavalink (server jar + runtime artifacts) ───────────────────────────────
+lavalink/Lavalink.jar
+lavalink/logs/
+lavalink/plugins/
+
+# ── Runtime data (contains real user data — should never be public) ─────────
+json_stores/
+datas/
+backups/
+dashboard/data/
+temp_downloads/
+attached_assets/
+
+# ── Database dumps (real PG data with user IDs / configs) ───────────────────
+*.sql
+!schema.sql
+
+# ── Build output ────────────────────────────────────────────────────────────
+dist/
+build/
+.next/
+.cache/

@@ -1,0 +1,1260 @@
+/* =========================================================
+   xNico Dashboard — app.js v4.0
+   - Hash-based router
+   - Auth via Discord OAuth + JWT
+   - Module pages auto-generated from modules.js schema
+   ========================================================= */
+
+console.log('[xNico] Dashboard v4.0 booting…');
+
+const CFG = window.DASHBOARD_CONFIG || {};
+const API_BASE = CFG.API_BASE_URL || '';
+
+let state = {
+    token: localStorage.getItem('token'),
+    user: null,
+    guilds: [],
+    currentGuild: null,        // { id, name, icon, botPresent }
+    channels: [],
+    roles: [],
+    premium: null,
+    botInfo: null,
+    stats: null,
+    moduleStatus: {},          // guildId -> { moduleId -> enabled }
+};
+
+// ───── utilities ───────────────────────────────────────────
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const esc = s => (s == null ? '' : String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
+const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${window.XNICO_ICONS[name] || window.XNICO_ICONS.grid}</svg>`;
+const toast = (msg, type = 'info') => {
+    const c = $('#toasts'); if (!c) return;
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    c.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 250); }, 2800);
+};
+
+function getDeep(obj, path) {
+    if (!path) return obj;
+    return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+function setDeep(obj, path, val) {
+    const keys = path.split('.');
+    let o = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+        if (o[keys[i]] == null || typeof o[keys[i]] !== 'object') o[keys[i]] = {};
+        o = o[keys[i]];
+    }
+    o[keys[keys.length - 1]] = val;
+}
+
+// ───── API layer ───────────────────────────────────────────
+async function api(path, opts = {}) {
+    const url = (API_BASE || '') + path;
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    try {
+        const r = await fetch(url, { credentials: 'include', cache: 'no-store', ...opts, headers });
+        const ct = r.headers.get('content-type') || '';
+        const data = ct.includes('application/json') ? await r.json() : { _text: await r.text() };
+        if (r.status === 401) return { _unauth: true, error: data?.error || 'Unauthorized' };
+        if (!r.ok) return { _error: true, status: r.status, ...data };
+        return data;
+    } catch (e) {
+        console.error('[api]', path, e);
+        return { _error: true, error: e.message };
+    }
+}
+
+// ───── token capture from redirect ────────────────────────
+(function captureToken() {
+    const u = new URLSearchParams(location.search);
+    if (u.has('token')) {
+        const t = u.get('token');
+        if (t && t.length > 20) {
+            state.token = t;
+            localStorage.setItem('token', t);
+        }
+        history.replaceState({}, '', location.pathname + location.hash);
+    }
+    if (u.has('error')) {
+        const err = u.get('error');
+        setTimeout(() => toast('Login failed: ' + err, 'error'), 500);
+        history.replaceState({}, '', location.pathname + location.hash);
+    }
+})();
+
+// ───── auth screen helpers ────────────────────────────────
+async function loadAuthStats() {
+    // Public bot info
+    const bot = await api('/api/bot-info');
+    if (bot && !bot._error) {
+        state.botInfo = bot;
+        if (bot.avatar) {
+            $('#bot-logo').innerHTML = `<img src="${esc(bot.avatar)}" alt="Bot">`;
+            $('#sb-logo').innerHTML = `<img src="${esc(bot.avatar)}" alt="Bot">`;
+        }
+    }
+    const stats = await api('/api/stats');
+    if (stats && !stats._error) {
+        $('#stat-guilds').textContent = stats.totalGuilds ?? '—';
+        if (stats.totalCommands) $('#stat-cmds').textContent = (stats.totalCommands + '+').replace(/\.\d+/, '');
+        if (stats.uptime) $('#stat-uptime').textContent = (stats.uptime).toFixed ? stats.uptime.toFixed(1) + '%' : stats.uptime + '%';
+    }
+}
+
+// ───── session bootstrap ─────────────────────────────────
+async function bootstrap() {
+    await loadAuthStats();
+    if (!state.token) return showAuth();
+
+    const me = await api('/api/auth/me');
+    if (!me || me._unauth || !me.user) return showAuth();
+
+    state.user = me.user;
+    await showDashboard();
+}
+
+function showAuth() {
+    $('#auth-screen').classList.remove('hidden');
+    $('#dashboard').classList.add('hidden');
+    $('#auth-loading').classList.add('hidden');
+}
+
+async function showDashboard() {
+    $('#auth-loading').classList.remove('hidden');
+    $('#auth-screen').classList.add('hidden');
+
+    // Sidebar render
+    renderSidebar();
+    renderUserBadge();
+
+    // Load user guilds
+    const guilds = await api('/api/guilds/me');
+    state.guilds = Array.isArray(guilds) ? guilds : [];
+
+    // Apply saved theme
+    const theme = localStorage.getItem('theme');
+    if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    updateThemeIcon();
+
+    $('#dashboard').classList.remove('hidden');
+    $('#auth-loading').classList.add('hidden');
+
+    // Start router
+    window.addEventListener('hashchange', handleRoute);
+    if (!location.hash) location.hash = '#/servers';
+    else handleRoute();
+}
+
+// ───── sidebar ────────────────────────────────────────────
+function renderSidebar() {
+    const nav = $('#sb-nav');
+    const groups = {};
+    // Main group
+    groups.Main = [
+        { id: '__home', name: 'Servers', route: '#/servers', icon: 'home' },
+        { id: '__profile', name: 'Profile', route: '#/profile', icon: 'user' },
+        { id: '__commands', name: 'Commands', route: '#/commands', icon: 'code' },
+    ];
+    // Modules grouped
+    for (const m of (window.XNICO_MODULES || [])) {
+        (groups[m.group] ||= []).push(m);
+    }
+
+    let html = '';
+    for (const grp of Object.keys(groups)) {
+        html += `<div class="sb-section"><span>${esc(grp)}</span></div>`;
+        for (const m of groups[grp]) {
+            const route = m.route
+                ? m.route
+                : (state.currentGuild ? `#/server/${state.currentGuild.id}/${m.id}` : `#/servers`);
+            const badge = m.premium ? '<span class="badge">PRO</span>' : '';
+            const disabled = (!m.route && !state.currentGuild) ? 'locked' : '';
+            html += `<a class="sb-item ${disabled}" href="${route}" data-route="${esc(route)}" data-page="${esc(m.id)}">${icon(m.icon || 'grid')}<span>${esc(m.name)}</span>${badge}</a>`;
+        }
+    }
+    nav.innerHTML = html;
+    markActiveNav();
+}
+
+function markActiveNav() {
+    const r = location.hash || '#/servers';
+    $$('.sb-item').forEach(el => {
+        const match = r === el.dataset.route || (el.dataset.page && r.endsWith('/' + el.dataset.page));
+        el.classList.toggle('active', !!match);
+    });
+}
+
+function renderUserBadge() {
+    if (!state.user) return;
+    const av = $('#sb-user-av');
+    if (state.user.avatar) av.innerHTML = `<img src="${esc(state.user.avatar)}" alt="">`;
+    else av.innerHTML = `<span>${esc((state.user.username || 'U')[0].toUpperCase())}</span>`;
+    $('#sb-user-nm').textContent = state.user.username || 'User';
+    $('#sb-user-role').textContent = (state.user.role || 'member').replace(/^./, c => c.toUpperCase());
+}
+
+// ───── guild picker ───────────────────────────────────────
+function renderGuildPicker() {
+    const wrap = $('#guild-picker');
+    if (!state.currentGuild) {
+        wrap.classList.add('hidden');
+        return;
+    }
+    wrap.classList.remove('hidden');
+    const g = state.currentGuild;
+    $('#gp-ic').innerHTML = g.icon ? `<img src="${esc(g.icon)}">` : `<span>${esc((g.name || 'S')[0])}</span>`;
+    $('#gp-nm').textContent = g.name;
+
+    const drop = $('#guild-drop');
+    drop.innerHTML = state.guilds.map(x => `
+        <div class="gi" onclick="selectGuild('${esc(x.id)}')">
+            <div class="ic">${x.icon ? `<img src="${esc(x.icon)}">` : `<span>${esc((x.name || 'S')[0])}</span>`}</div>
+            <div class="nm">${esc(x.name)}</div>
+            <div class="st ${x.botPresent ? 'ok' : 'warn'}">${x.botPresent ? 'Manage' : 'Invite'}</div>
+        </div>`).join('') || '<div class="gi"><div class="nm text-mute">No servers</div></div>';
+}
+
+function toggleGuildDropdown() {
+    $('#guild-drop').classList.toggle('hidden');
+}
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#guild-picker')) $('#guild-drop')?.classList.add('hidden');
+    if (!e.target.closest('#sb-user') && !e.target.closest('#sb-menu')) $('#sb-menu')?.classList.add('hidden');
+});
+
+function selectGuild(id) {
+    const g = state.guilds.find(x => x.id === id);
+    if (!g) return;
+    state.currentGuild = g;
+    // If no module in URL, go to server dashboard
+    location.hash = `#/server/${g.id}`;
+    $('#guild-drop').classList.add('hidden');
+}
+
+// ───── theme / sidebar / menu ─────────────────────────────
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    updateThemeIcon();
+}
+function updateThemeIcon() {
+    const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    $('#theme-icon-dark').classList.toggle('hidden', cur === 'light');
+    $('#theme-icon-light').classList.toggle('hidden', cur !== 'light');
+}
+function toggleSidebar(force) {
+    const sb = $('#sidebar'), ov = $('#overlay');
+    const open = force !== undefined ? force : !sb.classList.contains('open');
+    sb.classList.toggle('open', open);
+    ov.classList.toggle('hidden', !open);
+}
+function toggleUserMenu() { $('#sb-menu').classList.toggle('hidden'); }
+function closeUserMenu() { $('#sb-menu').classList.add('hidden'); }
+
+function logout() {
+    api('/api/auth/logout', { method: 'POST' }).catch(() => { });
+    state.token = null; state.user = null; state.currentGuild = null;
+    localStorage.removeItem('token');
+    location.hash = '';
+    showAuth();
+}
+
+// expose globals used inline
+window.toggleGuildDropdown = toggleGuildDropdown;
+window.selectGuild = selectGuild;
+window.toggleTheme = toggleTheme;
+window.toggleSidebar = toggleSidebar;
+window.toggleUserMenu = toggleUserMenu;
+window.closeUserMenu = closeUserMenu;
+window.logout = logout;
+
+// ───── Router ─────────────────────────────────────────────
+/* Routes:
+   #/servers                                   – server list
+   #/profile                                   – user profile
+   #/commands                                  – bot command list
+   #/premium                                   – premium keys
+   #/server/:id                                – server dashboard
+   #/server/:id/setup                          – invite bot prompt
+   #/server/:id/analytics                      – analytics
+   #/server/:id/:module                        – module config page
+*/
+async function handleRoute() {
+    const hash = location.hash || '#/servers';
+    const parts = hash.replace(/^#\/?/, '').split('/');
+    // Close mobile sidebar on nav
+    if (window.innerWidth <= 1024) toggleSidebar(false);
+
+    const page = $('#page');
+    page.innerHTML = `<div style="display:flex;justify-content:center;padding:4rem 0"><div class="spinner"></div></div>`;
+    markActiveNav();
+    window.__renderModule = null;
+
+    try {
+        if (parts[0] === '' || parts[0] === 'servers') {
+            state.currentGuild = null;
+            renderGuildPicker();
+            setCrumb('Servers');
+            await pageServers();
+        } else if (parts[0] === 'profile') {
+            setCrumb('Profile');
+            await pageProfile();
+        } else if (parts[0] === 'commands') {
+            setCrumb('Commands');
+            await pageCommands();
+        } else if (parts[0] === 'server' && parts[1]) {
+            const gid = parts[1];
+            await ensureGuild(gid);
+            if (!state.currentGuild) return pageNotFound('Server not found.');
+            renderGuildPicker();
+            renderSidebar();
+
+            if (!state.currentGuild.botPresent) {
+                setCrumb(state.currentGuild.name, 'Setup');
+                return pageSetup();
+            }
+
+            const module = parts[2];
+            if (!module) { setCrumb(state.currentGuild.name, 'Overview'); return pageServerOverview(); }
+            if (module === 'analytics') { setCrumb(state.currentGuild.name, 'Analytics'); return pageAnalytics(); }
+            const mod = (window.XNICO_MODULES || []).find(m => m.id === module);
+            if (!mod) return pageNotFound('Unknown module.');
+            setCrumb(state.currentGuild.name, mod.name);
+            if (mod.custom && mod.id === 'welcomer') return pageWelcomer();
+            if (mod.custom && mod.id === 'leveling') return pageLeveling();
+            if (mod.custom && mod.id === 'economy') return pageEconomy();
+            if (mod.custom && mod.id === 'tickets') return pageTickets();
+            if (mod.custom && mod.id === 'autorole') return pageAutorole();
+            if (mod.custom && mod.id === 'suggestions') return pageSuggestions();
+            if (mod.custom && mod.id === 'feedback') return pageFeedback();
+            if (mod.custom && mod.id === 'automod') return pageAutomod();
+            if (mod.custom && mod.id === 'antinuke') return pageAntinuke();
+            if (mod.custom && mod.id === 'trust') return pageTrust();
+            if (mod.custom && mod.id === 'starboard') return pageStarboard();
+            if (mod.custom && mod.id === 'counting') return pageCounting();
+            if (mod.custom && mod.id === 'autoreact') return pageAutoreact();
+            if (mod.custom && mod.id === 'giveaway') return pageGiveaway();
+            if (mod.custom && mod.id === 'voice') return pageVoice();
+            if (mod.custom && mod.id === 'reactionroles') return pageReactionRoles();
+            if (mod.custom && mod.id === 'media-only') return pageMediaOnly();
+            if (mod.custom && mod.id === 'afk') return pageAfk();
+            if (mod.custom && mod.id === 'sticky') return pageSticky();
+            if (mod.custom && mod.id === 'invites') return pageInvites();
+            if (mod.custom && mod.id === 'serverstats') return pageServerStats();
+            if (mod.custom && mod.id === 'backups') return pageBackups();
+            if (mod.custom && mod.id === 'bot-customize') return pageBotCustomize();
+            if (mod.custom && mod.id === 'message-builder') return pageMessageBuilder();
+            if (mod.custom && mod.id === 'button-commands') return pageButtonCreator();
+            if (mod.custom && mod.id === 'select-menus') return pageMenuCreator();
+            return pageModule(mod);
+        } else {
+            pageNotFound();
+        }
+    } catch (err) {
+        console.error('[router]', err);
+        page.innerHTML = `<div class="empty"><h2>Error</h2><p>${esc(err.message || 'Something broke.')}</p></div>`;
+    }
+}
+
+function setCrumb(primary, secondary) {
+    const el = $('#crumb-now');
+    el.textContent = secondary ? `${primary} → ${secondary}` : primary;
+}
+
+async function ensureGuild(gid) {
+    if (!state.guilds.length) {
+        const g = await api('/api/guilds/me');
+        if (Array.isArray(g)) state.guilds = g;
+    }
+    state.currentGuild = state.guilds.find(g => g.id === gid) || null;
+}
+
+// ───── Page: server list ─────────────────────────────────
+async function pageServers() {
+    const page = $('#page');
+    const guilds = state.guilds;
+
+    if (!guilds.length) {
+        page.innerHTML = `
+            <div class="page-h">
+                <div><h1>Select a Server</h1><p>No servers found where you have Manage Server permission.</p></div>
+            </div>
+            <div class="empty">
+                ${icon('server')}
+                <p>You don't manage any servers yet. Invite xNico to a server you own and return here.</p>
+                <a class="btn primary mt-2" href="${inviteUrl()}" target="_blank">Invite xNico</a>
+            </div>`;
+        return;
+    }
+
+    const withBot = guilds.filter(g => g.botPresent);
+    const withoutBot = guilds.filter(g => !g.botPresent);
+
+    page.innerHTML = `
+        <div class="page-h">
+            <div>
+                <h1>Your Servers</h1>
+                <p>Pick a server to manage. Servers you manage with xNico appear first.</p>
+            </div>
+            <a class="btn primary" href="${inviteUrl()}" target="_blank">${icon('user-plus')} Add to Server</a>
+        </div>
+
+        ${withBot.length ? `<h3 class="mb-2">Managed</h3>
+        <div class="servers-grid mb-3">
+            ${withBot.map(g => serverCard(g)).join('')}
+        </div>` : ''}
+
+        ${withoutBot.length ? `<h3 class="mb-2">Not Invited Yet</h3>
+        <div class="servers-grid">
+            ${withoutBot.map(g => serverCard(g)).join('')}
+        </div>` : ''}
+    `;
+}
+
+function serverCard(g) {
+    const cls = g.botPresent ? '' : 'notin';
+    const status = g.botPresent ? 'Click to manage' : 'Invite required';
+    return `
+        <div class="server-card ${cls}" onclick="location.hash='#/server/${esc(g.id)}'">
+            <div class="ic">${g.icon ? `<img src="${esc(g.icon)}">` : `<span>${esc((g.name || 'S')[0])}</span>`}</div>
+            <div class="nm">${esc(g.name)}</div>
+            <div class="st">${status}</div>
+        </div>`;
+}
+
+function inviteUrl(gid) {
+    const cid = state.botInfo?.id || '';
+    if (!cid) return '#';
+    return `https://discord.com/oauth2/authorize?client_id=${cid}&permissions=8&scope=bot%20applications.commands${gid ? `&guild_id=${gid}` : ''}`;
+}
+
+// ───── Page: server setup (bot not present) ──────────────
+function pageSetup() {
+    const g = state.currentGuild;
+    $('#page').innerHTML = `
+        <div class="page-h">
+            <div><h1>${esc(g.name)}</h1><p>xNico isn't in this server yet.</p></div>
+        </div>
+        <div class="empty">
+            <div class="server-card" style="margin:0 auto 1.5rem;max-width:220px;pointer-events:none">
+                <div class="ic">${g.icon ? `<img src="${esc(g.icon)}">` : `<span>${esc((g.name || 'S')[0])}</span>`}</div>
+                <div class="nm">${esc(g.name)}</div>
+                <div class="st" style="color:var(--warning)">Not invited</div>
+            </div>
+            <p>Invite xNico to start configuring modules.</p>
+            <a class="btn primary mt-2" href="${inviteUrl(g.id)}" target="_blank">${icon('user-plus')} Invite xNico</a>
+            <p class="text-xs mt-2">The dashboard will reload automatically after inviting.</p>
+        </div>
+    `;
+    // Poll for presence after invite
+    setTimeout(async () => {
+        const fresh = await api('/api/guilds/me');
+        if (Array.isArray(fresh)) {
+            state.guilds = fresh;
+            const updated = fresh.find(x => x.id === g.id);
+            if (updated?.botPresent) location.reload();
+        }
+    }, 10000);
+}
+
+// ───── Page: server overview (module grid) ───────────────
+async function pageServerOverview() {
+    const g = state.currentGuild;
+    // Fetch each module's enabled state (best-effort)
+    const mods = window.XNICO_MODULES || [];
+    const statuses = {};
+    await Promise.all(mods.map(async (m) => {
+        const cfg = await api(`/api/guild/${g.id}/${m.id}`);
+        statuses[m.id] = !!(cfg && cfg.enabled);
+    }));
+    state.moduleStatus[g.id] = statuses;
+
+    // Analytics snapshot
+    const a = await api(`/api/guild/${g.id}/analytics`) || {};
+
+    const premium = await api(`/api/guild/${g.id}/premium-status`);
+    state.premium = premium;
+
+    $('#page').innerHTML = `
+        <div class="page-h">
+            <div>
+                <h1>${esc(g.name)}</h1>
+                <p>Overview of all modules active on this server.</p>
+            </div>
+            <div class="row wrap">
+                <a class="btn" href="#/server/${esc(g.id)}/analytics">${icon('chart')} Analytics</a>
+                ${premium?.hasPremium ? `<span class="tag">${icon('crown')} Premium</span>` : ''}
+            </div>
+        </div>
+
+        <div class="grid g-4 mb-3">
+            <div class="stat purple"><div class="ic">${icon('code')}</div><div><div class="v">${(a.commandsUsed ?? 0).toLocaleString()}</div><div class="l">Commands</div></div></div>
+            <div class="stat cyan"><div class="ic">${icon('chat')}</div><div><div class="v">${(a.messagesLogged ?? 0).toLocaleString()}</div><div class="l">Messages Logged</div></div></div>
+            <div class="stat amber"><div class="ic">${icon('shield')}</div><div><div class="v">${(a.activeWarnings ?? 0).toLocaleString()}</div><div class="l">Warnings</div></div></div>
+            <div class="stat green"><div class="ic">${icon('coin')}</div><div><div class="v">${(a.economyFlow ?? 0).toLocaleString()}</div><div class="l">Economy Flow</div></div></div>
+        </div>
+
+        <h3 class="mb-2">Modules</h3>
+        <div class="grid g-3">
+            ${mods.map(m => renderModCard(m, statuses[m.id])).join('')}
+        </div>
+    `;
+}
+
+function renderModCard(m, enabled) {
+    const g = state.currentGuild;
+    const locked = m.premium && !state.premium?.hasPremium;
+    const sub = locked ? 'Premium required' : (enabled ? 'Enabled' : 'Click to configure');
+    return `
+        <div class="mod" onclick="location.hash='#/server/${esc(g.id)}/${esc(m.id)}'">
+            ${m.premium ? '<span class="pro">PRO</span>' : `<span class="status ${enabled ? 'on' : ''}"></span>`}
+            <div class="ic">${icon(m.icon || 'grid')}</div>
+            <div class="t">${esc(m.name)}</div>
+            <div class="d">${esc(m.description)}</div>
+            <div class="mt-2 text-xs text-mute">${sub}</div>
+        </div>`;
+}
+
+// ───── Page: analytics ────────────────────────────────────
+async function pageAnalytics() {
+    const g = state.currentGuild;
+    const a = await api(`/api/guild/${g.id}/analytics`) || {};
+    const feed = Array.isArray(a.recentActivity) ? a.recentActivity : [];
+
+    $('#page').innerHTML = `
+        <div class="page-h">
+            <div><h1>Analytics</h1><p>Recent bot activity on ${esc(g.name)}.</p></div>
+        </div>
+        <div class="grid g-4 mb-3">
+            <div class="stat purple"><div class="ic">${icon('code')}</div><div><div class="v">${(a.commandsUsed ?? 0).toLocaleString()}</div><div class="l">Commands Used</div></div></div>
+            <div class="stat cyan"><div class="ic">${icon('chat')}</div><div><div class="v">${(a.messagesLogged ?? 0).toLocaleString()}</div><div class="l">Messages</div></div></div>
+            <div class="stat amber"><div class="ic">${icon('shield')}</div><div><div class="v">${(a.activeWarnings ?? 0).toLocaleString()}</div><div class="l">Warnings</div></div></div>
+            <div class="stat green"><div class="ic">${icon('coin')}</div><div><div class="v">${(a.economyFlow ?? 0).toLocaleString()}</div><div class="l">Economy</div></div></div>
+        </div>
+        <div class="card">
+            <div class="card-h"><div class="ic">${icon('log')}</div><div class="tt"><div class="t">Recent Activity</div><div class="s">Latest module actions on this server</div></div></div>
+            ${feed.length ? `
+                <table class="tbl">
+                    <thead><tr><th>Time</th><th>Module</th><th>Action</th><th>User</th></tr></thead>
+                    <tbody>${feed.map(r => `<tr><td>${esc(r.time)}</td><td><span class="tag">${esc(r.module)}</span></td><td>${esc(r.action)}</td><td class="mono">${esc(r.user)}</td></tr>`).join('')}</tbody>
+                </table>
+            ` : `<div class="empty">No recent activity.</div>`}
+        </div>
+    `;
+}
+
+// ───── Page: Welcomer — loaded from welcomer.js ──────────
+// ───── Page: Welcomer — loaded from welcomer.js ──────────
+// pageWelcomer() is defined in /welcomer.js
+
+// ───── Page: module config ───────────────────────────────
+async function pageModule(mod) {
+    const g = state.currentGuild;
+
+    // Premium gate
+    if (mod.premium) {
+        const premium = await api(`/api/guild/${g.id}/premium-status`);
+        state.premium = premium;
+        if (!premium?.hasPremium) {
+            $('#page').innerHTML = `
+                <div class="page-h">
+                    <div><h1>${esc(mod.name)} <span class="tag amber">Premium</span></h1><p>${esc(mod.description)}</p></div>
+                </div>
+                <div class="empty">
+                    ${icon('crown')}
+                    <h3>Premium module</h3>
+                    <p>This module is only available on Premium servers. Unlock it to unlock personalization.</p>
+                    <a class="btn primary mt-2" href="#/premium">Go Premium</a>
+                </div>`;
+            return;
+        }
+    }
+
+    // Fetch config, channels, roles in parallel
+    const [cfg, channels, roles] = await Promise.all([
+        api(`/api/guild/${g.id}/${mod.id}`),
+        api(`/api/guild/${g.id}/channels`),
+        api(`/api/guild/${g.id}/roles`),
+    ]);
+    if (cfg?._error || cfg?._unauth) {
+        $('#page').innerHTML = `<div class="empty"><h3>Failed to load</h3><p>${esc(cfg?.error || 'Unknown error')}</p></div>`;
+        return;
+    }
+    state.channels = Array.isArray(channels) ? channels : [];
+    state.roles = Array.isArray(roles) ? roles.filter(r => r.name !== '@everyone') : [];
+
+    const config = cfg || {};
+    // mutable working copy so inputs update live
+    const draftKey = `draft:${mod.id}:${g.id}`;
+    let working = JSON.parse(JSON.stringify(config));
+    let hasDraft = false;
+    try {
+        const raw = localStorage.getItem(draftKey);
+        if (raw) {
+            const draft = JSON.parse(raw);
+            if (JSON.stringify(draft) !== JSON.stringify(config)) {
+                working = draft;
+                hasDraft = true;
+            } else {
+                localStorage.removeItem(draftKey);
+            }
+        }
+    } catch { localStorage.removeItem(draftKey); }
+
+    function render() {
+        const header = `
+            <div class="page-h">
+                <div>
+                    <h1>${esc(mod.name)} ${mod.premium ? '<span class="tag amber">Premium</span>' : ''}</h1>
+                    <p>${esc(mod.description)}</p>
+                </div>
+                <div class="row wrap">
+                    <a class="btn" href="#/server/${esc(g.id)}">${icon('home')} Overview</a>
+                </div>
+            </div>
+            ${hasDraft ? `<div id="gen-draft-indicator" class="row mb-2"><span class="tag amber">⚠ Unsaved draft</span><span class="text-sm text-mute">Auto-saved locally — won't be lost on refresh.</span></div>` : '<div id="gen-draft-indicator" class="row mb-2" style="display:none"><span class="tag amber">⚠ Unsaved draft</span><span class="text-sm text-mute">Auto-saved locally — won\'t be lost on refresh.</span></div>'}`;
+
+        const body = renderFieldGroups(mod.fields, working);
+
+        const footer = `
+            <div class="save-bar">
+                <div class="row">
+                    <span class="tag ${working.enabled ? 'green' : 'grey'}" id="mod-status-tag">${working.enabled ? 'Active' : 'Inactive'}</span>
+                    <span class="text-sm text-mute">Changes apply instantly after save.</span>
+                </div>
+                <div class="row">
+                    <button class="btn" id="reset-btn">${icon('log')} Reset</button>
+                    <button class="btn primary" id="save-btn">${icon('check')} Save Changes</button>
+                </div>
+            </div>`;
+
+        $('#page').innerHTML = header + body + footer;
+
+        // Bind inputs
+        bindFormInputs(working);
+
+        // Autosave draft on any change
+        $('#page').addEventListener('input', () => {
+            try {
+                if (JSON.stringify(working) === JSON.stringify(config)) {
+                    localStorage.removeItem(draftKey);
+                    const ind = document.getElementById('gen-draft-indicator');
+                    if (ind) ind.style.display = 'none';
+                } else {
+                    localStorage.setItem(draftKey, JSON.stringify(working));
+                    const ind = document.getElementById('gen-draft-indicator');
+                    if (ind) ind.style.display = '';
+                }
+            } catch { }
+        });
+
+        $('#reset-btn').onclick = () => {
+            if (confirm('Discard your draft and reload saved config?')) {
+                try { localStorage.removeItem(draftKey); } catch { }
+                handleRoute();
+            }
+        };
+        $('#save-btn').onclick = async () => {
+            const btn = $('#save-btn');
+            btn.disabled = true; btn.textContent = 'Saving…';
+            const r = await api(`/api/guild/${g.id}/${mod.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(working)
+            });
+            btn.disabled = false;
+            btn.innerHTML = icon('check') + ' Save Changes';
+            if (!r || r._error || r._unauth) {
+                toast(r?.error || 'Save failed', 'error');
+            } else {
+                toast(mod.name + ' saved', 'success');
+                try { localStorage.removeItem(draftKey); } catch { }
+                const ind = document.getElementById('gen-draft-indicator');
+                if (ind) ind.style.display = 'none';
+                $('#mod-status-tag').className = 'tag ' + (working.enabled ? 'green' : 'grey');
+                $('#mod-status-tag').textContent = working.enabled ? 'Active' : 'Inactive';
+            }
+        };
+    }
+    window.__renderModule = render;
+    render();
+}
+
+function renderFieldGroups(fields, working) {
+    let html = '<div class="card">';
+    let inSection = false;
+    for (const f of fields) {
+        if (f.section) {
+            if (inSection) html += '</div>';
+            html += `<hr><h3 class="mb-2">${esc(f.section)}</h3><div>`;
+            inSection = true;
+            continue;
+        }
+        html += renderField(f, working);
+    }
+    if (inSection) html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function renderField(f, working) {
+    const val = getDeep(working, f.key);
+    const desc = f.desc ? `<div class="hint">${esc(f.desc)}</div>` : '';
+    switch (f.type) {
+        case 'toggle':
+            return `
+                <div class="switch-row">
+                    <div><div class="lbl">${esc(f.label)}</div>${f.desc ? `<div class="desc">${esc(f.desc)}</div>` : ''}</div>
+                    <label class="switch"><input type="checkbox" data-key="${esc(f.key)}" ${val ? 'checked' : ''}><span class="slide"></span></label>
+                </div>`;
+        case 'text':
+        case 'url':
+        case 'email':
+            return `<div class="form-row"><label>${esc(f.label)}</label><input type="${f.type === 'url' ? 'url' : 'text'}" data-key="${esc(f.key)}" value="${esc(val || '')}" placeholder="${esc(f.placeholder || '')}">${desc}</div>`;
+        case 'number':
+            return `<div class="form-row"><label>${esc(f.label)}</label><input type="number" data-key="${esc(f.key)}" value="${esc(val ?? 0)}" min="${f.min ?? ''}" max="${f.max ?? ''}">${desc}</div>`;
+        case 'textarea':
+            return `<div class="form-row"><label>${esc(f.label)}</label><textarea data-key="${esc(f.key)}">${esc(val || '')}</textarea>${desc}</div>`;
+        case 'color':
+            return `<div class="form-row"><label>${esc(f.label)}</label><div class="row"><input type="color" data-key="${esc(f.key)}" value="${esc(normalizeColor(val))}"><input type="text" data-key="${esc(f.key)}" value="${esc(val || '')}" placeholder="#7c3aed" style="flex:1"></div>${desc}</div>`;
+        case 'select': {
+            const opts = (f.options || []).map(o => `<option value="${esc(o)}" ${val === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+            return `<div class="form-row"><label>${esc(f.label)}</label><select data-key="${esc(f.key)}">${opts}</select>${desc}</div>`;
+        }
+        case 'channel':
+            return `<div class="form-row"><label>${esc(f.label)}</label>${renderChannelSelect(f.key, val, f.channelType)}${desc}</div>`;
+        case 'channels':
+            return `<div class="form-row"><label>${esc(f.label)}</label>${renderMultiSelect(f.key, val || [], state.channels, 'channel')}${desc}</div>`;
+        case 'role':
+            return `<div class="form-row"><label>${esc(f.label)}</label>${renderRoleSelect(f.key, val)}${desc}</div>`;
+        case 'roles':
+            return `<div class="form-row"><label>${esc(f.label)}</label>${renderMultiSelect(f.key, val || [], state.roles, 'role')}${desc}</div>`;
+        case 'tags':
+            return `<div class="form-row"><label>${esc(f.label)}</label>${renderTags(f.key, Array.isArray(val) ? val : [])}${desc}</div>`;
+        case 'jsonList':
+            return `<div class="form-row"><label>${esc(f.label)}</label>${renderJsonList(f, val || [])}${desc}</div>`;
+        default:
+            return `<div class="form-row"><label>${esc(f.label)}</label><input type="text" data-key="${esc(f.key)}" value="${esc(val || '')}"></div>`;
+    }
+}
+
+function normalizeColor(v) {
+    if (!v) return '#7c3aed';
+    const s = String(v);
+    if (s.startsWith('#') && (s.length === 7 || s.length === 4)) return s;
+    return '#7c3aed';
+}
+
+function renderChannelSelect(key, val, type) {
+    const channels = state.channels || [];
+    const filtered = type === 'voice' ? channels.filter(c => c.type === 2)
+        : type === 'category' ? channels.filter(c => c.type === 4)
+            : channels.filter(c => c.type === 0 || c.type === 5);
+    const opts = ['<option value="">— None —</option>']
+        .concat(filtered.map(c => `<option value="${esc(c.id)}" ${val === c.id ? 'selected' : ''}>#${esc(c.name)}</option>`))
+        .join('');
+    return `<select data-key="${esc(key)}">${opts}</select>`;
+}
+
+function renderRoleSelect(key, val) {
+    const opts = ['<option value="">— None —</option>']
+        .concat((state.roles || []).map(r => `<option value="${esc(r.id)}" ${val === r.id ? 'selected' : ''}>${esc(r.name)}</option>`))
+        .join('');
+    return `<select data-key="${esc(key)}">${opts}</select>`;
+}
+
+function renderMultiSelect(key, val, items, kind) {
+    const ids = new Set(val);
+    const opts = items.map(i => `<option value="${esc(i.id)}" ${ids.has(i.id) ? 'selected' : ''}>${kind === 'channel' ? '#' : ''}${esc(i.name)}</option>`).join('');
+    return `<select multiple data-key="${esc(key)}" data-multi="1" size="5" style="min-height:120px">${opts}</select>`;
+}
+
+function renderTags(key, list) {
+    const chips = list.map((t, i) => `<span class="chip" data-idx="${i}">${esc(t)}<button onclick="window.__rmTag('${esc(key)}', ${i})">×</button></span>`).join('');
+    return `<div class="chips" id="chips-${cssKey(key)}">${chips}</div>
+        <input class="mt-1" type="text" placeholder="Type and press Enter" data-tag-input="${esc(key)}">`;
+}
+
+function cssKey(k) { return k.replace(/\./g, '-'); }
+
+function renderJsonList(f, list) {
+    return `<div id="jlist-${cssKey(f.key)}">
+        ${list.map((it, i) => jsonListItem(f, it, i)).join('')}
+        <button class="btn sm mt-1" onclick="window.__jlistAdd('${esc(f.key)}')">${icon('user-plus')} Add</button>
+    </div>`;
+}
+function jsonListItem(f, item, i) {
+    const key = f.key;
+    let html = `<div class="listi" style="display:block">`;
+    html += `<div class="row mb-2"><span class="tag">#${i + 1}</span><span class="spacer"></span><button class="btn sm danger" onclick="window.__jlistRm('${esc(key)}', ${i})">Remove</button></div>`;
+    for (const s of (f.schema || [])) {
+        html += renderField({ ...s, key: `${key}[${i}].${s.key}` }, { [key.replace(/\./g, '_')]: null, __jlist_item: item });
+    }
+    html += `</div>`;
+    return html;
+}
+
+// Helpers exposed for inline handlers
+window.__rmTag = (key, idx) => {
+    const arr = getDeep(window.__working, key) || [];
+    arr.splice(idx, 1);
+    setDeep(window.__working, key, arr);
+    refreshTags(key);
+};
+window.__jlistAdd = (key) => {
+    const arr = (getDeep(window.__working, key) || []).slice();
+    arr.push({});
+    setDeep(window.__working, key, arr);
+    if (window.__renderModule) window.__renderModule();
+};
+window.__jlistRm = (key, idx) => {
+    const arr = (getDeep(window.__working, key) || []).slice();
+    arr.splice(idx, 1);
+    setDeep(window.__working, key, arr);
+    if (window.__renderModule) window.__renderModule();
+};
+
+function refreshTags(key) {
+    const arr = getDeep(window.__working, key) || [];
+    const node = $('#chips-' + cssKey(key));
+    if (!node) return;
+    node.innerHTML = arr.map((t, i) => `<span class="chip">${esc(t)}<button onclick="window.__rmTag('${esc(key)}', ${i})">×</button></span>`).join('');
+}
+
+function bindFormInputs(working) {
+    window.__working = working;
+
+    // Scalar inputs (checkbox, text, number, select, color, textarea)
+    $$('#page [data-key]').forEach(el => {
+        const key = el.dataset.key;
+        // Handle bracketed (jsonList) paths: foo[0].bar
+        const apply = (value) => {
+            if (key.includes('[')) {
+                const [base, rest] = key.split(/\[(\d+)\]\./);
+                const match = key.match(/^(.+?)\[(\d+)\]\.(.+)$/);
+                if (match) {
+                    const [, b, idx, sub] = match;
+                    const arr = getDeep(working, b) || [];
+                    arr[idx] = arr[idx] || {};
+                    setDeep(arr[idx], sub, value);
+                    setDeep(working, b, arr);
+                }
+            } else {
+                setDeep(working, key, value);
+            }
+        };
+
+        if (el.type === 'checkbox') {
+            el.addEventListener('change', () => apply(el.checked));
+        } else if (el.dataset.multi) {
+            el.addEventListener('change', () => apply([...el.selectedOptions].map(o => o.value)));
+        } else if (el.type === 'number') {
+            el.addEventListener('input', () => apply(el.value === '' ? null : Number(el.value)));
+        } else if (el.type === 'color') {
+            el.addEventListener('input', () => {
+                apply(el.value);
+                // Sync paired text input(s) with same data-key
+                $$(`#page [data-key="${CSS.escape(key)}"]`).forEach(pair => {
+                    if (pair !== el && pair.type === 'text') pair.value = el.value;
+                });
+            });
+        } else if (el.type === 'text' || el.type === 'url') {
+            el.addEventListener('input', () => {
+                apply(el.value);
+                // Sync paired color input if this looks like a hex color
+                if (/^#[0-9a-fA-F]{6}$/.test(el.value)) {
+                    $$(`#page [data-key="${CSS.escape(key)}"]`).forEach(pair => {
+                        if (pair !== el && pair.type === 'color') pair.value = el.value;
+                    });
+                }
+            });
+        } else {
+            el.addEventListener('input', () => apply(el.value));
+        }
+    });
+
+    // Tag inputs
+    $$('#page [data-tag-input]').forEach(inp => {
+        const key = inp.dataset.tagInput;
+        inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && inp.value.trim()) {
+                e.preventDefault();
+                const arr = (getDeep(working, key) || []).slice();
+                arr.push(inp.value.trim());
+                setDeep(working, key, arr);
+                inp.value = '';
+                refreshTags(key);
+            }
+        });
+    });
+}
+
+// ───── Page: profile (professional, feature-rich) ───────
+async function pageProfile() {
+    const page = $('#page');
+    page.innerHTML = `<div style="display:flex;justify-content:center;padding:4rem 0"><div class="spinner"></div></div>`;
+
+    const [profileData, analyticsData] = await Promise.all([
+        api('/api/users/me/profile'),
+        api('/api/users/me/analytics'),
+    ]);
+
+    if (!profileData || profileData._error || profileData._unauth) {
+        page.innerHTML = `<div class="empty"><h3>Could not load profile</h3><p>${esc(profileData?.error || 'No Discord ID linked to your session.')}</p></div>`;
+        return;
+    }
+
+    const d = profileData;
+    const a = analyticsData || { summary: {}, topGuilds: [], daily: [] };
+    window.__profileData = d;
+
+    const fmtNum = n => (Number(n) || 0).toLocaleString();
+    const fmtTime = secs => {
+        const s = Number(secs) || 0;
+        if (s < 60) return `${s}s`;
+        if (s < 3600) return `${Math.round(s / 60)}m`;
+        return `${Math.round(s / 3600 * 10) / 10}h`;
+    };
+    const since = ts => {
+        if (!ts) return '—';
+        const date = new Date(ts);
+        return isNaN(date) ? '—' : date.toLocaleDateString();
+    };
+
+    // Build sparkline for 7-day messages
+    const maxMsg = Math.max(1, ...a.daily.map(x => x.messages));
+    const sparkline = a.daily.map(day => {
+        const h = Math.round((day.messages / maxMsg) * 40) + 4;
+        return `<div title="${esc(day.date)}: ${fmtNum(day.messages)} msgs" style="flex:1;height:${h}px;background:linear-gradient(to top, var(--accent), var(--accent-2));border-radius:3px;margin:0 2px;min-width:14px"></div>`;
+    }).join('');
+
+    // Top guilds table
+    const topGuildsHtml = a.topGuilds.length ? a.topGuilds.map((g, i) => {
+        const server = (state.guilds || []).find(x => x.id === g.guildId);
+        return `<tr>
+            <td><span class="tag">${i + 1}</span></td>
+            <td class="row" style="gap:.5rem;align-items:center">
+                <div class="ic" style="width:28px;height:28px;border-radius:50%;background:var(--accent-grad);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;overflow:hidden">
+                    ${server?.icon ? `<img src="${esc(server.icon)}" style="width:100%;height:100%;object-fit:cover">` : esc((server?.name || '?')[0])}
+                </div>
+                <span>${esc(server?.name || g.guildId)}</span>
+            </td>
+            <td><b>${g.level}</b></td>
+            <td>${fmtNum(g.xp)}</td>
+            <td>#${g.rank || '—'}${g.totalRanked ? ` <span class="text-xs text-mute">of ${fmtNum(g.totalRanked)}</span>` : ''}</td>
+            <td>${fmtNum(g.messages)}</td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="6" class="text-sm text-mute center">No server data yet. Start chatting in a server with xNico!</td></tr>';
+
+    // Badges
+    const badgesHtml = d.social.badges.length
+        ? d.social.badges.map(b => `<span class="chip">${esc(b)}</span>`).join('')
+        : '<span class="text-sm text-mute">No badges earned yet.</span>';
+
+    // Avatar initial
+    const avatarContent = d.user.avatar
+        ? `<img src="${esc(d.user.avatar)}" style="width:100%;height:100%;object-fit:cover">`
+        : esc((d.user.username || 'U')[0].toUpperCase());
+
+    page.innerHTML = `
+        <!-- PROFILE HEADER -->
+        <div class="card mb-2" style="background:linear-gradient(135deg, rgba(124,58,237,.15), rgba(6,182,212,.08));border:1px solid var(--border-2)">
+            <div class="row wrap" style="gap:1.5rem;align-items:center">
+                <div style="width:96px;height:96px;border-radius:50%;background:var(--accent-grad);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:2.5rem;overflow:hidden;border:3px solid rgba(255,255,255,.1)">
+                    ${avatarContent}
+                </div>
+                <div style="flex:1;min-width:220px">
+                    <div class="row wrap" style="gap:.5rem;align-items:center;margin-bottom:.5rem">
+                        <h1 style="margin:0;font-size:1.6rem">${esc(d.user.username)}</h1>
+                        ${d.user.isOwner ? '<span class="tag amber">Owner</span>' : ''}
+                        ${d.user.hasPremium ? '<span class="tag green">Premium</span>' : ''}
+                        <span class="tag grey">${esc(d.user.role)}</span>
+                    </div>
+                    <div class="text-sm text-mute mono">${esc(d.user.discordId || '—')}</div>
+                    <div class="text-xs text-mute mt-1">
+                        Member since ${since(d.user.memberSince)} • ${fmtNum(d.stats.serversWithData)} server${d.stats.serversWithData !== 1 ? 's' : ''} tracked
+                    </div>
+                    ${d.social.bio ? `<p class="mt-2" style="max-width:600px">${esc(d.social.bio)}</p>` : ''}
+                </div>
+                <div class="row" style="gap:.5rem">
+                    <button class="btn" onclick="window.__profileEditBio()">${icon('user')} Edit Bio</button>
+                    <button class="btn primary" onclick="window.__profileEditCard()">${icon('image')} Rank Card</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KEY STATS -->
+        <div class="grid g-4 mb-3">
+            <div class="stat purple"><div class="ic">${icon('coin')}</div><div><div class="v">${fmtNum(d.economy.total)}</div><div class="l">Total Wealth</div></div></div>
+            <div class="stat cyan"><div class="ic">${icon('trend')}</div><div><div class="v">${fmtNum(d.leveling.totalXp)}</div><div class="l">Total XP</div></div></div>
+            <div class="stat green"><div class="ic">${icon('chat')}</div><div><div class="v">${fmtNum(d.leveling.totalMessages)}</div><div class="l">Messages</div></div></div>
+            <div class="stat amber"><div class="ic">${icon('mic')}</div><div><div class="v">${d.leveling.totalVoiceHours}h</div><div class="l">Voice Time</div></div></div>
+        </div>
+
+        <div class="grid g-2 mb-2">
+            <!-- ECONOMY CARD -->
+            <div class="card">
+                <div class="card-h"><div class="ic">${icon('coin')}</div><div class="tt"><div class="t">Economy</div><div class="s">Your wallet & bank.</div></div></div>
+                <div class="grid g-2 mt-2">
+                    <div style="padding:1rem;background:var(--bg-hover);border-radius:10px">
+                        <div class="text-xs text-mute">Wallet</div>
+                        <div style="font-size:1.4rem;font-weight:800">${fmtNum(d.economy.wallet)}</div>
+                    </div>
+                    <div style="padding:1rem;background:var(--bg-hover);border-radius:10px">
+                        <div class="text-xs text-mute">Bank</div>
+                        <div style="font-size:1.4rem;font-weight:800">${fmtNum(d.economy.bank)}</div>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-xs">
+                    <div class="row mb-1"><span class="text-mute">Last daily:</span><span class="spacer"></span><b>${since(d.economy.lastDaily)}</b></div>
+                    <div class="row mb-1"><span class="text-mute">Last weekly:</span><span class="spacer"></span><b>${since(d.economy.lastWeekly)}</b></div>
+                    <div class="row"><span class="text-mute">Last work:</span><span class="spacer"></span><b>${since(d.economy.lastWork)}</b></div>
+                </div>
+                <div class="text-xs text-mute mt-2">Inventory: ${d.economy.inventory.length} item${d.economy.inventory.length !== 1 ? 's' : ''}</div>
+            </div>
+
+            <!-- LEVELING CARD -->
+            <div class="card">
+                <div class="card-h"><div class="ic">${icon('trend')}</div><div class="tt"><div class="t">Leveling</div><div class="s">Highest level across all servers.</div></div></div>
+                <div class="center mt-2" style="padding:1rem">
+                    <div style="font-size:3rem;font-weight:900" class="grad-text">${d.leveling.highestLevel}</div>
+                    <div class="text-xs text-mute">Highest Level</div>
+                </div>
+                <div class="grid g-3 mt-2">
+                    <div class="center"><div class="text-xs text-mute">Global Lv</div><b>${d.leveling.globalLevel}</b></div>
+                    <div class="center"><div class="text-xs text-mute">Rep</div><b>${fmtNum(d.social.reputation)}</b></div>
+                    <div class="center"><div class="text-xs text-mute">Servers</div><b>${d.stats.serversWithData}</b></div>
+                </div>
+            </div>
+
+            <!-- ACTIVITY CARD -->
+            <div class="card">
+                <div class="card-h"><div class="ic">${icon('chart')}</div><div class="tt"><div class="t">Activity (7d)</div><div class="s">Estimated daily messages.</div></div></div>
+                <div class="row" style="height:60px;align-items:flex-end;margin-top:1rem">
+                    ${sparkline}
+                </div>
+                <div class="row mt-2" style="justify-content:space-between">
+                    <span class="text-xs text-mute">${a.daily[0]?.date || '—'}</span>
+                    <span class="text-xs text-mute">Today</span>
+                </div>
+            </div>
+
+            <!-- MODERATION CARD -->
+            <div class="card">
+                <div class="card-h"><div class="ic">${icon('shield')}</div><div class="tt"><div class="t">Moderation & Activity</div><div class="s">Warnings, invites, commands.</div></div></div>
+                <div class="grid g-3 mt-2">
+                    <div class="center"><div class="text-xs text-mute">Warnings</div><b style="color:${d.stats.totalWarnings > 0 ? 'var(--warning)' : 'inherit'}">${fmtNum(d.stats.totalWarnings)}</b></div>
+                    <div class="center"><div class="text-xs text-mute">Invites</div><b>${fmtNum(d.stats.totalInvites)}</b></div>
+                    <div class="center"><div class="text-xs text-mute">Commands</div><b>${fmtNum(d.stats.commandsUsed)}</b></div>
+                </div>
+                <hr>
+                <div class="grid g-2 mt-2">
+                    <div class="center"><div class="text-xs text-mute">Voice (hrs)</div><b>${d.leveling.totalVoiceHours}</b></div>
+                    <div class="center"><div class="text-xs text-mute">Bot Interactions</div><b>${fmtNum(d.stats.botInteractions)}</b></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP GUILDS -->
+        <div class="card mb-2">
+            <div class="card-h"><div class="ic">${icon('server')}</div><div class="tt"><div class="t">Top Servers</div><div class="s">Your highest-ranked communities by XP.</div></div></div>
+            <table class="tbl">
+                <thead><tr><th>#</th><th>Server</th><th>Level</th><th>XP</th><th>Rank</th><th>Messages</th></tr></thead>
+                <tbody>${topGuildsHtml}</tbody>
+            </table>
+        </div>
+
+        <!-- BADGES & AFK -->
+        <div class="grid g-2 mb-2">
+            <div class="card">
+                <div class="card-h"><div class="ic">${icon('star')}</div><div class="tt"><div class="t">Badges</div><div class="s">Achievements earned.</div></div></div>
+                <div class="chips mt-2">${badgesHtml}</div>
+                ${d.social.marriedTo ? `<hr><div class="text-sm"><b>Married to:</b> <code>${esc(d.social.marriedTo)}</code></div>` : ''}
+            </div>
+            <div class="card">
+                <div class="card-h"><div class="ic">${icon('moon')}</div><div class="tt"><div class="t">AFK Status</div><div class="s">Let others know you're away.</div></div></div>
+                <div id="afk-wrap">
+                    <div class="switch-row"><div><div class="lbl">${d.afk.isAfk ? 'Currently AFK' : 'Available'}</div>${d.afk.isAfk && d.afk.since ? `<div class="desc">Since ${since(d.afk.since)}</div>` : ''}</div>
+                        <label class="switch"><input type="checkbox" id="afk-toggle" ${d.afk.isAfk ? 'checked' : ''}><span class="slide"></span></label>
+                    </div>
+                    <div class="form-row mt-2" id="afk-reason-wrap" style="${d.afk.isAfk ? '' : 'display:none'}">
+                        <label>AFK Reason</label>
+                        <input type="text" id="afk-reason" value="${esc(d.afk.reason || '')}" placeholder="Out for lunch...">
+                    </div>
+                    <button class="btn sm primary mt-2" onclick="window.__profileSaveAfk()">${icon('check')} Save AFK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SESSION -->
+        <div class="card mb-2">
+            <div class="card-h"><div class="ic">${icon('settings')}</div><div class="tt"><div class="t">Session</div><div class="s">Your login details.</div></div></div>
+            <div class="grid g-3 mt-2">
+                <div><div class="text-xs text-mute">Discord ID</div><div class="bold mono">${esc(d.user.discordId)}</div></div>
+                <div><div class="text-xs text-mute">Role</div><div class="bold">${esc(d.user.role.toUpperCase())}</div></div>
+                <div><div class="text-xs text-mute">Email</div><div class="bold">${esc(d.user.email || '—')}</div></div>
+            </div>
+            <hr>
+            <div class="row">
+                <button class="btn danger" onclick="logout()">${icon('user-x')} Log Out</button>
+                <span class="spacer"></span>
+                <a class="btn" href="https://discord.com/users/${esc(d.user.discordId)}" target="_blank">${icon('user')} View on Discord</a>
+            </div>
+        </div>
+    `;
+
+    // AFK toggle live visibility
+    const afkToggle = document.getElementById('afk-toggle');
+    if (afkToggle) {
+        afkToggle.addEventListener('change', () => {
+            const rw = document.getElementById('afk-reason-wrap');
+            if (rw) rw.style.display = afkToggle.checked ? '' : 'none';
+        });
+    }
+}
+
+// Edit bio modal
+window.__profileEditBio = () => {
+    const d = window.__profileData;
+    const currentBio = d?.social?.bio || '';
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.innerHTML = `
+        <div class="modal">
+            <h3>Edit Bio</h3>
+            <p>Your bio shows on your rank card and profile.</p>
+            <textarea id="pf-bio" rows="4" maxlength="500" placeholder="Tell others about yourself...">${esc(currentBio)}</textarea>
+            <div class="row mt-2">
+                <button class="btn" onclick="this.closest('.modal-wrap').remove()">Cancel</button>
+                <span class="spacer"></span>
+                <button class="btn primary" id="pf-bio-save">${icon('check')} Save</button>
+            </div>
+        </div>`;
+    document.body.appendChild(wrap);
+    document.getElementById('pf-bio-save').onclick = async () => {
+        const bio = document.getElementById('pf-bio').value;
+        const r = await api('/api/users/me/profile', { method: 'PUT', body: JSON.stringify({ bio }) });
+        if (r && !r._error) { toast('Bio updated', 'success'); wrap.remove(); pageProfile(); }
+        else toast(r?.error || 'Save failed', 'error');
+    };
+};
+
+// Edit rank card modal
+window.__profileEditCard = () => {
+    const d = window.__profileData;
+    const rc = d?.rankCard || {};
+    const styles = ['default', 'minimal', 'neon', 'classic', 'modern'];
+    const fonts = ['Inter', 'Poppins', 'Montserrat', 'Outfit', 'SpaceGrotesk', 'JetBrainsMono', 'Comfortaa', 'Orbitron', 'Rajdhani'];
+
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.innerHTML = `
+        <div class="modal" style="max-width:560px">
+            <h3>Customize Rank Card</h3>
+            <p>These settings affect your rank card when you use <code>/rank</code>.</p>
+            <div class="form-row"><label>Card Style</label>
+                <select id="rc-style">${styles.map(s => `<option value="${s}" ${rc.cardStyle === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}</select>
+            </div>
+            <div class="form-row"><label>Font</label>
+                <select id="rc-font">${fonts.map(f => `<option value="${f}" ${rc.fontFamily === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
+            </div>
+            <div class="grid g-2">
+                <div class="form-row"><label>Background Color</label>
+                    <div class="row"><input type="color" id="rc-bg" value="${esc(rc.backgroundColor || '#2f3136')}"><input type="text" id="rc-bg-hex" value="${esc(rc.backgroundColor || '#2f3136')}" style="flex:1"></div>
+                </div>
+                <div class="form-row"><label>Progress Bar Color</label>
+                    <div class="row"><input type="color" id="rc-prog" value="${esc(rc.progressBarColor || '#bcf1e4')}"><input type="text" id="rc-prog-hex" value="${esc(rc.progressBarColor || '#bcf1e4')}" style="flex:1"></div>
+                </div>
+                <div class="form-row"><label>Text Color</label>
+                    <div class="row"><input type="color" id="rc-text" value="${esc(rc.textColor || '#ffffff')}"><input type="text" id="rc-text-hex" value="${esc(rc.textColor || '#ffffff')}" style="flex:1"></div>
+                </div>
+                <div class="form-row"><label>Background Opacity</label>
+                    <input type="number" id="rc-opacity" value="${rc.backgroundOpacity ?? 0.35}" min="0" max="1" step="0.05">
+                </div>
+            </div>
+            <div class="form-row"><label>Custom Background Image URL</label>
+                <input type="url" id="rc-bgimg" value="${esc(rc.customBackground || '')}" placeholder="https://... (optional)">
+            </div>
+            <div class="row mt-2">
+                <button class="btn" onclick="this.closest('.modal-wrap').remove()">Cancel</button>
+                <span class="spacer"></span>
+                <button class="btn primary" id="rc-save">${icon('check')} Save</button>
+            </div>
+        </div>`;
+    document.body.appendChild(wrap);
+
+    // Sync color pickers with hex inputs
+    ['bg', 'prog', 'text'].forEach(k => {
+        const picker = document.getElementById(`rc-${k}`);
+        const hex = document.getElementById(`rc-${k}-hex`);
+        picker.addEventListener('input', () => { hex.value = picker.value; });
+        hex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) picker.value = hex.value; });
+    });
+
+    document.getElementById('rc-save').onclick = async () => {
+        const payload = {
+            rankCard: {
+                cardStyle: document.getElementById('rc-style').value,
+                fontFamily: document.getElementById('rc-font').value,
+                backgroundColor: document.getElementById('rc-bg-hex').value,
+                progressBarColor: document.getElementById('rc-prog-hex').value,
+                textColor: document.getElementById('rc-text-hex').value,
+                backgroundOpacity: parseFloat(document.getElementById('rc-opacity').value),
+                customBackground: document.getElementById('rc-bgimg').value || null
+            }
+        };
+        const r = await api('/api/users/me/profile', { method: 'PUT', body: JSON.stringify(payload) });
+        if (r && !r._error) { toast('Rank card saved', 'success'); wrap.remove(); pageProfile(); }
+        else toast(r?.error || 'Save failed', 'error');
+    };
+};
+
+// Save AFK
+window.__profileSaveAfk = async () => {
+    const isAfk = document.getElementById('afk-toggle').checked;
+    const reason = document.getElementById('afk-reason').value || '';
+    const r = await api('/api/users/me/profile', { method: 'PUT', body: JSON.stringify({ afk: { isAfk, reason } }) });
+    if (r && !r._error) { toast(isAfk ? 'You are now AFK' : 'AFK cleared', 'success'); pageProfile(); }
+    else toast(r?.error || 'Save failed', 'error');
+};
+
+// ───── Page: commands ────────────────────────────────────
+async function pageCommands() {
+    const data = await api('/api/commands') || { categories: [], totalCommands: 0 };
+    $('#page').innerHTML = `
+        <div class="page-h">
+            <div><h1>Commands</h1><p>Explore <b>${data.totalCommands || 0}+</b> commands across all categories.</p></div>
+        </div>
+        <div class="grid g-3">
+            ${(data.categories || []).map(c => `
+                <div class="card hover">
+                    <div class="card-h">
+                        <div class="ic">${c.icon || icon('grid')}</div>
+                        <div class="tt"><div class="t">${esc(c.name)}</div><div class="s">${c.count} commands</div></div>
+                    </div>
+                    <p>${esc(c.desc || '')}</p>
+                </div>`).join('')}
+        </div>
+    `;
+}
+
+// ───── Page: 404 ─────────────────────────────────────────
+function pageNotFound(msg) {
+    $('#page').innerHTML = `
+        <div class="empty">
+            ${icon('grid')}
+            <h3>Page not found</h3>
+            <p>${esc(msg || 'That route does not exist.')}</p>
+            <a class="btn primary mt-2" href="#/servers">Go to Servers</a>
+        </div>`;
+}
+
+// ───── Start ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', bootstrap);
