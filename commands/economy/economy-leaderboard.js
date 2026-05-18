@@ -17,7 +17,7 @@ const economyManager = require('../../utils/economyManager');
 ══════════════════════════════════════════════════ */
 
 const SORT_MODES = {
-    total:        { label: 'Richest',      emoji: '💎', accentInt: 0xFFD700, icon: '💰', unit: 'Net Worth'    },
+    total:        { label: 'Richest',      emoji: '<:Sketch:1473038248493453352>', accentInt: 0xFFD700, icon: '💰', unit: 'Net Worth'    },
     coins:        { label: 'Wallet',       emoji: '💵', accentInt: 0x22C55E, icon: '👛', unit: 'Wallet'       },
     bank:         { label: 'Bank',         emoji: '🏦', accentInt: 0x3B82F6, icon: '🏦', unit: 'Bank'         },
     workCount:    { label: 'Most Worked',  emoji: '💼', accentInt: 0xF97316, icon: '🔨', unit: 'Shifts'       },
@@ -196,7 +196,7 @@ module.exports = {
             ))
         .addStringOption(o => o.setName('sort').setDescription('Sort by').setRequired(false)
             .addChoices(
-                { name: '💎 Net Worth',    value: 'total'        },
+                { name: '<:Sketch:1473038248493453352> Net Worth',    value: 'total'        },
                 { name: '💵 Wallet',       value: 'coins'        },
                 { name: '🏦 Bank',         value: 'bank'         },
                 { name: '💼 Most Worked',  value: 'workCount'    },

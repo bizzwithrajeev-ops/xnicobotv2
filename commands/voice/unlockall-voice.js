@@ -16,7 +16,9 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const voiceChannels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildVoice);
+        const voiceChannels = message.guild.channels.cache.filter(c =>
+            c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice
+        );
 
         if (voiceChannels.size === 0) {
             const container = buildErrorResponse('No Channels', 'No voice channels found in this server.');

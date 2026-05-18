@@ -66,7 +66,12 @@ module.exports = {
                 try {
                     const overwrite = channel.permissionOverwrites.cache.get(member.id);
                     if (overwrite && overwrite.deny.has(PermissionFlagsBits.Connect)) {
-                        await channel.permissionOverwrites.delete(member.id);
+                        // Clear *only* the Connect deny — preserves any
+                        // other overwrites (e.g. ViewChannel: false, role
+                        // bypass). Previously we deleted the whole
+                        // overwrite, which silently restored every other
+                        // permission the user had explicitly denied.
+                        await channel.permissionOverwrites.edit(member.id, { Connect: null });
                         restored++;
                     }
                 } catch {}

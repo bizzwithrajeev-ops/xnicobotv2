@@ -12,7 +12,7 @@ const ORE_TABLE = [
   { id: 'stone',       name: 'Stone',       emoji: '🪨', weight: 40, value: 5   },
   { id: 'iron_ore',    name: 'Iron Ore',    emoji: '⚙', weight: 30, value: 25  },
   { id: 'gold_ore',    name: 'Gold Ore',    emoji: '🟡', weight: 15, value: 75  },
-  { id: 'diamond_ore', name: 'Diamond Ore', emoji: '💎', weight: 10, value: 200 },
+  { id: 'diamond_ore', name: 'Diamond Ore', emoji: '<:Sketch:1473038248493453352>', weight: 10, value: 200 },
   { id: 'emerald_ore', name: 'Emerald Ore', emoji: '💚', weight: 5,  value: 500 },
 ];
 
@@ -31,7 +31,7 @@ function pickOre(boost = false) {
 }
 
 function getPickaxeBonus(inventory) {
-  if ((inventory.diamond_pickaxe || 0) > 0) return { name: 'Diamond Pickaxe', bonus: 3, emoji: '💎' };
+  if ((inventory.diamond_pickaxe || 0) > 0) return { name: 'Diamond Pickaxe', bonus: 3, emoji: '<:Sketch:1473038248493453352>' };
   if ((inventory.gold_pickaxe    || 0) > 0) return { name: 'Gold Pickaxe',    bonus: 2, emoji: '🪙' };
   if ((inventory.iron_pickaxe    || 0) > 0) return { name: 'Iron Pickaxe',    bonus: 1, emoji: '⛏' };
   return null;

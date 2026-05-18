@@ -96,7 +96,7 @@ function _renderEconomyBody(g, w, hasDraft) {
         <div class="card mb-2">
             <div class="card-h"><div class="ic">${icon('coin')}</div><div class="tt"><div class="t">Currency Style</div><div class="s">Customize how currency appears in all economy commands.</div></div></div>
             <div class="grid g-2">
-                <div class="form-row"><label>Currency Symbol</label><input type="text" data-key="currency" value="${esc(w.currency || '💰')}" placeholder="💰"><div class="hint">Emoji or text (e.g. 💎, 🪙, $, ⛃)</div></div>
+                <div class="form-row"><label>Currency Symbol</label><input type="text" data-key="currency" value="${esc(w.currency || '💰')}" placeholder="💰"><div class="hint">Emoji or text (e.g. <:Sketch:1473038248493453352>, 🪙, $, ⛃)</div></div>
                 <div class="form-row"><label>Currency Name</label><input type="text" data-key="currencyName" value="${esc(w.currencyName || 'coins')}" placeholder="coins"><div class="hint">Plural name (e.g. gems, gold, credits)</div></div>
             </div>
             <div class="mt-2" style="padding:.75rem 1rem;background:var(--bg-hover);border-radius:10px;border:1px solid var(--border)">

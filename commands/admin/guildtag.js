@@ -683,7 +683,7 @@ module.exports = {
                 const container = buildErrorResponse(
                     'Missing Name',
                     'Provide a name for the tag.',
-                    '**Usage:** `guildtag create <name> [symbol]`\n**Examples:**\n> `guildtag create VIP ★VIP`\n> `guildtag create OG`\n> `guildtag create Supporter 💎SUP`'
+                    '**Usage:** `guildtag create <name> [symbol]`\n**Examples:**\n> `guildtag create VIP ★VIP`\n> `guildtag create OG`\n> `guildtag create Supporter <:Sketch:1473038248493453352>SUP`'
                 );
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }

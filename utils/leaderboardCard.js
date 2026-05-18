@@ -161,7 +161,7 @@ async function generateLeaderboardCard(entries, opts) {
     /* ══ 3. HEADER ══ */
     const hTX = PAD + 10;
 
-    // Title uses drawTextWithEmoji so the accent emoji (💎, 🌍 etc.) renders as image
+    // Title uses drawTextWithEmoji so the accent emoji (<:Sketch:1473038248493453352>, 🌍 etc.) renders as image
     ctx.font      = FB(30);
     ctx.fillStyle = TEXT_MAIN;
     ctx.textAlign    = 'left';

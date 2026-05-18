@@ -341,7 +341,7 @@ const ITEMS = {
   },
   diamond_pickaxe: {
     name: 'Diamond Pickaxe',
-    emoji: '💎',
+    emoji: '<:Sketch:1473038248493453352>',
     price: 50000,
     sellPrice: 20000,
     description: 'Passive: +50% rare-ore chance every time you mine — the best pickaxe',
@@ -402,7 +402,7 @@ const ITEMS = {
   },
   diamond_ore: {
     name: 'Diamond',
-    emoji: '💎',
+    emoji: '<:Sketch:1473038248493453352>',
     price: 5000,
     sellPrice: 3000,
     description: 'Extremely rare gem found while mining. Highly valuable.',

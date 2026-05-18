@@ -69,7 +69,7 @@ function buildGameGrid(game, reveal = false) {
                 // Already revealed safe tile
                 btn = new ButtonBuilder()
                     .setCustomId(`mines_${game.userId}_${idx}`)
-                    .setEmoji('💎')
+                    .setEmoji('<:Sketch:1473038248493453352>')
                     .setStyle(ButtonStyle.Success)
                     .setDisabled(true);
             } else if (game.ended) {

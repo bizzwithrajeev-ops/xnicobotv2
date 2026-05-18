@@ -250,7 +250,7 @@ function grantServerPremium(guildId, duration, keyCode = 'DIRECT_GRANT', activat
         const durationText = duration === null ? '♾️ Permanent' : `${duration} day${duration !== 1 ? 's' : ''}`;
         const expiresText = expiresAt ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>` : '`Never`';
         const serverPremEmbed = {
-            title: '💎  Server Premium Activated',
+            title: '<:Sketch:1473038248493453352>  Server Premium Activated',
             color: 0x9B59B6,
             fields: [
                 { name: '🏷️ Server ID', value: `\`${guildId}\``, inline: true },

@@ -15,7 +15,7 @@ const OUTCOMES = [
     { multiplier: 1.5, weight: 15, label: '📈 1.5x',      color: 0x57F287 },
     { multiplier: 2,   weight: 10, label: '🎉 2x',        color: 0x57F287 },
     { multiplier: 3,   weight: 4,  label: '🔥 3x',        color: 0x5865F2 },
-    { multiplier: 5,   weight: 1,  label: '💎 JACKPOT 5x', color: 0xA855F7 },
+    { multiplier: 5,   weight: 1,  label: '<:Sketch:1473038248493453352> JACKPOT 5x', color: 0xA855F7 },
 ];
 
 function spinWheel() {
@@ -50,7 +50,7 @@ async function handleGamble(reply, userId, args) {
             `**Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Spin the multiplier wheel!`,
-            `**Outcomes:** Bust (0x) • Half (0.5x) • Even (1x) • 1.5x • 2x • 3x • 💎 5x Jackpot`,
+            `**Outcomes:** Bust (0x) • Half (0.5x) • Even (1x) • 1.5x • 2x • 3x • <:Sketch:1473038248493453352> 5x Jackpot`,
             '',
             `**Examples:**`,
             `\`gamble 500\``,

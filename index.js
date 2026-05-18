@@ -42,6 +42,13 @@ log.installConsoleInterceptors();
 
 const DEFAULT_PREFIX = process.env.PREFIX || '-';
 
+// Default channel for vote notifications when a guild has no explicit
+// `vote-config` entry. Used by the top.gg + DBL webhook handlers as a
+// fallback so we never silently drop a vote event. User-configured
+// guild channels still receive their notifications first; this is only
+// posted when *no* configured channel pointed at this same channel id.
+const DEFAULT_VOTE_CHANNEL_ID = '1465270250265251985';
+
 // Per-guild prefix resolver — reads from PostgreSQL via jsonStore
 function getGuildPrefix(guildId) {
     if (!guildId) return DEFAULT_PREFIX;
@@ -10816,9 +10823,15 @@ if (shardId === 0) {
 
             const streakInfo = getStreakInfo(userData.streak);
 
+            // Track whether the default vote channel is already covered
+            // by an explicit guild config so we don't double-post the
+            // same notification there.
+            let defaultChannelCovered = false;
+
             // Send to all configured guild channels
             for (const [guildId, config] of Object.entries(voteConfig)) {
                 if (!config.enabled || !config.channelId) continue;
+                if (config.channelId === DEFAULT_VOTE_CHANNEL_ID) defaultChannelCovered = true;
 
                 const guild = client.guilds.cache.get(guildId);
                 if (!guild) continue;
@@ -10902,6 +10915,68 @@ if (shardId === 0) {
                     config.lastVoterId = user;
                 } catch (err) {
                     log.error(`Top.gg vote notification error for guild ${guildId}: ${err.message}`);
+                }
+            }
+
+            // Default-channel fallback — always post a vote container to
+            // DEFAULT_VOTE_CHANNEL_ID unless an explicit guild config
+            // already pointed at it.
+            if (!defaultChannelCovered) {
+                try {
+                    const fallbackChannel = client.channels.cache.get(DEFAULT_VOTE_CHANNEL_ID);
+                    if (fallbackChannel && fallbackChannel.isTextBased && fallbackChannel.isTextBased()) {
+                        const { SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+
+                        const headerSection = new SectionBuilder()
+                            .addTextDisplayComponents(
+                                new TextDisplayBuilder().setContent(`# <:Fire:1473038604812161218> New Vote Received!`)
+                            )
+                            .setThumbnailAccessory(
+                                new ThumbnailBuilder({ media: { url: discordUser.displayAvatarURL({ size: 256 }) } })
+                            );
+
+                        let statsContent = `### <:user:1417581304299741184> Voter\n`;
+                        statsContent += `**${discordUser.globalName || discordUser.username}** (\`${discordUser.username}\`)\n\n`;
+                        statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
+                        statsContent += `${streakInfo.emoji} **Streak:** ${userData.streak} vote${userData.streak > 1 ? 's' : ''} in a row`;
+                        if (streakInfo.title) statsContent += ` — *${streakInfo.title}!*`;
+                        statsContent += `\n<a:loading:1506015728871149770> **Total Votes:** ${userData.totalVotes}\n`;
+                        if (isWeekend) statsContent += `\n### <:Present:1473038450465706076> Weekend Bonus Active!\n*Votes count double during weekends!*\n`;
+                        if (isFirstVote) statsContent += `\n### 🏅 First Vote!\n*${discordUser.username} earned the **Voter** badge!*\n`;
+                        statsContent += `\n### <:Clock:1473039102113878056> Next Vote\nAvailable <t:${nextVoteTime}:R> (<t:${nextVoteTime}:t>)\n`;
+                        statsContent += `\n-# Thank you for supporting ${client.user.username}! Every vote helps us grow.`;
+
+                        const voteContainer = new ContainerBuilder()
+                            .setAccentColor(streakInfo.color)
+                            .addSectionComponents(headerSection)
+                            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(statsContent));
+
+                        const voteBtn = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setLabel('Vote on Top.gg')
+                                .setURL(`https://top.gg/bot/${client.user.id}/vote`)
+                                .setStyle(ButtonStyle.Link)
+                                .setEmoji('<:topgg:1473546762248523839>'),
+                            new ButtonBuilder()
+                                .setLabel('Vote on DBL')
+                                .setURL('https://discordbotlist.com/bots/xnico')
+                                .setStyle(ButtonStyle.Link)
+                                .setEmoji('<:Cursor:1473038064564834544>'),
+                            new ButtonBuilder()
+                                .setLabel('View Bot Page')
+                                .setURL(`https://top.gg/bot/${client.user.id}`)
+                                .setStyle(ButtonStyle.Link)
+                                .setEmoji('<:Attach:1473037923979886694>')
+                        );
+
+                        await fallbackChannel.send({
+                            components: [voteContainer, voteBtn],
+                            flags: MessageFlags.IsComponentsV2
+                        });
+                    }
+                } catch (fbErr) {
+                    log.error(`Top.gg default-channel post failed: ${fbErr.message}`);
                 }
             }
 
@@ -11063,9 +11138,13 @@ if (shardId === 0) {
 
             const streakInfo = getStreakInfo(userData.streak);
 
+            // Default-channel coverage tracker (see top.gg handler).
+            let defaultChannelCovered = false;
+
             // Send to all configured guild channels
             for (const [guildId, config] of Object.entries(voteConfig)) {
                 if (!config.enabled || !config.channelId) continue;
+                if (config.channelId === DEFAULT_VOTE_CHANNEL_ID) defaultChannelCovered = true;
 
                 const guild = client.guilds.cache.get(guildId);
                 if (!guild) continue;
@@ -11138,6 +11217,61 @@ if (shardId === 0) {
                     config.lastVoterId = userId;
                 } catch (err) {
                     log.error(`DBL vote notification error for guild ${guildId}: ${err.message}`);
+                }
+            }
+
+            // Default-channel fallback (DBL) — same shape as Top.gg.
+            if (!defaultChannelCovered) {
+                try {
+                    const fallbackChannel = client.channels.cache.get(DEFAULT_VOTE_CHANNEL_ID);
+                    if (fallbackChannel && fallbackChannel.isTextBased && fallbackChannel.isTextBased()) {
+                        const { SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+
+                        const headerSection = new SectionBuilder()
+                            .addTextDisplayComponents(
+                                new TextDisplayBuilder().setContent(`# <:Cursor:1473038064564834544> New Vote on DiscordBotList!`)
+                            )
+                            .setThumbnailAccessory(
+                                new ThumbnailBuilder({ media: { url: discordUser.displayAvatarURL({ size: 256 }) } })
+                            );
+
+                        let statsContent = `### <:user:1417581304299741184> Voter\n`;
+                        statsContent += `**${discordUser.globalName || discordUser.username}** (\`${discordUser.username}\`)\n\n`;
+                        statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
+                        statsContent += `${streakInfo.emoji} **Streak:** ${userData.streak} vote${userData.streak > 1 ? 's' : ''} in a row`;
+                        if (streakInfo.title) statsContent += ` — *${streakInfo.title}!*`;
+                        statsContent += `\n<a:loading:1506015728871149770> **Total Votes:** ${userData.totalVotes}\n`;
+                        statsContent += `<:Cursor:1473038064564834544> **Platform:** DiscordBotList\n`;
+                        if (isFirstVote) statsContent += `\n### 🏅 First Vote!\n*${discordUser.username} earned the **Voter** badge!*\n`;
+                        statsContent += `\n### <:Clock:1473039102113878056> Next Vote\nAvailable <t:${nextVoteTime}:R> (<t:${nextVoteTime}:t>)\n`;
+                        statsContent += `\n-# Thank you for supporting ${client.user.username}! Every vote helps us grow.`;
+
+                        const voteContainer = new ContainerBuilder()
+                            .setAccentColor(streakInfo.color)
+                            .addSectionComponents(headerSection)
+                            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(statsContent));
+
+                        const voteBtn = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setLabel('Vote on Top.gg')
+                                .setURL(`https://top.gg/bot/${client.user.id}/vote`)
+                                .setStyle(ButtonStyle.Link)
+                                .setEmoji('<:topgg:1473546762248523839>'),
+                            new ButtonBuilder()
+                                .setLabel('Vote on DBL')
+                                .setURL('https://discordbotlist.com/bots/xnico')
+                                .setStyle(ButtonStyle.Link)
+                                .setEmoji('<:Cursor:1473038064564834544>')
+                        );
+
+                        await fallbackChannel.send({
+                            components: [voteContainer, voteBtn],
+                            flags: MessageFlags.IsComponentsV2
+                        });
+                    }
+                } catch (fbErr) {
+                    log.error(`DBL default-channel post failed: ${fbErr.message}`);
                 }
             }
 

@@ -4,7 +4,7 @@ const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlag
 const economyManager = require('../../utils/economyManager');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
-const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '💎', '7️⃣', '🌟'];
+const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '<:Sketch:1473038248493453352>', '7️⃣', '🌟'];
 const SYMBOL_NAMES = ['cherry', 'lemon', 'orange', 'grape', 'diamond', 'seven', 'star'];
 const WEIGHTS = [25, 20, 18, 15, 10, 8, 4];
 
@@ -13,7 +13,7 @@ const PAYOUTS = {
   '🍋🍋🍋': 4,
   '🍊🍊🍊': 5,
   '🍇🍇🍇': 7,
-  '💎💎💎': 15,
+  '<:Sketch:1473038248493453352><:Sketch:1473038248493453352><:Sketch:1473038248493453352>': 15,
   '7️⃣7️⃣7️⃣': 30,
   '🌟🌟🌟': 100,
 };
@@ -78,7 +78,7 @@ async function handleSlots(reply, userId, args) {
       '',
       `**Payouts:**`,
       `🍒🍒🍒 → 3x | 🍋🍋🍋 → 4x | 🍊🍊🍊 → 5x`,
-      `🍇🍇🍇 → 7x | 💎💎💎 → 15x | 7️⃣7️⃣7️⃣ → 30x`,
+      `🍇🍇🍇 → 7x | <:Sketch:1473038248493453352><:Sketch:1473038248493453352><:Sketch:1473038248493453352> → 15x | 7️⃣7️⃣7️⃣ → 30x`,
       `🌟🌟🌟 → **100x JACKPOT!**`,
       `2 matching → 1.5x`,
       '',

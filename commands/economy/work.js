@@ -78,7 +78,7 @@ async function handleWork(reply, userId, guildId) {
     earningsText += `### 💰 Earnings\n`;
     earningsText += `> 🪙 **Base Pay:** ${formatNumber(baseEarned)} coins\n`;
     if (bonusAmount > 0) earningsText += `> <a:Crown:1473366446984663123> **Work Bonus:** +${formatNumber(bonusAmount)} coins\n`;
-    if (tipAmount > 0) earningsText += `> 💎 **Tip Received:** +${formatNumber(tipAmount)} coins\n`;
+    if (tipAmount > 0) earningsText += `> <:Sketch:1473038248493453352> **Tip Received:** +${formatNumber(tipAmount)} coins\n`;
 
     addTextDisplay(container, earningsText);
     addSeparator(container, SeparatorSpacingSize.Small);

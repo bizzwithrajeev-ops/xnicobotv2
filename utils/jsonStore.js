@@ -24,8 +24,29 @@ const log = require('./logger-styled');
 
 const DEBOUNCE_MS      = 30_000;   // write to DB 30s after last change
 const PERIODIC_FLUSH_MS = 5 * 60_000; // force-flush dirty stores every 5 min
+// PG poll cadence — was 3000ms, but the SELECT round-trip + the
+// 'update' fan-out it can cause was the dominant source of high
+// `client.ws.ping` (the gateway heartbeat shares the event loop).
+// 10s feels effectively real-time for the dashboard while cutting
+// the load 3.3×. Keep this as a single tuneable.
+const PG_POLL_MS       = 10_000;
 const LOCAL_POLL_MS     = 1_500;   // poll local file mtimes every 1.5s for cross-process sync
 const LOCAL_STORE_DIR  = path.join(__dirname, '..', 'json_stores');
+
+// `structuredClone` (Node ≥ 17) is 3–5× faster than the legacy
+// `JSON.parse(JSON.stringify(...))` clone trick and avoids a second
+// heap allocation pass. Falls back to the JSON dance on older
+// Node versions or for objects that contain values structuredClone
+// can't handle (Map/Set/typed arrays were never used in our stores).
+const _structuredClone = typeof structuredClone === 'function'
+    ? structuredClone
+    : (v) => JSON.parse(JSON.stringify(v));
+
+function deepClone(value) {
+    if (value === null || value === undefined) return value;
+    try { return _structuredClone(value); }
+    catch { return JSON.parse(JSON.stringify(value)); }
+}
 
 const EventEmitter = require('events');
 
@@ -95,7 +116,7 @@ class JsonStore extends EventEmitter {
             if (this._flushTimer.unref) this._flushTimer.unref();
 
             // High-speed, lightweight polling for instant dashboard sync
-            this._pollTimer = setInterval(() => this.smartRefresh(), 3000);
+            this._pollTimer = setInterval(() => this.smartRefresh(), PG_POLL_MS);
             if (this._pollTimer.unref) this._pollTimer.unref();
 
             // Flush on shutdown
@@ -210,30 +231,45 @@ class JsonStore extends EventEmitter {
         }
     }
 
+    /**
+     * Async write to a local store file. Returns a promise so callers
+     * (writeImmediate, dashboard request middleware) can await
+     * persistence before responding.
+     *
+     * Switched from `fs.writeFileSync` because the economy store can
+     * be several MB and a sync write blocks the event loop long enough
+     * to spike `client.ws.ping` past 1s on every save (the gateway
+     * heartbeat shares this loop). On a hot path (every command +
+     * smartRefresh) the cumulative stalls were the dominant cause of
+     * the "bot ping always high" report.
+     */
     _persistToLocal(storeName, data) {
-        try {
-            const filePath = path.join(LOCAL_STORE_DIR, `${storeName}.json`);
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+        const filePath = path.join(LOCAL_STORE_DIR, `${storeName}.json`);
+        const payload = JSON.stringify(data, null, 2);
+        return fs.promises.writeFile(filePath, payload, 'utf8').then(async () => {
             // Refresh tracked mtime so the polling loop doesn't treat this
             // self-write as an external change and re-emit 'update'.
             try {
-                const stat = fs.statSync(filePath);
+                const stat = await fs.promises.stat(filePath);
                 this._fileMtimes.set(storeName, stat.mtimeMs);
             } catch {}
             this.dirty.delete(storeName);
-        } catch (e) {
+        }).catch(e => {
             log.error(`[JsonStore] Error writing local file ${storeName}:`, e.message);
-        }
+        });
     }
 
     _flushDirtyLocal() {
-        if (this.dirty.size === 0) return;
+        if (this.dirty.size === 0) return Promise.resolve();
+        const promises = [];
         for (const name of [...this.dirty]) {
             const data = this.cache.get(name);
             if (data === undefined) continue;
             this._clearTimer(name);
-            this._persistToLocal(name, data);
+            const p = this._persistToLocal(name, data);
+            if (p && typeof p.then === 'function') promises.push(p);
         }
+        return Promise.allSettled(promises);
     }
 
     _flushDirtyLocalSync() {
@@ -263,11 +299,7 @@ class JsonStore extends EventEmitter {
     read(storeName) {
         const data = this.cache.get(storeName);
         if (data === undefined || data === null) return {};
-        try {
-            return JSON.parse(JSON.stringify(data));
-        } catch {
-            return {};
-        }
+        return deepClone(data) || {};
     }
 
     readFile(filePath, defaultValue) {
@@ -275,21 +307,17 @@ class JsonStore extends EventEmitter {
         const data = this.cache.get(name);
         if (data === undefined || data === null) {
             return defaultValue !== undefined
-                ? (typeof defaultValue === 'object' ? JSON.parse(JSON.stringify(defaultValue)) : defaultValue)
+                ? (typeof defaultValue === 'object' ? deepClone(defaultValue) : defaultValue)
                 : {};
         }
-        try {
-            return JSON.parse(JSON.stringify(data));
-        } catch {
-            return defaultValue !== undefined ? defaultValue : {};
-        }
+        return deepClone(data) ?? (defaultValue !== undefined ? defaultValue : {});
     }
 
     /**
      * Write — updates cache immediately, schedules debounced persist.
      */
     write(storeName, data) {
-        this.cache.set(storeName, JSON.parse(JSON.stringify(data)));
+        this.cache.set(storeName, deepClone(data));
         this.dirty.add(storeName);
         this._schedulePersist(storeName, data);
         this._emitUpdate(storeName, data);
@@ -307,12 +335,11 @@ class JsonStore extends EventEmitter {
      * but not awaited can be dropped silently.
      */
     writeImmediate(storeName, data) {
-        this.cache.set(storeName, JSON.parse(JSON.stringify(data)));
+        this.cache.set(storeName, deepClone(data));
         this._clearTimer(storeName);
         let persistPromise;
         if (this._localMode) {
-            this._persistToLocal(storeName, data);
-            persistPromise = Promise.resolve();
+            persistPromise = this._persistToLocal(storeName, data) || Promise.resolve();
         } else {
             persistPromise = this._persistToPg(storeName, data);
         }
@@ -350,7 +377,7 @@ class JsonStore extends EventEmitter {
         if (this._localMode) {
             // Single host — file-based; the cache is authoritative.
             all = this.cache.get(storeName) || {};
-            all = JSON.parse(JSON.stringify(all));
+            all = deepClone(all);
         } else {
             // Cross-host — re-fetch from PG so we don't clobber the
             // bot's writes that haven't been polled in yet.
@@ -365,7 +392,7 @@ class JsonStore extends EventEmitter {
             } catch (err) {
                 log.warning(`[JsonStore] updateGuildEntry: live PG read failed for ${storeName}, falling back to cache (${err.message?.slice(0, 60)})`);
                 all = this.cache.get(storeName) || {};
-                all = JSON.parse(JSON.stringify(all));
+                all = deepClone(all);
             }
         }
         if (!all || typeof all !== 'object') all = {};
@@ -386,7 +413,7 @@ class JsonStore extends EventEmitter {
     _emitUpdate(storeName, data) {
         let snapshot;
         try {
-            snapshot = JSON.parse(JSON.stringify(data));
+            snapshot = deepClone(data);
         } catch {
             snapshot = data;
         }
@@ -587,11 +614,14 @@ class JsonStore extends EventEmitter {
         this.timers.clear();
 
         if (this._localMode) {
-            this._flushDirtyLocal();
+            await this._flushDirtyLocal();
             // Also persist all cached stores to local files
+            const promises = [];
             for (const [storeName, data] of this.cache) {
-                this._persistToLocal(storeName, data);
+                const p = this._persistToLocal(storeName, data);
+                if (p && typeof p.then === 'function') promises.push(p);
             }
+            await Promise.allSettled(promises);
             log.info(`[JsonStore] Flushed ${this.cache.size} stores to local files`);
             return;
         }

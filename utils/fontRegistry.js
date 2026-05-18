@@ -55,7 +55,7 @@ const FONT_FAMILIES = {
     'Montserrat': {
         name: 'Montserrat',
         description: 'Elegant & professional',
-        emoji: '💎',
+        emoji: '<:Sketch:1473038248493453352>',
         category: 'Sans-Serif',
         files: {
             regular: 'Montserrat-Variable.ttf',

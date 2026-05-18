@@ -136,13 +136,21 @@ function buildYouTubeEmbed(video, isLive = false) {
 
 /**
  * Check if a YouTube video is a livestream by checking page metadata.
- * Returns true if the video is currently live or was a live broadcast.
+ * Returns true if the video is currently live.
+ *
+ * Note: We only flag genuinely *live-now* streams. Past broadcasts
+ * (`isLiveContent: true` once a stream ends) used to wrongly trip
+ * the check and re-fire the live message every poll.
  */
 async function checkIfLive(videoId) {
     try {
         const html = await fetchUrl(`https://www.youtube.com/watch?v=${videoId}`);
-        // Look for live broadcast indicators in the page
-        return html.includes('"isLiveContent":true') || html.includes('"isLive":true') || html.includes('"liveBroadcastDetails"');
+        // Currently live: hlsManifestUrl present + isLiveBroadcast=true,
+        // or "isLiveNow":true. Past broadcast pages still contain
+        // "isLiveContent":true so we don't rely on that one alone.
+        if (html.includes('"isLiveNow":true')) return true;
+        if (html.includes('"isLive":true') && html.includes('"isLiveBroadcast":true')) return true;
+        return false;
     } catch {
         return false;
     }
@@ -243,17 +251,25 @@ async function pollYouTube(client, log) {
 
             // Get seen video IDs for this guild+handle combo
             const cacheKey = `${guildId}:${handle}`;
+            const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+
             if (!cache.seenVideos[cacheKey]) {
-                // First run: mark all current videos as seen (don't spam old videos)
-                cache.seenVideos[cacheKey] = videos.map(v => v.videoId);
-                continue;
+                // First run: mark older videos as seen, but let
+                // anything from the last 24h flow through so the user
+                // gets the notification they expect right after
+                // adding a channel. (Previously we marked every
+                // current video as seen, so the channel had to upload
+                // a *new* video before the integration ever fired —
+                // which the user reads as "notifications don't work".)
+                cache.seenVideos[cacheKey] = videos
+                    .filter(v => v.published.getTime() <= oneDayAgo)
+                    .map(v => v.videoId);
             }
 
             const seenIds = new Set(cache.seenVideos[cacheKey]);
             const newVideos = videos.filter(v => !seenIds.has(v.videoId));
 
             // Only notify for videos published within the last 24 hours
-            const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
             const recentNewVideos = newVideos.filter(v => v.published.getTime() > oneDayAgo);
 
             for (const video of recentNewVideos) {

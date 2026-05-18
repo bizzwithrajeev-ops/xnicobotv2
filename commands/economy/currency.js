@@ -16,7 +16,7 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('set')
             .setDescription('Set a custom currency symbol and name')
-            .addStringOption(o => o.setName('symbol').setDescription('Currency emoji/symbol (e.g. 💎, 🪙, ⛃, $)').setRequired(true))
+            .addStringOption(o => o.setName('symbol').setDescription('Currency emoji/symbol (e.g. <:Sketch:1473038248493453352>, 🪙, ⛃, $)').setRequired(true))
             .addStringOption(o => o.setName('name').setDescription('Currency name (e.g. gems, gold, credits)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('reset')
@@ -101,7 +101,7 @@ module.exports = {
             if (!symbol) {
                 const container = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# 💰 Currency Set\n\nUsage: \`-currency set <symbol> [name]\`\n\nExamples:\n> \`-currency set 💎 gems\`\n> \`-currency set 🪙 gold\`\n> \`-currency set $ credits\``
+                        `# 💰 Currency Set\n\nUsage: \`-currency set <symbol> [name]\`\n\nExamples:\n> \`-currency set <:Sketch:1473038248493453352> gems\`\n> \`-currency set 🪙 gold\`\n> \`-currency set $ credits\``
                     ));
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }

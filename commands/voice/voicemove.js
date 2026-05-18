@@ -34,7 +34,9 @@ module.exports = {
         const sourceArg = args[0].toLowerCase();
         const destinationChannel = message.mentions.channels.last() || message.guild.channels.cache.get(args[1]);
 
-        if (!destinationChannel || destinationChannel.type !== ChannelType.GuildVoice) {
+        if (!destinationChannel ||
+            (destinationChannel.type !== ChannelType.GuildVoice &&
+             destinationChannel.type !== ChannelType.GuildStageVoice)) {
             const container = buildErrorResponse('Invalid Channel', 'Please provide a valid destination voice channel.');
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -44,13 +46,15 @@ module.exports = {
 
         if (sourceArg === 'all') {
             message.guild.channels.cache
-                .filter(ch => ch.type === ChannelType.GuildVoice)
+                .filter(ch => ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice)
                 .forEach(ch => {
                     ch.members.forEach(member => members.push(member));
                 });
         } else {
             const sourceChannel = message.mentions.channels.first();
-            if (!sourceChannel || sourceChannel.type !== ChannelType.GuildVoice) {
+            if (!sourceChannel ||
+                (sourceChannel.type !== ChannelType.GuildVoice &&
+                 sourceChannel.type !== ChannelType.GuildStageVoice)) {
                 const container = buildErrorResponse('Invalid Source', 'Please provide a valid source voice channel.');
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }

@@ -11,7 +11,7 @@ const STOCKS = {
   MOON: { name: 'MoonBase Corp.',    emoji: '🌕', basePrice: 75  },
   ZAPP: { name: 'Zapp Energy Ltd.',  emoji: '⚡', basePrice: 200 },
   GRND: { name: 'Grindstone Co.',   emoji: '⚙', basePrice: 50  },
-  LXRY: { name: 'Luxoria Holdings', emoji: '💎', basePrice: 350 },
+  LXRY: { name: 'Luxoria Holdings', emoji: '<:Sketch:1473038248493453352>', basePrice: 350 },
 };
 
 function loadStockPrices() {

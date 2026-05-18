@@ -61,8 +61,10 @@ module.exports = {
         for (const [_, channel] of voiceChannels) {
             for (const [_, member] of channel.members) {
                 if (!member.roles.cache.has(role.id) && !member.user.bot) {
-                    await member.roles.add(role).catch(() => { });
-                    affectedCount++;
+                    try {
+                        await member.roles.add(role);
+                        affectedCount++;
+                    } catch { /* skip — counter must reflect actual successes only */ }
                 }
             }
         }
@@ -109,7 +111,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(
-                            `# <:mic:<:Microphone:1473039293088927996>> Role All Voice\n\n` +
+                            `# <:Microphone:1473039293088927996> Role All Voice\n\n` +
                             `**Auto-remove role:** ${role ? role : 'Not set'}\n` +
                             `**Members in VC:** ${membersInVoice}\n\n` +
                             `**Usage:**\n` +
@@ -158,8 +160,10 @@ module.exports = {
         for (const [_, channel] of voiceChannels) {
             for (const [_, member] of channel.members) {
                 if (!member.roles.cache.has(role.id) && !member.user.bot) {
-                    await member.roles.add(role).catch(() => { });
-                    affectedCount++;
+                    try {
+                        await member.roles.add(role);
+                        affectedCount++;
+                    } catch { /* skip — counter must reflect actual successes only */ }
                 }
             }
         }

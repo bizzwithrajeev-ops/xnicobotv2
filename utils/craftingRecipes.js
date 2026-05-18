@@ -17,7 +17,7 @@ const RECIPES = {
   },
   diamond_pickaxe: {
     name: 'Diamond Pickaxe',
-    emoji: '💎',
+    emoji: '<:Sketch:1473038248493453352>',
     description: 'The ultimate pickaxe with maximum ore yield',
     inputs: { diamond_ore: 2, gold_ore: 5 },
     output: { id: 'diamond_pickaxe', qty: 1 },
