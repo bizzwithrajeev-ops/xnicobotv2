@@ -1048,8 +1048,12 @@ client.on(Events.ClientReady, async () => {
     }
 
     // ── Periodic database flush (safety net — every 5 minutes) ──
+    // Only flushes *dirty* stores. The full-cache `flush()` is reserved
+    // for shutdown and the manual /flush endpoint — running it every
+    // 5 min upserted ~100 rows on every cycle for no reason and was a
+    // measurable source of background PG load + event-loop work.
     setInterval(() => {
-        jsonStore.flush().catch(err => log.error('Periodic flush failed:', err));
+        jsonStore.flushDirty().catch(err => log.error('Periodic dirty flush failed:', err));
     }, 5 * 60 * 1000);
 
     // ── Premium system cleanup (runs once on startup, then every 30 minutes) ──
@@ -1588,7 +1592,7 @@ client.on('interactionCreate', async (interaction) => {
     // ═══════ Bot Ignore Module (Dashboard Integration) ═══════
     if (interaction.guild) {
         try {
-            const biCfg = jsonStore.has('botignore-config') ? jsonStore.read('botignore-config')[interaction.guild.id] : null;
+            const biCfg = jsonStore.peekGuild('botignore-config', interaction.guild.id);
             if (biCfg && biCfg.enabled && !biCfg.ignorePrefix) {
                 const isCh = (biCfg.ignoredChannels || []).includes(interaction.channelId);
                 const isUser = (biCfg.ignoredUsers || []).includes(interaction.user.id);
@@ -6789,15 +6793,12 @@ client.on('messageCreate', async (message) => {
     // Handle Bot-Blocked Channels (auto-delete all bot messages including xNico)
     if (message.author.bot && message.guild) {
         try {
-            if (jsonStore.has('botblock')) {
-                const botBlockConfig = jsonStore.read('botblock');
-                const guildBlock = botBlockConfig[message.guild.id];
-                if (guildBlock?.enabled !== false) {
-                    const blockedChannels = guildBlock?.channels || [];
-                    if (blockedChannels.includes(message.channel.id)) {
-                        await message.delete().catch(() => { });
-                        return;
-                    }
+            const guildBlock = jsonStore.peekGuild('botblock', message.guild.id);
+            if (guildBlock?.enabled !== false) {
+                const blockedChannels = guildBlock?.channels || [];
+                if (guildBlock && blockedChannels.includes(message.channel.id)) {
+                    await message.delete().catch(() => { });
+                    return;
                 }
             }
         } catch (e) { }
@@ -6808,7 +6809,7 @@ client.on('messageCreate', async (message) => {
     // ═══════ Bot Ignore Module (Dashboard Integration) ═══════
     if (message.guild) {
         try {
-            const biCfg = jsonStore.has('botignore-config') ? jsonStore.read('botignore-config')[message.guild.id] : null;
+            const biCfg = jsonStore.peekGuild('botignore-config', message.guild.id);
             if (biCfg && biCfg.enabled) {
                 const isCh = (biCfg.ignoredChannels || []).includes(message.channel.id);
                 const isUser = (biCfg.ignoredUsers || []).includes(message.author.id);
@@ -6905,28 +6906,24 @@ client.on('messageCreate', async (message) => {
     }
 
     // Command Ignoring System
-    if (jsonStore.has('ignored-channels')) {
-        try {
-            const ignored = jsonStore.read('ignored-channels');
-            const guildIgnored = ignored[message.guild.id];
-            if (guildIgnored) {
-                const isIgnored = guildIgnored.channels.includes(message.channel.id) ||
-                    (message.channel.parentId && guildIgnored.categories.includes(message.channel.parentId));
+    try {
+        const guildIgnored = jsonStore.peekGuild('ignored-channels', message.guild.id);
+        if (guildIgnored) {
+            const isIgnored = guildIgnored.channels?.includes(message.channel.id) ||
+                (message.channel.parentId && guildIgnored.categories?.includes(message.channel.parentId));
 
-                if (isIgnored) {
-                    // COMPLETELY STOP ALL BOT PROCESSING IN IGNORED CHANNELS
-                    return;
-                }
+            if (isIgnored) {
+                // COMPLETELY STOP ALL BOT PROCESSING IN IGNORED CHANNELS
+                return;
             }
-        } catch (e) { }
-    }
+        }
+    } catch (e) { }
 
     const guildId = message.guild?.id;
 
     // ═══════ AI Chat — responds in configured channel (skip if message is a prefix command) ═══════
     try {
-        const aiChatAllConfig = jsonStore.read('aichat');
-        const aiChatConfig = aiChatAllConfig?.[guildId];
+        const aiChatConfig = jsonStore.peekGuild('aichat', guildId);
 
         if (aiChatConfig?.enabled && aiChatConfig.channelId === message.channel.id) {
             // Only process AI chat if it's NOT a prefix command
@@ -7262,11 +7259,9 @@ client.on('messageCreate', async (message) => {
     // ═══════ Standalone Anti-Spam (antispam.json) — separate from AutoMod ═══════
     if (!automodBlocked) {
         try {
-            if (jsonStore.has('antispam')) {
-                const antispamConfig = jsonStore.read('antispam');
-                const spamCfg = antispamConfig[guildId];
+            const spamCfg = jsonStore.peekGuild('antispam', guildId);
 
-                if (spamCfg?.enabled && !message.member?.permissions.has('Administrator')) {
+            if (spamCfg?.enabled && !message.member?.permissions.has('Administrator')) {
                     const isSpamWhitelisted = (spamCfg.whitelistedRoles || []).some(roleId => message.member?.roles.cache.has(roleId)) ||
                         (spamCfg.whitelistedChannels || []).includes(message.channel.id);
 
@@ -7433,7 +7428,6 @@ client.on('messageCreate', async (message) => {
                         }
                     }
                 }
-            }
         } catch (e) {
             // Silently ignore antispam errors
         }
@@ -7574,14 +7568,8 @@ client.on('messageCreate', async (message) => {
         }
 
         // Handle sticky messages (with cooldown to prevent rate limits)
-        if (jsonStore.has('sticky')) {
-            const stickyConfig = jsonStore.read('sticky');
-            const guildStickyConfig = stickyConfig[guildId];
-
-            // Ensure proper structure exists
-            if (guildStickyConfig && !guildStickyConfig.messages) {
-                guildStickyConfig.messages = {};
-            }
+        {
+            const guildStickyConfig = jsonStore.peekGuild('sticky', guildId);
 
             if (guildStickyConfig?.enabled && guildStickyConfig.messages?.[message.channel.id]) {
                 const stickyData = guildStickyConfig.messages[message.channel.id];
@@ -7645,12 +7633,17 @@ client.on('messageCreate', async (message) => {
                         }
 
                         if (newSticky) {
-                            // Update the sticky data with new message ID and ensure channel ID is saved
-                            if (!guildStickyConfig.messages[message.channel.id]) {
-                                guildStickyConfig.messages[message.channel.id] = {};
+                            // Update the sticky data with new message ID and ensure channel ID is saved.
+                            // We pulled `guildStickyConfig` via peekGuild (no clone) so to write
+                            // back we need a fresh `stickyConfig` snapshot.
+                            const stickyConfig = jsonStore.read('sticky');
+                            if (!stickyConfig[guildId]) stickyConfig[guildId] = { enabled: true, messages: {} };
+                            if (!stickyConfig[guildId].messages) stickyConfig[guildId].messages = {};
+                            if (!stickyConfig[guildId].messages[message.channel.id]) {
+                                stickyConfig[guildId].messages[message.channel.id] = {};
                             }
-                            guildStickyConfig.messages[message.channel.id].messageId = newSticky.id;
-                            guildStickyConfig.messages[message.channel.id].channelId = message.channel.id;
+                            stickyConfig[guildId].messages[message.channel.id].messageId = newSticky.id;
+                            stickyConfig[guildId].messages[message.channel.id].channelId = message.channel.id;
                             jsonStore.write('sticky', stickyConfig);
                         }
                     } catch (error) {
@@ -7661,10 +7654,10 @@ client.on('messageCreate', async (message) => {
         }
 
         // Handle Media-Only Channels
-        if (jsonStore.has('media-only')) {
+        {
             try {
-                const mediaOnlyConfig = jsonStore.read('media-only');
-                const mediaOnlyChannels = mediaOnlyConfig[guildId]?.channels || [];
+                const mediaOnlyCfg = jsonStore.peekGuild('media-only', guildId);
+                const mediaOnlyChannels = mediaOnlyCfg?.channels || [];
 
                 if (mediaOnlyChannels.includes(message.channel.id)) {
                     // Check if user is moderator/admin (exempt from rule)
@@ -7697,9 +7690,9 @@ client.on('messageCreate', async (message) => {
         }
 
         // Handle Simple Sticky Messages
-        if (jsonStore.has('simple-sticky')) {
-            const simpleStickyConfig = jsonStore.read('simple-sticky');
-            const channelSticky = simpleStickyConfig[guildId]?.[message.channel.id];
+        {
+            const simpleStickyGuild = jsonStore.peekGuild('simple-sticky', guildId);
+            const channelSticky = simpleStickyGuild?.[message.channel.id];
 
             if (channelSticky) {
                 // Delete old sticky message
@@ -7715,6 +7708,10 @@ client.on('messageCreate', async (message) => {
                 // Send new sticky message
                 try {
                     const newSticky = await message.channel.send(channelSticky.content);
+                    // Re-read full store only when we actually need to write back.
+                    const simpleStickyConfig = jsonStore.read('simple-sticky');
+                    if (!simpleStickyConfig[guildId]) simpleStickyConfig[guildId] = {};
+                    if (!simpleStickyConfig[guildId][message.channel.id]) simpleStickyConfig[guildId][message.channel.id] = {};
                     simpleStickyConfig[guildId][message.channel.id].messageId = newSticky.id;
                     jsonStore.write('simple-sticky', simpleStickyConfig);
                 } catch (error) {
@@ -7724,12 +7721,13 @@ client.on('messageCreate', async (message) => {
         }
 
         // Handle AFK System
-        if (jsonStore.has('afk')) {
-            const afkConfig = jsonStore.read('afk');
+        {
+            const afkPeek = jsonStore.peek('afk');
             const userId = message.author.id;
 
             // Check if user is AFK and remove them
-            if (afkConfig[userId]) {
+            if (afkPeek && afkPeek[userId]) {
+                const afkConfig = jsonStore.read('afk');
                 const afkData = afkConfig[userId];
                 const afkDuration = Date.now() - afkData.timestamp;
                 const hours = Math.floor(afkDuration / 3600000);
@@ -7892,10 +7890,9 @@ client.on('messageCreate', async (message) => {
             }
 
             // Handle Antilink Protection
-            const antilinkPath = path.join(__dirname, 'data', 'antilink.json');
-            if (jsonStore.has('antilink')) {
-                const antilinkData = jsonStore.read('antilink');
-                if (antilinkData[guildId]) {
+            {
+                const antilinkGuild = jsonStore.peekGuild('antilink', guildId);
+                if (antilinkGuild) {
                     const isAdmin = message.member?.permissions.has('Administrator');
                     if (!isAdmin) {
                         const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|net|org|io|gg|tv|me|co|xyz|info|online|site|tech)[^\s]*)/gi;
@@ -7919,17 +7916,14 @@ client.on('messageCreate', async (message) => {
 
             if (!message.author.bot && !message.content.startsWith(getGuildPrefix(guildId))) {
                 // Check if leveling is disabled for this guild
-                let toggleConfig = {};
-                if (jsonStore.has('levelingtoggle')) {
-                    toggleConfig = jsonStore.read('levelingtoggle');
-                }
+                const toggleGuild = jsonStore.peekGuild('levelingtoggle', guildId) || null;
 
                 // Process leveling only when explicitly enabled for this guild
-                const isLevelingEnabled = toggleConfig[guildId]?.enabled === true;
+                const isLevelingEnabled = toggleGuild?.enabled === true;
 
                 if (isLevelingEnabled) {
                     // Check if channel is disabled
-                    const isChannelDisabled = toggleConfig[guildId]?.disabledChannels?.includes(message.channel.id);
+                    const isChannelDisabled = toggleGuild?.disabledChannels?.includes(message.channel.id);
 
                     if (!isChannelDisabled) {
                         const guildConfig = await getGuildConfigDb(guildId);
@@ -7968,15 +7962,12 @@ client.on('messageCreate', async (message) => {
                                 const maxXp = xpSettings.maxXp || 25;
                                 let multiplier = levelingConfig.multiplier || 1;
 
-                                // Check per-role multipliers from levelmultiplier.json
+                                // Check per-role multipliers from levelmultiplier store
                                 try {
-                                    if (jsonStore.has('levelmultiplier')) {
-                                        const roleMultipliers = jsonStore.read('levelmultiplier');
-                                        const guildMultipliers = roleMultipliers[guildId] || {};
-                                        for (const [roleId, mult] of Object.entries(guildMultipliers)) {
-                                            if (message.member.roles.cache.has(roleId) && mult > multiplier) {
-                                                multiplier = mult;
-                                            }
+                                    const guildMultipliers = jsonStore.peekGuild('levelmultiplier', guildId) || {};
+                                    for (const [roleId, mult] of Object.entries(guildMultipliers)) {
+                                        if (message.member.roles.cache.has(roleId) && mult > multiplier) {
+                                            multiplier = mult;
                                         }
                                     }
                                 } catch { }
@@ -7991,15 +7982,13 @@ client.on('messageCreate', async (message) => {
                                 if (newLevel > oldLevel) {
                                     userData.level = newLevel;
 
-                                    // Handle roles - check database first, then fall back to levelroles.json
+                                    // Handle roles - check database first, then fall back to levelroles store
                                     let rolesConfig = levelingConfig.roles;
                                     if ((!rolesConfig || !Array.isArray(rolesConfig) || rolesConfig.length === 0)) {
                                         try {
-                                            if (jsonStore.has('levelroles')) {
-                                                const fileRoles = jsonStore.read('levelroles');
-                                                if (fileRoles[guildId] && Array.isArray(fileRoles[guildId]) && fileRoles[guildId].length > 0) {
-                                                    rolesConfig = fileRoles[guildId];
-                                                }
+                                            const fileRoles = jsonStore.peekGuild('levelroles', guildId);
+                                            if (Array.isArray(fileRoles) && fileRoles.length > 0) {
+                                                rolesConfig = fileRoles;
                                             }
                                         } catch { }
                                     }
@@ -8042,14 +8031,12 @@ client.on('messageCreate', async (message) => {
                                             const panelChannel = message.guild.channels.cache.get(levelingConfig.announcementChannel);
                                             if (panelChannel) announceChannel = panelChannel;
                                         } else {
-                                            // Fallback: check levelchannel.json
+                                            // Fallback: check levelchannel store
                                             try {
-                                                if (jsonStore.has('levelchannel')) {
-                                                    const lcData = jsonStore.read('levelchannel');
-                                                    if (lcData[guildId]) {
-                                                        const fallbackChannel = message.guild.channels.cache.get(lcData[guildId]);
-                                                        if (fallbackChannel) announceChannel = fallbackChannel;
-                                                    }
+                                                const lcGuild = jsonStore.peekGuild('levelchannel', guildId);
+                                                if (lcGuild) {
+                                                    const fallbackChannel = message.guild.channels.cache.get(lcGuild);
+                                                    if (fallbackChannel) announceChannel = fallbackChannel;
                                                 }
                                             } catch { }
                                         }
@@ -8113,9 +8100,8 @@ client.on('messageCreate', async (message) => {
         }
 
         // Handle Music Panel Song Requests
-        if (jsonStore.has('musicpanel')) {
-            const panelConfig = jsonStore.read('musicpanel');
-            const guildPanel = panelConfig[guildId];
+        {
+            const guildPanel = jsonStore.peekGuild('musicpanel', guildId);
 
             // Check if this channel is the music panel
             if (guildPanel && message.channel.id === guildPanel.channelId) {
@@ -8278,10 +8264,9 @@ client.on('messageCreate', async (message) => {
     }
 
     // Check if user is bot banned
-    const botBanPath = path.join(__dirname, 'datas', 'botbans.json');
-    if (jsonStore.has('botbans')) {
-        const botBans = jsonStore.read('botbans');
-        if (botBans[message.author.id]) {
+    {
+        const botBans = jsonStore.peek('botbans');
+        if (botBans && botBans[message.author.id]) {
             const banData = botBans[message.author.id];
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(
@@ -8326,10 +8311,10 @@ client.on('messageCreate', async (message) => {
         // console.log(`Prefix command received: ${commandName} by ${message.author.username}`);
 
         // Check for custom commands first
-        if (jsonStore.has('customcmds') && guildId) {
-            const customCmds = jsonStore.read('customcmds');
-            if (customCmds[guildId] && customCmds[guildId][commandName]) {
-                const response = customCmds[guildId][commandName];
+        if (guildId) {
+            const customCmdsGuild = jsonStore.peekGuild('customcmds', guildId);
+            if (customCmdsGuild && customCmdsGuild[commandName]) {
+                const response = customCmdsGuild[commandName];
                 return message.reply(response).catch(() => { });
             }
         }

@@ -302,6 +302,37 @@ class JsonStore extends EventEmitter {
         return deepClone(data) || {};
     }
 
+    /**
+     * Read-only peek — returns the live cached object without cloning.
+     *
+     * Use this on hot paths (messageCreate, interactionCreate) where we
+     * only check fields like `cfg[guildId].enabled` and never mutate.
+     * The full `read()` deep-clones the entire store on every call,
+     * which on a large store + high message rate became one of the
+     * dominant sources of `client.ws.ping` drift.
+     *
+     * Contract: **DO NOT MUTATE** the returned object. If a caller ever
+     * needs to write, they must `write(storeName, …)` with a fresh
+     * object. (`read` is still the right call when ownership is
+     * unclear.)
+     */
+    peek(storeName) {
+        const data = this.cache.get(storeName);
+        if (data === undefined || data === null) return null;
+        return data;
+    }
+
+    /**
+     * Read-only single-guild peek. Same contract as `peek` — returned
+     * object must not be mutated.
+     */
+    peekGuild(storeName, guildId) {
+        const data = this.cache.get(storeName);
+        if (!data || typeof data !== 'object') return null;
+        const entry = data[guildId];
+        return entry === undefined ? null : entry;
+    }
+
     readFile(filePath, defaultValue) {
         const name = this._pathToName(filePath);
         const data = this.cache.get(name);
@@ -604,6 +635,26 @@ class JsonStore extends EventEmitter {
             }
         }
         return rows.length;
+    }
+
+    /**
+     * Flush only stores that have unsaved changes — used by the
+     * 5-minute periodic safety timer. Avoids re-uploading the entire
+     * cache (~100+ rows) on every cycle, which was the dominant
+     * source of background PG bandwidth and event-loop work.
+     *
+     * Use `flush()` (no args) for the full-cache flush — only callers
+     * that explicitly want every row written should pay that cost.
+     */
+    async flushDirty() {
+        // Cancel all timers and flush dirty immediately
+        for (const [, timer] of this.timers) clearTimeout(timer);
+        this.timers.clear();
+        if (this._localMode) {
+            await this._flushDirtyLocal();
+        } else {
+            await this._flushDirty();
+        }
     }
 
     async flush() {
