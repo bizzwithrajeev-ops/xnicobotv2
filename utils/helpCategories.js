@@ -32,8 +32,7 @@ const NEW_COMMANDS = new Set([
     'messagestats', 'voicestats', 'memberstats', 'topstats',
     'serveractivity', 'comparestats', 'rankposition',
     'statusrole',
-    'wordle', 'connect4', 'hangman', 'akinator', 'trivia',
-    'games', 'memory', '2048', 'battleship',
+    'wordle', 'akinator', 'trivia',
 ]);
 
 /* ─────────────────────────────────────────────────────────────
@@ -167,10 +166,12 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Analysis & Transform', emoji: '<:Bookopen:1473038576391557130>',  cmds: ['wordcount', 'word-frequency', 'split-text', 'repeat', 'json-format', 'translate'] },
     ],
 
-    // ── 17. Games ─────────────────────────────────────────────
+    // ── 17. Games (skill / no-bet) ─────────────────────────────
+    // Bet-based games (blackjack, roulette, rps, tictactoe, hangman,
+    // numguess, memory, 2048, battleship, connect4) live under
+    // Economy → Gambling now.
     games: [
-        { name: 'Button Games',        emoji: '<:Gamepad:1473039216429498409>',    cmds: ['games', 'minesweeper', 'tictactoe', 'connect4', 'memory', 'battleship', '2048'] },
-        { name: 'Word & Puzzle Games', emoji: '<:Bookopen:1473038576391557130>',   cmds: ['wordle', 'hangman', 'scramble', 'wordchain', 'trivia', 'numguess'] },
+        { name: 'Word & Puzzle',       emoji: '<:Bookopen:1473038576391557130>',   cmds: ['wordle', 'scramble', 'wordchain', 'trivia'] },
         { name: 'Skill & Speed',       emoji: '<:Lightningalt:1473038679906844824>', cmds: ['fasttype', 'reactionspeed', 'mathgame', 'counting', 'emojiguess'] },
         { name: 'AI & Interactive',    emoji: '<:Inforect:1473038624172937287>',   cmds: ['akinator', '8ball', 'truthordare', 'wouldyourather'] },
     ],
@@ -193,7 +194,7 @@ const CATEGORY_GROUP_RULES = {
     // ── 20. Economy ───────────────────────────────────────────
     economy: [
         { name: 'Earning',             emoji: '<a:loading:1506015728871149770>',  cmds: ['daily', 'weekly', 'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'farm', 'heist'] },
-        { name: 'Gambling',            emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice', 'blackjack', 'roulette', 'rps'] },
+        { name: 'Gambling',            emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice', 'blackjack', 'roulette', 'rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
         { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard'] },
         { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift'] },
         { name: 'Combat & Pets',       emoji: '<:Fire:1473038604812161218>',       cmds: ['battle', 'weapon', 'pets'] },
@@ -428,10 +429,8 @@ const CATEGORY_ALIASES = {
     songs: 'music', song: 'music', play: 'music',
     // Voice
     vc: 'voice', tts: 'voice',
-    // Games
-    games: 'games', game: 'games', trivia: 'games',
-    wordle: 'games', hangman: 'games', tictactoe: 'games', connect4: 'games',
-    memory: 'games', '2048': 'games', battleship: 'games', minesweeper: 'games', numguess: 'games',
+    // Games (skill / no-bet)
+    game: 'games', trivia: 'games', wordle: 'games',
     // Fun
     meme: 'fun', memes: 'fun', entertainment: 'fun',
     // Economy
@@ -440,6 +439,8 @@ const CATEGORY_ALIASES = {
     scratch: 'economy', dice: 'economy', loan: 'economy', craft: 'economy',
     gift: 'economy', 'economy-leaderboard': 'economy', eleaderboard: 'economy',
     blackjack: 'economy', bj: 'economy', roulette: 'economy', wheel: 'economy', rps: 'economy',
+    tictactoe: 'economy', ttt: 'economy', connect4: 'economy', c4: 'economy',
+    hangman: 'economy', numguess: 'economy', memory: 'economy', '2048': 'economy', battleship: 'economy',
     // Leveling
     lvl: 'leveling', xp: 'leveling', level: 'leveling', rank: 'leveling',
     // Social

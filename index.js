@@ -1255,16 +1255,16 @@ client.on(Events.ClientReady, async () => {
             'balance', 'daily', 'weekly', 'shop', 'profile', 'pay', 'deposit', 'withdraw',
             'slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice',
             'blackjack', 'roulette', 'rps',
-            'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'farm', 'heist',
+            'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship',
+            'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'mines', 'farm', 'heist',
             'buy', 'sell', 'inventory', 'trade', 'craft', 'gift', 'loan', 'economy-leaderboard',
             'battle', 'pets',
             // Leveling
             'rank', 'levels', 'leveling-setup', 'levelroles',
             // Social
             'socialprofile', 'badges',
-            // Games
-            'trivia', 'wordle', 'hangman', 'connect4', 'tictactoe',
-            'akinator', 'scramble', 'mathgame', 'fasttype',
+            // Games (skill / no-bet)
+            'trivia', 'wordle', 'akinator', 'scramble', 'mathgame', 'fasttype',
             // Fun
             'meme', 'joke', 'gif', 'fact', 'riddle', 'ship', 'rate', '8ball',
             // Backup
@@ -1864,16 +1864,23 @@ client.on('interactionCreate', async (interaction) => {
             }
             return;
         }
-        // Route games modals (hangman letter, number guess)
-        if (interaction.customId.startsWith('hgm_modal_') || interaction.customId.startsWith('ngr_modal_')) {
-            const gamesCmd = client.commands.get('games');
-            if (gamesCmd?.handleModal) {
+        // Route economy game modals (hangman letter, numguess number).
+        // Each game owns its modal id prefix and dispatches via handleModal.
+        const ECONOMY_GAME_MODALS = [
+            { prefix: 'hangmanmodal_',  cmd: 'hangman'  },
+            { prefix: 'numguessmodal_', cmd: 'numguess' }
+        ];
+        const ecoModal = ECONOMY_GAME_MODALS.find(m => interaction.customId.startsWith(m.prefix));
+        if (ecoModal) {
+            const cmd = client.commands.get(ecoModal.cmd);
+            if (cmd?.handleModal) {
                 try {
-                    await gamesCmd.handleModal(interaction);
+                    const handled = await cmd.handleModal(interaction);
+                    if (handled) return;
                 } catch (error) {
-                    log.error(`Games Modal Error: ${error.message}`, error);
+                    log.error(`${ecoModal.cmd} Modal Error: ${error.message}`, error);
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: '❌ An error occurred. Please try again.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred. Please try again.', flags: MessageFlags.Ephemeral }).catch(() => { });
                     }
                 }
             }
@@ -2707,26 +2714,29 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
-            // Route games buttons (8 fun games — RPS moved to economy as a bet
-            // and uses no buttons).
-            if (
-                interaction.customId.startsWith('msw_') ||
-                interaction.customId.startsWith('gm_ttt_') ||
-                interaction.customId.startsWith('hgm_') ||
-                interaction.customId.startsWith('ngr_') ||
-                interaction.customId.startsWith('mem_') ||
-                interaction.customId.startsWith('t28_') ||
-                interaction.customId.startsWith('bsh_') ||
-                interaction.customId.startsWith('gm_c4_')
-            ) {
-                const gamesCmd = client.commands.get('games');
-                if (gamesCmd?.handleInteraction) {
+            // Route games buttons. All 8 games now live in commands/economy/
+            // as bet-based commands, each handling its own button prefix.
+            // Each entry: { prefix, command name }.
+            const ECONOMY_GAME_BUTTONS = [
+                { prefix: 'ttt_',        cmd: 'tictactoe'  },
+                { prefix: 'hangman_',    cmd: 'hangman'    },
+                { prefix: 'numguess_',   cmd: 'numguess'   },
+                { prefix: 'memory_',     cmd: 'memory'     },
+                { prefix: 'g2048_',      cmd: '2048'       },
+                { prefix: 'battleship_', cmd: 'battleship' },
+                { prefix: 'c4_',         cmd: 'connect4'   }
+            ];
+            const ecoGame = ECONOMY_GAME_BUTTONS.find(g => interaction.customId.startsWith(g.prefix));
+            if (ecoGame) {
+                const cmd = client.commands.get(ecoGame.cmd);
+                if (cmd?.handleButton) {
                     try {
-                        await gamesCmd.handleInteraction(interaction);
+                        const handled = await cmd.handleButton(interaction);
+                        if (handled) return;
                     } catch (error) {
-                        log.error(`Games Interaction Error: ${error.message}`, error);
+                        log.error(`${ecoGame.cmd} Button Error: ${error.message}`, error);
                         if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: '❌ An error occurred. Please try again.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred. Please try again.', flags: MessageFlags.Ephemeral }).catch(() => { });
                         }
                     }
                 }
