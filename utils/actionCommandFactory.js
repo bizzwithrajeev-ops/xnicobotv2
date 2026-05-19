@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
 const { buildErrorResponse } = require('./responseBuilder');
+const { resolveUser } = require('./resolveUser');
 
 // Nekos.best API endpoints for anime actions (free, no key required)
 const NEKOS_BEST_ENDPOINTS = new Set([
@@ -212,8 +213,8 @@ function createActionCommand(opts) {
             await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         },
 
-        async executePrefix(message) {
-            const target = message.mentions.users.first();
+        async executePrefix(message, args) {
+            const target = await resolveUser(message, args);
             if (!target) {
                 return message.reply({
                     components: [buildErrorResponse('No User Mentioned', `Mention someone to ${opts.name}!`, `**Example:** \`-${opts.name} @Friend\``)],
