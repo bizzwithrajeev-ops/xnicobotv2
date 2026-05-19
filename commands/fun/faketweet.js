@@ -10,8 +10,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('faketweet')
         .setDescription('Generate a realistic fake tweet image')
-        .addUserOption(opt => opt.setName('user').setDescription('User to tweet as (defaults to you)'))
-        .addStringOption(opt => opt.setName('text').setDescription('Tweet text').setRequired(true).setMaxLength(280)),
+        .addStringOption(opt => opt.setName('text').setDescription('Tweet text').setRequired(true).setMaxLength(280))
+        .addUserOption(opt => opt.setName('user').setDescription('User to tweet as (defaults to you)')),
     prefix: 'faketweet',
     name: 'faketweet',
     description: 'Generate a realistic fake tweet image',

@@ -222,6 +222,10 @@ async function drawText(ctx, text, x, y, centered = false) {
         startX = x - totalWidth / 2;
     }
 
+    // Force left-align so drawImage and fillText stay in sync
+    const savedAlign = ctx.textAlign;
+    ctx.textAlign = 'left';
+
     let currentX = startX;
 
     for (const part of parts) {
@@ -231,12 +235,13 @@ async function drawText(ctx, text, x, y, centered = false) {
         } else {
             const img = await loadEmoji(part.content || '', part.type === 'custom', part.id, part.animated, part.name);
             if (img) {
-                const emojiY = y - emojiSize + Math.floor(fontSize * 0.2);
-                ctx.drawImage(img, currentX, emojiY, emojiSize, emojiSize);
+                ctx.drawImage(img, currentX, y - emojiSize * 0.8, emojiSize, emojiSize);
             }
             currentX += emojiSize + 2;
         }
     }
+
+    ctx.textAlign = savedAlign;
     return currentX - startX;
 }
 
