@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('marry')
@@ -22,7 +23,7 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        const user = message.mentions.users.first();
+        const user = await resolveUser(message, args);
         if (!user) {
             const errorContainer = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)

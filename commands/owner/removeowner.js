@@ -2,6 +2,7 @@ const { isOwner } = require('../../utils/helpers');
 const fs = require('fs');
 const path = require('path');
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
     
@@ -10,7 +11,7 @@ module.exports = {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');
         }
 
-        const user = message.mentions.users.first();
+        const user = await resolveUser(message, args);
         if (!user) {
             return message.reply('<:Cancel:1473037949187657818> Please mention a user to remove as co-owner!');
         }

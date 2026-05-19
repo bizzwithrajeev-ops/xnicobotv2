@@ -3,6 +3,7 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
+const { resolveUser } = require('../../utils/resolveUser');
 
 async function handleBalance(reply, targetUser) {
     const economy = economyManager.loadEconomy();
@@ -46,7 +47,7 @@ module.exports = {
     category: 'economy',
 
     async executePrefix(message) {
-        const target = message.mentions.users.first() || message.author;
+        const target = (await resolveUser(message, args)) || message.author;
         return handleBalance(message.reply.bind(message), target);
     },
 

@@ -3,6 +3,7 @@ const { buildLoadingResponse, buildErrorResponse, EMOJIS } = require('../../util
 const LevelCard = require('../../utils/levelCard');
 const { getUserData, getGuildMember } = require('../../utils/database');
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function getLeveling() {
     if (!jsonStore.has('leveling')) return {};
@@ -122,7 +123,7 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        const target = message.mentions.users.first() || message.author;
+        const target = (await resolveUser(message, args)) || message.author;
         const loadingContainer = buildLoadingResponse('Rank', `${EMOJIS.LOADING} Loading...`);
         const msg = await message.reply({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
 

@@ -1,5 +1,6 @@
 const { ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
 const badgeManager = require('../../utils/badgeManager');
+const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
     prefix: 'badges',
@@ -10,7 +11,7 @@ module.exports = {
     aliases: ['badge', 'mybadges'],
 
     async executePrefix(message, args) {
-        const user = message.mentions.users.first() || message.author;
+        const user = (await resolveUser(message, args)) || message.author;
         
         try {
             const badges = await badgeManager.getUserBadges(user.id);

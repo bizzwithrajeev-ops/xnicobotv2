@@ -1,4 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
+const { resolveUser } = require('../../utils/resolveUser');
 const {
     SlashCommandBuilder,
     MessageFlags
@@ -117,7 +118,7 @@ module.exports = {
             });
         }
 
-        const user = message.mentions.users.first();
+        const user = await resolveUser(message, args);
         if (!user) {
             return message.reply({
                 components: [buildErrorContainer('User Not Found', 'Please mention a valid user.')],

@@ -2,6 +2,7 @@ const { PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, Butt
 const { buildPermissionDenied, buildInvalidUsage, buildSuccessResponse, EMOJIS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function getLeveling() {
     if (!jsonStore.has('leveling')) {
@@ -79,7 +80,7 @@ module.exports = {
             return;
         }
         
-        const target = message.mentions.users.first();
+        const target = await resolveUser(message, args);
         
         if (!target) {
             return await message.reply({

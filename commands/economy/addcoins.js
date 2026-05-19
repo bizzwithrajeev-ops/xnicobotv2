@@ -3,6 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
+const { resolveUser } = require('../../utils/resolveUser');
 
 const OWNER_IDS = process.env.OWNER_ID ? [process.env.OWNER_ID] : [];
 
@@ -23,7 +24,7 @@ module.exports = {
             return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const target = message.mentions.users.first();
+        const target = await resolveUser(message, args);
         const amount = parseInt(args[1], 10);
 
         if (!target || !amount || isNaN(amount) || amount <= 0) {

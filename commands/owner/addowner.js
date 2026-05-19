@@ -4,6 +4,7 @@ const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../util
 const fs = require('fs');
 const path = require('path');
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
     prefix: 'addowner',
@@ -19,7 +20,7 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const user = message.mentions.users.first();
+        const user = await resolveUser(message, args);
         if (!user) {
             let content = `# <:Crown:1506010837368963142> Add Co-Owner\n\n`;
             content += `**Usage:** \`addowner @user\`\n\n`;

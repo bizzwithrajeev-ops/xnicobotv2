@@ -3,6 +3,7 @@ const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.
 const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
 const premiumManager = require('../../utils/premiumManager');
 const badgeManager = require('../../utils/badgeManager');
+const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
     prefix: 'removepremium',
@@ -21,7 +22,7 @@ module.exports = {
 
       try {
         // Support both @mention and raw user ID
-        let user = message.mentions.users.first();
+        let user = await resolveUser(message, args);
         if (!user && args[0]) {
             const userId = args[0].replace(/[<@!>]/g, '');
             if (/^\d{17,20}$/.test(userId)) {

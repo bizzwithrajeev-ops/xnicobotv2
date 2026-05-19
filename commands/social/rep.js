@@ -2,6 +2,7 @@ const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.
 const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 module.exports = {
     prefix: 'rep',
     description: 'Give reputation to another user',
@@ -10,7 +11,7 @@ module.exports = {
     aliases: ['reputation', '+rep'],
 
     async executePrefix(message, args) {
-        const user = message.mentions.users.first();
+        const user = await resolveUser(message, args);
         if (!user) {
             let content = `# <:Star:1473038501766369300> Reputation\n\n`;
             content += `**Usage:** \`rep @user\`\n\n`;

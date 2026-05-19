@@ -3,6 +3,7 @@
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
+const { resolveUser } = require('../../utils/resolveUser');
 
 const COOLDOWN = 5_000;
 const cooldowns = new Map();
@@ -113,7 +114,7 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
-        const opponent = message.mentions.users.first();
+        const opponent = await resolveUser(message, args);
         await handleDice(
             (opts) => message.reply(opts),
             message.author.id,

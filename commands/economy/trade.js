@@ -1,6 +1,7 @@
 const { ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { createContainer, addTextDisplay, MessageFlags } = require('../../utils/componentHelpers');
 const ph = require('../../utils/petHelpers');
+const { resolveUser } = require('../../utils/resolveUser');
 
 /* ---------------- HELPERS ---------------- */
 
@@ -26,7 +27,7 @@ module.exports = {
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const target = message.mentions.users.first();
+    const target = await resolveUser(message, args);
     if (!target || target.id === message.author.id) {
       const c = createContainer(0xED4245); addTextDisplay(c, '<:Cancel:1473037949187657818> Mention a valid user: `trade weapon @user`');
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });

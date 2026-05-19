@@ -9,6 +9,7 @@ const { createContainer, addTextDisplay, MessageFlags } = require('../../utils/c
 const { getUserData: getMainUserData } = require('../../utils/dataManager');
 
 const ph = require('../../utils/petHelpers');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function loadPets() { return ph.loadPets(); }
 
@@ -23,7 +24,7 @@ module.exports = {
   description: 'View your economy profile card',
 
   async executePrefix(message) {
-    const target = message.mentions.users.first() || message.author;
+    const target = (await resolveUser(message, args)) || message.author;
     const economy = economyManager.loadEconomy();
     const { userData, changed } = economyManager.getUser(economy, target.id);
     if (changed) economyManager.saveEconomy(economy);

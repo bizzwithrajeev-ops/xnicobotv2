@@ -5,6 +5,7 @@ const badgeManager = require('../../utils/badgeManager');
 const premiumManager = require('../../utils/premiumManager');
 const { buildLoadingResponse, buildErrorResponse, EMOJIS } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function getLeveling() {
     if (!jsonStore.has('leveling')) return {};
@@ -189,7 +190,7 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        const user = message.mentions.users.first() || message.author;
+        const user = (await resolveUser(message, args)) || message.author;
         const loadingContainer = buildLoadingResponse('Profile', `${EMOJIS.LOADING} Loading...`);
         const msg = await message.reply({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
 

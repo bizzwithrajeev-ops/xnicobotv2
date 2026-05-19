@@ -9,6 +9,7 @@ const {
 } = require('../../utils/componentHelpers');
 
 const economyManager = require('../../utils/economyManager');
+const { resolveUser } = require('../../utils/resolveUser');
 
 /* =======================================================
    REPLY ADAPTER
@@ -143,7 +144,7 @@ module.exports = {
 
     /* ---------- PREFIX ---------- */
     async executePrefix(message, args) {
-        const target = message.mentions.users.first();
+        const target = await resolveUser(message, args);
         const amount = parseInt(args[1], 10);
 
         return handlePay(

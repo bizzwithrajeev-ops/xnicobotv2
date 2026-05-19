@@ -2,6 +2,7 @@ const { PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { buildPermissionDenied, buildInvalidUsage, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function getLeveling() {
     if (!jsonStore.has('leveling')) {
@@ -33,7 +34,7 @@ module.exports = {
             return await message.reply({ components: [buildPermissionDenied('Administrator')], flags: MessageFlags.IsComponentsV2 });
         }
         
-        const target = message.mentions.users.first();
+        const target = await resolveUser(message, args);
         const level = parseInt(args[1]);
         
         if (!target || isNaN(level) || level < 0) {

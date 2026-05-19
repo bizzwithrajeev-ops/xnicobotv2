@@ -5,6 +5,7 @@ const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSp
 const economyManager = require('../../utils/economyManager');
 const { getEconomySettings } = require('../../utils/currencyHelper');
 const { robGuard } = require('../../utils/economyGuards');
+const { resolveUser } = require('../../utils/resolveUser');
 const COOLDOWN = 60 * 1000;
 
 module.exports = {
@@ -23,7 +24,7 @@ module.exports = {
         if (await robGuard(message)) return;
         const cfg = getEconomySettings(message.guild?.id);
 
-        const target = message.mentions.users.first();
+        const target = await resolveUser(message, args);
 
         if (!target) {
             const container = createContainer(0xCAD7E6);

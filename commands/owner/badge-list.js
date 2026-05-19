@@ -10,6 +10,7 @@ const { paginate, setupPaginationCollector } = require('../../utils/pagination')
 const { COLORS } = require('../../utils/responseBuilder');
 const badgeManager = require('../../utils/badgeManager');
 const { BADGE_ICONS, withV2 } = require('../../utils/badgeUI');
+const { resolveUser } = require('../../utils/resolveUser');
 
 const ACCENT = COLORS.INFO || 0xCAD7E6;
 
@@ -112,7 +113,7 @@ module.exports = {
 
     async executePrefix(message) {
         try {
-            const user = message.mentions.users.first();
+            const user = await resolveUser(message, args);
             const built = user
                 ? await buildUserBadgesPayload(user)
                 : await buildAllBadgesPayload();

@@ -5,6 +5,7 @@ const { createContainer, addTextDisplay, formatNumber, SeparatorSpacingSize, add
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
 const { getItem } = require('../../utils/shopItems');
+const { resolveUser } = require('../../utils/resolveUser');
 
 const COOLDOWN = 60 * 1000;
 const cooldowns = new Map();
@@ -98,7 +99,7 @@ module.exports = {
   usage: 'gift <@user> <item_id> [quantity]',
 
   async executePrefix(message, args) {
-    const target = message.mentions.users.first();
+    const target = await resolveUser(message, args);
     const itemId  = args[1]?.toLowerCase();
     const qty     = parseInt(args[2]) || 1;
     return handleGift(message.reply.bind(message), message.author.id, target, itemId, qty);

@@ -4,6 +4,7 @@ const { ButtonBuilder, ActionRowBuilder, ButtonStyle, MessageFlags } = require('
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
+const { resolveUser } = require('../../utils/resolveUser');
 const COOLDOWN = 15_000;
 const cooldowns = new Map();
 
@@ -277,7 +278,7 @@ async function handlePVE(reply, userId) {
 }
 
 async function handlePVP(message) {
-  const target = message.mentions.users.first();
+  const target = await resolveUser(message, args);
   if (!target) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> **Usage:** `battle pvp @user`'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
   if (target.id === message.author.id) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> You cannot battle yourself!'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
   if (target.bot) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> You cannot battle bots!'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
