@@ -29,7 +29,7 @@ const PERIODIC_FLUSH_MS = 5 * 60_000; // force-flush dirty stores every 5 min
 // `client.ws.ping` (the gateway heartbeat shares the event loop).
 // 10s feels effectively real-time for the dashboard while cutting
 // the load 3.3×. Keep this as a single tuneable.
-const PG_POLL_MS       = 10_000;
+const PG_POLL_MS       = 15_000;
 const LOCAL_POLL_MS     = 1_500;   // poll local file mtimes every 1.5s for cross-process sync
 const LOCAL_STORE_DIR  = path.join(__dirname, '..', 'json_stores');
 
@@ -576,6 +576,18 @@ class JsonStore extends EventEmitter {
 
     async smartRefresh() {
         if (!this.initialized || this._localMode) return;
+        // Skip if a previous refresh is still in-flight — prevents
+        // stacking queries when the remote PG (Neon) is slow.
+        if (this._refreshing) return;
+        this._refreshing = true;
+        try {
+            await this._doSmartRefresh();
+        } finally {
+            this._refreshing = false;
+        }
+    }
+
+    async _doSmartRefresh() {
         const { getPool } = require('./pgPool');
         const pool = getPool();
         try {

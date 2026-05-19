@@ -38,7 +38,7 @@ function buildControlPanel() {
 
     const row5 = new ActionRowBuilder()
         .addComponents(
-            new ButtonBuilder().setCustomId('j2c_claim').setLabel('Claim').setEmoji('<a:Crown:1473366446984663123>').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('j2c_claim').setLabel('Claim').setEmoji('<:Crown:1506010837368963142>').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId('j2c_transfer').setLabel('Transfer').setEmoji('<:transfer:1479780506718437396>').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId('j2c_delete').setLabel('Delete').setEmoji('<:Trash:1473038090074591293>').setStyle(ButtonStyle.Danger)
         );
@@ -68,8 +68,8 @@ function buildControlPanel() {
         `<:rocket:1479780552276967465> **Region** — Change voice server region\n` +
         `<:Document:1473039496995143731> **Info** — View channel details & members`;
 
-    const ownershipText = `### <a:Crown:1473366446984663123> Ownership\n` +
-        `<a:Crown:1473366446984663123> **Claim** — Take ownership if owner left\n` +
+    const ownershipText = `### <:Crown:1506010837368963142> Ownership\n` +
+        `<:Crown:1506010837368963142> **Claim** — Take ownership if owner left\n` +
         `<:transfer:1479780506718437396> **Transfer** — Give channel to another user`;
 
     const container = new ContainerBuilder()

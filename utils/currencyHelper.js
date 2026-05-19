@@ -54,8 +54,7 @@ const DEFAULTS = Object.freeze({
 });
 
 function loadSettings() {
-    if (!jsonStore.has('economy-settings')) return {};
-    try { return jsonStore.read('economy-settings'); } catch { return {}; }
+    try { return jsonStore.peek('economy-settings') || {}; } catch { return {}; }
 }
 
 function getGuildSettings(guildId) {

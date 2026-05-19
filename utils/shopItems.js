@@ -114,7 +114,7 @@ const ITEMS = {
   },
   crown: {
     name: 'Crown',
-    emoji: '<a:Crown:1473366446984663123>',
+    emoji: '<:Crown:1506010837368963142>',
     price: 25000,
     sellPrice: 12500,
     description: 'Permanent +10% bonus on all coin earnings (stacks up to 50%)',

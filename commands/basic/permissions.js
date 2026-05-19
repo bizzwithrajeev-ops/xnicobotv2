@@ -14,7 +14,7 @@ function buildPermissions(member) {
     content += `**Highest Role:** ${member.roles.highest}\n\n`;
 
     if (hasAdmin) {
-        content += `### <a:Crown:1473366446984663123> Administrator\n`;
+        content += `### <:Crown:1506010837368963142> Administrator\n`;
         content += `> This user has all permissions.\n`;
     } else {
         const memberKeyPerms = permissions.filter(p => keyPerms.includes(p));

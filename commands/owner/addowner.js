@@ -21,7 +21,7 @@ module.exports = {
 
         const user = message.mentions.users.first();
         if (!user) {
-            let content = `# <a:Crown:1473366446984663123> Add Co-Owner\n\n`;
+            let content = `# <:Crown:1506010837368963142> Add Co-Owner\n\n`;
             content += `**Usage:** \`addowner @user\`\n\n`;
             content += `### Description\n`;
             content += `> Grants a user co-owner permissions for the bot.\n\n`;

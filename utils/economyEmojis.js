@@ -5,7 +5,7 @@ const EMOJIS = {
   sandwatch: '<a:loading:1506015728871149770>',
   award: '<:Award:1473038391632203887>',
   sketch: '<:Sketch:1473038248493453352>',
-  crown: '<a:Crown:1473366446984663123>',
+  crown: '<:Crown:1506010837368963142>',
   music: '<:Music:1473039311057190972>',
   palette: '<:Palette:1473039029476917461>',
   user: '<:User:1473038971398520977>',

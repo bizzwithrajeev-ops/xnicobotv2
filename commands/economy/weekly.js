@@ -70,7 +70,7 @@ async function handleWeekly(reply, userId, guildId) {
     rewardText += `### 💰 Reward Breakdown\n`;
     rewardText += `> 🪙 **Base Reward:** ${formatNumber(baseReward)} coins\n`;
     if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatNumber(streakBonus)} coins\n`;
-    if (globalBonus > 0) rewardText += `> <a:Crown:1473366446984663123> **Global Bonus:** +${formatNumber(globalBonus)} coins\n`;
+    if (globalBonus > 0) rewardText += `> <:Crown:1506010837368963142> **Global Bonus:** +${formatNumber(globalBonus)} coins\n`;
     if (loyaltyBonus > 0) rewardText += `> <:Star:1473038501766369300> **Loyalty Bonus** (Week ${weeklyClaimCount}): +${formatNumber(loyaltyBonus)} coins\n`;
 
     addTextDisplay(container, rewardText);

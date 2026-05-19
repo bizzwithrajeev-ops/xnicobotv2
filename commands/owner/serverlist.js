@@ -106,7 +106,7 @@ async function buildServerListContainer(guildArray, startIndex, page, totalPages
             `**${startIndex + i + 1}.** ${guild.name}\n` +
             `> <:Fileuser:1473039570630348810> \`${guild.id}\`\n` +
             `> <:Userplus:1473038912212435086> **${guild.memberCount}** members\n` +
-            `> <a:Crown:1473366446984663123> Owner: ${ownerTag}\n` +
+            `> <:Crown:1506010837368963142> Owner: ${ownerTag}\n` +
             `> <:Attach:1473037923979886694> ${inviteText}`
         );
     }

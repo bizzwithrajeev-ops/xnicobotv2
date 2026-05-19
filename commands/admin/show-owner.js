@@ -32,12 +32,12 @@ module.exports = {
         const container = new ContainerBuilder()
             .setAccentColor(COLORS.INFO)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# <a:Crown:1473366446984663123> Server Ownership & Trust Hierarchy\n\n` +
+                `# <:Crown:1506010837368963142> Server Ownership & Trust Hierarchy\n\n` +
                 `**Server:** ${guild.name}\n\n` +
                 `<:wcrown:1386229254403919903> **Owner:** ${owner ? `${owner.user.username} (\`${owner.id}\`)` : 'Unknown'}\n` +
                 `<:User:1473038971398520977> **Second Owner:** ${secondOwnerText}\n\n` +
                 `### Trust Hierarchy\n` +
-                `<a:Crown:1473366446984663123> **Owner** → Full access\n` +
+                `<:Crown:1506010837368963142> **Owner** → Full access\n` +
                 `<:User:1473038971398520977> **Second Owner** → Full access + Administrator role\n` +
                 `<:staff:1476259690315780229> **Admins** (${adminCount}) → Trusted Admin role + moderation perms\n` +
                 `<:Settings:1473037894703779851> **Moderators** (${modCount}) → Trusted Moderator role + basic mod perms\n` +

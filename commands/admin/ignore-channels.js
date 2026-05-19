@@ -355,7 +355,7 @@ function buildBypassRolesPanel(guildConfig, guild) {
             .setCustomId('ignorech_toggle_admins')
             .setLabel(guildConfig.allowAdmins ? 'Disable Admin Bypass' : 'Enable Admin Bypass')
             .setStyle(guildConfig.allowAdmins ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji('<a:Crown:1473366446984663123>'),
+            .setEmoji('<:Crown:1506010837368963142>'),
         new ButtonBuilder()
             .setCustomId('ignorech_back')
             .setLabel('Back')
@@ -392,7 +392,7 @@ function buildSettingsPanel(guildConfig, guild) {
             .setCustomId('ignorech_toggle_admins')
             .setLabel(guildConfig.allowAdmins ? 'Disable Admin Bypass' : 'Enable Admin Bypass')
             .setStyle(guildConfig.allowAdmins ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji('<a:Crown:1473366446984663123>')
+            .setEmoji('<:Crown:1506010837368963142>')
     );
     
     const row2 = new ActionRowBuilder().addComponents(
@@ -419,7 +419,7 @@ function buildHelpPanel() {
     content += `> <:Commentblock:1473370739351490794> **Ignore Channels** - Block commands in specific channels\n`;
     content += `> <:Folderopen:1473039552783323348> **Ignore Categories** - Block commands in entire categories\n`;
     content += `> <:Shield:1473038669831995494> **Bypass Roles** - Allow specific roles to bypass\n`;
-    content += `> <a:Crown:1473366446984663123> **Admin Bypass** - Admins can always use commands\n`;
+    content += `> <:Crown:1506010837368963142> **Admin Bypass** - Admins can always use commands\n`;
     content += `> <:Notificationon:1473038417691676784> **Notifications** - Notify users when blocked\n\n`;
     content += `### Available Commands\n`;
     content += `\`/ignore-channels\` - Open this management panel\n`;

@@ -157,10 +157,15 @@ class WelcomeCard {
             } else {
                 const img = await this.loadEmoji(part.content || '', part.type === 'custom', part.id, part.animated, part.name);
                 if (img) {
-                    // Align emoji vertically with text baseline (baseline ≈ 80% down)
                     ctx.drawImage(img, currentX, y - emojiSize * 0.8, emojiSize, emojiSize);
+                    currentX += emojiSize + 2;
+                } else {
+                    const fallback = part.type === 'custom' ? `:${part.name || 'emoji'}:` : (part.content || '');
+                    if (fallback) {
+                        ctx.fillText(fallback, currentX, y);
+                        currentX += ctx.measureText(fallback).width;
+                    }
                 }
-                currentX += emojiSize + 2;
             }
         }
 

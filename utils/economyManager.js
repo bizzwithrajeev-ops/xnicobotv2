@@ -71,7 +71,12 @@ const ACHIEVEMENTS = {
 
 function loadEconomy() {
   try {
-    return jsonStore.read('economy') || {};
+    // Use peek (no clone) — the caller always mutates then calls
+    // saveEconomy which does the clone via jsonStore.write. Cloning
+    // on read AND write was doubling the work on every economy command
+    // and was the dominant source of high roundtrip ping.
+    const data = jsonStore.peek('economy');
+    return data || {};
   } catch (err) {
     log.error('[ECONOMY] load failed', err);
     return {};

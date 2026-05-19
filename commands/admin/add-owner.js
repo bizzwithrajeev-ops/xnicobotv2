@@ -30,7 +30,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.INFO)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <a:Crown:1473366446984663123> Add Second Owner\n\n` +
+                    `# <:Crown:1506010837368963142> Add Second Owner\n\n` +
                     `<:Infocircle:1473038519029989588> **Usage:** \`add-owner @user\`\n\n` +
                     `<:Caretright:1473038207221502106> Assigns a user as the second owner of this server.\n` +
                     `<:Caretright:1473038207221502106> The second owner receives the **Second Owner** role with Administrator permissions.\n` +
@@ -122,14 +122,14 @@ module.exports = {
 
             // DM the new second owner
             await trust.notifyUser(message.client, targetUser.id,
-                `<a:Crown:1473366446984663123> You have been assigned as the **Second Owner** of **${message.guild.name}** by **${message.author.username}**.\n> You now have full bot access and can manage admins, moderators, and VC mods.`
+                `<:Crown:1506010837368963142> You have been assigned as the **Second Owner** of **${message.guild.name}** by **${message.author.username}**.\n> You now have full bot access and can manage admins, moderators, and VC mods.`
             );
 
             const success = new ContainerBuilder()
                 .setAccentColor(COLORS.SUCCESS)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Second Owner Assigned Successfully\n\n` +
-                    `<:Caretright:1473038207221502106> **<a:Crown:1473366446984663123> User:** ${targetUser} (\`${targetUser.id}\`)${roleNote}\n` +
+                    `<:Caretright:1473038207221502106> **<:Crown:1506010837368963142> User:** ${targetUser} (\`${targetUser.id}\`)${roleNote}\n` +
                     `<:Caretright:1473038207221502106> **Server:** ${message.guild.name}\n` +
                     `<:Caretright:1473038207221502106> **Assigned by:** ${message.author.username}\n` +
                     (current ? `<:Caretright:1473038207221502106> **Previous Owner Removed:** ${currentOwnerName} (\`${current}\`)\n` : '') +

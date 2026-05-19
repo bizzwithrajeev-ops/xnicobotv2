@@ -164,7 +164,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
       const after = Math.round(userData.bonuses.global * 100);
       return {
         success: true,
-        title: '<a:Crown:1473366446984663123> Crown Activated',
+        title: '<:Crown:1506010837368963142> Crown Activated',
         result: `Permanent **+10% global earnings** bonus applied!`,
         extra: `📈 Bonus: ${before}% → **${after}%** (cap: 50%)`,
       };

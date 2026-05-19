@@ -65,7 +65,7 @@ async function handleDaily(reply, userId, guildId) {
     rewardText += `### 💰 Reward Breakdown\n`;
     rewardText += `> 🪙 **Base Reward:** ${formatNumber(baseReward)} coins\n`;
     if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatNumber(streakBonus)} coins\n`;
-    if (bonusAmount > 0) rewardText += `> <a:Crown:1473366446984663123> **Daily Bonus:** +${formatNumber(bonusAmount)} coins\n`;
+    if (bonusAmount > 0) rewardText += `> <:Crown:1506010837368963142> **Daily Bonus:** +${formatNumber(bonusAmount)} coins\n`;
 
     addTextDisplay(container, rewardText);
     addSeparator(container, SeparatorSpacingSize.Small);

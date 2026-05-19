@@ -131,7 +131,7 @@ async function handleJ2CButtons(interaction) {
         if (owner && ch.members.has(ownerId)) return interaction.reply(err('Owner Present', 'The channel owner is still in the channel.'));
         gc.activeChannels[uid] = ch.id; delete gc.activeChannels[ownerId]; saveConfig(config);
         await ch.permissionOverwrites.edit(uid, OWNER_PERMS);
-        return interaction.reply(ok('Channel Claimed', '<a:Crown:1473366446984663123> You are now the **owner** of this channel.'));
+        return interaction.reply(ok('Channel Claimed', '<:Crown:1506010837368963142> You are now the **owner** of this channel.'));
     }
 
     if (action === 'delete') {
