@@ -60,8 +60,9 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            const sent = await interaction.deferReply({ fetchReply: true, flags: MessageFlags.IsComponentsV2 });
-            const roundtrip = sent.createdTimestamp - interaction.createdTimestamp;
+            const response = await interaction.deferReply({ withResponse: true, flags: MessageFlags.IsComponentsV2 });
+            const sent = response.resource?.message;
+            const roundtrip = sent ? (sent.createdTimestamp - interaction.createdTimestamp) : 0;
             const { container, utilRow } = buildPing(interaction.client, roundtrip);
             await interaction.editReply({ components: [container, utilRow], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
