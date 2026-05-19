@@ -60,7 +60,7 @@ function buildServerActivityContainer(guild) {
         `<:Fire:1473038604812161218> **Active Members**\n> \`${activeMembers.toLocaleString()}\` members with recorded activity\n\n` +
         `<:Bookopen:1473038576391557130> **Total Messages**\n> \`${totalMessages.toLocaleString()}\` (avg \`${avgMessages.toLocaleString()}\` per tracked member)\n\n` +
         `<:Volumeup:1473039290136002844> **Total Voice Time**\n> \`${formatVoiceTime(totalVoiceTime)}\` (avg \`${formatVoiceTime(avgVoice)}\`)\n\n` +
-        `<a:loading:1506015728871149770> **Total XP**\n> \`${totalXp.toLocaleString()} XP\`\n\n` +
+        `<:Lightning:1473038797540298792> **Total XP**\n> \`${totalXp.toLocaleString()} XP\`\n\n` +
         `<:Gamepad:1473039216429498409> **Total Commands Used**\n> \`${totalCommands.toLocaleString()}\``;
 
     return new ContainerBuilder()

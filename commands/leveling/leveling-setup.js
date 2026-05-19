@@ -59,7 +59,7 @@ function buildMainPanel(config, guild) {
     const announceCh = levelingConfig.announcementChannel || levelingConfig.announcements?.customChannelId;
     content += `**Announcement Channel:** ${announceCh ? `<#${announceCh}>` : '*Uses message channel*'}\n\n`;
     
-    content += `### <:Lightningalt:1473038679906844824> XP Settings\n`;
+    content += `### <:Lightning:1473038797540298792> XP Settings\n`;
     content += `**XP per Message:** ${xpSettings.minXp} - ${xpSettings.maxXp}\n`;
     content += `**Cooldown:** ${xpSettings.cooldown}s between XP gains\n`;
     content += `**Multiplier:** ${levelingConfig.multiplier || 1}x\n\n`;
@@ -116,7 +116,7 @@ function createControlRow(levelingConfig) {
                 .setCustomId('leveling_xp')
                 .setLabel('XP Settings')
                 .setStyle(ButtonStyle.Primary)
-                .setEmoji('<:Lightningalt:1473038679906844824>')
+                .setEmoji('<:Lightning:1473038797540298792>')
         );
 }
 

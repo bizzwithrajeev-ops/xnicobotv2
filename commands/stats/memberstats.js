@@ -51,7 +51,7 @@ async function buildMemberStatsContainer(guild, targetUser, targetMember) {
         `> Total: \`${totalMessages.toLocaleString()}\` · XP Messages: \`${levelMessages.toLocaleString()}\` · Commands: \`${commandsUsed.toLocaleString()}\`\n\n` +
         `<:Volumeup:1473039290136002844> **Voice Time**\n` +
         `> \`${formatVoiceTime(voiceTime)}\` total\n\n` +
-        `<a:loading:1506015728871149770> **Leveling**\n` +
+        `<:Lightning:1473038797540298792> **Leveling**\n` +
         `> Level \`${level}\` · \`${xp.toLocaleString()} XP\``;
 
     const serverBlock =

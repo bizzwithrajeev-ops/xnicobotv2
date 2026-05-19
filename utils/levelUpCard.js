@@ -10,7 +10,7 @@ try { registerAllFonts(); } catch {}
 
 const EMOJIS = {
     rank: '<:Award:1473038391632203887>',
-    xp: '<:Lightningalt:1473038679906844824>',
+    xp: '<:Lightning:1473038797540298792>',
     gained: '<:Checkedbox:1473038547165384804>',
     levelup: '<:Fire:1473038604812161218>'
 };

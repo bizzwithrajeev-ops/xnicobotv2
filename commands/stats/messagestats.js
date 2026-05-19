@@ -39,7 +39,7 @@ async function buildMessageStatsContainer(guild, targetUser, targetMember) {
         `<:Caretright:1473038207221502106> **Total Messages Tracked**\n> \`${totalMessages.toLocaleString()}\`\n\n` +
         `<:Bookopen:1473038576391557130> **Messages Counted for XP**\n> \`${levelMessages.toLocaleString()}\`\n\n` +
         `<:Gamepad:1473039216429498409> **Commands Used**\n> \`${commandsUsed.toLocaleString()}\`\n\n` +
-        `<a:loading:1506015728871149770> **XP Earned**\n> \`${xp.toLocaleString()} XP\` · Level \`${level}\`\n\n` +
+        `<:Lightning:1473038797540298792> **XP Earned**\n> \`${xp.toLocaleString()} XP\` · Level \`${level}\`\n\n` +
         `<:Award:1473038391632203887> **Message Rank**\n> \`${rank}\` on this server`;
 
     return new ContainerBuilder()

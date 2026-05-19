@@ -30,7 +30,7 @@ const TYPE_CONFIG = {
     xp: {
         field: 'leveling.xp',
         label: 'XP',
-        emoji: '<a:loading:1506015728871149770>',
+        emoji: '<:Lightning:1473038797540298792>',
         format: v => `${Number(v).toLocaleString()} XP`,
         color: 0xfbbf24,
     },

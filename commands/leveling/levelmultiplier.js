@@ -102,12 +102,12 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .addTextDisplayComponents(
                         new TextDisplayBuilder()
-                            .setContent(`# <:Lightningalt:1473038679906844824> XP Multipliers\n\nNo multipliers configured yet.\n\n-# Use \`-levelmultiplier set @role <multiplier>\` to add one`)
+                            .setContent(`# <:Lightning:1473038797540298792> XP Multipliers\n\nNo multipliers configured yet.\n\n-# Use \`-levelmultiplier set @role <multiplier>\` to add one`)
                     );
                 return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             
-            let multiplierList = '# <:Lightningalt:1473038679906844824> XP Multipliers\n\n';
+            let multiplierList = '# <:Lightning:1473038797540298792> XP Multipliers\n\n';
             for (const [roleId, mult] of Object.entries(guildMultipliers)) {
                 const role = message.guild.roles.cache.get(roleId);
                 multiplierList += `> <:Caretright:1473038207221502106> ${role || '`Deleted Role`'} — **${mult}x** XP (+${Math.round((mult - 1) * 100)}%)\n`;
@@ -125,7 +125,7 @@ module.exports = {
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:Lightningalt:1473038679906844824> XP Multiplier System\n\nBoost XP gain for specific roles to reward active members.\n\n### <:Document:1473039496995143731> Commands\n> \`-levelmultiplier set @role <multiplier>\` — Set XP multiplier\n> \`-levelmultiplier remove @role\` — Remove multiplier\n> \`-levelmultiplier list\` — View all multipliers`)
+                    .setContent(`# <:Lightning:1473038797540298792> XP Multiplier System\n\nBoost XP gain for specific roles to reward active members.\n\n### <:Document:1473039496995143731> Commands\n> \`-levelmultiplier set @role <multiplier>\` — Set XP multiplier\n> \`-levelmultiplier remove @role\` — Remove multiplier\n> \`-levelmultiplier list\` — View all multipliers`)
             )
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
         
@@ -135,7 +135,7 @@ module.exports = {
                     .setCustomId('levelmultiplier_list')
                     .setLabel('View Multipliers')
                     .setStyle(ButtonStyle.Primary)
-                    .setEmoji('<a:loading:1506015728871149770>'),
+                    .setEmoji('<:Lightning:1473038797540298792>'),
                 new ButtonBuilder()
                     .setCustomId('levelmultiplier_help')
                     .setLabel('Help')

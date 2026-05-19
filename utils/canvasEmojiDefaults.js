@@ -18,10 +18,11 @@ const DEFAULT_CANVAS_CUSTOM_EMOJIS = {
     '🎧': '<:Volumeup:1473039290136002844>',
     '🔊': '<:Volumeup:1473039290136002844>',
 
-    level: '<a:loading:1506015728871149770>',
-    xp: '<a:loading:1506015728871149770>',
-    time: '<a:loading:1506015728871149770>',
-    clock: '<a:loading:1506015728871149770>',
+    level: '<:Lightning:1473038797540298792>',
+    lightning: '<:Lightning:1473038797540298792>',
+    xp: '<:Lightning:1473038797540298792>',
+    time: '<:Lightning:1473038797540298792>',
+    clock: '<:Lightning:1473038797540298792>',
     '⏳': '<a:loading:1506015728871149770>',
     '⌛': '<a:loading:1506015728871149770>',
 

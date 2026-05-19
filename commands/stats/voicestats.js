@@ -50,7 +50,7 @@ async function buildVoiceStatsContainer(guild, targetUser, targetMember) {
 
     const statsText =
         `<:Volumeup:1473039290136002844> **Total Voice Time**\n> \`${formatVoiceTime(voiceTime)}\` (${hours} hours)\n\n` +
-        `<a:loading:1506015728871149770> **Daily Average**\n> \`${avgMinutesPerDay} min/day\` over ${joinedDays} days\n\n` +
+        `<:Lightning:1473038797540298792> **Daily Average**\n> \`${avgMinutesPerDay} min/day\` over ${joinedDays} days\n\n` +
         `<:Award:1473038391632203887> **Voice Rank**\n> \`${rank}\` on this server`;
 
     return new ContainerBuilder()
