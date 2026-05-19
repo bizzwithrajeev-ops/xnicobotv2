@@ -183,6 +183,11 @@ class LevelCard {
         const emojiSize = Math.floor(fontSize * 1.15);
         let currentX = x;
 
+        // Force left-align for manual positioning — drawImage uses absolute
+        // coords so textAlign must be 'left' or emojis and text drift apart.
+        const savedAlign = ctx.textAlign;
+        ctx.textAlign = 'left';
+
         for (const part of parts) {
             if (part.type === 'text') {
                 ctx.fillText(part.content, currentX, y);
@@ -190,12 +195,14 @@ class LevelCard {
             } else {
                 const img = await this.loadEmoji(part.content || '', part.type === 'custom', part.id, part.animated, part.name);
                 if (img) {
-                    const emojiY = y - emojiSize + Math.floor(fontSize * 0.2);
-                    ctx.drawImage(img, currentX, emojiY, emojiSize, emojiSize);
+                    // Align emoji vertically with text baseline (baseline ≈ 80% down)
+                    ctx.drawImage(img, currentX, y - emojiSize * 0.8, emojiSize, emojiSize);
                 }
                 currentX += emojiSize + 2;
             }
         }
+
+        ctx.textAlign = savedAlign;
         return currentX - x;
     }
 
