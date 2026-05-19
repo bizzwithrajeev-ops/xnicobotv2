@@ -1243,7 +1243,7 @@ client.on(Events.ClientReady, async () => {
         const DISCORD_GLOBAL_LIMIT = 100;
         const DISCORD_GUILD_LIMIT = 100;
 
-        // Priority list — always registered globally first
+        // ── Priority list — commands that MUST be in the global 100 ──
         const prioritySet = new Set([
             // Core
             'help', 'botinfo', 'ping', 'userinfo', 'avatar', 'serverinfo',
@@ -1257,7 +1257,7 @@ client.on(Events.ClientReady, async () => {
             'seek', 'loop', 'shuffle', 'autoplay', 'filters', 'lyrics', 'musicpanel',
             // Automation
             'welcomer', 'autorole', 'ticket-setup', 'giveaway', 'reactionroles', 'autoresponder',
-            'autoreact', 'starboard-setup', 'poll', 'sticky-message',
+            'autoreact', 'starboard-setup', 'poll', 'sticky-message', 'youtube-notify', 'social-notify',
             // Utility
             'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'automod', 'invite-setup',
             'button-maker', 'select-menu-maker', 'embed-quick', 'translate', 'calculate',
@@ -1301,8 +1301,7 @@ client.on(Events.ClientReady, async () => {
             commandsToRegister.push(...fill);
         }
 
-        // ── Step 2: Register global commands ──
-        // ── Step 3: Fetch existing commands and preserve Entry Point commands ──
+        // ── Step 2: Fetch existing commands and preserve Entry Point commands ──
         let existingCommands = [];
         try {
             existingCommands = await rest.get(Routes.applicationCommands(applicationId));
@@ -1316,32 +1315,57 @@ client.on(Events.ClientReady, async () => {
             { body: finalCommands }
         );
 
-        // ── Step 4: Register remaining commands as guild-specific for extra coverage ──
-        // Discord allows 100 global + 100 guild-specific per guild, giving 200 slash per guild max.
+        // ── Step 3: Register remaining commands as guild-specific ──
+        // Discord allows 100 global + 100 guild-specific per guild = 200 max.
+        // We register guild commands to ALL guilds so users see the full set.
         const globalNames = new Set(commandsToRegister.map(c => c.name));
         const guildOnlyCommands = uniqueCommands.filter(c => !globalNames.has(c.name));
         const guildCmdsToRegister = guildOnlyCommands.slice(0, DISCORD_GUILD_LIMIT);
 
+        // ── Hash check: skip guild registration if nothing changed ──
+        const crypto = require('crypto');
+        const allCmdPayload = JSON.stringify([
+            ...commandsToRegister.map(c => ({ name: c.name, options: c.options })),
+            ...guildCmdsToRegister.map(c => ({ name: c.name, options: c.options }))
+        ]);
+        const commandHash = crypto.createHash('md5').update(allCmdPayload).digest('hex');
+        const hashFile = path.join(__dirname, 'datas', 'command-hash.txt');
+        let previousHash = '';
+        try { previousHash = fs.readFileSync(hashFile, 'utf8').trim(); } catch {}
+
         let guildRegCount = 0;
-        for (const guild of client.guilds.cache.values()) {
-            try {
-                await rest.put(
-                    Routes.applicationGuildCommands(applicationId, guild.id),
-                    { body: guildCmdsToRegister }
-                );
-                guildRegCount++;
-            } catch (e) {
-                // Permission denied or guild unavailable — skip
-            }
+        if (guildCmdsToRegister.length > 0 && commandHash !== previousHash) {
+            // Register guild commands in background with rate-limit-safe batching.
+            // Don't await — let the bot finish booting while this runs.
+            const guilds = [...client.guilds.cache.values()];
+            const BATCH_SIZE = 5;
+            const BATCH_DELAY = 2000; // 2s between batches to respect rate limits
+
+            (async () => {
+                for (let i = 0; i < guilds.length; i += BATCH_SIZE) {
+                    const batch = guilds.slice(i, i + BATCH_SIZE);
+                    const results = await Promise.allSettled(
+                        batch.map(guild =>
+                            rest.put(
+                                Routes.applicationGuildCommands(applicationId, guild.id),
+                                { body: guildCmdsToRegister }
+                            )
+                        )
+                    );
+                    guildRegCount += results.filter(r => r.status === 'fulfilled').length;
+                    // Small delay between batches to avoid 429s
+                    if (i + BATCH_SIZE < guilds.length) {
+                        await new Promise(r => setTimeout(r, BATCH_DELAY));
+                    }
+                }
+                log.success(`[Slash] Guild-specific registration complete: ${guildRegCount}/${guilds.length} guilds (${guildCmdsToRegister.length} cmds each)`);
+            })().catch(e => log.error(`[Slash] Background guild registration failed: ${e.message}`));
+        } else if (commandHash === previousHash) {
+            log.info('[Slash] Command hash unchanged — skipping guild re-registration');
         }
 
-        // Save hash for reference
-        const crypto = require('crypto');
-        const commandHash = crypto.createHash('md5')
-            .update(JSON.stringify(commandsToRegister.map(c => ({ name: c.name, options: c.options }))))
-            .digest('hex');
-        const hashFile = path.join(__dirname, 'datas', 'command-hash.txt');
-        fs.writeFileSync(hashFile, commandHash);
+        // Save hash
+        try { fs.writeFileSync(hashFile, commandHash); } catch {}
 
         const regTime = ((Date.now() - regStart) / 1000).toFixed(1);
         const totalSlash = commandsToRegister.length + guildCmdsToRegister.length;
