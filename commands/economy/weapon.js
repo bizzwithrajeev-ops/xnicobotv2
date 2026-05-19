@@ -148,12 +148,13 @@ module.exports = {
   },
 
   async execute(interaction) {
+        await interaction.deferReply({ flags: 1 << 15 });
     const sub = interaction.options?.getString('action') || 'list';
     const weaponId = interaction.options?.getString('id');
     const fakeArgs = [sub, weaponId].filter(Boolean);
     const fakeMessage = {
       author: interaction.user,
-      reply: interaction.reply.bind(interaction),
+      reply: (opts) => interaction.editReply(opts),
     };
     return module.exports.executePrefix(fakeMessage, fakeArgs);
   }

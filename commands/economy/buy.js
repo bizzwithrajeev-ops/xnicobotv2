@@ -118,6 +118,7 @@ module.exports = {
   },
 
   async execute(interaction) {
+        await interaction.deferReply({ flags: 1 << 15 });
     if (await shopGuard(interaction)) return;
     const itemId = interaction.options?.getString('item');
     const qty = interaction.options?.getInteger('amount') || 1;
@@ -125,7 +126,7 @@ module.exports = {
     const fakeMessage = {
       author: interaction.user,
       guild: interaction.guild,
-      reply: interaction.reply.bind(interaction),
+      reply: (opts) => interaction.editReply(opts),
     };
     return module.exports.executePrefix(fakeMessage, fakeArgs);
   },
