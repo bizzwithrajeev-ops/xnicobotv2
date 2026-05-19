@@ -57,7 +57,7 @@ module.exports = {
             });
         }
 
-        await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+        await interaction.deferReply();
 
         try {
             const user = interaction.options.getUser('user', true);

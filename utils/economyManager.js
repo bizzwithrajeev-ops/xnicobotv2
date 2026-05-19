@@ -71,12 +71,16 @@ const ACHIEVEMENTS = {
 
 function loadEconomy() {
   try {
-    // Use peek (no clone) — the caller always mutates then calls
-    // saveEconomy which does the clone via jsonStore.write. Cloning
-    // on read AND write was doubling the work on every economy command
-    // and was the dominant source of high roundtrip ping.
-    const data = jsonStore.peek('economy');
-    return data || {};
+    // Use peek (no clone) — the caller mutates in-place then calls
+    // saveEconomy → markDirty. This avoids the expensive deepClone.
+    let data = jsonStore.peek('economy');
+    if (!data) {
+      // Store doesn't exist yet — seed the cache with an empty object
+      // so mutations go to the live cache (not a throwaway {}).
+      data = {};
+      jsonStore.cache.set('economy', data);
+    }
+    return data;
   } catch (err) {
     log.error('[ECONOMY] load failed', err);
     return {};

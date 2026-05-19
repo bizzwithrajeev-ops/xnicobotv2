@@ -117,12 +117,13 @@ module.exports = {
     },
 
     async execute(interaction) {
+        await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
         const target = interaction.options.getUser('user');
         const fakeMessage = {
             author: interaction.user,
             guild: interaction.guild,
             mentions: { users: { first: () => target } },
-            reply: interaction.reply.bind(interaction),
+            reply: (opts) => interaction.editReply(opts),
         };
         return module.exports.executePrefix(fakeMessage);
     },
