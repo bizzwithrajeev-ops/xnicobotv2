@@ -180,7 +180,7 @@ class LevelCard {
     async drawText(ctx, text, x, y) {
         const parts = this.parseText(text);
         const fontSize = parseInt(ctx.font.match(/\d+/)?.[0]) || 20;
-        const emojiSize = Math.floor(fontSize * 1.15);
+        const emojiSize = Math.round(fontSize * 1.3);
         let currentX = x;
 
         // Force left-align for manual positioning — drawImage uses absolute
@@ -195,7 +195,7 @@ class LevelCard {
             } else {
                 const img = await this.loadEmoji(part.content || '', part.type === 'custom', part.id, part.animated, part.name);
                 if (img) {
-                    ctx.drawImage(img, currentX, y - emojiSize * 0.8, emojiSize, emojiSize);
+                    ctx.drawImage(img, currentX, y - emojiSize * 0.75, emojiSize, emojiSize);
                     currentX += emojiSize + 2;
                 } else {
                     const fallback = part.type === 'custom' ? `:${part.name || 'emoji'}:` : (part.content || '');
