@@ -355,6 +355,21 @@ class JsonStore extends EventEmitter {
     }
 
     /**
+     * Mark a store as dirty without cloning. Use ONLY when the caller
+     * obtained the data via `peek()` and mutated it in-place. This
+     * avoids the expensive deepClone that `write()` performs — critical
+     * for the economy store which can be several MB and is written on
+     * every single command.
+     *
+     * The debounced persist will serialize the live cache object to PG
+     * (or local file) after DEBOUNCE_MS of inactivity.
+     */
+    markDirty(storeName) {
+        this.dirty.add(storeName);
+        this._schedulePersist(storeName, this.cache.get(storeName));
+    }
+
+    /**
      * Write Immediately - updates cache and persists immediately (no debounce).
      * Used by Dashboard to ensure immediate consistency.
      *

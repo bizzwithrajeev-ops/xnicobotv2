@@ -79,10 +79,10 @@ class LeaveCard {
         try {
             if (isCustom && emojiId) {
                 const url = `https://cdn.discordapp.com/emojis/${emojiId}.${animated ? 'gif' : 'png'}?size=128&quality=lossless`;
-                return await imageCache.loadWithCache(url, 3000);
+                return await imageCache.loadWithCache(url, 8000);
             } else {
                 const url = getCanvasEmojiAssetUrl(emojiContent || emojiName || 'emoji');
-                return url ? await imageCache.loadWithCache(url, 3000) : null;
+                return url ? await imageCache.loadWithCache(url, 8000) : null;
             }
         } catch { return null; }
     }

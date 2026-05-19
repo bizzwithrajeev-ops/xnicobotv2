@@ -85,7 +85,10 @@ function loadEconomy() {
 
 function saveEconomy(data) {
   try {
-    jsonStore.write('economy', data);
+    // Since loadEconomy() returns the live cache reference (via peek),
+    // the data IS the cache — no need to clone it back in. Just mark
+    // the store dirty so the debounced persist picks it up.
+    jsonStore.markDirty('economy');
   } catch (err) {
     log.error('[ECONOMY] save failed', err);
   }
