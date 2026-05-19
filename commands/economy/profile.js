@@ -23,7 +23,7 @@ module.exports = {
   category: 'economy',
   description: 'View your economy profile card',
 
-  async executePrefix(message) {
+  async executePrefix(message, args) {
     const target = (await resolveUser(message, args)) || message.author;
     const economy = economyManager.loadEconomy();
     const { userData, changed } = economyManager.getUser(economy, target.id);

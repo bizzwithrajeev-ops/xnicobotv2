@@ -46,7 +46,7 @@ module.exports = {
     aliases: ['bal', 'coins', 'money'],
     category: 'economy',
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         const target = (await resolveUser(message, args)) || message.author;
         return handleBalance(message.reply.bind(message), target);
     },

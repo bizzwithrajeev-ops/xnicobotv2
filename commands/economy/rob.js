@@ -19,7 +19,7 @@ module.exports = {
     category: 'economy',
     aliases: ['steal'],
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         // Honour the per-guild "Rob enabled" toggle from the dashboard.
         if (await robGuard(message)) return;
         const cfg = getEconomySettings(message.guild?.id);

@@ -111,7 +111,7 @@ module.exports = {
         }
     },
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         try {
             const user = await resolveUser(message, args);
             const built = user

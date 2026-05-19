@@ -277,7 +277,7 @@ async function handlePVE(reply, userId) {
   return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
-async function handlePVP(message) {
+async function handlePVP(message, args) {
   const target = await resolveUser(message, args);
   if (!target) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> **Usage:** `battle pvp @user`'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
   if (target.id === message.author.id) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> You cannot battle yourself!'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
@@ -419,7 +419,7 @@ module.exports = {
 
   async executePrefix(message, args) {
     var sub = args[0] ? args[0].toLowerCase() : null;
-    if (sub === 'pvp') return handlePVP(message);
+    if (sub === 'pvp') return handlePVP(message, args.slice(1));
     return handlePVE(message.reply.bind(message), message.author.id);
   },
 

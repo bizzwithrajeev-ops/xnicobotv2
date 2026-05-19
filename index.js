@@ -7596,10 +7596,13 @@ client.on('messageCreate', async (message) => {
         {
             const afkPeek = jsonStore.peek('afk');
             const userId = message.author.id;
+            // Read the full store once — needed by both the "remove AFK"
+            // branch and the "mentioned user is AFK" branch below.
+            let afkConfig = null;
 
             // Check if user is AFK and remove them
             if (afkPeek && afkPeek[userId]) {
-                const afkConfig = jsonStore.read('afk');
+                afkConfig = jsonStore.read('afk');
                 const afkData = afkConfig[userId];
                 const afkDuration = Date.now() - afkData.timestamp;
                 const hours = Math.floor(afkDuration / 3600000);
@@ -7665,6 +7668,8 @@ client.on('messageCreate', async (message) => {
 
             // Check if any mentioned users are AFK
             if (message.mentions.users.size > 0) {
+                if (!afkConfig) afkConfig = jsonStore.read('afk');
+                if (!afkConfig || typeof afkConfig !== 'object') afkConfig = {};
                 const mentionedAfkUsers = [];
 
                 for (const [mentionedUserId, user] of message.mentions.users) {
@@ -7707,20 +7712,20 @@ client.on('messageCreate', async (message) => {
                             }
                         }
                     }
+                }
 
-                    if (mentionedAfkUsers.length > 0) {
-                        const afkDescription = mentionedAfkUsers.map(data =>
-                            `**${data.user.username}** is AFK (${data.duration})\n└ ${data.message}`
-                        ).join('\n\n');
+                if (mentionedAfkUsers.length > 0) {
+                    const afkDescription = mentionedAfkUsers.map(data =>
+                        `**${data.user.username}** is AFK (${data.duration})\n└ ${data.message}`
+                    ).join('\n\n');
 
-                        const afkContainer = new ContainerBuilder()
-                            .addTextDisplayComponents(
-                                new TextDisplayBuilder()
-                                    .setContent(`# 💤 AFK Users Mentioned\n\n${afkDescription}`)
-                            );
+                    const afkContainer = new ContainerBuilder()
+                        .addTextDisplayComponents(
+                            new TextDisplayBuilder()
+                                .setContent(`# 💤 AFK Users Mentioned\n\n${afkDescription}`)
+                        );
 
-                        await message.reply({ components: [afkContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-                    }
+                    await message.reply({ components: [afkContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
                 }
             }
 
