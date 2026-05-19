@@ -15,7 +15,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.96",
+    "@napi-rs/canvas": "^0.1.100",
     "adm-zip": "^0.5.17",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
@@ -23,7 +23,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
-    "discord.js": "^14.25.1",
+    "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "emoji-regex": "^10.6.0",
     "express": "^5.2.1",
@@ -31,14 +31,14 @@
     "gif-encoder-2": "^1.0.5",
     "gifwrap": "^0.10.1",
     "jsonwebtoken": "^9.0.3",
-    "lavalink-client": "^2.9.7",
+    "lavalink-client": "^2.10.2",
     "node-fetch": "^2.7.0",
     "omggif": "^1.0.10",
-    "openai": "^6.28.0",
-    "pg": "^8.20.0",
+    "openai": "^6.38.0",
+    "pg": "^8.21.0",
     "sharp": "^0.34.5",
     "twemoji": "^14.0.2",
-    "youtube-dl-exec": "^3.1.4"
+    "youtube-dl-exec": "^3.1.7"
   },
   "overrides": {
     "undici": "^6.24.1"
