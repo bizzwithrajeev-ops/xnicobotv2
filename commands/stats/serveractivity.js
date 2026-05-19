@@ -11,9 +11,11 @@ const {
 function readGuildMembers() {
     try {
         if (!jsonStore.has('guild_members')) return [];
-        const raw = JSON.stringify(jsonStore.read('guild_members'));
-        const parsed = JSON.parse(raw || '[]');
-        return Array.isArray(parsed) ? parsed : [];
+        const data = jsonStore.read('guild_members');
+        // Store may be an array or an object keyed by guildId_userId
+        if (Array.isArray(data)) return data;
+        if (data && typeof data === 'object') return Object.values(data);
+        return [];
     } catch {
         return [];
     }
@@ -100,7 +102,7 @@ module.exports = {
         }
     },
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         try {
             const container = buildServerActivityContainer(message.guild);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -115,7 +115,8 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        const targetUser = message.mentions.users.first() || message.author;
+        const { resolveUser } = require('../../utils/resolveUser');
+        const targetUser = (await resolveUser(message, args)) || message.author;
 
         try {
             const reply = await buildStatsReply(message.client, message.guild, targetUser, 'server');

@@ -86,8 +86,9 @@ module.exports = {
         }
     },
 
-    async executePrefix(message) {
-        const user = message.mentions.users.first() || message.author;
+    async executePrefix(message, args) {
+        const { resolveUser } = require('../../utils/resolveUser');
+        const user = (await resolveUser(message, args)) || message.author;
         const member = await message.guild.members.fetch(user.id).catch(() => null);
 
         if (!member) {

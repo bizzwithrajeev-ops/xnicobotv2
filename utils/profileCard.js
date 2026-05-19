@@ -575,9 +575,18 @@ class ProfileCard {
 
             this.drawBox(ctx, statX, statsY, statWidth, statHeight, stat.color);
 
-            const iconImg = await this.loadEmoji('', true, stat.iconId, stat.animated);
+            const iconImg = await this.loadEmoji('', true, stat.iconId, false);
             if (iconImg) {
                 ctx.drawImage(iconImg, statX + padding, statsY + 10, iconSize, iconSize);
+            } else {
+                // Fallback: draw a colored dot when emoji fails to load
+                ctx.save();
+                ctx.fillStyle = stat.color;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(statX + padding + iconSize / 2, statsY + 10 + iconSize / 2, iconSize / 2 - 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
 
             ctx.font = this.getSemiBoldFont(DESIGN.fonts.tiny);
@@ -619,7 +628,7 @@ class ProfileCard {
 
                 if (badge.imageUrl && badge.imageUrl.startsWith('http')) {
                     try {
-                        const badgeImg = await imageCache.loadWithCache(badge.imageUrl, 3000);
+                        const badgeImg = await imageCache.loadWithCache(badge.imageUrl, 8000);
                         if (badgeImg) {
                             ctx.save();
                             this.drawRoundedRect(ctx, badgeX + iconPadding, badgesY + iconPadding, iconSize, iconSize, 5);
@@ -638,7 +647,17 @@ class ProfileCard {
                     const badgeImg = await this.loadEmoji(badge.emoji, isCustomEmoji, emojiId, isAnimated);
                     if (badgeImg) {
                         ctx.drawImage(badgeImg, badgeX + iconPadding, badgesY + iconPadding, iconSize, iconSize);
+                        badgeRendered = true;
                     }
+                }
+
+                // Final fallback: draw badge initial letter if nothing rendered
+                if (!badgeRendered) {
+                    ctx.font = this.getBoldFont(14);
+                    ctx.fillStyle = badge.color || this.accentColor;
+                    ctx.textAlign = 'center';
+                    ctx.fillText((badge.name || '?')[0].toUpperCase(), badgeX + badgeSize / 2, badgesY + badgeSize / 2 + 5);
+                    ctx.textAlign = 'left';
                 }
 
                 badgeX += badgeSize + badgeSpacing;

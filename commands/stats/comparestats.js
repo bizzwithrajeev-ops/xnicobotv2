@@ -13,11 +13,12 @@ function formatVoiceTime(seconds) {
     return `${h}h ${m}m`;
 }
 
-function winnerLine(label, leftName, leftValue, rightName, rightValue) {
-    if (leftValue === rightValue) return `**${label}:** Tie (${leftValue})`;
+function winnerLine(label, leftName, leftValue, rightName, rightValue, isVoice = false) {
+    const fmt = (v) => isVoice ? formatVoiceTime(v) : v.toLocaleString();
+    if (leftValue === rightValue) return `**${label}:** Tie (${fmt(leftValue)})`;
     return leftValue > rightValue
-        ? `**${label}:** ${leftName} wins (${leftValue} vs ${rightValue})`
-        : `**${label}:** ${rightName} wins (${rightValue} vs ${leftValue})`;
+        ? `**${label}:** ${leftName} wins (${fmt(leftValue)} vs ${fmt(rightValue)})`
+        : `**${label}:** ${rightName} wins (${fmt(rightValue)} vs ${fmt(leftValue)})`;
 }
 
 async function buildCompareContainer(guild, userA, userB) {
@@ -53,7 +54,7 @@ async function buildCompareContainer(guild, userA, userB) {
 
     const comparison = [
         winnerLine('Messages', userA.username, a.messages, userB.username, b.messages),
-        winnerLine('Voice Time', userA.username, a.voice, userB.username, b.voice),
+        winnerLine('Voice Time', userA.username, a.voice, userB.username, b.voice, true),
         winnerLine('XP', userA.username, a.xp, userB.username, b.xp),
         winnerLine('Commands Used', userA.username, a.commands, userB.username, b.commands),
     ].join('\n');
@@ -102,13 +103,25 @@ module.exports = {
         }
     },
 
-    async executePrefix(message) {
-        const users = message.mentions.users.first(2);
-        if (!users || users.length < 2) {
+    async executePrefix(message, args) {
+        // Resolve two users from mentions or IDs
+        let user1 = message.mentions.users.first();
+        let user2 = message.mentions.users.size >= 2 ? [...message.mentions.users.values()][1] : null;
+
+        // Fallback: parse IDs from args
+        if (!user1 && args[0]) {
+            const id = args[0].replace(/[<@!>]/g, '');
+            if (/^\d{17,20}$/.test(id)) user1 = await message.client.users.fetch(id).catch(() => null);
+        }
+        if (!user2 && args[1]) {
+            const id = args[1].replace(/[<@!>]/g, '');
+            if (/^\d{17,20}$/.test(id)) user2 = await message.client.users.fetch(id).catch(() => null);
+        }
+
+        if (!user1 || !user2) {
             return message.reply('<:Cancel:1473037949187657818> Usage: `comparestats @user1 @user2`');
         }
 
-        const [user1, user2] = users;
         if (user1.id === user2.id) {
             return message.reply('<:Cancel:1473037949187657818> Pick two different users to compare.');
         }
