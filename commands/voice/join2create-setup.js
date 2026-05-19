@@ -6,41 +6,41 @@ const jsonStore = require('../../utils/jsonStore');
 function buildControlPanel() {
     const row1 = new ActionRowBuilder()
         .addComponents(
-            new ButtonBuilder().setCustomId('j2c_rename').setLabel('Rename').setEmoji('<:Editalt:1473038138577256670>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_limit').setLabel('Limit').setEmoji('<:User:1473038971398520977>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_bitrate').setLabel('Bitrate').setEmoji('<:Volumeup:1473039290136002844>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_invite').setLabel('Invite').setEmoji('<:Attach:1473037923979886694>').setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId('j2c_rename').setEmoji('<:Editalt:1473038138577256670>').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('j2c_limit').setEmoji('<:User:1473038971398520977>').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('j2c_bitrate').setEmoji('<:Volumeup:1473039290136002844>').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('j2c_invite').setEmoji('<:Attach:1473037923979886694>').setStyle(ButtonStyle.Primary)
         );
 
     const row2 = new ActionRowBuilder()
         .addComponents(
-            new ButtonBuilder().setCustomId('j2c_lock').setLabel('Lock').setEmoji('<:Lock:1473038513749491773>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_unlock').setLabel('Unlock').setEmoji('<:Unlock:1473038516639236269>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_hide').setLabel('Hide').setEmoji('<:Eyeclosed:1473038425085972521>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_unhide').setLabel('Unhide').setEmoji('<:Eye:1473038435056095242>').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('j2c_lock').setEmoji('<:Lock:1473038513749491773>').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('j2c_unlock').setEmoji('<:Unlock:1473038516639236269>').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('j2c_hide').setEmoji('<:Eyeclosed:1473038425085972521>').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('j2c_unhide').setEmoji('<:Eye:1473038435056095242>').setStyle(ButtonStyle.Secondary)
         );
 
     const row3 = new ActionRowBuilder()
         .addComponents(
-            new ButtonBuilder().setCustomId('j2c_kick').setLabel('Kick').setEmoji('<:dnd:1473370101427343403>').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId('j2c_block').setLabel('Block').setEmoji('<:Commentblock:1473370739351490794>').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId('j2c_unblock').setLabel('Unblock').setEmoji('<:Checkedbox:1473038547165384804>').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('j2c_permit').setLabel('Permit').setEmoji('<:Userplus:1473038912212435086>').setStyle(ButtonStyle.Success)
+            new ButtonBuilder().setCustomId('j2c_kick').setEmoji('<:dnd:1473370101427343403>').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId('j2c_block').setEmoji('<:Commentblock:1473370739351490794>').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId('j2c_unblock').setEmoji('<:Checkedbox:1473038547165384804>').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('j2c_permit').setEmoji('<:Userplus:1473038912212435086>').setStyle(ButtonStyle.Success)
         );
 
     const row4 = new ActionRowBuilder()
         .addComponents(
-            new ButtonBuilder().setCustomId('j2c_trust').setLabel('Trust').setEmoji('<:trust:1479780674532671673>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_untrust').setLabel('Untrust').setEmoji('<:untrust:1479780596971737149>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_region').setLabel('Region').setEmoji('<:rocket:1479780552276967465>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_info').setLabel('Info').setEmoji('<:Document:1473039496995143731>').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('j2c_trust').setEmoji('<:trust:1479780674532671673>').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('j2c_untrust').setEmoji('<:untrust:1479780596971737149>').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('j2c_region').setEmoji('<:rocket:1479780552276967465>').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('j2c_info').setEmoji('<:Document:1473039496995143731>').setStyle(ButtonStyle.Secondary)
         );
 
     const row5 = new ActionRowBuilder()
         .addComponents(
-            new ButtonBuilder().setCustomId('j2c_claim').setLabel('Claim').setEmoji('<:Crown:1506010837368963142>').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('j2c_transfer').setLabel('Transfer').setEmoji('<:transfer:1479780506718437396>').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('j2c_delete').setLabel('Delete').setEmoji('<:Trash:1473038090074591293>').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId('j2c_claim').setEmoji('<:Crown:1506010837368963142>').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('j2c_transfer').setEmoji('<:transfer:1479780506718437396>').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('j2c_delete').setEmoji('<:Trash:1473038090074591293>').setStyle(ButtonStyle.Danger)
         );
 
     const headerText = `# <:Volumeup:1473039290136002844> Voice Channel Controls\n-# Create and manage your own private voice channels`;

@@ -52,7 +52,7 @@ module.exports = {
             const hoursLeft = Math.floor(timeLeft / (60 * 60 * 1000));
             const minutesLeft = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
 
-            let content = `# <a:loading:1506015728871149770> Cooldown Active\n\n`;
+            let content = `# <:Clock:1473039102113878056> Cooldown Active\n\n`;
             content += `You can give reputation again in:\n`;
             content += `> **${hoursLeft}h ${minutesLeft}m**`;
 
@@ -75,6 +75,6 @@ module.exports = {
             `**Their Total Rep:** <:Star:1473038501766369300> ${config[user.id]}`
         );
 
-        message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 };
