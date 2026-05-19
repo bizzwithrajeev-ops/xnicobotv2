@@ -10,7 +10,7 @@ module.exports = {
     aliases: ['vcdcall', 'disconnectallvc'],
     permissions: ['MoveMembers'],
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.MoveMembers)) {
             const container = buildErrorResponse('Missing Permission', 'You need the **Move Members** permission.');
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -105,7 +105,7 @@ module.exports = {
                 try {
                     const webhook = await channel.createWebhook({
                         name: webhookName,
-                        avatar: message.author.displayAvatarURL({ dynamic: true }),
+                        avatar: message.author.displayAvatarURL({ extension: "png" }),
                         reason: `Webhook created by ${message.author.username}`
                     });
 

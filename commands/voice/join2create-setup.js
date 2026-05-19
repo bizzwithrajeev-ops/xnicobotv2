@@ -255,7 +255,7 @@ module.exports = {
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             const container = buildErrorResponse('Permission Denied', 'You need **Administrator** permission to use this command.');
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         let config = {};
@@ -268,7 +268,7 @@ module.exports = {
         if (subcommand === 'enable') {
             if (config[message.guild.id]?.enabled) {
                 const container = buildErrorResponse('Already Enabled', 'Join-to-create is already enabled! Use `join2create-setup disable` first.');
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             const loadingContainer = new ContainerBuilder()
@@ -316,7 +316,7 @@ module.exports = {
         } else if (subcommand === 'disable') {
             if (!config[message.guild.id]) {
                 const container = buildErrorResponse('Not Enabled', 'Join-to-create is not enabled in this server!');
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             const triggerChannel = message.guild.channels.cache.get(config[message.guild.id].triggerChannelId);
@@ -329,14 +329,14 @@ module.exports = {
             jsonStore.write('join2create', config);
 
             const container = buildSuccessResponse('System Disabled', 'Join-to-create has been disabled and channels deleted.');
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
         } else if (subcommand === 'status') {
             const guildConfig = config[message.guild.id];
 
             if (!guildConfig || !guildConfig.enabled) {
                 const container = buildErrorResponse('Not Enabled', 'Join-to-create is not enabled in this server!');
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             const triggerChannel = message.guild.channels.cache.get(guildConfig.triggerChannelId);
@@ -358,11 +358,11 @@ module.exports = {
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
         } else {
             const container = buildErrorResponse('Invalid Subcommand', 'Use: `enable`, `disable`, or `status`');
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     }
 };

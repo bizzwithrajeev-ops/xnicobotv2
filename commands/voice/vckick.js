@@ -1,5 +1,6 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
+const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
     name: 'vckick',
@@ -16,7 +17,8 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const member = message.mentions.members.first();
+        const resolvedUser = await resolveUser(message, args);
+        const member = resolvedUser ? await message.guild.members.fetch(resolvedUser.id).catch(() => null) : null;
         if (!member) {
             const container = buildErrorResponse(
                 'No User Mentioned',

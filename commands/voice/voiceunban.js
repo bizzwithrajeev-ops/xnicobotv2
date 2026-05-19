@@ -2,6 +2,7 @@ const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacing
 const { buildErrorResponse, buildSuccessResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function loadBans() {
     try {
@@ -34,7 +35,7 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const user = message.mentions.users.first();
+        const user = await resolveUser(message, args);
         if (!user) {
             const container = buildErrorResponse(
                 'No User Mentioned',

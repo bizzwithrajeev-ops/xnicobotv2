@@ -160,7 +160,7 @@ module.exports = {
     aliases: ['wh-list', 'listwebhooks', 'wh-manage', 'webhooks'],
     permissions: ['ManageWebhooks'],
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageWebhooks)) {
             return message.reply({ components: [errorContainer('Missing Permission\n\nYou need the **Manage Webhooks** permission.')], flags: MessageFlags.IsComponentsV2 });
         }

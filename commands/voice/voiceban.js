@@ -2,6 +2,7 @@ const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacing
 const { buildErrorResponse, buildSuccessResponse, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
+const { resolveUser } = require('../../utils/resolveUser');
 
 function loadBans() {
     try {
@@ -34,7 +35,8 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const member = message.mentions.members.first();
+        const resolvedUser = await resolveUser(message, args);
+        const member = resolvedUser ? await message.guild.members.fetch(resolvedUser.id).catch(() => null) : null;
         const reason = args.slice(1).join(' ') || 'No reason provided';
 
         if (!member) {

@@ -34,11 +34,11 @@ const { resolveUser } = require('./resolveUser');
 
 // ── Custom emoji map for professional styling ────────────────────────────
 const ACTION_EMOJIS = {
-    hug:       '<:Heartalt:1473038488893526016>',
-    kiss:      '<:Heartalt:1473038488893526016>',
-    cuddle:    '<:Heartalt:1473038488893526016>',
-    handhold:  '<:Heartalt:1473038488893526016>',
-    peck:      '<:Heartalt:1473038488893526016>',
+    hug:       '<a:HeartCross:1506258489960304800>',
+    kiss:      '<a:HeartCross:1506258489960304800>',
+    cuddle:    '<a:HeartCross:1506258489960304800>',
+    handhold:  '<a:HeartCross:1506258489960304800>',
+    peck:      '<a:HeartCross:1506258489960304800>',
     pat:       '<:Star:1473038501766369300>',
     pet:       '<:Star:1473038501766369300>',
     praise:    '<:Star:1473038501766369300>',

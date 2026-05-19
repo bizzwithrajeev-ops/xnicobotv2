@@ -9,7 +9,7 @@ module.exports = {
     category: 'voice',
     aliases: ['voicelist', 'voicemembers', 'vcinfo'],
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         const voiceChannels = message.guild.channels.cache
             .filter(ch => ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice)
             .sort((a, b) => a.position - b.position);
