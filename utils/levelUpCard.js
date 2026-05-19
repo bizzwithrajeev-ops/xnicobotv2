@@ -3,7 +3,7 @@ const imageCache = require('./imageCache');
 const { registerAllFonts, getFontHelpers } = require('./fontRegistry');
 const {
     drawRoundedRect, drawText, hexToRgb, formatNumber,
-    getNicoLogo, drawNicoBranding
+    getNicoLogo, drawNicoBranding, loadEmoji: loadCanvasEmoji
 } = require('./canvasDesign');
 
 try { registerAllFonts(); } catch {}
@@ -243,7 +243,20 @@ async function _renderCard(user, data = {}) {
 
     ctx.font = h.getBoldFont(12);
     ctx.fillStyle = '#fff';
-    await drawText(ctx, `${EMOJIS.levelup}  LEVEL UP!`, bdgX + 8, bdgY + 17);
+    // Draw the LEVEL UP badge text with emoji placed precisely
+    {
+        const badgeEmojiSize = 14;
+        const emojiImg = await loadCanvasEmoji(EMOJIS.levelup, true, '1473038604812161218', false, 'Fire');
+        let bx = bdgX + 10;
+        if (emojiImg) {
+            // Center emoji vertically in the badge pill
+            const emojiY = bdgY + (bdgH - badgeEmojiSize) / 2;
+            ctx.drawImage(emojiImg, bx, emojiY, badgeEmojiSize, badgeEmojiSize);
+            bx += badgeEmojiSize + 5;
+        }
+        ctx.textAlign = 'left';
+        ctx.fillText('LEVEL UP!', bx, bdgY + 17);
+    }
 
     ctx.font = h.getBoldFont(30);
     ctx.fillStyle = '#f0f0f5';
@@ -294,9 +307,18 @@ async function _renderCard(user, data = {}) {
         ctx.stroke();
         ctx.restore();
 
-        ctx.font = h.getSemiBoldFont(12);
-        ctx.fillStyle = s.color;
-        await drawText(ctx, s.emoji, sX + 8, statsY + 4);
+        // Draw emoji directly at the correct position (vertically centered in pill)
+        {
+            const emojiMatch = s.emoji.match(/<a?:(\w+):(\d+)>/);
+            if (emojiMatch) {
+                const emojiImg = await loadCanvasEmoji(s.emoji, true, emojiMatch[2], false, emojiMatch[1]);
+                if (emojiImg) {
+                    // Center emoji vertically in the 30px pill (pill top = statsY-14)
+                    const emojiDrawY = statsY - 14 + (30 - emojiW) / 2;
+                    ctx.drawImage(emojiImg, sX + 8, emojiDrawY, emojiW, emojiW);
+                }
+            }
+        }
 
         ctx.font = h.getSemiBoldFont(9);
         ctx.fillStyle = '#6b7085';
