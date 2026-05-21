@@ -317,62 +317,46 @@ function setupLavalinkEvents(client, lavalinkManager) {
     lavalinkManager.on('trackError', async (player, track, error) => {
         let errorMsg = 'Unknown error';
         if (error) {
-            if (typeof error === 'string') {
-                errorMsg = error;
-            } else if (error.message) {
-                errorMsg = error.message;
-            } else if (error.reason) {
-                errorMsg = error.reason;
-            } else if (error.type) {
-                errorMsg = `${error.type}: ${error.message || 'Unknown'}`;
-            } else {
-                errorMsg = String(error);
-            }
+            if (typeof error === 'string') errorMsg = error;
+            else if (error.message) errorMsg = error.message;
+            else if (error.reason) errorMsg = error.reason;
+            else if (error.type) errorMsg = `${error.type}: ${error.message || 'Unknown'}`;
+            else errorMsg = String(error);
         }
-        log.error(`Track error: ${errorMsg} - Attempting to skip...`);
+        log.error(`Track error: ${errorMsg}`);
 
         const channel = client.channels.cache.get(player.textChannelId);
+        const trackTitle = track?.info?.title || 'Unknown Track';
 
-        // Try to search for the same track with SoundCloud if YouTube failed
-        const trackTitle = track?.info?.title;
-        if (trackTitle && !track.retried) {
-            log.info(`Retrying failed track with SoundCloud: ${trackTitle.substring(0, 30)}...`);
+        // Try SoundCloud fallback for YouTube failures (only once)
+        if (track?.info?.title && !track.retried) {
             try {
-                const scSearch = await player.search({ query: `scsearch:${trackTitle}` }, track.requester);
-                if (scSearch.tracks && scSearch.tracks.length > 0) {
+                const scSearch = await player.search({ query: `scsearch:${track.info.title}` }, track.requester);
+                if (scSearch.tracks?.length > 0) {
                     const newTrack = scSearch.tracks[0];
                     newTrack.retried = true;
                     newTrack.requester = track.requester;
-
                     await player.queue.add(newTrack, 0);
-                    log.success(`Found alternative on SoundCloud: ${newTrack.info.title.substring(0, 30)}...`);
-
-                    if (channel) {
-                        channel.send(`<:Music:1473039311057190972> YouTube failed, trying SoundCloud version...`).catch(() => {});
-                    }
-
-                    await player.skip().catch(err => log.error(`Skip to SC track failed: ${err.message}`));
+                    if (channel) channel.send(`<:Music:1473039311057190972> Retrying with alternative source...`).catch(() => {});
+                    await player.skip().catch(() => {});
                     return;
                 }
-            } catch (scErr) {
-                log.warning(`SoundCloud retry also failed: ${scErr.message}`);
-            }
+            } catch {}
         }
 
-        if (channel) {
-            channel.send(`<:Inforect:1473038624172937287> Track failed to play. Skipping...`).catch(() => {});
-        }
-
+        // Skip to next track or stop
         try {
-            if (player.queue && player.queue.tracks && player.queue.tracks.length > 0) {
-                log.info(`Skipping errored track. Queue has ${player.queue.tracks.length} tracks remaining.`);
-                player.skip().catch(err => log.error(`Skip failed: ${err.message}`));
+            if (player.queue?.tracks?.length > 0) {
+                await player.skip().catch(() => player.stopPlaying(false, true).catch(() => {}));
+                if (channel) channel.send(`<:Inforect:1473038624172937287> \`${trackTitle.slice(0, 40)}\` failed — skipping.`).catch(() => {});
             } else {
-                log.info(`No tracks in queue after error. Stopping player.`);
-                player.stopPlaying().catch(err => log.error(`Stop failed: ${err.message}`));
+                await player.stopPlaying(false, true).catch(() => {});
+                if (channel) channel.send(`<:Inforect:1473038624172937287> \`${trackTitle.slice(0, 40)}\` failed — no more tracks in queue.`).catch(() => {});
             }
         } catch (err) {
             log.error(`Track error handler failed: ${err.message}`);
+            // Last resort — force destroy the player to prevent stuck state
+            try { await player.destroy(); } catch {}
         }
     });
 
