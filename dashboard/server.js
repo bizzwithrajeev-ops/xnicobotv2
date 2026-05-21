@@ -78,6 +78,11 @@ const MODULE_TO_STORE = {
     voice: 'join2create',
     'media-only': 'media-only',
     'bot-customize': 'bot-customize',
+    'economy-settings': 'economy-settings',
+    'social-notify': 'social-notify',
+    'vote-config': 'vote-config',
+    confessions: 'confessions',
+    serverstats: 'serverstats',
     // Dashboard exposes "logging" with friendly field names (modLog,
     // messageLog, ...) but the bot reads the 'logs' store with shorter
     // keys (moderation, message, ...). The translation lives in the
@@ -565,7 +570,7 @@ const MODULE_DEFAULTS = {
     welcomer: getWelcomerDefaults,
     automod: getAutomodDefaults,
     leveling: () => ({ enabled: false, xpPerMessage: 15, xpCooldown: 60, announcements: { enabled: true, channel: null, message: 'Congrats {user}! You reached level {level}!' }, noXpRoles: [], noXpChannels: [], levelRoles: {}, xpMultiplier: 1 }),
-    economy: () => ({ enabled: false, startingBalance: 0, dailyReward: 100, currency: '💰', weeklyReward: 500, workMinReward: 50, workMaxReward: 200, robChance: 40, shopItems: [] }),
+    economy: () => ({ enabled: false, startingBalance: 0, dailyReward: 1000, currency: '<:Money:1473377877239140529>', currencyName: 'coins', weeklyReward: 5000, workMinReward: 100, workMaxReward: 300, robChance: 50, robEnabled: true, gamblingEnabled: true, shopEnabled: true }),
     tickets: () => ({ enabled: false, categoryId: null, supportRoleId: null, maxOpen: 5, logChannel: null, closeConfirmation: true, transcripts: true, dmOnClose: true, autoClose: 0, welcomeMessage: 'Support will be with you shortly.' }),
     logging: () => ({ enabled: false, modLog: null, messageLog: null, memberLog: null, serverLog: null, voiceLog: null, ignoredChannels: [] }),
     music: () => ({ enabled: true, defaultVolume: 80, maxQueueSize: 100, djRoleId: null, voteSkip: true, announce: true }),
@@ -603,7 +608,12 @@ const MODULE_DEFAULTS = {
     reactionroles: () => ({ enabled: false, panels: [] }),
     giveaway: () => ({ enabled: true }),
     'bot-customize': () => ({ nickname: null, avatarUrl: null, prefix: null, embedColor: '#5865F2', footerText: null, language: 'en', commandCooldown: 5, deleteCommands: false, ephemeralResponses: false }),
-    'botignore-config': () => ({ enabled: false, ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], ignoreAllBots: false, ignorePrefix: false })
+    'botignore-config': () => ({ enabled: false, ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], ignoreAllBots: false, ignorePrefix: false }),
+    'social-notify': () => ({ youtube: { enabled: false, channels: [], notifyChannel: null, pingRole: null, message: '{channel} uploaded a new video!\n\n**{title}**\n{url}', liveMessage: '🔴 **{channel}** is now LIVE!\n{url}', liveEnabled: true } }),
+    'vote-config': () => ({ enabled: false, channelId: null, pingRoleId: null }),
+    'economy-settings': () => ({ currency: '<:Money:1473377877239140529>', currencyName: 'coins', dailyReward: 1000, weeklyReward: 5000, workMinReward: 100, workMaxReward: 300, robChance: 50, startingBalance: 0, robEnabled: true, gamblingEnabled: true, shopEnabled: true }),
+    'confessions': () => ({ channelId: null, count: 0, log: {} }),
+    'serverstats': () => ({ enabled: false, stats: [], channelMap: {}, style: 'default' })
 };
 
 // ── Premium status check for a guild ──
