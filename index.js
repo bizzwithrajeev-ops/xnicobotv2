@@ -1611,6 +1611,15 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // Handle confession modals
+        if (interaction.customId.startsWith('confess_modal_')) {
+            const confCmd = client.commands.get('confess');
+            if (confCmd?.handleModal) {
+                try { const h = await confCmd.handleModal(interaction); if (h) return; } catch (e) { log.error(`Confession Modal: ${e.message}`); }
+            }
+            return;
+        }
+
         // Handle join2create modals
         if (interaction.customId.startsWith('j2c_')) {
             try {
@@ -2314,6 +2323,13 @@ client.on('interactionCreate', async (interaction) => {
                 const todCmd = client.commands.get('truthdare');
                 if (todCmd?.handleButton) {
                     try { const h = await todCmd.handleButton(interaction); if (h) return; } catch {}
+                }
+            }
+            // Confession buttons
+            if (interaction.customId.startsWith('confess_') || interaction.customId.startsWith('confsetup_')) {
+                const confCmd = client.commands.get(interaction.customId.startsWith('confsetup_') ? 'confession-setup' : 'confess');
+                if (confCmd?.handleButton) {
+                    try { const h = await confCmd.handleButton(interaction); if (h) return; } catch {}
                 }
             }
             if (interaction.customId.startsWith('botcustom_')) {
