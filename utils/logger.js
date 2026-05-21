@@ -1265,6 +1265,79 @@ async function logWebhookUpdate(ch) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   <:Lightning:1473038797540298792> AUTOMOD ACTION LOGS
+   ═══════════════════════════════════════════════════════ */
+
+async function logAutomodAction(guild, data) {
+    const channel = getLogChannel(guild, 'automod');
+    if (!channel) return;
+
+    const { user, action, reason, rule, channelId, content } = data;
+    const actionLabels = { block: 'Message Blocked', timeout: 'User Timed Out', alert: 'Alert Sent', flag: 'Message Flagged' };
+
+    const c = buildLogContainer(Colors.warning);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} AutoMod Action\n` +
+        `${E.moderate} **Action:** ${actionLabels[action] || action}\n` +
+        `${E.shine} **User:** ${user?.username || 'Unknown'} (\`${user?.id || '?'}\`)\n` +
+        `${E.pin} **Channel:** ${channelId ? `<#${channelId}>` : 'Unknown'}\n` +
+        `${E.read} **Rule:** ${rule || 'Custom Rule'}`
+    ));
+    if (content) {
+        c.addSeparatorComponents(separator());
+        c.addTextDisplayComponents(text(`### ${E.messages} Flagged Content\n>>> ${content.slice(0, 500)}`));
+    }
+    if (reason) {
+        c.addSeparatorComponents(separator());
+        c.addTextDisplayComponents(text(`### ${E.info} Reason\n> ${reason}`));
+    }
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'automod');
+}
+
+/* ═══════════════════════════════════════════════════════
+   <:Sketch:1473038248493453352> BOOST LOGS
+   ═══════════════════════════════════════════════════════ */
+
+async function logBoostEvent(member, started) {
+    const channel = getLogChannel(member.guild, 'boost');
+    if (!channel) return;
+
+    const c = buildLogContainer(Colors.boost);
+    c.addSectionComponents(
+        section(
+            `# ${E.boost} Server ${started ? 'Boosted' : 'Unboost'}\n` +
+            `${E.shine} **User:** ${member.user.username} (\`${member.user.id}\`)\n` +
+            `${E.boost} **Boost Level:** ${member.guild.premiumTier}\n` +
+            `${E.stats} **Total Boosts:** ${member.guild.premiumSubscriptionCount || 0}`,
+            member.user.displayAvatarURL({ size: 256 })
+        )
+    );
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${started ? 'Started boosting' : 'Stopped boosting'} • ${tsR(new Date())}`));
+
+    await sendLog(channel, c, member.guild, 'boost');
+}
+
+/* ═══════════════════════════════════════════════════════
+   <:Gamepad:1473039216429498409> COMMAND USAGE LOGS
+   ═══════════════════════════════════════════════════════ */
+
+async function logCommandUsage(guild, user, commandName, channelId, type = 'slash') {
+    const channel = getLogChannel(guild, 'commands');
+    if (!channel) return;
+
+    const c = buildLogContainer(Colors.info);
+    c.addTextDisplayComponents(text(
+        `${E.games} **${user.username}** used \`${type === 'slash' ? '/' : '-'}${commandName}\` in <#${channelId}>`
+    ));
+
+    await sendLog(channel, c, guild, 'commands');
+}
+
+/* ═══════════════════════════════════════════════════════
    EXPORTS
    ═══════════════════════════════════════════════════════ */
 
@@ -1308,6 +1381,16 @@ module.exports = {
     // Invites
     logInviteCreate,
     logInviteDelete,
+    // AutoMod
+    logAutomodAction,
+    // Boost
+    logBoostEvent,
+    // Commands
+    logCommandUsage,
+    // Helpers
+    invalidateCache,
+    getLogChannel,
+    sendLog,
     // Webhooks
     logWebhookUpdate,
     // Config helpers

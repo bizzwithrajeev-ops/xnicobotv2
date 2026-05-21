@@ -2302,6 +2302,20 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             }
+            // Meme next button
+            if (interaction.customId.startsWith('meme_')) {
+                const memeCmd = client.commands.get('meme');
+                if (memeCmd?.handleButton) {
+                    try { const h = await memeCmd.handleButton(interaction); if (h) return; } catch {}
+                }
+            }
+            // Truth or Dare buttons
+            if (interaction.customId.startsWith('tod_')) {
+                const todCmd = client.commands.get('truthdare');
+                if (todCmd?.handleButton) {
+                    try { const h = await todCmd.handleButton(interaction); if (h) return; } catch {}
+                }
+            }
             if (interaction.customId.startsWith('botcustom_')) {
                 const botCustomCmd = client.commands.get('bot-customize');
                 if (botCustomCmd && botCustomCmd.handleInteraction) {
