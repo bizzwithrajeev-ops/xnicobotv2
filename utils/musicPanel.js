@@ -531,9 +531,9 @@ async function updateVoiceChannelStatus(client, playerOrIds, type = 'auto', trac
         if (type === 'waiting') {
             status = buildWaitingStatus();
         } else if (type === 'clear') {
-            status = '';
+            status = null; // Discord requires null to clear, empty string doesn't work
         } else {
-            status = playerOrIds.queue ? buildVoiceStatus(playerOrIds, track) : '';
+            status = playerOrIds.queue ? buildVoiceStatus(playerOrIds, track) : null;
         }
 
         // Debounce: avoid rapid voice status API calls (rate-limit safe)
@@ -547,7 +547,7 @@ async function updateVoiceChannelStatus(client, playerOrIds, type = 'auto', trac
                 voiceStatusDebounce.delete(debounceKey);
                 try {
                     await client.rest.put(`/channels/${vc.id}/voice-status`, {
-                        body: { status: status.substring(0, 500) }
+                        body: { status: status === null ? null : status.substring(0, 500) }
                     });
                 } catch (err) {
                     if (err.status === 429) {

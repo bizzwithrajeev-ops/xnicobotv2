@@ -5459,7 +5459,7 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             // Handle welcomer template select menus
-            if (interaction.customId.startsWith('welcomer_template_') || interaction.customId.startsWith('welcomer_select_')) {
+            if (interaction.customId.startsWith('welcomer_template_') || interaction.customId.startsWith('welcomer_select_') || interaction.customId.startsWith('leave_template_')) {
                 const welcomerCmd = client.commands.get('welcomer');
                 if (welcomerCmd && welcomerCmd.handleInteraction) {
                     try {
@@ -9870,6 +9870,10 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                                         const stillAlone = vc ? vc.members.filter(m => !m.user.bot).size === 0 : true;
                                         if (stillAlone) {
                                             log.info(`Bot alone disconnect: Destroying player in guild ${guildIdForTimer} after 2 minutes`);
+                                            // Clear voice status before destroying (voiceChannelId may be null after destroy)
+                                            if (currentPlayer.voiceChannelId) {
+                                                await updateVoiceChannelStatus(client, { guildId: guildIdForTimer, voiceChannelId: currentPlayer.voiceChannelId }, 'clear');
+                                            }
                                             await currentPlayer.destroy();
                                         }
                                     }

@@ -828,7 +828,7 @@ module.exports = {
         // Check if builder session has expired
         if (await checkAndExpire(interaction, 'builder')) return true;
         
-        const session = builderSessions.get(interaction.message.id);
+        const session = interaction.message ? builderSessions.get(interaction.message.id) : null;
         if (session && session.userId !== interaction.user.id) {
             await interaction.reply({
                 content: '<:Cancel:1473037949187657818> This builder belongs to someone else. Use `/message-builder` to open your own.',
