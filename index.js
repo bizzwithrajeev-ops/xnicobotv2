@@ -9806,6 +9806,22 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     const guild = newState.guild || oldState.guild;
     if (guild) { try { await updateServerStats(guild); } catch { } }
 
+    // ── Re-apply persistent voice channel statuses ──
+    // When a channel becomes empty, Discord clears the status after a
+    // few seconds. We detect "user left" and if the channel is now
+    // empty, schedule a re-apply after 5s (gives Discord time to clear).
+    if (oldState.channelId && (!newState.channelId || newState.channelId !== oldState.channelId)) {
+        const leftChannel = oldState.guild.channels.cache.get(oldState.channelId);
+        if (leftChannel && leftChannel.members.filter(m => !m.user.bot).size === 0) {
+            setTimeout(async () => {
+                try {
+                    const { reapplyPersistentStatus } = require('./commands/voice/vcstatus');
+                    await reapplyPersistentStatus(client, oldState.channelId);
+                } catch {}
+            }, 6000); // 6s delay — Discord clears status ~3-5s after last user leaves
+        }
+    }
+
     // --- Bot alone in voice channel detection ---
     // When a user leaves a voice channel, check if the bot is now alone
     try {

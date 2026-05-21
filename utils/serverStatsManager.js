@@ -20,7 +20,8 @@ const STAT_TYPES = {
     boostTier: { emoji: '9⃣', label: 'Boost Level', template: 'xN | Level: {value}' },
     textCh:    { emoji: '🔟', label: 'Text Ch.',   template: 'xN | Text: {value}' },
     voiceCh:   { emoji: '🔢', label: 'Voice Ch.',  template: 'xN | Voice: {value}' },
-    categories:{ emoji: '🔣', label: 'Categories', template: 'xN | Categories: {value}' }
+    categories:{ emoji: '🔣', label: 'Categories', template: 'xN | Categories: {value}' },
+    activeVc:  { emoji: '🔊', label: 'Active VC',  template: 'xN | {value} Active VC' }
 };
 
 /* ─── Load / Save config ─── */
@@ -124,11 +125,14 @@ async function computeStats(guild) {
         const textCh = allChannels.filter(c => [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum].includes(c.type)).size;
         const voiceCh = allChannels.filter(c => [ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(c.type)).size;
         const categories = allChannels.filter(c => c.type === ChannelType.GuildCategory).size;
+        const activeVc = allChannels.filter(c =>
+            (c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice) && c.members?.size > 0
+        ).size;
 
-        return { members, humans, bots, channels, roles, online, inVoice, boosts, boostTier, textCh, voiceCh, categories };
+        return { members, humans, bots, channels, roles, online, inVoice, boosts, boostTier, textCh, voiceCh, categories, activeVc };
     } catch (e) {
         log.error('ServerStats: Failed to compute stats:', e.message);
-        return { members: 0, humans: 0, bots: 0, channels: 0, roles: 0, online: 0, inVoice: 0, boosts: 0, boostTier: 0, textCh: 0, voiceCh: 0, categories: 0 };
+        return { members: 0, humans: 0, bots: 0, channels: 0, roles: 0, online: 0, inVoice: 0, boosts: 0, boostTier: 0, textCh: 0, voiceCh: 0, categories: 0, activeVc: 0 };
     }
 }
 
