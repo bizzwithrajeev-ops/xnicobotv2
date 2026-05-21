@@ -355,7 +355,11 @@ module.exports = {
 
         // Role modal submit
         if (customId === 'ytnotify_modal_role' && interaction.isModalSubmit()) {
-            const roleId = interaction.fields.getTextInputValue('role_id').trim();
+            let roleId = interaction.fields.getTextInputValue('role_id').trim();
+            // Handle @everyone input — store as 'everyone' keyword
+            if (roleId === '@everyone' || roleId.toLowerCase() === 'everyone') {
+                roleId = 'everyone';
+            }
             ytConfig.pingRole = roleId || null;
             saveConfig(config);
             await interaction.reply({
@@ -460,7 +464,12 @@ module.exports = {
                 .replace(/{url}/g, testVideo.url)
                 .replace(/{videoId}/g, testVideo.videoId);
 
-            const pingRole = ytConfig.pingRole ? `<@&${ytConfig.pingRole}> ` : '';
+            const pingRole = ytConfig.pingRole
+                ? (ytConfig.pingRole === 'everyone' ? '@everyone ' : `<@&${ytConfig.pingRole}> `)
+                : '';
+            const allowedMentions = {};
+            if (ytConfig.pingRole === 'everyone') allowedMentions.parse = ['everyone'];
+            else if (ytConfig.pingRole) allowedMentions.roles = [ytConfig.pingRole];
 
                         const embed = new EmbedBuilder()
                 .setColor(0xFF0000)
@@ -474,7 +483,8 @@ module.exports = {
             try {
                 await channel.send({
                     content: `${pingRole}${testMessage}\n\n-# 🧪 This is a test notification`,
-                    embeds: [embed]
+                    embeds: [embed],
+                    allowedMentions
                 });
                 await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Test notification sent to <#${channel.id}>!`, flags: MessageFlags.Ephemeral });
             } catch (error) {

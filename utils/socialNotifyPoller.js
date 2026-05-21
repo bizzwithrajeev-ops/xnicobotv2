@@ -288,12 +288,24 @@ async function pollYouTube(client, log) {
                     }
 
                     const messageText = formatMessage(messageTemplate, video);
-                    const pingRole = ytConfig.pingRole ? `<@&${ytConfig.pingRole}> ` : '';
+                    // Build ping text — handle @everyone specially
+                    let pingRole = '';
+                    const allowedMentions = { parse: [] };
+                    if (ytConfig.pingRole) {
+                        if (ytConfig.pingRole === 'everyone') {
+                            pingRole = '@everyone ';
+                            allowedMentions.parse.push('everyone');
+                        } else {
+                            pingRole = `<@&${ytConfig.pingRole}> `;
+                            allowedMentions.roles = [ytConfig.pingRole];
+                        }
+                    }
                     const embed = buildYouTubeEmbed(video, isLive);
 
                     await notifyChannel.send({
                         content: `${pingRole}${messageText}`,
-                        embeds: [embed]
+                        embeds: [embed],
+                        allowedMentions
                     });
 
                     if (log) log.info(`[Social Notify] YouTube: Notified ${guild.name} about ${video.title} by ${video.channelName}`);
