@@ -162,7 +162,7 @@ async function drawTextWithEmoji(ctx, text, x, y, fontSize, emojiSize = fontSize
     if (item.kind === 'text') {
       ctx.fillText(item.content, currX, y);
     } else {
-      ctx.drawImage(item.img, currX, y - emojiSize * 0.75, emojiSize, emojiSize);
+      ctx.drawImage(item.img, currX, y - fontSize, emojiSize, emojiSize);
     }
     currX += item.width;
   }

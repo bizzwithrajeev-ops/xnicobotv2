@@ -198,7 +198,7 @@ function parseText(text) {
 function measureText(ctx, text) {
     const parts = parseText(text);
     const fontSize = parseInt(ctx.font.match(/\d+/)?.[0]) || 20;
-    const emojiSize = Math.round(fontSize * 1.3);
+    const emojiSize = Math.round(fontSize * 1.2);
     let width = 0;
 
     for (const part of parts) {
@@ -214,7 +214,7 @@ function measureText(ctx, text) {
 async function drawText(ctx, text, x, y, centered = false) {
     const parts = parseText(text);
     const fontSize = parseInt(ctx.font.match(/\d+/)?.[0]) || 20;
-    const emojiSize = Math.round(fontSize * 1.3);
+    const emojiSize = Math.round(fontSize * 1.2);
 
     let startX = x;
     if (centered) {
@@ -235,7 +235,7 @@ async function drawText(ctx, text, x, y, centered = false) {
         } else {
             const img = await loadEmoji(part.content || '', part.type === 'custom', part.id, part.animated, part.name);
             if (img) {
-                ctx.drawImage(img, currentX, y - emojiSize * 0.75, emojiSize, emojiSize);
+                ctx.drawImage(img, currentX, y - fontSize, emojiSize, emojiSize);
                 currentX += emojiSize + 2;
             } else {
                 // Emoji failed to load — render the name as text fallback
