@@ -141,7 +141,7 @@ module.exports = {
             .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:Userplus:1473038912212435086> Mass Role Processing\n\n<a:loading:1506015728871149770> ${action === 'add' ? 'Adding' : 'Removing'} role for ${members.size} members...\n\n*This may take a moment*`)
+                    .setContent(`# <:Userplus:1473038912212435086> Mass Role Processing\n\n<:Lightning:1473038797540298792> ${action === 'add' ? 'Adding' : 'Removing'} role for ${members.size} members...\n\n*This may take a moment*`)
             );
 
         const processingMsg = await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

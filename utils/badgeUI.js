@@ -22,10 +22,10 @@
 const BADGE_ICONS = {
     Cancel:      '<:Cancel:1473037949187657818>',
     Checkedbox:  '<:Checkedbox:1473038547165384804>',
-    Sandwatch:   '<a:loading:1506015728871149770>',
+    Sandwatch:   '<:Lightning:1473038797540298792>',
     Award:       '<:Award:1473038391632203887>',
     Trash:       '<:Trash:1473038090074591293>',
-    Settings:    '<:settings:1415659283017707640>',
+    Settings:    '<:Settings:1473037894703779851>',
     Edit:        '<:Edit:1473037903625191580>',
     Eye:         '<:Eye:1473038435056095242>',
     Palette:     '<:Palette:1473039029476917461>',

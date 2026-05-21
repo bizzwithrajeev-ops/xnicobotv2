@@ -64,7 +64,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Bans & Kicks',        emoji: '<:banhammer:1473367388597780592>',  cmds: ['ban', 'unban', 'kick', 'hackban', 'softban', 'massban', 'masskick', 'banlist', 'unbanall'] },
         { name: 'Mute & Timeout',      emoji: '<:Shield:1473038669831995494>',     cmds: ['mute', 'unmute', 'timeout', 'untimeout'] },
         { name: 'Warnings',            emoji: '<:Bookopen:1473038576391557130>',   cmds: ['warn', 'warnings', 'removewarn', 'warnconfig', 'clearwarnings', 'reason'] },
-        { name: 'Cases & Logging',     emoji: '<a:loading:1506015728871149770>',  cmds: ['cases', 'modhistory', 'delcase', 'audit', 'logging-setup', 'logging'] },
+        { name: 'Cases & Logging',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['cases', 'modhistory', 'delcase', 'audit', 'logging-setup', 'logging'] },
         { name: 'Members & Nicknames', emoji: '<:xnico:1486755083390550036>',       cmds: ['setnick', 'nickreset', 'massnick', 'inactive-members', 'members-without-role'] },
     ],
 
@@ -84,7 +84,7 @@ const CATEGORY_GROUP_RULES = {
     // ── 6. Server Management ──────────────────────────────────
     server: [
         { name: 'Channel Access',      emoji: '<:Shield:1473038669831995494>',     cmds: ['lock', 'unlock', 'lockall', 'unlockall', 'lock-category', 'unlock-category', 'hide', 'unhide', 'hideall', 'unhideall', 'hide-category', 'unhide-category'] },
-        { name: 'Channel Speed',       emoji: '<a:loading:1506015728871149770>',  cmds: ['slowmode', 'slowmode-all'] },
+        { name: 'Channel Speed',       emoji: '<:Lightning:1473038797540298792>',  cmds: ['slowmode', 'slowmode-all'] },
         { name: 'Channel Setup',       emoji: '<:Folder:1473039340425973972>',     cmds: ['create-channel', 'delete-channel', 'channelclone', 'channel-nsfw', 'channel-permissions', 'channel-position', 'channel-rename', 'channel-topic', 'clone-permissions', 'setcategory', 'category-delete', 'category-rename', 'ignore-channels', 'backup-channel'] },
         { name: 'Role Management',     emoji: '<:Settings:1473037894703779851>',   cmds: ['create-role', 'delete-role', 'addrole', 'removerole', 'roleall', 'roleallbots', 'roleallhumans', 'massrole', 'move-role', 'role-color', 'role-hoist', 'role-icon', 'role-mentionable', 'role-position-set', 'role-rename'] },
     ],
@@ -139,7 +139,7 @@ const CATEGORY_GROUP_RULES = {
     basic: [
         { name: 'Bot Core',            emoji: '<:xnico:1486755083390550036>',       cmds: ['help', 'botinfo', 'ping', 'invite', 'uptime', 'vote', 'support', 'variables'] },
         { name: 'Premium',             emoji: '<:Fire:1473038604812161218>',       cmds: ['premium', 'premiumperks', 'redeemkey', 'serverpremium'] },
-        { name: 'Reminders & AFK',     emoji: '<a:loading:1506015728871149770>',  cmds: ['afk', 'reminder', 'announce'] },
+        { name: 'Reminders & AFK',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['afk', 'reminder', 'announce'] },
         { name: 'Lookup & APIs',       emoji: '<:Attach:1473037923979886694>',     cmds: ['github', 'npm', 'define', 'urban', 'urbanrandom', 'wikipedia', 'reddit', 'youtube', 'spotify', 'weather', 'color', 'ip'] },
         { name: 'Media & Tools',       emoji: '<:Pin:1473038806612447500>',        cmds: ['image', 'screenshot', 'qrcode', 'shorten', 'pastebin', 'calculate', 'password', 'uuid', 'download'] },
         { name: 'Misc & Community',    emoji: '<:Fire:1473038604812161218>',       cmds: ['firstmsg', 'pinned-messages', 'snowflake', 'enlarge', 'afklist', 'anime', 'manga', 'crypto', 'stocks', 'covid', 'suggest', 'report', 'apply'] },
@@ -149,7 +149,7 @@ const CATEGORY_GROUP_RULES = {
     stats: [
         { name: 'Activity Tracking',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['messagestats', 'voicestats', 'memberstats', 'serveractivity', 'channelstats', 'userstats', 'stats'] },
         { name: 'Comparisons',         emoji: '<:Inforect:1473038624172937287>',   cmds: ['comparestats', 'rankposition'] },
-        { name: 'Leaderboards & Tools', emoji: '<a:loading:1506015728871149770>', cmds: ['topstats', 'activities', 'timestamp', 'statboard'] },
+        { name: 'Leaderboards & Tools', emoji: '<:Lightning:1473038797540298792>', cmds: ['topstats', 'activities', 'timestamp', 'statboard'] },
     ],
 
     // ── 15. Image ─────────────────────────────────────────────
@@ -193,7 +193,7 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 20. Economy ───────────────────────────────────────────
     economy: [
-        { name: 'Earning',             emoji: '<a:loading:1506015728871149770>',  cmds: ['daily', 'weekly', 'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'farm', 'heist'] },
+        { name: 'Earning',             emoji: '<:Lightning:1473038797540298792>',  cmds: ['daily', 'weekly', 'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'farm', 'heist'] },
         { name: 'Gambling',            emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice', 'blackjack', 'roulette', 'rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
         { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard'] },
         { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift'] },
@@ -236,7 +236,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Guild Management',    emoji: '<:Pin:1473038806612447500>',        cmds: ['serverlist', 'leaveguild', 'serverinfo-owner', 'guild-search', 'getinvite'] },
         { name: 'User Management',     emoji: '<:Shield:1473038669831995494>',     cmds: ['globalban', 'globalunban', 'blacklist', 'noprefix', 'dmuser', 'userlookup', 'addowner', 'removeowner', 'listowners'] },
         { name: 'Badge System',        emoji: '<:Fire:1473038604812161218>',       cmds: ['badge-give', 'badge-remove', 'badge-list'] },
-        { name: 'Bot Health & Stats',  emoji: '<a:loading:1506015728871149770>',  cmds: ['botstats', 'bothealth', 'systemlogs', 'botinvite', 'botpanel'] },
+        { name: 'Bot Health & Stats',  emoji: '<:Lightning:1473038797540298792>',  cmds: ['botstats', 'bothealth', 'systemlogs', 'botinvite', 'botpanel'] },
         { name: 'Utilities',           emoji: '<:Envelope:1473038885364695113>',   cmds: ['broadcast', 'clearcache', 'activity', 'botnick', 'vote-notify', 'topgg-sync'] },
     ],
 };
@@ -283,7 +283,7 @@ const CATEGORY_META = {
     invites:    { title: 'Invite System',            emoji: '<:Bullhorn:1473038903157199093>',      footer: '-# Track invites, set rewards, view analytics & leaderboards' },
     info:       { title: 'Members & Info',           emoji: '<:Pin:1473038806612447500>',           footer: '-# User profiles, server details, roles, channels & member lookup' },
     basic:      { title: 'Basic & Misc',             emoji: '<:Bookopen:1473038576391557130>',      footer: '-# Core commands, premium, lookup, media tools & community features' },
-    stats:      { title: 'Stats & Activity',         emoji: '<a:loading:1506015728871149770>',     footer: '-# Message, voice & member activity tracking across your server' },
+    stats:      { title: 'Stats & Activity',         emoji: '<:Lightning:1473038797540298792>',     footer: '-# Message, voice & member activity tracking across your server' },
     image:      { title: 'Image Commands',           emoji: '<:Image:1473039533112033508>',         footer: '-# AI image generation plus avatar and image effects for attachments, URLs and user avatars' },
     encoding:   { title: 'Text & Encoding',          emoji: '<:Envelope:1473038885364695113>',      footer: '-# Translate, encode, decode, text effects & analysis tools' },
     games:      { title: 'Games',                    emoji: '<:Gamepad:1473039216429498409>',       footer: '-# Card games, word puzzles, speed challenges & AI-powered fun — play solo or with friends' },
@@ -291,7 +291,7 @@ const CATEGORY_META = {
     action:     { title: 'Action & Roleplay',        emoji: '<:Money:1473377877239140529>',         footer: '-# Anime GIFs powered by nekos.best & waifu.pics APIs' },
     economy:    { title: 'Economy Commands',         emoji: '<:Money:1473377877239140529>',         footer: '-# <:Caretright:1473038207221502106> Canvas-rendered: fish, hunt, adventure, slots, coinflip, battle, profile' },
     social:     { title: 'Social Commands',          emoji: '<:Inforect:1473038624172937287>',      footer: '-# Custom card styles, fonts, badges & profile bio — personalize your card' },
-    leveling:   { title: 'Leveling Commands',        emoji: '<a:loading:1506015728871149770>',     footer: '-# XP is earned per message with cooldowns — Custom rank cards via `rank-customize`' },
+    leveling:   { title: 'Leveling Commands',        emoji: '<:Lightning:1473038797540298792>',     footer: '-# XP is earned per message with cooldowns — Custom rank cards via `rank-customize`' },
     backup:     { title: 'Backup & Database',        emoji: '<:Folder:1473039340425973972>',        footer: '-# Full server clone — roles, channels, permissions, messages & bot configs' },
     webhook:    { title: 'Webhook Commands',         emoji: '<:Attach:1473037923979886694>',        footer: `-# Requires **Manage Webhooks** permission · [Web Portal](${WEBHOOK_PORTAL_URL})` },
     owner:      { title: 'Owner Commands',           emoji: '<:Lightningalt:1473038679906844824>',  footer: '-# Restricted to bot owners — runtime control, premium, user/guild management' },
@@ -357,7 +357,7 @@ const HOME_CATEGORY_ROWS = [
     ['<:Bullhorn:1473038903157199093>',     'Invites',     'invites'],
     ['<:Pin:1473038806612447500>',          'Info',        'info'],
     ['<:Bookopen:1473038576391557130>',     'Basic',       'basic'],
-    ['<a:loading:1506015728871149770>',    'Stats',       'stats'],
+    ['<:Lightning:1473038797540298792>',    'Stats',       'stats'],
     ['<:Caretright:1473038207221502106>',   'Images',      'image'],
     ['<:Envelope:1473038885364695113>',     'Encoding',    'encoding'],
     ['<:Gamepad:1473039216429498409>',      'Games',       'games'],
@@ -365,7 +365,7 @@ const HOME_CATEGORY_ROWS = [
     ['<:Money:1473377877239140529>',        'Action',      'action'],
     ['<:Money:1473377877239140529>',        'Economy',     'economy'],
     ['<:Inforect:1473038624172937287>',     'Social',      'social'],
-    ['<a:loading:1506015728871149770>',    'Leveling',    'leveling'],
+    ['<:Lightning:1473038797540298792>',    'Leveling',    'leveling'],
     ['<:Folder:1473039340425973972>',       'Backup',      'backup'],
     ['<:Attach:1473037923979886694>',       'Webhook',     'webhook'],
     ['<:Lightningalt:1473038679906844824>', 'Owner',       'owner'],

@@ -11,7 +11,7 @@ module.exports = {
             return message.reply('<:Cancel:1473037949187657818> Please provide a user ID to globally unban!');
         }
 
-        const msg = await message.reply('<a:loading:1506015728871149770> Globally unbanning user from all servers...');
+        const msg = await message.reply('<:Lightning:1473038797540298792> Globally unbanning user from all servers...');
         let count = 0;
 
         for (const guild of client.guilds.cache.values()) {

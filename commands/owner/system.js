@@ -76,7 +76,7 @@ module.exports = {
                     `### <:Shield:1473038669831995494> Platform\n` +
                     `> <:Document:1473039496995143731> **OS:** ${os.platform()} ${os.arch()}\n` +
                     `> <:Bookopen:1473038576391557130> **Node.js:** ${process.version}\n` +
-                    `> <a:loading:1506015728871149770> **Uptime:** ${formatUptime(uptime)}`
+                    `> <:Lightning:1473038797540298792> **Uptime:** ${formatUptime(uptime)}`
                 )
             )
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
@@ -103,7 +103,7 @@ module.exports = {
                 new TextDisplayBuilder().setContent(
                     `### <:Bookopen:1473038576391557130> Bot Stats\n` +
                     `> <:Fileuser:1473039570630348810> **${totalGuilds}** servers  •  **${totalUsers.toLocaleString()}** users  •  **${totalChannels}** channels\n` +
-                    `> <a:loading:1506015728871149770> **WS Ping:** ${client.ws.ping}ms\n` +
+                    `> <:Lightning:1473038797540298792> **WS Ping:** ${client.ws.ping}ms\n` +
                     `> <:Alarm:1473039068546732214> **Bot Uptime:** ${formatUptime(uptime)}`
                 )
             )

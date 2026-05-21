@@ -15,7 +15,7 @@ try { registerAllFonts(); } catch {}
 const STAT_TYPE_CONFIG = {
     messages: { label: 'Messages', emoji: '<:Bookopen:1473038576391557130>', color: '#5865F2', format: v => `${formatNumber(v)} msgs` },
     voice: { label: 'Voice Time', emoji: '<:Volumeup:1473039290136002844>', color: '#a78bfa', format: v => formatVoiceTime(v) },
-    xp: { label: 'XP', emoji: '<a:loading:1506015728871149770>', color: '#fbbf24', format: v => `${formatNumber(v)} XP` },
+    xp: { label: 'XP', emoji: '<:Lightning:1473038797540298792>', color: '#fbbf24', format: v => `${formatNumber(v)} XP` },
     invites: { label: 'Invites', emoji: '<:Bullhorn:1473038903157199093>', color: '#34d399', format: v => `${formatNumber(v)} invites` },
     economy: { label: 'Net Worth', emoji: '<:Sketch:1473038248493453352>', color: '#f59e0b', format: v => `${formatNumber(v)} coins` },
     leveling: { label: 'Leveling', emoji: '<:Award:1473038391632203887>', color: '#7c3aed', format: v => `Lv ${Math.floor(0.1 * Math.sqrt(v))}  ·  ${formatNumber(v)} XP` }

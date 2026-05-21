@@ -6,7 +6,7 @@ function buildSupportResponse(client) {
     
     const section = new SectionBuilder()
         .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# <:help:1415658900384096346> Support Server\n\nNeed help? Join our support server!`)
+            new TextDisplayBuilder().setContent(`# <:Inforect:1473038624172937287> Support Server\n\nNeed help? Join our support server!`)
         )
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: client.user.displayAvatarURL({ size: 256 }) } }));
 

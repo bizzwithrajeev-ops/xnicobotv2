@@ -7423,7 +7423,7 @@ client.on('messageCreate', async (message) => {
         mentionContent += `-# Commands: \`${totalCommands}\` • Servers: \`${totalServers}\`\n`;
         mentionContent += `-# Uptime: \`${uptimeStr}\`\n\n`;
         mentionContent += `### <:Music:1473039311057190972> Features\n`;
-        mentionContent += `-# <:YoutubeLive:1435331502710722592> Music • <:Shield:1473038669831995494> Moderation • <a:loading:1506015728871149770> Leveling\n`;
+        mentionContent += `-# <:YoutubeLive:1435331502710722592> Music • <:Shield:1473038669831995494> Moderation • <:Lightning:1473038797540298792> Leveling\n`;
         mentionContent += `-# <:Money:1473377877239140529> Economy • <:Gamepad:1473039216429498409> Fun • <:Bookopen:1473038576391557130> Profiles\n\n`;
         if (guildCustom.footerText) {
             mentionContent += `-# ${guildCustom.footerText}`;
@@ -7456,7 +7456,7 @@ client.on('messageCreate', async (message) => {
                             .setLabel('Vote')
                             .setStyle(ButtonStyle.Link)
                             .setURL(`https://top.gg/bot/${client.user.id}/vote`)
-                            .setEmoji('<a:loading:1506015728871149770>')
+                            .setEmoji('<:Lightning:1473038797540298792>')
                     )
             );
 
@@ -7681,7 +7681,7 @@ client.on('messageCreate', async (message) => {
                 if (totalMinutes > 0) totalTimeText += `${totalMinutes}m `;
                 totalTimeText += `${totalSeconds}s`;
 
-                let welcomeBackText = `# <:Checkedbox:1473038547165384804> Welcome Back!\n\nYour AFK status has been removed.\n\n<:Timer:1473039056710406204> **You were AFK for:** ${durationText}\n<:Bookopen:1473038576391557130>**Total AFK Times:** ${afkStats[userId].count}\n<a:loading:1506015728871149770> **Total AFK Duration:** ${totalTimeText}`;
+                let welcomeBackText = `# <:Checkedbox:1473038547165384804> Welcome Back!\n\nYour AFK status has been removed.\n\n<:Timer:1473039056710406204> **You were AFK for:** ${durationText}\n<:Bookopen:1473038576391557130>**Total AFK Times:** ${afkStats[userId].count}\n<:Lightning:1473038797540298792> **Total AFK Duration:** ${totalTimeText}`;
 
                 if (afkData.mentions && afkData.mentions.length > 0) {
                     const uniqueMentions = [...new Set(afkData.mentions)];
@@ -9393,7 +9393,7 @@ client.on('guildCreate', async (guild) => {
                 wcContent += `### <:Fire:1473038604812161218> What I Can Do\n`;
                 wcContent += `<:Music:1473039311057190972> **Music** — YouTube, Spotify, SoundCloud & more\n`;
                 wcContent += `<:Shield:1473038669831995494> **Moderation** — AutoMod, Anti-Nuke, Anti-Raid\n`;
-                wcContent += `<a:loading:1506015728871149770> **Leveling** — XP system with rank cards\n`;
+                wcContent += `<:Lightning:1473038797540298792> **Leveling** — XP system with rank cards\n`;
                 wcContent += `<:Money:1473377877239140529> **Economy** — Currency, shop, games\n`;
                 wcContent += `<:banhammer:1473367388597780592> **Utility** — Tickets, giveaways, builders\n\n`;
                 wcContent += `### <:Settings:1473037894703779851> Get Started\n`;
@@ -10776,14 +10776,14 @@ if (shardId === 0) {
                             new ThumbnailBuilder({ media: { url: discordUser.displayAvatarURL({ size: 256 }) } })
                         );
 
-                    let statsContent = `### <:user:1417581304299741184> Voter\n`;
+                    let statsContent = `### <:User:1473038971398520977> Voter\n`;
                     statsContent += `**${discordUser.globalName || discordUser.username}** (\`${discordUser.username}\`)\n\n`;
 
                     statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
                     statsContent += `${streakInfo.emoji} **Streak:** ${userData.streak} vote${userData.streak > 1 ? 's' : ''} in a row`;
                     if (streakInfo.title) statsContent += ` — *${streakInfo.title}!*`;
                     statsContent += `\n`;
-                    statsContent += `<a:loading:1506015728871149770> **Total Votes:** ${userData.totalVotes}\n`;
+                    statsContent += `<:Lightning:1473038797540298792> **Total Votes:** ${userData.totalVotes}\n`;
 
                     if (isWeekend) {
                         statsContent += `\n### <:Present:1473038450465706076> Weekend Bonus Active!\n`;
@@ -10858,12 +10858,12 @@ if (shardId === 0) {
                                 new ThumbnailBuilder({ media: { url: discordUser.displayAvatarURL({ size: 256 }) } })
                             );
 
-                        let statsContent = `### <:user:1417581304299741184> Voter\n`;
+                        let statsContent = `### <:User:1473038971398520977> Voter\n`;
                         statsContent += `**${discordUser.globalName || discordUser.username}** (\`${discordUser.username}\`)\n\n`;
                         statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
                         statsContent += `${streakInfo.emoji} **Streak:** ${userData.streak} vote${userData.streak > 1 ? 's' : ''} in a row`;
                         if (streakInfo.title) statsContent += ` — *${streakInfo.title}!*`;
-                        statsContent += `\n<a:loading:1506015728871149770> **Total Votes:** ${userData.totalVotes}\n`;
+                        statsContent += `\n<:Lightning:1473038797540298792> **Total Votes:** ${userData.totalVotes}\n`;
                         if (isWeekend) statsContent += `\n### <:Present:1473038450465706076> Weekend Bonus Active!\n*Votes count double during weekends!*\n`;
                         if (isFirstVote) statsContent += `\n### 🏅 First Vote!\n*${discordUser.username} earned the **Voter** badge!*\n`;
                         statsContent += `\n### <:Clock:1473039102113878056> Next Vote\nAvailable <t:${nextVoteTime}:R> (<t:${nextVoteTime}:t>)\n`;
@@ -11088,14 +11088,14 @@ if (shardId === 0) {
                             new ThumbnailBuilder({ media: { url: discordUser.displayAvatarURL({ size: 256 }) } })
                         );
 
-                    let statsContent = `### <:user:1417581304299741184> Voter\n`;
+                    let statsContent = `### <:User:1473038971398520977> Voter\n`;
                     statsContent += `**${discordUser.globalName || discordUser.username}** (\`${discordUser.username}\`)\n\n`;
 
                     statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
                     statsContent += `${streakInfo.emoji} **Streak:** ${userData.streak} vote${userData.streak > 1 ? 's' : ''} in a row`;
                     if (streakInfo.title) statsContent += ` — *${streakInfo.title}!*`;
                     statsContent += `\n`;
-                    statsContent += `<a:loading:1506015728871149770> **Total Votes:** ${userData.totalVotes}\n`;
+                    statsContent += `<:Lightning:1473038797540298792> **Total Votes:** ${userData.totalVotes}\n`;
                     statsContent += `<:Cursor:1473038064564834544> **Platform:** DiscordBotList\n`;
 
                     if (isFirstVote) {
@@ -11158,12 +11158,12 @@ if (shardId === 0) {
                                 new ThumbnailBuilder({ media: { url: discordUser.displayAvatarURL({ size: 256 }) } })
                             );
 
-                        let statsContent = `### <:user:1417581304299741184> Voter\n`;
+                        let statsContent = `### <:User:1473038971398520977> Voter\n`;
                         statsContent += `**${discordUser.globalName || discordUser.username}** (\`${discordUser.username}\`)\n\n`;
                         statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
                         statsContent += `${streakInfo.emoji} **Streak:** ${userData.streak} vote${userData.streak > 1 ? 's' : ''} in a row`;
                         if (streakInfo.title) statsContent += ` — *${streakInfo.title}!*`;
-                        statsContent += `\n<a:loading:1506015728871149770> **Total Votes:** ${userData.totalVotes}\n`;
+                        statsContent += `\n<:Lightning:1473038797540298792> **Total Votes:** ${userData.totalVotes}\n`;
                         statsContent += `<:Cursor:1473038064564834544> **Platform:** DiscordBotList\n`;
                         if (isFirstVote) statsContent += `\n### 🏅 First Vote!\n*${discordUser.username} earned the **Voter** badge!*\n`;
                         statsContent += `\n### <:Clock:1473039102113878056> Next Vote\nAvailable <t:${nextVoteTime}:R> (<t:${nextVoteTime}:t>)\n`;

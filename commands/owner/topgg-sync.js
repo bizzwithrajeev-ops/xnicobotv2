@@ -105,7 +105,7 @@ module.exports = {
         if (!isOwner(message.author.id)) {
             return message.reply(denied());
         }
-        const loading = await message.reply('<a:loading:1506015728871149770> Posting stats to Top.gg…');
+        const loading = await message.reply('<:Lightning:1473038797540298792> Posting stats to Top.gg…');
         const container = await runSync(message.client);
         await loading.edit({ content: null, components: [container], flags: MessageFlags.IsComponentsV2 });
     }

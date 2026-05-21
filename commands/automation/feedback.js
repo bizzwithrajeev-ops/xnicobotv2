@@ -40,7 +40,7 @@ const E = {
     fire      : '<:Fire:1473038604812161218>',
     comment   : '<:Commentblock:1473370739351490794>',
     settings  : '<:Editalt:1473038138577256670>',
-    stats     : '<a:loading:1506015728871149770>',
+    stats     : '<:Lightning:1473038797540298792>',
 };
 
 /* ─── Store helpers ─── */

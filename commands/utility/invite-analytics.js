@@ -9,7 +9,7 @@ module.exports = {
     async execute(interaction) {
         const analytics = getInviteAnalytics(interaction.guild.id);
         
-        let analyticsText = '# <a:loading:1506015728871149770> Invite Analytics\n\n';
+        let analyticsText = '# <:Lightning:1473038797540298792> Invite Analytics\n\n';
         analyticsText += `**Overall Statistics:**\n`;
         analyticsText += `• Total Invites: ${analytics.totalInvites}\n`;
         analyticsText += `• Members Left: ${analytics.totalLeft}\n`;
@@ -46,7 +46,7 @@ module.exports = {
     async executePrefix(message) {
         const analytics = getInviteAnalytics(message.guild.id);
         
-        let analyticsText = '# <a:loading:1506015728871149770> Invite Analytics\n\n';
+        let analyticsText = '# <:Lightning:1473038797540298792> Invite Analytics\n\n';
         analyticsText += `**Overall Statistics:**\n`;
         analyticsText += `• Total Invites: ${analytics.totalInvites}\n`;
         analyticsText += `• Members Left: ${analytics.totalLeft}\n`;

@@ -14,7 +14,7 @@ async function buildOldestMemberContainer(guild) {
                 `**${oldest.user.username}**\n` +
                 `${oldest.user}\n\n` +
                 `<:Clock:1473039102113878056> **Account Created:** <t:${Math.floor(oldest.user.createdTimestamp / 1000)}:F>\n` +
-                `<a:loading:1506015728871149770> **Age:** <t:${Math.floor(oldest.user.createdTimestamp / 1000)}:R>\n\n` +
+                `<:Lightning:1473038797540298792> **Age:** <t:${Math.floor(oldest.user.createdTimestamp / 1000)}:R>\n\n` +
                 `<:Caretright:1473038207221502106> **Joined Server:** <t:${Math.floor(oldest.joinedTimestamp / 1000)}:R>`
             )
         )

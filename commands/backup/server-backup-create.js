@@ -139,7 +139,7 @@ module.exports = {
         const selected = OPTION_KEYS.filter(k => opts[k]).map(k => OPTION_META[k].label).join(', ') || 'Nothing';
         const progress = new ContainerBuilder().setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# <a:loading:1506015728871149770> Creating Server Backup…\n\nThis may take a few minutes${opts.messages ? ' (backing up all messages)' : ''}.\n\n` +
+                `# <:Lightning:1473038797540298792> Creating Server Backup…\n\nThis may take a few minutes${opts.messages ? ' (backing up all messages)' : ''}.\n\n` +
                 `**Included:** ${selected}`
             ));
         await interaction.editReply({ components: [progress], flags: MessageFlags.IsComponentsV2 });
@@ -217,7 +217,7 @@ module.exports = {
 
                 const selected = OPTION_KEYS.filter(k => opts[k]).map(k => OPTION_META[k].label).join(', ') || 'Nothing';
                 await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <a:loading:1506015728871149770> Creating Server Backup…\n\nThis may take a few minutes${opts.messages ? ' (backing up all messages)' : ''}.\n\n**Included:** ${selected}`
+                    `# <:Lightning:1473038797540298792> Creating Server Backup…\n\nThis may take a few minutes${opts.messages ? ' (backing up all messages)' : ''}.\n\n**Included:** ${selected}`
                 ))], flags: MessageFlags.IsComponentsV2 });
 
                 try {

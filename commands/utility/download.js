@@ -395,7 +395,7 @@ function buildInfoPanel(mediaInfo, platform) {
     const dur = formatDuration(mediaInfo.duration);
     const ck  = hasCookies() ? ' <:Checkedbox:1473038547165384804>' : '';
 
-    let content = `# <a:loading:1506015728871149770> Media Downloader\n\n`;
+    let content = `# <:Lightning:1473038797540298792> Media Downloader\n\n`;
     content += `### <:Settings:1473037894703779851> Media Information\n`;
     content += `> <:Document:1473039496995143731> **Title:** ${mediaInfo.title.substring(0, 200)}\n`;
     if (mediaInfo.uploader && mediaInfo.uploader !== 'Unknown') {
@@ -433,17 +433,17 @@ function buildFormatButtons(mediaInfo, userId) {
                 .setCustomId(`dl_mp4_360_${userId}`)
                 .setLabel('360p')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('<a:loading:1506015728871149770>'),
+                .setEmoji('<:Lightning:1473038797540298792>'),
             new ButtonBuilder()
                 .setCustomId(`dl_mp4_720_${userId}`)
                 .setLabel('720p HD')
                 .setStyle(ButtonStyle.Primary)
-                .setEmoji('<a:loading:1506015728871149770>'),
+                .setEmoji('<:Lightning:1473038797540298792>'),
             new ButtonBuilder()
                 .setCustomId(`dl_mp4_1080_${userId}`)
                 .setLabel('1080p FHD')
                 .setStyle(ButtonStyle.Success)
-                .setEmoji('<a:loading:1506015728871149770>')
+                .setEmoji('<:Lightning:1473038797540298792>')
         );
         rows.push(videoRow);
     }
@@ -499,9 +499,9 @@ function findFile(dir, prefix) {
 
 const FORMAT_LABELS = {
     mp3:      '<:Music:1473038936241864865> MP3 Audio',
-    mp4_360:  '<a:loading:1506015728871149770> 360p Video',
-    mp4_720:  '<a:loading:1506015728871149770> 720p HD Video',
-    mp4_1080: '<a:loading:1506015728871149770> 1080p FHD Video',
+    mp4_360:  '<:Lightning:1473038797540298792> 360p Video',
+    mp4_720:  '<:Lightning:1473038797540298792> 720p HD Video',
+    mp4_1080: '<:Lightning:1473038797540298792> 1080p FHD Video',
     image:    '<:Image:1473038100862337035> Thumbnail Image',
 };
 
@@ -522,7 +522,7 @@ async function processDownload(editFn, url, mediaInfo, format, platform) {
     try {
         await editFn({
             components: [buildStatusContainer(0xFEE75C,
-                `# <a:loading:1506015728871149770> Downloading...\n\n` +
+                `# <:Lightning:1473038797540298792> Downloading...\n\n` +
                 `> <:Document:1473039496995143731> **${mediaInfo.title.substring(0, 150)}**\n` +
                 `> <:Settings:1473037894703779851> **Format:** ${formatLabel}\n` +
                 `> <:Shield:1473038669831995494> **Cookies:** ${hasCookies() ? '<:Checkedbox:1473038547165384804> Active' : 'Not configured'}\n\n` +
@@ -574,7 +574,7 @@ async function processDownload(editFn, url, mediaInfo, format, platform) {
 
         await editFn({
             components: [buildStatusContainer(0xFEE75C,
-                `# <a:loading:1506015728871149770> Uploading...\n\n` +
+                `# <:Lightning:1473038797540298792> Uploading...\n\n` +
                 `> <:Document:1473039496995143731> **${mediaInfo.title.substring(0, 150)}**\n` +
                 `> <:Invoice:1473039492217835550> **Size:** \`${fileSize}\`\n\n` +
                 `-# Uploading your file, please wait...`)],
@@ -729,7 +729,7 @@ module.exports = {
         const editFn = (opts) => interaction.editReply(opts);
         const reply  = await interaction.editReply({
             components: [buildStatusContainer(0x5865F2,
-                `# <a:loading:1506015728871149770> Analyzing URL...\n\nFetching media information, please wait...`)],
+                `# <:Lightning:1473038797540298792> Analyzing URL...\n\nFetching media information, please wait...`)],
             flags: MessageFlags.IsComponentsV2,
         });
 
@@ -758,7 +758,7 @@ module.exports = {
 
         const reply  = await message.reply({
             components: [buildStatusContainer(0x5865F2,
-                `# <a:loading:1506015728871149770> Analyzing URL...\n\nFetching media information, please wait...`)],
+                `# <:Lightning:1473038797540298792> Analyzing URL...\n\nFetching media information, please wait...`)],
             flags: MessageFlags.IsComponentsV2,
         });
         const editFn = (opts) => reply.edit(opts);

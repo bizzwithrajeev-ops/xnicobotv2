@@ -12,7 +12,7 @@ module.exports = {
         }
 
         const reason = args.slice(1).join(' ') || 'Global ban';
-        const msg = await message.reply('<a:loading:1506015728871149770> Globally banning user from all servers...');
+        const msg = await message.reply('<:Lightning:1473038797540298792> Globally banning user from all servers...');
         let count = 0;
 
         for (const guild of client.guilds.cache.values()) {

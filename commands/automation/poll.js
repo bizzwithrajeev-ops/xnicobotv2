@@ -147,7 +147,7 @@ async function createPoll(context, isInteraction, question, options, duration) {
                 .setCustomId('poll_results')
                 .setLabel('View Results')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('<a:loading:1506015728871149770>'),
+                .setEmoji('<:Lightning:1473038797540298792>'),
             new ButtonBuilder()
                 .setCustomId('poll_end')
                 .setLabel('End Poll')

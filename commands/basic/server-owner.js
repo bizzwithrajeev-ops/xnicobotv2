@@ -8,7 +8,7 @@ async function buildOwnerContainer(guild) {
     content += `**${owner.user.username}** (${owner})\n\n`;
     content += `### <:Bookopen:1473038576391557130> Details\n`;
     content += `> <:Fileuser:1473039570630348810> **ID:** \`${owner.id}\`\n`;
-    content += `> <a:loading:1506015728871149770> **Joined Server:** <t:${Math.floor(owner.joinedTimestamp / 1000)}:R>\n`;
+    content += `> <:Lightning:1473038797540298792> **Joined Server:** <t:${Math.floor(owner.joinedTimestamp / 1000)}:R>\n`;
     content += `> <:Clock:1473039102113878056> **Account Created:** <t:${Math.floor(owner.user.createdTimestamp / 1000)}:R>\n\n`;
     content += `### <:Userplus:1473038912212435086> Roles\n`;
     content += `> <:Caretright:1473038207221502106> **Role Count:** ${owner.roles.cache.size - 1}\n`;

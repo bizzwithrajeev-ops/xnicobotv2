@@ -31,7 +31,7 @@ module.exports = {
         let content = `# <:History:1473037847568318605> Voice Kick All\n\n`;
         content += `**Channel:** ${channel.name}\n`;
         content += `**Members:** ${members.size}\n\n`;
-        content += `<a:loading:1506015728871149770> Kicking all members...`;
+        content += `<:Lightning:1473038797540298792> Kicking all members...`;
 
         const container = new ContainerBuilder()
             .setAccentColor(COLORS.WARNING)

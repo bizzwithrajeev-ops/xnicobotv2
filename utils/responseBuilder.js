@@ -21,7 +21,7 @@ const EMOJIS = {
     ERROR: '<:Cancel:1473037949187657818>',
     WARNING: '<:Infotriangle:1473038460456800459>',
     INFO: '<:Bookopen:1473038576391557130>',
-    LOADING: '<a:loading:1506015728871149770>',
+    LOADING: '<:Lightning:1473038797540298792>',
     SETTINGS: '<:Shield:1473038669831995494>',
     MESSAGES: '<:Chat:1473038936241864865>',
     USER: '<:User:1473038971398520977>',
@@ -442,7 +442,7 @@ function buildExpiredPanel(commandHint, contextMsg = null) {
     container.addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     );
-    let content = `## <a:loading:1506015728871149770>  Session Expired\n`;
+    let content = `## <:Lightning:1473038797540298792>  Session Expired\n`;
     content += contextMsg
         ? `${contextMsg}\n`
         : `This panel timed out due to inactivity.\n`;

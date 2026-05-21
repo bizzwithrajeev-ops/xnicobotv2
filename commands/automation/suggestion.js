@@ -36,7 +36,7 @@ const E = {
     chat:     '<:Chat:1473038936241864865>',
     user:     '<:User:1473038971398520977>',
     clock:    '<:Clock:1473039102113878056>',
-    sandwatch:'<a:loading:1506015728871149770>',
+    sandwatch:'<:Lightning:1473038797540298792>',
     fire:     '<:Fire:1473038604812161218>',
     comment:  '<:Commentblock:1473370739351490794>',
     info:     '<:Inforect:1473038624172937287>',

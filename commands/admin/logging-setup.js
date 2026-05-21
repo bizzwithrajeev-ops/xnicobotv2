@@ -23,7 +23,7 @@ function buildLoggingPanel(config, guild) {
     content += `Monitor and track all server activities with comprehensive logging. Each log type captures specific events to help you manage your server effectively.\n\n`;
     
     content += `### <:Settings:1473037894703779851> Delivery Mode\n`;
-    content += `<a:loading:1506015728871149770> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'} — *All log messages are sent silently (no pings)*\n\n`;
+    content += `<:Lightning:1473038797540298792> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'} — *All log messages are sent silently (no pings)*\n\n`;
     
     content += `### <:Fire:1473038604812161218> Log Channels Configuration\n`;
     content += `<:Chat:1473038936241864865> **Message Logs:** ${config.message ? `<#${config.message}>` : '*Not configured*'}`;
@@ -290,7 +290,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Log Delivery Mode Updated\n\n` +
-                        `<a:loading:1506015728871149770> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'}\n\n` +
+                        `<:Lightning:1473038797540298792> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'}\n\n` +
                         (mode === 'webhook'
                             ? `Logs will be sent via webhooks. Make sure to set webhook URLs:\n\`/logging set-webhook <type> <url>\`\n\n`
                             : `Logs will be sent as bot messages in the configured channels.\n\n`) +
@@ -334,7 +334,7 @@ module.exports = {
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Webhook URL Configured\n\n` +
                         `<:Attach:1473037923979886694> **Type:** ${typeName}\n` +
-                        `<a:loading:1506015728871149770> **URL:** ||${url.substring(0, 50)}...||  *(hidden for security)*\n\n` +
+                        `<:Lightning:1473038797540298792> **URL:** ||${url.substring(0, 50)}...||  *(hidden for security)*\n\n` +
                         (logs[guildId].mode !== 'webhook'
                             ? `<:Infotriangle:1473038460456800459> **Note:** Webhook mode is not active yet! Use \`/logging set-mode webhook\` to enable webhook delivery.\n\n`
                             : '') +
@@ -445,7 +445,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Log Delivery Mode Updated\n\n` +
-                        `<a:loading:1506015728871149770> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'}\n\n` +
+                        `<:Lightning:1473038797540298792> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'}\n\n` +
                         (mode === 'webhook'
                             ? `Logs will be sent via webhooks. Set webhook URLs:\n\`-logging webhook <type> <url>\`\n\n`
                             : `Logs will be sent as bot messages in the configured channels.\n\n`) +
@@ -494,7 +494,7 @@ module.exports = {
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Webhook URL Configured\n\n` +
                         `<:Attach:1473037923979886694> **Type:** ${typeName}\n` +
-                        `<a:loading:1506015728871149770> **URL:** ||${url.substring(0, 50)}...||  *(hidden for security)*\n\n` +
+                        `<:Lightning:1473038797540298792> **URL:** ||${url.substring(0, 50)}...||  *(hidden for security)*\n\n` +
                         (logs[guildId].mode !== 'webhook'
                             ? `<:Infotriangle:1473038460456800459> **Note:** Webhook mode is not active! Use \`-logging mode webhook\` to enable.\n\n`
                             : '') +

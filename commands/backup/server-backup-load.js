@@ -38,7 +38,7 @@ function buildRestoreRunningCard(backupId, sid, job) {
     const stateText = job.stopped ? 'Stopping…' : (job.paused ? 'Paused' : 'Running');
     const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# <a:loading:1506015728871149770> Restoring Server…\n\n` +
+        `# <:Lightning:1473038797540298792> Restoring Server…\n\n` +
         `**Backup:** \`${backupId}\`\n` +
         `**Status:** ${stateText}\n` +
         `**Stage:** ${job.stage}\n` +
@@ -125,7 +125,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
     // Notify the original message that progress moved to the status channel
     const redirectCard = new ContainerBuilder().setAccentColor(0xCAD7E6);
     redirectCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# <a:loading:1506015728871149770> Restore Started\n\n` +
+        `# <:Lightning:1473038797540298792> Restore Started\n\n` +
         `A dedicated status channel has been created for live progress updates.\n\n` +
         `**➡️ Go to:** <#${statusChannel.id}>\n\n` +
         `-# This channel will be deleted during restore. Track progress in the status channel.`
@@ -135,7 +135,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
     // Post the initial progress card in the status channel
     const headerCard = new ContainerBuilder().setAccentColor(0xCAD7E6);
     headerCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# <a:loading:1506015728871149770> Server Restore — Live Status\n\n` +
+        `# <:Lightning:1473038797540298792> Server Restore — Live Status\n\n` +
         `**📦 Backup:** \`${backupId}\`\n` +
         `**👤 Requested by:** <@${uid}>\n` +
         `**⏰ Started:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
@@ -310,7 +310,7 @@ module.exports = {
                 return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
-            await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <a:loading:1506015728871149770> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
+            await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
 
             try {
                 await runRestoreWithControls(sent, interaction.guild, backupId, secureToken, uid);
@@ -368,7 +368,7 @@ module.exports = {
                 return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
-            await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <a:loading:1506015728871149770> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
+            await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
 
             try {
                 await runRestoreWithControls(sent, message.guild, backupId, secureToken, uid);

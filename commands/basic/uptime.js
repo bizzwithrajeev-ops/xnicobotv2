@@ -23,7 +23,7 @@ function getUptimeContainer(client) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `> <a:loading:1506015728871149770> **Duration:** ${parts.join(' ')}\n` +
+                `> <:Lightning:1473038797540298792> **Duration:** ${parts.join(' ')}\n` +
                 `> <:Clock:1473039102113878056> **Online Since:** <t:${startTimestamp}:F>\n` +
                 `> <:Caretright:1473038207221502106> **Relative:** <t:${startTimestamp}:R>`
             )

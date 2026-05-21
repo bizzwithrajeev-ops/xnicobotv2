@@ -90,7 +90,7 @@ function buildContainer(query, results, page, msgId) {
             `<:Clock:1473039102113878056> \`${r.duration}\``,
             r.views ? `<:Fire:1473038604812161218> ${r.views}` : null,
             r.published
-                ? `<a:loading:1506015728871149770> ${r.published}`
+                ? `<:Lightning:1473038797540298792> ${r.published}`
                 : null,
         ]
             .filter(Boolean)

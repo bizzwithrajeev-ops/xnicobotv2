@@ -165,7 +165,7 @@ module.exports = {
                 collector.stop('handled');
 
                 // Show loading state
-                await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <a:loading:1506015728871149770> Creating Stats Channels\n\nSetting up **${selectedStats.length}** stat channels\u2026`))], flags: MessageFlags.IsComponentsV2 });
+                await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Creating Stats Channels\n\nSetting up **${selectedStats.length}** stat channels\u2026`))], flags: MessageFlags.IsComponentsV2 });
 
                 try {
                     const result = await setupStatsChannels(guild, selectedStats);

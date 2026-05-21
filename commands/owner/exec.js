@@ -14,7 +14,7 @@ module.exports = {
             return message.reply('<:Cancel:1473037949187657818> Please provide a command to execute!');
         }
 
-        const msg = await message.reply('<a:loading:1506015728871149770> Executing command...');
+        const msg = await message.reply('<:Lightning:1473038797540298792> Executing command...');
 
         exec(command, (error, stdout, stderr) => {
             if (error) {

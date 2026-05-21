@@ -23,8 +23,8 @@ const DEFAULT_CANVAS_CUSTOM_EMOJIS = {
     xp: '<:Lightning:1473038797540298792>',
     time: '<:Lightning:1473038797540298792>',
     clock: '<:Lightning:1473038797540298792>',
-    '⏳': '<a:loading:1506015728871149770>',
-    '⌛': '<a:loading:1506015728871149770>',
+    '⏳': '<:Lightning:1473038797540298792>',
+    '⌛': '<:Lightning:1473038797540298792>',
 
     invite: '<:Bullhorn:1473038903157199093>',
     announce: '<:Bullhorn:1473038903157199093>',

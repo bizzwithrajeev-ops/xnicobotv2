@@ -116,7 +116,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <:User:1473038971398520977> Mass Nickname Processing\n\n<a:loading:1506015728871149770> Changing nicknames for ${members.size} members...\n\n*This may take a moment*`)
+                        .setContent(`# <:User:1473038971398520977> Mass Nickname Processing\n\n<:Lightning:1473038797540298792> Changing nicknames for ${members.size} members...\n\n*This may take a moment*`)
                 );
 
             const processingMsg = await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -14,7 +14,7 @@ async function buildNewestMemberContainer(guild) {
                 `**${newest.user.username}**\n` +
                 `${newest.user}\n\n` +
                 `<:Clock:1473039102113878056> **Joined:** <t:${Math.floor(newest.joinedTimestamp / 1000)}:F>\n` +
-                `<a:loading:1506015728871149770> **Relative:** <t:${Math.floor(newest.joinedTimestamp / 1000)}:R>\n\n` +
+                `<:Lightning:1473038797540298792> **Relative:** <t:${Math.floor(newest.joinedTimestamp / 1000)}:R>\n\n` +
                 `<:Caretright:1473038207221502106> **Account Created:** <t:${Math.floor(newest.user.createdTimestamp / 1000)}:R>`
             )
         )

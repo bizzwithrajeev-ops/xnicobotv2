@@ -354,7 +354,7 @@ function buildExpiredContainer() {
     );
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-            `## <a:loading:1506015728871149770>  Help Menu Expired\n` +
+            `## <:Lightning:1473038797540298792>  Help Menu Expired\n` +
             `This session timed out after **5 minutes** of inactivity.\n` +
             `-# Run \`/help\` or \`-help\` to open a fresh menu anytime.`
         )

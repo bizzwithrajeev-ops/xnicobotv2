@@ -219,11 +219,11 @@ module.exports = {
                     new ThumbnailBuilder({ media: { url: interaction.user.displayAvatarURL({ size: 256 }) } })
                 );
 
-            let statsContent = `### <:user:1417581304299741184> Voter\n`;
+            let statsContent = `### <:User:1473038971398520977> Voter\n`;
             statsContent += `**${interaction.user.globalName || interaction.user.username}** (\`${interaction.user.username}\`)\n\n`;
             statsContent += `### <:Fire:1473038604812161218> Vote Statistics\n`;
             statsContent += `🗳️ **Streak:** 1 vote in a row\n`;
-            statsContent += `<a:loading:1506015728871149770> **Total Votes:** 1\n\n`;
+            statsContent += `<:Lightning:1473038797540298792> **Total Votes:** 1\n\n`;
             statsContent += `### 🧪 Test Notification\n`;
             statsContent += `*This is a test vote notification.*\n\n`;
             statsContent += `### <:Clock:1473039102113878056> Next Vote\n`;

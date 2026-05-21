@@ -32,7 +32,7 @@ async function buildUserInfo(user, guild) {
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `### <:Folder:1473039340425973972> Server Information\n` +
-                `<a:loading:1506015728871149770> Joined: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>\n` +
+                `<:Lightning:1473038797540298792> Joined: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>\n` +
                 `<:Editalt:1473038138577256670> Nickname: ${member.nickname || 'None'}\n` +
                 `<:Award:1473038391632203887> Highest Role: ${member.roles.highest}\n` +
                 `<:Caretright:1473038207221502106> Color: ${member.displayHexColor || 'Default'}`

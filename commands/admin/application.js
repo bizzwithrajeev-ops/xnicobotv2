@@ -104,7 +104,7 @@ function buildMainPanel(guild, guildConfig) {
     content += `> <:Alarm:1473039068546732214> **Cooldown:** \`${formatDuration(guildConfig.cooldown || 0)}\`\n\n`;
 
     content += `### <:Invoice:1473039492217835550> Statistics\n`;
-    content += `> <a:loading:1506015728871149770> Pending: \`${counts.pending}\` • <:Checkedbox:1473038547165384804> Accepted: \`${counts.accepted}\` • <:Cancel:1473037949187657818> Denied: \`${counts.denied}\``;
+    content += `> <:Lightning:1473038797540298792> Pending: \`${counts.pending}\` • <:Checkedbox:1473038547165384804> Accepted: \`${counts.accepted}\` • <:Cancel:1473037949187657818> Denied: \`${counts.denied}\``;
 
     const container = new ContainerBuilder()
         .setAccentColor(guildConfig.enabled ? 0x57F287 : 0xED4245);
@@ -128,7 +128,7 @@ function buildMainPanel(guild, guildConfig) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('app_messages').setLabel('Accept/Deny Messages').setStyle(ButtonStyle.Secondary).setEmoji('<:Chat:1473038936241864865>'),
-        new ButtonBuilder().setCustomId('app_pending').setLabel(`Pending (${counts.pending})`).setStyle(ButtonStyle.Secondary).setEmoji('<a:loading:1506015728871149770>'),
+        new ButtonBuilder().setCustomId('app_pending').setLabel(`Pending (${counts.pending})`).setStyle(ButtonStyle.Secondary).setEmoji('<:Lightning:1473038797540298792>'),
         new ButtonBuilder().setCustomId('app_reset').setLabel('Reset All').setStyle(ButtonStyle.Danger).setEmoji('<:Trash:1473038090074591293>')
     );
 
@@ -764,7 +764,7 @@ module.exports = {
                 return interaction.reply({ components: [buildSuccessResponse('No Pending', 'There are no pending applications.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
 
-            let content = `# <a:loading:1506015728871149770> Pending Applications (${pending.length})\n\n`;
+            let content = `# <:Lightning:1473038797540298792> Pending Applications (${pending.length})\n\n`;
             for (const app of pending.slice(0, 15)) {
                 content += `> <:User:1473038971398520977> <@${app.userId}> — \`${app.id}\` — <t:${Math.floor(app.submittedAt / 1000)}:R>\n`;
             }

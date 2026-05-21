@@ -195,7 +195,7 @@ module.exports = {
             .setAccentColor(COLORS.WARNING)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# ${lock ? '<:Lock:1473038513749491773>' : '<:Unlock:1473038516639236269>'} ${lock ? 'Locking' : 'Unlocking'} All Channels\n\n` +
-                `<a:loading:1506015728871149770> Processing ${textChannels.size} channels for ${roleName}...\n\n-# This may take a moment for large servers`
+                `<:Lightning:1473038797540298792> Processing ${textChannels.size} channels for ${roleName}...\n\n-# This may take a moment for large servers`
             ));
 
         const processingMsg = await message.reply({ components: [processingContainer], flags: MessageFlags.IsComponentsV2 });

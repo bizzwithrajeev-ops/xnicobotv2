@@ -74,7 +74,7 @@ function buildLavalinkContainer(nodes, lavalinkManager) {
         const isConnected = node.socket && node.socket.readyState === 1;
         
         content += `**📡 Node ${index + 1}: ${node.id || node.options?.id || 'Unknown'}**\n`;
-        content += `Status: ${isConnected ? '<:online:1455550955679387743> Connected' : '<:offline:1430999565011648512> Disconnected'}\n`;
+        content += `Status: ${isConnected ? '<:online:1455550955679387743> Connected' : '<:offline:1455550933508333662> Disconnected'}\n`;
         content += `Host: \`${node.options?.host || 'Unknown'}\`\n`;
         content += `Port: \`${node.options?.port || 'Unknown'}\`\n`;
         content += `Secure: ${node.options?.secure ? 'Yes' : 'No'}\n`;

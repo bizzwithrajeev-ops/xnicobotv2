@@ -13,7 +13,7 @@ module.exports = {
             return message.reply(`<:Cancel:1473037949187657818> This command is only available to the bot owner!`);
         }
 
-        const msg = await message.reply('<a:loading:1506015728871149770> Generating comprehensive health report...');
+        const msg = await message.reply('<:Lightning:1473038797540298792> Generating comprehensive health report...');
 
         try {
             const canvas = createCanvas(1400, 1000);

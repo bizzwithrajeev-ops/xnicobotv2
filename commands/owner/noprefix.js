@@ -87,7 +87,7 @@ async function cleanupExpired(guildId, client, config) {
             // DM on expiry (safe)
             client.users.fetch(u.userId)
                 .then(user => user.send(
-                    `<a:loading:1506015728871149770> **No-Prefix Access Expired**\n\n` +
+                    `<:Lightning:1473038797540298792> **No-Prefix Access Expired**\n\n` +
                     `Your temporary no-prefix access has expired.\n` +
                     `You must now use the command prefix again.`
                 ).catch(() => {}))

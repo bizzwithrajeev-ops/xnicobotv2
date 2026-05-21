@@ -255,7 +255,7 @@ function buildResultContainer(result) {
         content += ` (\`${result.failedGuilds}\` failed)`;
     }
 
-    content += `\n<a:loading:1506015728871149770> **Time:** \`${result.elapsed}s\` — **Hash:** \`${result.hash}\``;
+    content += `\n<:Lightning:1473038797540298792> **Time:** \`${result.elapsed}s\` — **Hash:** \`${result.hash}\``;
     content += `\n\n-# Global commands may take up to 1 hour to propagate to all servers`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));

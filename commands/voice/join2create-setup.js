@@ -273,7 +273,7 @@ module.exports = {
 
             const loadingContainer = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent('### <a:loading:1506015728871149770> Setting Up...\nCreating join-to-create system...'));
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent('### <:Lightning:1473038797540298792> Setting Up...\nCreating join-to-create system...'));
             const loadingMsg = await message.reply({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
 
             try {

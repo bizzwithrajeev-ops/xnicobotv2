@@ -15,7 +15,7 @@ try { registerAllFonts(); } catch {}
 const STAT_EMOJIS = {
     messages: '<:Bookopen:1473038576391557130>',
     voice: '<:Volumeup:1473039290136002844>',
-    xp: '<a:loading:1506015728871149770>',
+    xp: '<:Lightning:1473038797540298792>',
     invites: '<:Bullhorn:1473038903157199093>',
     commands: '<:Gamepad:1473039216429498409>',
     rank: '<:Award:1473038391632203887>'
