@@ -191,7 +191,7 @@ async function setupStatsChannels(guild, selectedStats = ['members', 'humans', '
     }
 
     // Create a voice channel for each selected stat
-    const style = config.style || 'default';
+    const style = 'default'; // Style is set after initial setup via dashboard
     for (const statKey of selectedStats) {
         if (!STAT_TYPES[statKey]) continue;
         const value = stats[statKey] ?? 0;
@@ -217,7 +217,7 @@ async function setupStatsChannels(guild, selectedStats = ['members', 'humans', '
     }
 
     // Save config
-    const config = {
+    const guildCfg = {
         enabled: true,
         categoryId: category.id,
         stats: selectedStats,
@@ -225,8 +225,8 @@ async function setupStatsChannels(guild, selectedStats = ['members', 'humans', '
         lastUpdate: Date.now()
     };
 
-    setGuildConfig(guild.id, config);
-    return { category, channelMap, stats, config };
+    setGuildConfig(guild.id, guildCfg);
+    return { category, channelMap, stats, config: guildCfg };
 }
 
 /* ═══════════════════════════════════════════════════════════

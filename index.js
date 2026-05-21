@@ -1164,7 +1164,7 @@ client.on(Events.ClientReady, async () => {
             const nowTs = Date.now();
             let changed = false;
             for (const [uid, udata] of Object.entries(uv)) {
-                if (!udata.remindersEnabled) continue;
+                if (udata.remindersEnabled === false) continue; // Only skip if explicitly disabled
                 if (udata.reminderSent) continue;
                 if (!udata.nextVoteAvailable || nowTs < udata.nextVoteAvailable) continue;
                 try {
@@ -1172,30 +1172,23 @@ client.on(Events.ClientReady, async () => {
                     if (!ru) continue;
                     const streak = udata.streak || 0;
                     const clientId = process.env.CLIENT_ID || client.user.id;
-                    let rc = `# <:Fire:1473038604812161218> Time to Vote Again!\n\n`;
-                    rc += `Hey **${ru.globalName || ru.username}**, you can now vote for **${client.user.username}**!\n\n`;
-                    if (streak >= 3) {
-                        rc += `### <:Fire:1473038604812161218> Keep Your Streak Alive!\n`;
-                        rc += `You're on a **${streak}-vote streak** — don't let it reset!\n\n`;
-                    }
-                    rc += `### 🎁 Rewards\n`;
-                    rc += `• Voter badge on your profile\n`;
-                    rc += `• Build your voting streak\n`;
-                    rc += `• Help **xNico** grow and reach more servers\n\n`;
-                    rc += `-# Use \`/myvotes\` to manage your reminder settings.`;
+
+                    let rc = `## <:Fire:1473038604812161218> Vote Available!\n\n`;
+                    rc += `You can vote for **${client.user.username}** again.`;
+                    if (streak >= 3) rc += `\n<:Fire:1473038604812161218> **${streak}-vote streak** — keep it going!`;
+                    rc += `\n\n-# Use \`/myvotes\` to disable reminders`;
+
                     const remContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
-                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(rc))
-                        .addSeparatorComponents(new _SepB().setSpacing(_SepSS.Small).setDivider(true))
-                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
+                        .setAccentColor(0xFF3366)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(rc));
                     const remBtn = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
-                            .setLabel('Vote on Top.gg')
+                            .setLabel('Top.gg')
                             .setURL(`https://top.gg/bot/${clientId}/vote`)
                             .setStyle(ButtonStyle.Link)
                             .setEmoji('<:topgg:1473546762248523839>'),
                         new ButtonBuilder()
-                            .setLabel('Vote on DBL')
+                            .setLabel('DBL')
                             .setURL('https://discordbotlist.com/bots/xnico')
                             .setStyle(ButtonStyle.Link)
                             .setEmoji('<:Cursor:1473038064564834544>')
