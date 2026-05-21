@@ -8,20 +8,30 @@ const jsonStore = require('./jsonStore');
 const log = require('./logger-styled');
 
 /* ─── Available stat types with their display templates ─── */
+/* Styles: 'default' uses xN prefix, 'minimal' uses emoji prefix,
+   'dots' uses dot separators like the Voice Statistics image */
+const STAT_STYLES = {
+    default:  { prefix: 'xN | ', separator: ': ' },
+    minimal:  { prefix: '', separator: ': ' },
+    dots:     { prefix: '· ', separator: ' ' },
+    brackets: { prefix: '[ ', separator: ' ] ' },
+    clean:    { prefix: '', separator: ' — ' }
+};
+
 const STAT_TYPES = {
-    members:   { emoji: '1⃣', label: 'Members',    template: 'xN | Members: {value}' },
-    humans:    { emoji: '2⃣', label: 'Humans',     template: 'xN | Humans: {value}' },
-    bots:      { emoji: '3⃣', label: 'Bots',       template: 'xN | Bots: {value}' },
-    channels:  { emoji: '4⃣', label: 'Channels',   template: 'xN | Channels: {value}' },
-    roles:     { emoji: '5⃣', label: 'Roles',      template: 'xN | Roles: {value}' },
-    online:    { emoji: '6⃣', label: 'Online',     template: 'xN | Online: {value}' },
-    inVoice:   { emoji: '7⃣', label: 'In Voice',   template: 'xN | In Voice: {value}' },
-    boosts:    { emoji: '8⃣', label: 'Boosts',     template: 'xN | Boosts: {value}' },
-    boostTier: { emoji: '9⃣', label: 'Boost Level', template: 'xN | Level: {value}' },
-    textCh:    { emoji: '🔟', label: 'Text Ch.',   template: 'xN | Text: {value}' },
-    voiceCh:   { emoji: '🔢', label: 'Voice Ch.',  template: 'xN | Voice: {value}' },
-    categories:{ emoji: '🔣', label: 'Categories', template: 'xN | Categories: {value}' },
-    activeVc:  { emoji: '🔊', label: 'Active VC',  template: 'xN | {value} Active VC' }
+    members:   { emoji: '1⃣', label: 'Members',    template: '{prefix}Members{sep}{value}' },
+    humans:    { emoji: '2⃣', label: 'Humans',     template: '{prefix}Humans{sep}{value}' },
+    bots:      { emoji: '3⃣', label: 'Bots',       template: '{prefix}Bots{sep}{value}' },
+    channels:  { emoji: '4⃣', label: 'Channels',   template: '{prefix}Channels{sep}{value}' },
+    roles:     { emoji: '5⃣', label: 'Roles',      template: '{prefix}Roles{sep}{value}' },
+    online:    { emoji: '6⃣', label: 'Online',     template: '{prefix}Online{sep}{value}' },
+    inVoice:   { emoji: '7⃣', label: 'In Voice',   template: '{prefix}{value} Users' },
+    boosts:    { emoji: '8⃣', label: 'Boosts',     template: '{prefix}Boosts{sep}{value}' },
+    boostTier: { emoji: '9⃣', label: 'Boost Level', template: '{prefix}Level{sep}{value}' },
+    textCh:    { emoji: '🔟', label: 'Text Ch.',   template: '{prefix}Text{sep}{value}' },
+    voiceCh:   { emoji: '🔢', label: 'Voice Ch.',  template: '{prefix}Voice{sep}{value}' },
+    categories:{ emoji: '🔣', label: 'Categories', template: '{prefix}Categories{sep}{value}' },
+    activeVc:  { emoji: '🔊', label: 'Active VC',  template: '{prefix}{value} Active VC' }
 };
 
 /* ─── Load / Save config ─── */
@@ -137,11 +147,15 @@ async function computeStats(guild) {
 }
 
 /* ─── Format a stat channel name ─── */
-function formatChannelName(statType, value) {
+function formatChannelName(statType, value, style = 'default') {
     const type = STAT_TYPES[statType];
-    if (!type) return `<:Invoice:1473039492217835550> ${statType}: ${value}`;
+    if (!type) return `${statType}: ${value}`;
     const formatted = typeof value === 'number' ? value.toLocaleString() : String(value);
-    return type.template.replace('{value}', formatted);
+    const s = STAT_STYLES[style] || STAT_STYLES.default;
+    return type.template
+        .replace('{prefix}', s.prefix)
+        .replace('{sep}', s.separator)
+        .replace('{value}', formatted);
 }
 
 /* ─── Create stat channels for a guild ─── */
@@ -177,10 +191,11 @@ async function setupStatsChannels(guild, selectedStats = ['members', 'humans', '
     }
 
     // Create a voice channel for each selected stat
+    const style = config.style || 'default';
     for (const statKey of selectedStats) {
         if (!STAT_TYPES[statKey]) continue;
         const value = stats[statKey] ?? 0;
-        const channelName = formatChannelName(statKey, value);
+        const channelName = formatChannelName(statKey, value, style);
 
         try {
             const vc = await guild.channels.create({
@@ -311,7 +326,8 @@ async function _doUpdate(guild, config) {
         }
 
         const value = stats[statKey] ?? 0;
-        const newName = formatChannelName(statKey, value);
+        const style = config.style || 'default';
+        const newName = formatChannelName(statKey, value, style);
 
         // Only rename if the name actually changed
         if (channel.name !== newName) {
@@ -375,6 +391,7 @@ async function removeStatsChannels(guild) {
 
 module.exports = {
     STAT_TYPES,
+    STAT_STYLES,
     getGuildConfig,
     setGuildConfig,
     setupStatsChannels,

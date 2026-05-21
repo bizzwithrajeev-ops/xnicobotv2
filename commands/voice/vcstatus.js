@@ -1,13 +1,12 @@
 /**
  * /vcstatus — Set or clear the Voice Channel Status line.
  *
- * Supports two modes:
- *   - Temporary: status is set once, Discord clears it when VC empties
- *   - Permanent: bot re-applies the status automatically whenever
- *     Discord clears it (voiceStateUpdate listener in index.js)
+ * Two modes:
+ *   - Permanent: bot re-applies the status when Discord clears it (VC empties)
+ *   - Temporary: one-time, Discord clears it naturally
  *
- * Permanent statuses are stored in jsonStore('vcstatus-persist') as:
- *   { [channelId]: { status, setBy, guildId } }
+ * When run via prefix without --perm/--temp flag, shows interactive
+ * buttons so the user can choose the mode professionally.
  */
 
 'use strict';
@@ -25,7 +24,6 @@ const jsonStore = require('../../utils/jsonStore');
 const MAX_STATUS_LENGTH = 500;
 const STORE_NAME = 'vcstatus-persist';
 
-// Permission check
 const SET_VOICE_CHANNEL_STATUS_BIT =
     PermissionFlagsBits.SetVoiceChannelStatus ?? (1n << 48n);
 
@@ -43,7 +41,7 @@ function isVoiceLike(channel) {
     );
 }
 
-// ── Persistence helpers ──────────────────────────────────────────────────
+// ── Persistence ──────────────────────────────────────────────────────────
 
 function loadPersist() {
     return jsonStore.peek(STORE_NAME) || {};
@@ -51,27 +49,17 @@ function loadPersist() {
 
 function savePersistEntry(channelId, entry) {
     const data = jsonStore.read(STORE_NAME) || {};
-    if (entry === null) {
-        delete data[channelId];
-    } else {
-        data[channelId] = entry;
-    }
+    if (entry === null) delete data[channelId];
+    else data[channelId] = entry;
     jsonStore.write(STORE_NAME, data);
 }
 
-/**
- * Apply the status via Discord REST API.
- */
 async function applyStatus(client, channelId, status) {
     await client.rest.put(`/channels/${channelId}/voice-status`, {
         body: { status: status === null ? null : String(status).slice(0, MAX_STATUS_LENGTH) }
     });
 }
 
-/**
- * Re-apply all permanent statuses. Called from voiceStateUpdate
- * when a channel becomes empty and Discord clears the status.
- */
 async function reapplyPersistentStatus(client, channelId) {
     const persist = loadPersist();
     const entry = persist[channelId];
@@ -79,81 +67,121 @@ async function reapplyPersistentStatus(client, channelId) {
     try {
         await applyStatus(client, channelId, entry.status);
     } catch {
-        // Channel deleted or bot lost permissions — clean up
         savePersistEntry(channelId, null);
     }
 }
 
-// ── Command logic ────────────────────────────────────────────────────────
+// ── Apply + save ─────────────────────────────────────────────────────────
 
-async function runStatusUpdate(ctx) {
-    const { member, channel, statusText, permanent, username, reply, client } = ctx;
+async function doApply(client, channel, statusText, permanent, member) {
+    const clearing = !statusText || statusText === '' || /^clear$/i.test(statusText.trim());
 
-    if (!hasPermission(member)) {
-        return reply({
-            components: [buildErrorResponse(
-                'Missing Permission',
-                'You need **Set Voice Channel Status** or **Manage Channels** permission.'
-            )],
-            flags: MessageFlags.IsComponentsV2
-        });
+    await applyStatus(client, channel.id, clearing ? null : statusText);
+
+    if (clearing) {
+        savePersistEntry(channel.id, null);
+    } else if (permanent) {
+        savePersistEntry(channel.id, { status: statusText.slice(0, MAX_STATUS_LENGTH), setBy: member.id, guildId: member.guild.id });
+    } else {
+        savePersistEntry(channel.id, null);
     }
 
-    if (!isVoiceLike(channel)) {
-        return reply({
-            components: [buildErrorResponse(
-                'No Voice Channel',
-                'Mention a voice channel or join one before running this command.'
-            )],
-            flags: MessageFlags.IsComponentsV2
-        });
+    return clearing;
+}
+
+function buildResultContainer(clearing, statusText, channel, permanent, username) {
+    const container = buildSuccessResponse(
+        clearing ? 'Status Cleared' : 'Status Updated',
+        clearing
+            ? `Cleared the status of **${channel.name}**.`
+            : `Updated the status of **${channel.name}**.`,
+        {
+            'Channel': `<#${channel.id}>`,
+            'Status': clearing ? 'None' : statusText.slice(0, 80),
+            'Mode': clearing ? 'Cleared' : (permanent ? '<:Lock:1473038513749491773> Permanent' : '<:Clock:1473039102113878056> Temporary'),
+            'Set By': username
+        }
+    );
+    container.setAccentColor(clearing ? 0xCAD7E6 : (permanent ? 0x57F287 : 0xFEE75C));
+    return container;
+}
+
+// ── Interactive mode selector (prefix) ───────────────────────────────────
+
+async function showModeSelector(message, channel, statusText) {
+    const container = new ContainerBuilder()
+        .setAccentColor(0x5865F2)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# <:Volumeup:1473039290136002844> Voice Status Setup\n\n` +
+            `**Channel:** <#${channel.id}>\n` +
+            `**Status:** \`${statusText.slice(0, 80)}\`\n\n` +
+            `Choose how this status should behave:`
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `<:Lock:1473038513749491773> **Permanent** — Stays even when the VC is empty. Bot re-applies it automatically.\n\n` +
+            `<:Clock:1473039102113878056> **Temporary** — Clears automatically when all users leave the VC.`
+        ))
+        .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`vcstatus_perm_${channel.id}`)
+                    .setLabel('Permanent')
+                    .setEmoji('<:Lock:1473038513749491773>')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`vcstatus_temp_${channel.id}`)
+                    .setLabel('Temporary')
+                    .setEmoji('<:Clock:1473039102113878056>')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId(`vcstatus_cancel_${channel.id}`)
+                    .setLabel('Cancel')
+                    .setEmoji('<:Cancel:1473037949187657818>')
+                    .setStyle(ButtonStyle.Secondary)
+            )
+        );
+
+    const msg = await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+
+    // Collect button response
+    const filter = i => i.user.id === message.author.id && i.customId.startsWith('vcstatus_');
+    const collected = await msg.awaitMessageComponent({ filter, time: 30000 }).catch(() => null);
+
+    if (!collected) {
+        const expired = new ContainerBuilder()
+            .setAccentColor(0xCAD7E6)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `<:Clock:1473039102113878056> **Timed Out** — Voice status setup cancelled.`
+            ));
+        return msg.edit({ components: [expired], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }
 
-    const clearing = statusText === null
-        || statusText === ''
-        || /^clear$/i.test(String(statusText).trim());
+    const action = collected.customId.split('_')[1]; // perm, temp, or cancel
+
+    if (action === 'cancel') {
+        const cancelled = new ContainerBuilder()
+            .setAccentColor(0xCAD7E6)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `<:Cancel:1473037949187657818> **Cancelled** — No changes made.`
+            ));
+        return collected.update({ components: [cancelled], flags: MessageFlags.IsComponentsV2 });
+    }
+
+    const permanent = action === 'perm';
 
     try {
-        await applyStatus(client, channel.id, clearing ? null : statusText);
-
-        // Handle persistence
-        if (clearing) {
-            savePersistEntry(channel.id, null);
-        } else if (permanent) {
-            savePersistEntry(channel.id, {
-                status: statusText.slice(0, MAX_STATUS_LENGTH),
-                setBy: member.id,
-                guildId: member.guild.id
-            });
-        } else {
-            // Temporary — remove any existing persistence
-            savePersistEntry(channel.id, null);
-        }
-
-        const modeText = clearing ? '' : (permanent ? '`Permanent` — stays even when VC is empty' : '`Temporary` — clears when VC empties');
-
-        const container = buildSuccessResponse(
-            clearing ? 'Status Cleared' : 'Status Updated',
-            clearing
-                ? `Cleared the status of **${channel.name}**.`
-                : `Updated the status of **${channel.name}**.`,
-            {
-                'Channel': `<#${channel.id}>`,
-                'Status': clearing ? 'None' : statusText.slice(0, 100),
-                'Mode': modeText || 'Cleared',
-                'Set By': username
-            }
-        );
-        container.setAccentColor(clearing ? 0xCAD7E6 : 0x57F287);
-        return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const clearing = await doApply(message.client, channel, statusText, permanent, message.member);
+        const result = buildResultContainer(clearing, statusText, channel, permanent, message.author.username);
+        await collected.update({ components: [result], flags: MessageFlags.IsComponentsV2 });
     } catch (err) {
         const reason = err?.rawError?.message || err?.message || 'Unknown error';
-        return reply({
-            components: [buildErrorResponse('Failed', `Could not update voice status: ${reason}`)],
-            flags: MessageFlags.IsComponentsV2
-        });
+        const errContainer = buildErrorResponse('Failed', `Could not update voice status: ${reason}`);
+        await collected.update({ components: [errContainer], flags: MessageFlags.IsComponentsV2 });
     }
 }
+
+// ── Command module ───────────────────────────────────────────────────────
 
 module.exports = {
     name: 'vcstatus',
@@ -191,20 +219,45 @@ module.exports = {
         const mode = interaction.options.getString('mode') || 'permanent';
         const channel = interaction.options.getChannel('channel') || interaction.member?.voice?.channel || null;
 
-        return runStatusUpdate({
-            member: interaction.member,
-            channel,
-            statusText: status,
-            permanent: mode === 'permanent',
-            username: interaction.user.username,
-            reply: (opts) => interaction.reply(opts),
-            client: interaction.client
-        });
+        if (!hasPermission(interaction.member)) {
+            return interaction.reply({
+                components: [buildErrorResponse('Missing Permission', 'You need **Set Voice Channel Status** or **Manage Channels** permission.')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+            });
+        }
+
+        if (!isVoiceLike(channel)) {
+            return interaction.reply({
+                components: [buildErrorResponse('No Voice Channel', 'Mention a voice channel or join one.')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+            });
+        }
+
+        const permanent = mode === 'permanent';
+
+        try {
+            const clearing = await doApply(interaction.client, channel, status, permanent, interaction.member);
+            const container = buildResultContainer(clearing, status, channel, permanent, interaction.user.username);
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch (err) {
+            const reason = err?.rawError?.message || err?.message || 'Unknown error';
+            await interaction.reply({
+                components: [buildErrorResponse('Failed', `Could not update voice status: ${reason}`)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+            });
+        }
     },
 
     async executePrefix(message, args) {
+        if (!hasPermission(message.member)) {
+            return message.reply({
+                components: [buildErrorResponse('Missing Permission', 'You need **Set Voice Channel Status** or **Manage Channels** permission.')],
+                flags: MessageFlags.IsComponentsV2
+            });
+        }
+
         if (!args.length) {
-            // Show current persistent statuses for this guild
+            // Show active persistent statuses
             const persist = loadPersist();
             const guildEntries = Object.entries(persist).filter(([, e]) => e.guildId === message.guild.id);
 
@@ -212,13 +265,8 @@ module.exports = {
                 return message.reply({
                     components: [buildInvalidUsage(
                         'vcstatus',
-                        'vcstatus <status|clear> [--perm|--temp] [#channel]',
-                        [
-                            'vcstatus 🎵 Music Session',
-                            'vcstatus 🎮 Gaming --perm',
-                            'vcstatus clear #voice-chat',
-                            'vcstatus Playing Games --temp'
-                        ]
+                        'vcstatus <status|clear> [#channel]',
+                        ['vcstatus 🎵 Music Session', 'vcstatus 🎮 Gaming', 'vcstatus clear #voice-chat']
                     )],
                     flags: MessageFlags.IsComponentsV2
                 });
@@ -226,9 +274,9 @@ module.exports = {
 
             let listText = `# <:Volumeup:1473039290136002844> Active Voice Statuses\n\n`;
             for (const [chId, entry] of guildEntries) {
-                listText += `> <#${chId}> — \`${entry.status}\`\n`;
+                listText += `> <#${chId}> — \`${entry.status}\` <:Lock:1473038513749491773>\n`;
             }
-            listText += `\n-# These are permanent statuses. Use \`vcstatus clear #channel\` to remove.`;
+            listText += `\n-# <:Lock:1473038513749491773> = Permanent · Use \`vcstatus clear #channel\` to remove`;
 
             const container = new ContainerBuilder()
                 .setAccentColor(0x5865F2)
@@ -236,11 +284,11 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        // Parse --perm / --temp flags
-        let permanent = true; // default to permanent
+        // Check for explicit --perm/--temp flags
+        let explicitMode = null;
         const filteredArgs = args.filter(a => {
-            if (a === '--temp' || a === '--temporary' || a === '-t') { permanent = false; return false; }
-            if (a === '--perm' || a === '--permanent' || a === '-p') { permanent = true; return false; }
+            if (a === '--perm' || a === '--permanent' || a === '-p') { explicitMode = 'perm'; return false; }
+            if (a === '--temp' || a === '--temporary' || a === '-t') { explicitMode = 'temp'; return false; }
             return true;
         });
 
@@ -256,18 +304,49 @@ module.exports = {
             statusText = filteredArgs.join(' ').trim();
         }
 
-        return runStatusUpdate({
-            member: message.member,
-            channel,
-            statusText,
-            permanent,
-            username: message.author.username,
-            reply: (opts) => message.reply(opts),
-            client: message.client
-        });
+        if (!isVoiceLike(channel)) {
+            return message.reply({
+                components: [buildErrorResponse('No Voice Channel', 'Mention a voice channel or join one.')],
+                flags: MessageFlags.IsComponentsV2
+            });
+        }
+
+        // If clearing, do it immediately (no mode needed)
+        if (/^clear$/i.test(statusText.trim())) {
+            try {
+                await doApply(message.client, channel, null, false, message.member);
+                const container = buildResultContainer(true, null, channel, false, message.author.username);
+                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            } catch (err) {
+                const reason = err?.rawError?.message || err?.message || 'Unknown error';
+                return message.reply({
+                    components: [buildErrorResponse('Failed', `Could not clear status: ${reason}`)],
+                    flags: MessageFlags.IsComponentsV2
+                });
+            }
+        }
+
+        // If explicit flag provided, apply directly
+        if (explicitMode) {
+            const permanent = explicitMode === 'perm';
+            try {
+                const clearing = await doApply(message.client, channel, statusText, permanent, message.member);
+                const container = buildResultContainer(clearing, statusText, channel, permanent, message.author.username);
+                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            } catch (err) {
+                const reason = err?.rawError?.message || err?.message || 'Unknown error';
+                return message.reply({
+                    components: [buildErrorResponse('Failed', `Could not update status: ${reason}`)],
+                    flags: MessageFlags.IsComponentsV2
+                });
+            }
+        }
+
+        // No explicit flag — show interactive mode selector buttons
+        return showModeSelector(message, channel, statusText);
     },
 
-    // Exported for use in voiceStateUpdate handler
+    // Exported for voiceStateUpdate handler
     reapplyPersistentStatus,
     applyStatus
 };
