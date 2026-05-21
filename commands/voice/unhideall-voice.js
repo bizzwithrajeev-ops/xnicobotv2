@@ -4,12 +4,12 @@ const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js')
 const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 module.exports = {
-    name: 'unlockall-voice',
-    prefix: 'unlockall-voice',
-    description: 'Unlock all voice channels for a role (default: @everyone)',
-    usage: 'unlockall-voice [@role]',
+    name: 'unhideall-voice',
+    prefix: 'unhideall-voice',
+    description: 'Unhide all voice channels for a role (default: @everyone)',
+    usage: 'unhideall-voice [@role]',
     category: 'voice',
-    aliases: ['unlockvc', 'unlockallvc'],
+    aliases: ['unhidevc', 'unhideallvc'],
     permissions: ['ManageChannels'],
 
     async executePrefix(message, args) {
@@ -36,20 +36,20 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        let unlocked = 0;
+        let unhidden = 0;
         for (const [, channel] of voiceChannels) {
             try {
-                await channel.permissionOverwrites.edit(roleId, { Connect: null });
-                unlocked++;
+                await channel.permissionOverwrites.edit(roleId, { ViewChannel: null });
+                unhidden++;
             } catch {
                 // Skip channels we can't modify
             }
         }
 
         const container = buildSuccessResponse(
-            'Voice Channels Unlocked',
-            `Successfully unlocked **${unlocked}/${voiceChannels.size}** voice channels for **${roleName}**.`,
-            { 'Unlocked': `${unlocked}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Can connect again', 'Moderator': message.author.username }
+            'Voice Channels Unhidden',
+            `Successfully unhidden **${unhidden}/${voiceChannels.size}** voice channels for **${roleName}**.`,
+            { 'Unhidden': `${unhidden}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Can see channels again', 'Moderator': message.author.username }
         );
         container.setAccentColor(0x57F287);
 

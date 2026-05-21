@@ -1,11 +1,13 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags, ChannelType, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
+'use strict';
+
+const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'lockall-voice',
     prefix: 'lockall-voice',
-    description: 'Lock all voice channels in the server',
-    usage: 'lockall-voice',
+    description: 'Lock all voice channels for a role (default: @everyone)',
+    usage: 'lockall-voice [@role]',
     category: 'voice',
     aliases: ['lockvc', 'lockallvc'],
     permissions: ['ManageChannels'],
@@ -15,6 +17,15 @@ module.exports = {
             const container = buildErrorResponse('Missing Permission', 'You need the **Manage Channels** permission.');
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
+
+        // Resolve target role — mention, ID, or default to @everyone
+        let targetRole = message.mentions.roles.first();
+        if (!targetRole && args[0]) {
+            const id = args[0].replace(/[<@&>]/g, '');
+            if (/^\d{17,20}$/.test(id)) targetRole = message.guild.roles.cache.get(id);
+        }
+        const roleId = targetRole?.id || message.guild.id; // guild.id = @everyone
+        const roleName = targetRole?.name || '@everyone';
 
         const voiceChannels = message.guild.channels.cache.filter(c =>
             c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice
@@ -28,20 +39,20 @@ module.exports = {
         let locked = 0;
         for (const [, channel] of voiceChannels) {
             try {
-                await channel.permissionOverwrites.edit(message.guild.id, { Connect: false });
+                await channel.permissionOverwrites.edit(roleId, { Connect: false });
                 locked++;
-            } catch (error) {
-                // Skip channels we can't lock
+            } catch {
+                // Skip channels we can't modify
             }
         }
 
         const container = buildSuccessResponse(
             'Voice Channels Locked',
-            `Successfully locked **${locked}/${voiceChannels.size}** voice channels.`,
-            { 'Locked': `${locked}/${voiceChannels.size}`, 'Effect': 'Members can no longer connect', 'Moderator': message.author.username }
+            `Successfully locked **${locked}/${voiceChannels.size}** voice channels for **${roleName}**.`,
+            { 'Locked': `${locked}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Cannot connect', 'Moderator': message.author.username }
         );
-        container.setAccentColor(0x57F287);
+        container.setAccentColor(0xED4245);
 
-        message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 };

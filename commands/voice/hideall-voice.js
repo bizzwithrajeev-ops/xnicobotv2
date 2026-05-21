@@ -4,12 +4,12 @@ const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js')
 const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 module.exports = {
-    name: 'unlockall-voice',
-    prefix: 'unlockall-voice',
-    description: 'Unlock all voice channels for a role (default: @everyone)',
-    usage: 'unlockall-voice [@role]',
+    name: 'hideall-voice',
+    prefix: 'hideall-voice',
+    description: 'Hide all voice channels from a role (default: @everyone)',
+    usage: 'hideall-voice [@role]',
     category: 'voice',
-    aliases: ['unlockvc', 'unlockallvc'],
+    aliases: ['hidevc', 'hideallvc'],
     permissions: ['ManageChannels'],
 
     async executePrefix(message, args) {
@@ -36,22 +36,22 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        let unlocked = 0;
+        let hidden = 0;
         for (const [, channel] of voiceChannels) {
             try {
-                await channel.permissionOverwrites.edit(roleId, { Connect: null });
-                unlocked++;
+                await channel.permissionOverwrites.edit(roleId, { ViewChannel: false });
+                hidden++;
             } catch {
                 // Skip channels we can't modify
             }
         }
 
         const container = buildSuccessResponse(
-            'Voice Channels Unlocked',
-            `Successfully unlocked **${unlocked}/${voiceChannels.size}** voice channels for **${roleName}**.`,
-            { 'Unlocked': `${unlocked}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Can connect again', 'Moderator': message.author.username }
+            'Voice Channels Hidden',
+            `Successfully hidden **${hidden}/${voiceChannels.size}** voice channels from **${roleName}**.`,
+            { 'Hidden': `${hidden}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Cannot see channels', 'Moderator': message.author.username }
         );
-        container.setAccentColor(0x57F287);
+        container.setAccentColor(0x5865F2);
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
