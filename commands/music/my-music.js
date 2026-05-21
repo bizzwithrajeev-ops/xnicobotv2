@@ -39,7 +39,7 @@ function buildMainPanel(userId, favorites, spotifyLinks) {
     const playlistCount = userLinks.playlists?.length || 0;
 
     let content = `# <:Music:1473039311057190972> My Music Library\n\n`;
-    content += `### <:Heart:1473038659514007616> Favorites\n`;
+    content += `### <:Heartalt:1473038488893526016> Favorites\n`;
     content += `> **${favCount}** liked songs saved\n\n`;
     content += `### <:spotify:1473663456182800446> Spotify Playlists\n`;
     content += `> **${playlistCount}** playlists linked\n\n`;
@@ -54,7 +54,7 @@ function createMainButtons() {
             new ButtonBuilder()
                 .setCustomId('mymusic_favorites')
                 .setLabel('View Favorites')
-                .setEmoji('<:Heart:1473038659514007616>')
+                .setEmoji('<:Heartalt:1473038488893526016>')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .setCustomId('mymusic_spotify')
@@ -88,11 +88,11 @@ function buildFavoritesPanel(favorites, page = 1) {
     const start = (validPage - 1) * ITEMS_PER_PAGE;
     const pageSongs = (favorites || []).slice(start, start + ITEMS_PER_PAGE);
 
-    let content = `# <:Heart:1473038659514007616> My Favorite Songs\n\n`;
+    let content = `# <:Heartalt:1473038488893526016> My Favorite Songs\n\n`;
     
     if (!favorites || favorites.length === 0) {
         content += `You haven't liked any songs yet!\n\n`;
-        content += `-# Use the <:Heart:1473038659514007616> button on the music panel or \`/like\` to save songs`;
+        content += `-# Use the <:Heartalt:1473038488893526016> button on the music panel or \`/like\` to save songs`;
     } else {
         content += `-# ${favorites.length} songs saved\n\n`;
         pageSongs.forEach((song, i) => {

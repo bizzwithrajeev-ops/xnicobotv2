@@ -3715,7 +3715,7 @@ client.on('interactionCreate', async (interaction) => {
                     const start = (newPage - 1) * 10;
                     const pageSongs = favorites.slice(start, start + 10);
 
-                    let content = `# <:Heart:1473038659514007616> Your Favorites\n\n`;
+                    let content = `# <:Heartalt:1473038488893526016> Your Favorites\n\n`;
                     content += `-# ${favorites.length} songs saved\n\n`;
                     pageSongs.forEach((song, i) => {
                         const title = (song.title || 'Unknown').substring(0, 40);
@@ -4619,7 +4619,7 @@ client.on('interactionCreate', async (interaction) => {
                             if (favoritesCmd) {
                                 return await favoritesCmd.execute(interaction, lavalinkManager);
                             }
-                            return await interaction.reply({ content: '<:Heart:1473038659514007616> Use `/favorites` to view your saved songs.', flags: MessageFlags.Ephemeral });
+                            return await interaction.reply({ content: '<:Heartalt:1473038488893526016> Use `/favorites` to view your saved songs.', flags: MessageFlags.Ephemeral });
                         }
 
                         if (customId === 'panel_history') {
@@ -4639,7 +4639,7 @@ client.on('interactionCreate', async (interaction) => {
                                 });
 
                                 if (existing) {
-                                    return await interaction.reply({ content: '<:Heart:1473038659514007616> This song is already in your favorites!', flags: MessageFlags.Ephemeral });
+                                    return await interaction.reply({ content: '<:Heartalt:1473038488893526016> This song is already in your favorites!', flags: MessageFlags.Ephemeral });
                                 }
 
                                 await models.FavoriteSong.create({
@@ -4653,7 +4653,7 @@ client.on('interactionCreate', async (interaction) => {
                                     addedAt: new Date().toISOString()
                                 });
 
-                                return await interaction.reply({ content: `<:Heart:1473038659514007616> **${track.info.title}** added to favorites!`, flags: MessageFlags.Ephemeral });
+                                return await interaction.reply({ content: `<:Heartalt:1473038488893526016> **${track.info.title}** added to favorites!`, flags: MessageFlags.Ephemeral });
                             } catch (err) {
                                 log.error(`Like button error: ${err.message}`, err);
                                 return await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to save to favorites!', flags: MessageFlags.Ephemeral });

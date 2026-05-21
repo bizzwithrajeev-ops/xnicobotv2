@@ -9,7 +9,7 @@ const FLAGS_MAP = {
     BugHunterLevel2: '<:Search:1473038053219106847> Bug Hunter Level 2',
     HypeSquadOnlineHouse1: '<:Lightningalt:1473038679906844824> HypeSquad Bravery',
     HypeSquadOnlineHouse2: '<:Lightningalt:1473038679906844824> HypeSquad Brilliance',
-    HypeSquadOnlineHouse3: '<:Heart:1473038659514007616> HypeSquad Balance',
+    HypeSquadOnlineHouse3: '<:Heartalt:1473038488893526016> HypeSquad Balance',
     PremiumEarlySupporter: '<:Fire:1473038604812161218> Early Supporter',
     VerifiedBot: '<:Checkedbox:1473038547165384804> Verified Bot',
     VerifiedDeveloper: '<:Settings:1473037894703779851> Early Verified Bot Developer',

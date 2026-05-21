@@ -258,7 +258,7 @@ module.exports = {
                 testContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<@&${config[guildId].pingRoleId}>`));
             }
             await channel.send({ components: [testContainer, voteBtn], flags: MessageFlags.IsComponentsV2 });
-            await interaction.reply({ content: '<:correct:1415659106735599646> Test notification sent!', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: '<:Checkedbox:1473038547165384804> Test notification sent!', flags: MessageFlags.Ephemeral });
             return true;
         }
 
@@ -290,7 +290,7 @@ module.exports = {
             const controlRow = createControlRow(config[guildId]);
 
             try { await interaction.message.edit({ components: [container, settingsRow, controlRow] }); } catch { }
-            await interaction.reply({ content: `<:correct:1415659106735599646> Vote notifications will be sent to ${channel}!`, flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Vote notifications will be sent to ${channel}!`, flags: MessageFlags.Ephemeral });
             return true;
         }
 
@@ -315,7 +315,7 @@ module.exports = {
             const controlRow = createControlRow(config[guildId]);
 
             try { await interaction.message.edit({ components: [container, settingsRow, controlRow] }); } catch { }
-            await interaction.reply({ content: '<:correct:1415659106735599646> Ping role updated!', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: '<:Checkedbox:1473038547165384804> Ping role updated!', flags: MessageFlags.Ephemeral });
             return true;
         }
 

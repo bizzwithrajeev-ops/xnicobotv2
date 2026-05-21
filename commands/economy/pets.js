@@ -153,7 +153,7 @@ function viewGroup(user, uid, typeId, fromRarity) {
     const wpn = p.weapon ? `🗡️ ${p.weapon.name} Lv.${p.weapon.level || 1}` : '—';
     lines.push(
       `${active ? '⚔️' : `**${i + 1}.**`} \`${p.id}\` Lv.${p.level || 1}`,
-      `> <:Heart:1473038659514007616> ${p.baseHp || p.hp} ┊ ⚔️ ${p.baseAtk || p.atk} ┊ ${wpn}`,
+      `> <:Heartalt:1473038488893526016> ${p.baseHp || p.hp} ┊ ⚔️ ${p.baseAtk || p.atk} ┊ ${wpn}`,
     );
   }
 
@@ -201,7 +201,7 @@ function viewDetail(user, uid, petId, fromRarity) {
     `# ${pet.emoji} ${pet.name}${isActive ? ' ⚔️' : ''}`,
     `${ph.RARITY_EMOJI[pet.rarity]} **${cap(pet.rarity)}** — \`${pet.id}\``,
     '',
-    `<:Heart:1473038659514007616> HP: **${pet.baseHp || pet.hp}** ┊ ⚔️ ATK: **${pet.baseAtk || pet.atk}**`,
+    `<:Heartalt:1473038488893526016> HP: **${pet.baseHp || pet.hp}** ┊ ⚔️ ATK: **${pet.baseAtk || pet.atk}**`,
     `<:Invoice:1473039492217835550> Level: **${lv}** ┊ XP: **${pet.exp || 0}/${lv * 100}**`,
     '',
     `🗡️ **Weapon:** ${pet.weapon ? `${pet.weapon.name} (Lv.${pet.weapon.level || 1}) +${pet.weapon.baseAtk} ATK` : 'None'}`,

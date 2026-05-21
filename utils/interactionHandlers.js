@@ -3497,7 +3497,7 @@ async function handleAutoreactButtons(interaction) {
             .setCustomId('emojis')
             .setLabel('Emojis (separate with spaces)')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('👍 <:Heart:1473038659514007616> <:Money:1473377877239140529>')
+            .setPlaceholder('👍 <:Heartalt:1473038488893526016> <:Money:1473377877239140529>')
             .setRequired(true);
 
         modal.addComponents(

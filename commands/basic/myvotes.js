@@ -24,10 +24,10 @@ function saveUserVotes(data) {
 
 function getStreakEmoji(streak) {
     if (streak >= 30) return '<:Fire:1473038604812161218>';
-    if (streak >= 14) return '<:Lightningalt:1473038679906844824>';
+    if (streak >= 14) return '<:Lightning:1473038797540298792>';
     if (streak >= 7) return '<:Sketch:1473038248493453352>';
     if (streak >= 3) return '<:Star:1473038501766369300>';
-    return '🗳️';
+    return '<:Checkedbox:1473038547165384804>';
 }
 
 function getStreakTitle(streak) {
@@ -65,8 +65,8 @@ function buildVoteStatsPanel(user, userData, clientId) {
         statsContent += `You haven't voted for **xNico** yet. Every vote helps us grow!\n\n`;
         statsContent += `### <:Present:1473038450465706076> Rewards for Voting\n`;
         statsContent += `• <:Fire:1473038604812161218> Build a daily voting streak\n`;
-        statsContent += `• 🏅 Earn the exclusive **Voter** badge on your profile\n`;
-        statsContent += `• <:Heart:1473038659514007616> Help the bot reach more servers\n\n`;
+        statsContent += `• <:Award:1473038391632203887> Earn the exclusive **Voter** badge on your profile\n`;
+        statsContent += `• <:Heartalt:1473038488893526016> Help the bot reach more servers\n\n`;
         statsContent += `-# Click below to cast your first vote!`;
     } else {
         const streak = userData.streak || 0;
@@ -77,7 +77,7 @@ function buildVoteStatsPanel(user, userData, clientId) {
         statsContent += `### <:Fire:1473038604812161218> Current Streak\n`;
         statsContent += `${getStreakEmoji(streak)} **${streak}** vote${streak !== 1 ? 's' : ''} in a row${getStreakTitle(streak)}\n\n`;
 
-        statsContent += `### <a:loading:1506015728871149770> All-Time Votes\n`;
+        statsContent += `### <:Lightning:1473038797540298792> All-Time Votes\n`;
         statsContent += `**${total}** total vote${total !== 1 ? 's' : ''}\n\n`;
 
         statsContent += `### <:Clock:1473039102113878056> Vote Timestamps\n`;
@@ -86,7 +86,7 @@ function buildVoteStatsPanel(user, userData, clientId) {
 
         statsContent += `### <:Checkedbox:1473038547165384804> Next Vote\n`;
         if (canVoteNow) {
-            statsContent += `<:correct:1415659106735599646> **You can vote right now!**\n\n`;
+            statsContent += `<:Checkedbox:1473038547165384804> **You can vote right now!**\n\n`;
         } else {
             const ts = Math.floor(nextVoteTs / 1000);
             statsContent += `Available <t:${ts}:R> · <t:${ts}:t>\n\n`;
@@ -94,7 +94,7 @@ function buildVoteStatsPanel(user, userData, clientId) {
 
         statsContent += `### <:Notificationon:1473038417691676784> Vote Reminder\n`;
         statsContent += remindersOn
-            ? `<:correct:1415659106735599646> Reminders are **ON** — I'll DM you when you can vote again.`
+            ? `<:Checkedbox:1473038547165384804> Reminders are **ON** — I'll DM you when you can vote again.`
             : `<:Cancel:1473037949187657818> Reminders are **OFF** — toggle below to get notified.`;
     }
 
@@ -124,12 +124,12 @@ function buildVoteStatsPanel(user, userData, clientId) {
             .setCustomId('voterem_toggle')
             .setLabel(remindersOn ? 'Disable Reminders' : 'Enable Reminders')
             .setStyle(remindersOn ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(remindersOn ? '<:Notificationoff:1473038396394926230>' : '<:Notificationon:1473038417691676784>'),
+            .setEmoji(remindersOn ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
         new ButtonBuilder()
             .setCustomId('voterem_refresh')
             .setLabel('Refresh')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('<:Reload:1473039026296504320>')
+            .setEmoji('<:History:1473037847568318605>')
     ) : null;
 
     return { container, voteRow, reminderRow };

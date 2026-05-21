@@ -207,7 +207,7 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_queue').setEmoji(EMOJIS.queue).setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heart:1473038659514007616>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heartalt:1473038488893526016>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_lyrics').setEmoji('<:Edit:1473037903625191580>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_grab').setEmoji('<:Download:1473039486727225394>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_247').setEmoji('<:Star:1473038501766369300>').setStyle(is247Enabled ? ButtonStyle.Success : ButtonStyle.Secondary)
@@ -278,7 +278,7 @@ function buildIdlePanel(guildId = null) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_queue').setEmoji(EMOJIS.queue).setStyle(ButtonStyle.Secondary).setDisabled(true),
-        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heart:1473038659514007616>').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heartalt:1473038488893526016>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_lyrics').setEmoji('<:Edit:1473037903625191580>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_grab').setEmoji('<:Download:1473039486727225394>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_247').setEmoji('<:Star:1473038501766369300>').setStyle(is247Enabled ? ButtonStyle.Success : ButtonStyle.Secondary)

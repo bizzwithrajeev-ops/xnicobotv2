@@ -31,7 +31,7 @@ const BADGE_ICONS = {
     Palette:     '<:Palette:1473039029476917461>',
     Picture:     '<:Picture:1473039568398843957>',
     Info:        '<:Infotriangle:1473038460456800459>',
-    Correct:     '<:correct:1415659106735599646>'
+    Correct:     '<:Checkedbox:1473038547165384804>'
 };
 
 const DEFAULT_ACCENT = 0xCAD7E6;
