@@ -32,7 +32,7 @@ async function handleDaily(reply, userId, guildId) {
             '',
             `> \`${buildCooldownBar(elapsed, COOLDOWN)}\` ${pct}%`,
             '',
-            `<a:loading:1506015728871149770> **Available in:** ${economyManager.formatTime(left)}`,
+            `<:Clock:1473039102113878056> **Available in:** ${economyManager.formatTime(left)}`,
             `-# Come back later to claim your next daily reward!`,
         ].join('\n'));
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

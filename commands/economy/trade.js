@@ -139,7 +139,7 @@ module.exports = {
     collector.on('end', (collected, reason) => {
       if (reason === 'time') {
         const c = createContainer();
-        addTextDisplay(c, '<a:loading:1506015728871149770> Trade timed out.');
+        addTextDisplay(c, '<:Clock:1473039102113878056> Trade timed out.');
         msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       }
     });

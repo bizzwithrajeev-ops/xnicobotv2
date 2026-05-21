@@ -2332,6 +2332,15 @@ client.on('interactionCreate', async (interaction) => {
                     try { const h = await confCmd.handleButton(interaction); if (h) return; } catch {}
                 }
             }
+            // Joke & Fact next buttons
+            if (interaction.customId === 'joke_next') {
+                const jokeCmd = client.commands.get('joke');
+                if (jokeCmd?.handleButton) { try { const h = await jokeCmd.handleButton(interaction); if (h) return; } catch {} }
+            }
+            if (interaction.customId === 'fact_next') {
+                const factCmd = client.commands.get('fact');
+                if (factCmd?.handleButton) { try { const h = await factCmd.handleButton(interaction); if (h) return; } catch {} }
+            }
             if (interaction.customId.startsWith('botcustom_')) {
                 const botCustomCmd = client.commands.get('bot-customize');
                 if (botCustomCmd && botCustomCmd.handleInteraction) {

@@ -160,7 +160,7 @@ function buildUI(lottery, userId) {
             `• Win Chance: **${chance}%**`,
             `• Next Ticket Cost: **${nextPrice} coins**\n`,
 
-            `## <a:loading:1506015728871149770> Draw Timer`,
+            `## <:Clock:1473039102113878056> Draw Timer`,
             `**${m}m ${s}s remaining**\n`,
 
             `> Buy more tickets to increase your winning chance.`

@@ -41,7 +41,7 @@ async function handleWeekly(reply, userId, guildId) {
           '',
           `> \`${buildCooldownBar(elapsed, COOLDOWN)}\` ${pct}%`,
           '',
-          `<a:loading:1506015728871149770> **Available in:** ${timeStr.trim()}`,
+          `<:Clock:1473039102113878056> **Available in:** ${timeStr.trim()}`,
           `-# Weekly rewards reset every 7 days`,
       ].join('\n'));
       return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

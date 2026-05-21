@@ -46,7 +46,7 @@ async function handleWork(reply, userId, guildId) {
             '',
             `> \`${buildCooldownBar(elapsed, COOLDOWN)}\` ${pct}%`,
             '',
-            `<a:loading:1506015728871149770> **Ready in:** ${economyManager.formatTime(left)}`,
+            `<:Clock:1473039102113878056> **Ready in:** ${economyManager.formatTime(left)}`,
             `-# Take a break and come back soon!`,
         ].join('\n'));
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -40,7 +40,7 @@ async function handleCrime(reply, userId) {
   if (cooldowns.get(userId) > now) {
     const left = Math.ceil((cooldowns.get(userId) - now) / 1000);
     const c = createContainer(0xCAD7E6);
-    addTextDisplay(c, `<a:loading:1506015728871149770> Laying low... try again in **${left}s**`);
+    addTextDisplay(c, `<:Clock:1473039102113878056> Laying low... try again in **${left}s**`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
   cooldowns.set(userId, now + COOLDOWN);

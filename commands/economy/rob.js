@@ -61,7 +61,7 @@ module.exports = {
         if (now - robber.lastRob < COOLDOWN) {
             const left = Math.ceil((COOLDOWN - (now - robber.lastRob)) / 1000);
             const c = createContainer(0xCAD7E6);
-            addTextDisplay(c, `<a:loading:1506015728871149770> You must wait **${left}s** before robbing again.`);
+            addTextDisplay(c, `<:Clock:1473039102113878056> You must wait **${left}s** before robbing again.`);
             return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
         }
 

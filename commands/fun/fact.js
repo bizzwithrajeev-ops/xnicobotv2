@@ -1,58 +1,84 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { COLORS } = require('../../utils/responseBuilder');
+'use strict';
 
-const facts = [
-    "Honey never spoils. Archaeologists have found 3000-year-old honey in Egyptian tombs that's still edible!",
+const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+
+const FALLBACK_FACTS = [
+    "Honey never spoils. Archaeologists have found 3000-year-old honey that's still edible!",
     "Octopuses have three hearts and blue blood.",
     "A group of flamingos is called a 'flamboyance'.",
+    "The shortest war in history lasted 38 minutes (Britain vs Zanzibar, 1896).",
     "Bananas are berries, but strawberries aren't.",
-    "The Eiffel Tower can be 15 cm taller during the summer due to thermal expansion.",
-    "A single cloud can weigh more than 1 million pounds.",
-    "Scotland's national animal is the unicorn.",
-    "The shortest war in history lasted 38 minutes (Anglo-Zanzibar War, 1896).",
-    "Sharks existed before trees. They've been around for over 400 million years!",
-    "A day on Venus is longer than its year.",
-    "There are more stars in the universe than grains of sand on all Earth's beaches.",
-    "Wombat poop is cube-shaped.",
-    "A shrimp's heart is in its head.",
-    "It's impossible to hum while holding your nose.",
-    "The inventor of the Pringles can is now buried in one.",
-    "A bolt of lightning is five times hotter than the surface of the sun.",
-    "A crocodile cannot stick its tongue out.",
-    "No number before 1,000 contains the letter 'A'.",
-    "The moon has moonquakes.",
-    "Cows have best friends and get stressed when separated."
 ];
 
-function getFactContainer() {
-    const randomFact = facts[Math.floor(Math.random() * facts.length)];
-    
-    let content = `# 🧠 Random Fun Fact\n\n`;
-    content += `> ${randomFact}\n\n`;
-    content += `-# Did you know? Run this command again for another fact!`;
+async function fetchFact() {
+    // Try uselessfacts API
+    try {
+        const res = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random?language=en', { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.text) return data.text;
+        }
+    } catch {}
 
+    // Try API Ninjas facts
+    try {
+        const res = await fetch('https://api.api-ninjas.com/v1/facts?limit=1', {
+            headers: { 'X-Api-Key': process.env.API_NINJAS_KEY || '' },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data[0]?.fact) return data[0].fact;
+        }
+    } catch {}
+
+    return FALLBACK_FACTS[Math.floor(Math.random() * FALLBACK_FACTS.length)];
+}
+
+function buildFactContainer(fact) {
     return new ContainerBuilder()
-        .setAccentColor(COLORS.INFO)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+        .setAccentColor(0x5865F2)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `## <:Bookopen:1473038576391557130> Random Fact\n\n> ${fact}\n\n-# Source: uselessfacts.jsph.pl`
+        ));
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('fact')
-        .setDescription('Get a random fun fact'),
+    data: new SlashCommandBuilder().setName('fact').setDescription('Get a random interesting fact'),
     prefix: 'fact',
-    description: 'Get a random fun fact',
+    description: 'Get a random interesting fact',
     usage: 'fact',
     category: 'fun',
-    aliases: ['funfact', 'didyouknow'],
+    aliases: ['facts', 'funfact', 'randomfact'],
 
     async execute(interaction) {
-        const container = getFactContainer();
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await interaction.deferReply();
+        const fact = await fetchFact();
+        const container = buildFactContainer(fact);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('fact_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
+        );
+        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
     },
 
-    async executePrefix(message) {
-        const container = getFactContainer();
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    async executePrefix(message, args) {
+        const fact = await fetchFact();
+        const container = buildFactContainer(fact);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('fact_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
+        );
+        await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+    },
+
+    async handleButton(interaction) {
+        if (interaction.customId !== 'fact_next') return false;
+        await interaction.deferUpdate();
+        const fact = await fetchFact();
+        const container = buildFactContainer(fact);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('fact_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
+        );
+        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        return true;
     }
 };

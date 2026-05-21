@@ -15,7 +15,7 @@ async function handleHighLow(reply, userId, args, message) {
     if (cooldowns.get(userId) > now) {
         const left = Math.ceil((cooldowns.get(userId) - now) / 1000);
         const c = createContainer(0xCAD7E6);
-        addTextDisplay(c, `<a:loading:1506015728871149770> Wait **${left}s** before playing again.`);
+        addTextDisplay(c, `<:Clock:1473039102113878056> Wait **${left}s** before playing again.`);
         return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 

@@ -1,65 +1,83 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { COLORS } = require('../../utils/responseBuilder');
+'use strict';
 
-const jokes = [
+const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+
+// Fallback jokes if API fails
+const FALLBACK_JOKES = [
     { setup: "Why don't scientists trust atoms?", punchline: "Because they make up everything!" },
     { setup: "What do you call a bear with no teeth?", punchline: "A gummy bear!" },
     { setup: "Why did the scarecrow win an award?", punchline: "He was outstanding in his field!" },
-    { setup: "What do you call fake spaghetti?", punchline: "An impasta!" },
+    { setup: "What do you call a fake noodle?", punchline: "An impasta!" },
     { setup: "Why don't eggs tell jokes?", punchline: "They'd crack each other up!" },
-    { setup: "What did the ocean say to the beach?", punchline: "Nothing, it just waved!" },
-    { setup: "Why did the bicycle fall over?", punchline: "Because it was two tired!" },
-    { setup: "What do you call a fish wearing a bowtie?", punchline: "Sofishticated!" },
-    { setup: "Why don't skeletons fight each other?", punchline: "They don't have the guts!" },
-    { setup: "What's orange and sounds like a parrot?", punchline: "A carrot!" },
-    { setup: "Why did the math book look so sad?", punchline: "Because it had too many problems!" },
-    { setup: "What do you call a dinosaur that crashes his car?", punchline: "Tyrannosaurus Wrecks!" },
-    { setup: "Why can't you hear a pterodactyl go to the bathroom?", punchline: "Because the 'P' is silent!" },
-    { setup: "What did one wall say to the other wall?", punchline: "I'll meet you at the corner!" },
-    { setup: "Why did the coffee file a police report?", punchline: "It got mugged!" },
-    { setup: "What do you call a lazy kangaroo?", punchline: "A pouch potato!" },
-    { setup: "Why don't oysters share?", punchline: "Because they're shellfish!" },
-    { setup: "What did the grape do when it got stepped on?", punchline: "It let out a little wine!" },
-    { setup: "I'm reading a book about anti-gravity...", punchline: "It's impossible to put down!" },
-    { setup: "I used to hate facial hair...", punchline: "But then it grew on me." },
-    { setup: "What do you call a bee that can't make up its mind?", punchline: "A maybe!" },
-    { setup: "I told my wife she was drawing her eyebrows too high.", punchline: "She looked surprised." },
-    { setup: "What did the janitor say when he jumped out of the closet?", punchline: "Supplies!" },
-    { setup: "Why do cows wear bells?", punchline: "Because their horns don't work!" },
-    { setup: "I used to play piano by ear...", punchline: "But now I use my hands." },
-    { setup: "What do you call a sleeping dinosaur?", punchline: "A dino-snore!" },
-    { setup: "Want to hear a joke about paper?", punchline: "Never mind, it's tearable." },
-    { setup: "What do you call a factory that makes okay products?", punchline: "A satisfactory!" }
 ];
 
-function buildJoke() {
-    const joke = jokes[Math.floor(Math.random() * jokes.length)];
-    let content = `# 😂 Random Joke\n\n`;
-    content += `**${joke.setup}**\n\n`;
-    content += `||${joke.punchline}||\n\n`;
-    content += `-# Tap the spoiler to reveal the punchline!`;
+async function fetchJoke() {
+    // Try JokeAPI (free, no key)
+    try {
+        const res = await fetch('https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist&type=twopart', { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.setup && data.delivery) return { setup: data.setup, punchline: data.delivery };
+        }
+    } catch {}
+
+    // Try Official Joke API
+    try {
+        const res = await fetch('https://official-joke-api.appspot.com/random_joke', { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.setup && data.punchline) return data;
+        }
+    } catch {}
+
+    // Fallback
+    return FALLBACK_JOKES[Math.floor(Math.random() * FALLBACK_JOKES.length)];
+}
+
+function buildJokeContainer(joke) {
     return new ContainerBuilder()
-        .setAccentColor(COLORS.FUN)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+        .setAccentColor(0xFEE75C)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `## <:Gamepad:1473039216429498409> Random Joke\n\n**${joke.setup}**\n\n||${joke.punchline}||\n\n-# Click the spoiler to reveal the punchline`
+        ));
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('joke')
-        .setDescription('Get a random joke'),
+    data: new SlashCommandBuilder().setName('joke').setDescription('Get a random joke'),
     prefix: 'joke',
-    description: 'Get a random joke',
+    description: 'Get a random joke from the internet',
     usage: 'joke',
     category: 'fun',
-    aliases: ['dadjoke', 'tell-joke', 'pun', 'punny', 'badpun'],
+    aliases: ['jokes', 'funny'],
 
     async execute(interaction) {
-        const container = buildJoke();
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await interaction.deferReply();
+        const joke = await fetchJoke();
+        const container = buildJokeContainer(joke);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('joke_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
+        );
+        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
     },
 
-    async executePrefix(message) {
-        const container = buildJoke();
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    async executePrefix(message, args) {
+        const joke = await fetchJoke();
+        const container = buildJokeContainer(joke);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('joke_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
+        );
+        await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+    },
+
+    async handleButton(interaction) {
+        if (interaction.customId !== 'joke_next') return false;
+        await interaction.deferUpdate();
+        const joke = await fetchJoke();
+        const container = buildJokeContainer(joke);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('joke_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
+        );
+        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        return true;
     }
 };
