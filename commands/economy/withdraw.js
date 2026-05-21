@@ -19,7 +19,7 @@ async function handleWithdraw(reply, userId, args) {
             `**Usage:** \`withdraw <amount | all>\``,
             '',
             `**Your Balances:**`,
-            `💰 Wallet: ${formatNumber(user.coins)} coins`,
+            `<:Money:1473377877239140529> Wallet: ${formatNumber(user.coins)} coins`,
             `🏦 Bank: ${formatNumber(user.bank)} coins`,
             '',
             `**Examples:**`,
@@ -50,7 +50,7 @@ async function handleWithdraw(reply, userId, args) {
 
     addTextDisplay(container, [
         `**New Balances:**`,
-        `💰 Wallet: ${formatNumber(user.coins)} coins`,
+        `<:Money:1473377877239140529> Wallet: ${formatNumber(user.coins)} coins`,
         `🏦 Bank: ${formatNumber(user.bank)} coins`,
         `<:Invoice:1473039492217835550> **Total:** ${formatNumber(user.coins + user.bank)} coins`,
     ].join('\n'));

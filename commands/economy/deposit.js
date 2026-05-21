@@ -25,7 +25,7 @@ async function handleDeposit(reply, userId, args) {
             '**Usage:** `deposit <amount | all>`',
             '',
             '**Your Balances:**',
-            `💰 Wallet: ${formatNumber(userData.coins)} coins`,
+            `<:Money:1473377877239140529> Wallet: ${formatNumber(userData.coins)} coins`,
             `🏦 Bank: ${formatNumber(userData.bank)} coins`,
             '',
             '**Examples:**',
@@ -56,7 +56,7 @@ async function handleDeposit(reply, userId, args) {
 
     addTextDisplay(container, [
         '**New Balances:**',
-        `💰 Wallet: ${formatNumber(userData.coins)} coins`,
+        `<:Money:1473377877239140529> Wallet: ${formatNumber(userData.coins)} coins`,
         `🏦 Bank: ${formatNumber(userData.bank)} coins`,
         `<:Invoice:1473039492217835550> **Total:** ${formatNumber(userData.coins + userData.bank)} coins`,
     ].join('\n'));

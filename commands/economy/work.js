@@ -75,8 +75,8 @@ async function handleWork(reply, userId, guildId) {
 
     let earningsText = `# ${job.emoji} Work Complete!\n\n`;
     earningsText += `> *${jobMessage}*\n\n`;
-    earningsText += `### 💰 Earnings\n`;
-    earningsText += `> 🪙 **Base Pay:** ${formatNumber(baseEarned)} coins\n`;
+    earningsText += `### <:Money:1473377877239140529> Earnings\n`;
+    earningsText += `> <:Money:1473377877239140529> **Base Pay:** ${formatNumber(baseEarned)} coins\n`;
     if (bonusAmount > 0) earningsText += `> <:Crown:1506010837368963142> **Work Bonus:** +${formatNumber(bonusAmount)} coins\n`;
     if (tipAmount > 0) earningsText += `> <:Sketch:1473038248493453352> **Tip Received:** +${formatNumber(tipAmount)} coins\n`;
 
@@ -84,8 +84,8 @@ async function handleWork(reply, userId, guildId) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
-        `> 💵 **Total Earned:** ${formatNumber(totalEarned)} coins`,
-        `> 💰 **Balance:** ${formatNumber(user.coins)} coins`,
+        `> <:Money:1473377877239140529> **Total Earned:** ${formatNumber(totalEarned)} coins`,
+        `> <:Money:1473377877239140529> **Balance:** ${formatNumber(user.coins)} coins`,
         `> 📋 **Shifts Completed:** ${formatNumber(user.workCount)}`,
         '',
         `-# You can work again in 1 hour`,

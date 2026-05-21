@@ -32,7 +32,7 @@ function pickOre(boost = false) {
 
 function getPickaxeBonus(inventory) {
   if ((inventory.diamond_pickaxe || 0) > 0) return { name: 'Diamond Pickaxe', bonus: 3, emoji: '<:Sketch:1473038248493453352>' };
-  if ((inventory.gold_pickaxe    || 0) > 0) return { name: 'Gold Pickaxe',    bonus: 2, emoji: '🪙' };
+  if ((inventory.gold_pickaxe    || 0) > 0) return { name: 'Gold Pickaxe',    bonus: 2, emoji: '<:Money:1473377877239140529>' };
   if ((inventory.iron_pickaxe    || 0) > 0) return { name: 'Iron Pickaxe',    bonus: 1, emoji: '⛏' };
   return null;
 }
@@ -97,7 +97,7 @@ async function handleMine(reply, userId) {
     '',
     `${EMOJIS.sketch} **Earned:** +${formatNumber(totalValue)} coins`,
     `💼 **Total mines:** ${formatNumber(userData.miningCount)}`,
-    `💰 **Wallet:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
     `${pickaxeLine}${boostLine}`,
     `-# Cooldown: 30 minutes`,
   ].join('\n'));

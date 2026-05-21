@@ -54,11 +54,11 @@ module.exports = {
 
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# 🪙 Coins Added`,
+            `# <:Money:1473377877239140529> Coins Added`,
             '',
             `<:Checkedbox:1473038547165384804> **${formatNumber(amount)}** coins added to **${target.username}**`,
             '',
-            `💰 **New Balance:** ${formatNumber(user.coins)} coins`,
+            `<:Money:1473377877239140529> **New Balance:** ${formatNumber(user.coins)} coins`,
         ].join('\n'));
 
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

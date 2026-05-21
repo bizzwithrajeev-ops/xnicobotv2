@@ -62,8 +62,8 @@ async function handleDaily(reply, userId, guildId) {
     const container = createContainer(0xCAD7E6);
 
     let rewardText = `# 🎁 Daily Reward Claimed!\n\n`;
-    rewardText += `### 💰 Reward Breakdown\n`;
-    rewardText += `> 🪙 **Base Reward:** ${formatNumber(baseReward)} coins\n`;
+    rewardText += `### <:Money:1473377877239140529> Reward Breakdown\n`;
+    rewardText += `> <:Money:1473377877239140529> **Base Reward:** ${formatNumber(baseReward)} coins\n`;
     if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatNumber(streakBonus)} coins\n`;
     if (bonusAmount > 0) rewardText += `> <:Crown:1506010837368963142> **Daily Bonus:** +${formatNumber(bonusAmount)} coins\n`;
 
@@ -72,8 +72,8 @@ async function handleDaily(reply, userId, guildId) {
 
     addTextDisplay(container, [
         `### 📊 Summary`,
-        `> 💵 **Total Received:** ${formatNumber(totalReward)} coins`,
-        `> 💰 **New Balance:** ${formatNumber(user.coins)} coins`,
+        `> <:Money:1473377877239140529> **Total Received:** ${formatNumber(totalReward)} coins`,
+        `> <:Money:1473377877239140529> **New Balance:** ${formatNumber(user.coins)} coins`,
         `> <:Fire:1473038604812161218> **Current Streak:** ${streak} day${streak !== 1 ? 's' : ''} ${streak >= 7 ? '🔥' : streak >= 3 ? '<:Star:1473038501766369300>' : ''}`,
         '',
         `-# Come back tomorrow to keep your streak going!`,

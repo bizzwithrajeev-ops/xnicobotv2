@@ -56,7 +56,7 @@ function buildInventoryPage(userId, page = 0) {
   // Header
   const totalItems = userItems.length;
   const uniqueItems = grouped.length;
-  addTextDisplay(container, `# 🎒 Your Inventory\n💰 Wallet: **${formatNumber(userData.coins)}** coins  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
+  addTextDisplay(container, `# 🎒 Your Inventory\n<:Money:1473377877239140529> Wallet: **${formatNumber(userData.coins)}** coins  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   // Items list

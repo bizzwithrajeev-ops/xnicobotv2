@@ -77,11 +77,11 @@ async function handleDice(reply, userId, args, opponent = null) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     if (tie) {
-        addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n💰 **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
     } else if (won) {
-        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatNumber(bet)} coins!**\n\n💰 **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatNumber(bet)} coins!**\n\n<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
     } else {
-        addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatNumber(bet)} coins**\n\n💰 **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatNumber(bet)} coins**\n\n<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
     }
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

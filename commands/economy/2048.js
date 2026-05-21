@@ -133,7 +133,7 @@ function buildContainer(game, payoutInfo = null) {
     let header;
     if (game.status === 'won')      header = `### 🏆 You hit 2048!`;
     else if (game.status === 'lost') header = `### 💀 No more moves!`;
-    else if (game.status === 'cashed') header = `### 💰 Cashed out at tile ${top}!`;
+    else if (game.status === 'cashed') header = `### <:Money:1473377877239140529> Cashed out at tile ${top}!`;
     else                              header = `Slide tiles. Highest tile: **${top}**  ·  Current payout: **${mult}×**`;
 
     let content = `# 🎮 2048\n\n**Bet:** ${formatCoinsShort(game.bet, game.guildId)}  •  **Score:** ${game.score}\n\n${header}\n\`\`\`\n${board}\n\`\`\``;

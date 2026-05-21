@@ -5035,6 +5035,15 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Route custom shop buy select menu
+            if (interaction.customId === 'cshop_buy_select') {
+                const cshopCmd = client.commands.get('customshop');
+                if (cshopCmd?.handleSelectMenu) {
+                    try { const h = await cshopCmd.handleSelectMenu(interaction); if (h) return; } catch {}
+                }
+                return;
+            }
+
             // Route shop category select menu
             if (interaction.customId === 'shop_cat_select') {
                 const shopCmd = client.commands.get('shop');

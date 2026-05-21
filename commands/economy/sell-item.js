@@ -100,7 +100,7 @@ module.exports = {
       '# 💸 Item Sold',
       '',
       `<:Checkedbox:1473038547165384804> Sold **${sellQty}× ${meta.emoji} ${meta.name}**`,
-      `💰 Earned: **${formatNumber(totalValue)}** coins (${formatNumber(meta.sellPrice)}/ea)`,
+      `<:Money:1473377877239140529> Earned: **${formatNumber(totalValue)}** coins (${formatNumber(meta.sellPrice)}/ea)`,
       '',
       `💼 Wallet: **${formatNumber(userData.coins)}** coins`,
       `📦 Remaining: **${remaining}** ${meta.name}`,

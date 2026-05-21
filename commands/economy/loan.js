@@ -86,7 +86,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
     addTextDisplay(c, [
       `# 🏦 Loan Approved!`,
       '',
-      `💰 **Borrowed:** +${formatNumber(amount)} coins`,
+      `<:Money:1473377877239140529> **Borrowed:** +${formatNumber(amount)} coins`,
       `📋 **After 1 day:** ${formatNumber(dayOwed)} coins owed (${INTEREST_RATE * 100}% daily interest)`,
       '',
       `💳 **Wallet:** ${formatNumber(userData.coins)} coins`,
@@ -126,7 +126,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
       '',
       `💸 **Paid:** ${formatNumber(result.paid || repayAmt)} coins`,
       result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatNumber(stillOwed)} coins`,
-      `💰 **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }

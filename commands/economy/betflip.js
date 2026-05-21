@@ -21,7 +21,7 @@ async function handleBetflip(reply, userId, args) {
     if (!choice || !['h', 't', 'heads', 'tails'].includes(choice)) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# 🪙 Coinflip`,
+            `# <:Money:1473377877239140529> Coinflip`,
             '',
             `**Usage:** \`coinflip <heads/tails> <amount>\``,
             '',
@@ -52,11 +52,11 @@ async function handleBetflip(reply, userId, args) {
 
     const { userData } = processBetResult(userId, bet, won, 1);
 
-    const coinEmoji = result === 'heads' ? '🪙' : '💿';
+    const coinEmoji = result === 'heads' ? '<:Money:1473377877239140529>' : '💿';
     const container = createContainer(won ? 0xCAD7E6 : 0xED4245);
 
     addTextDisplay(container, [
-        `# 🪙 Coinflip`,
+        `# <:Money:1473377877239140529> Coinflip`,
         '',
         `## ${coinEmoji} ${result.toUpperCase()}`,
         `> Your pick: **${normalizedChoice.toUpperCase()}**`,
@@ -73,7 +73,7 @@ async function handleBetflip(reply, userId, args) {
 
     resultLines.push(
         '',
-        `💰 **Balance:** ${formatNumber(userData.coins)} coins`,
+        `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
         '',
         `-# ${won ? 'Nice flip! Go again?' : 'Better luck next flip!'}`,
     );

@@ -81,7 +81,7 @@ async function handleFarm(reply, userId, subcommand, seedId) {
       ...harvestLines,
       '',
       `${EMOJIS.sketch} **Total Earned:** +${formatNumber(totalEarned)} coins`,
-      `💰 **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }

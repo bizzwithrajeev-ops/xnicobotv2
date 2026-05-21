@@ -116,7 +116,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
       `# 📈 Stocks Purchased!`,
       '',
       `${STOCKS[t].emoji} **${qty}x ${t}** (${STOCKS[t].name}) bought for **${formatNumber(cost)} coins**`,
-      `💰 **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
       `📦 **You now hold:** ${userData.stockPortfolio[t]}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -147,7 +147,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
       `# 📉 Stocks Sold!`,
       '',
       `${STOCKS[t].emoji} Sold **${sellQty}x ${t}** for **+${formatNumber(earned)} coins**`,
-      `💰 **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
       `📦 **Remaining:** ${userData.stockPortfolio[t] || 0}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });

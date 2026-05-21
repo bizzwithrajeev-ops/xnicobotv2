@@ -101,7 +101,7 @@ async function handleGamble(reply, userId, args) {
     } else {
         lines.push(`<:Cancel:1473037949187657818> **Lost ${formatNumber(Math.abs(profit))} coins**`);
     }
-    lines.push('', `💰 **Balance:** ${formatNumber(userData.coins)} coins`);
+    lines.push('', `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
 
     addTextDisplay(container, lines.join('\n'));
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -59,7 +59,7 @@ async function handleBeg(reply, userId) {
       '',
       `${giver.emoji} **${giver.name}** gave you **${formatNumber(amount)}** coins!`,
       '',
-      `💰 **Balance:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
       '',
       `-# Beg again in 45 seconds`,
     ].join('\n'));
@@ -75,7 +75,7 @@ async function handleBeg(reply, userId) {
     '',
     `😔 ${denial}`,
     '',
-    `💰 **Balance:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
     '',
     `-# Better luck next time!`,
   ].join('\n'));

@@ -10,11 +10,11 @@ const TICKET_COST = 500;
 const COOLDOWN = 10 * 1000;
 const cooldowns = new Map();
 
-const SYMBOLS = ['🍒', '<:Sketch:1473038248493453352>', '🌟', '🎰', '🍋', '🍇', '🔔', '💰'];
+const SYMBOLS = ['🍒', '<:Sketch:1473038248493453352>', '🌟', '🎰', '🍋', '🍇', '🔔', '<:Money:1473377877239140529>'];
 
 const PAYOUTS = {
   '<:Sketch:1473038248493453352><:Sketch:1473038248493453352><:Sketch:1473038248493453352>': 5000,
-  '💰💰💰': 2000,
+  '<:Money:1473377877239140529><:Money:1473377877239140529><:Money:1473377877239140529>': 2000,
   '🔔🔔🔔': 1000,
   '🌟🌟🌟': 750,
   '🍇🍇🍇': 500,
@@ -126,7 +126,7 @@ async function handleScratch(reply, userId, count) {
     `🎫 **Cost:** -${formatNumber(totalCost)} coins`,
     `${EMOJIS.sketch} **Prize:** +${formatNumber(totalPrize)} coins`,
     `📊 **Net:** ${netStr} coins`,
-    `💰 **Wallet:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
   ].join('\n'));
   return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 }

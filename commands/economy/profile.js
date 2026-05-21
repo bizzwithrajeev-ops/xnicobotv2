@@ -86,7 +86,7 @@ module.exports = {
       addTextDisplay(container, [
         `# <:Sketch:1473038248493453352> ${target.username}'s Economy Profile`,
         ``,
-        `> 💵 **Wallet:** ${economyManager.formatNumber(wallet)}`,
+        `> <:Money:1473377877239140529> **Wallet:** ${economyManager.formatNumber(wallet)}`,
         `> 🏦 **Bank:** ${economyManager.formatNumber(bank)}`,
         `> <:Sketch:1473038248493453352> **Total:** ${economyManager.formatNumber(total)}`,
         ``,

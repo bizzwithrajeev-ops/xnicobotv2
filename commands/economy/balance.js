@@ -16,11 +16,11 @@ async function handleBalance(reply, targetUser) {
 
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-        '# 💰 Balance',
+        '# <:Money:1473377877239140529> Balance',
         '',
         `### <:User:1473038971398520977> ${targetUser.username}`,
         '',
-        `> 💵 **Wallet:** ${formatNumber(wallet)} coins`,
+        `> <:Money:1473377877239140529> **Wallet:** ${formatNumber(wallet)} coins`,
         `> 🏦 **Bank:** ${formatNumber(bank)} coins`,
     ].join('\n'));
 

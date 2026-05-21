@@ -141,7 +141,7 @@ async function handleSlots(reply, userId, args) {
 
   resultLines.push(
     '',
-    `💰 **Balance:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
     '',
     `-# ${won ? 'Spin again for more wins!' : 'Better luck next spin!'}`,
   );

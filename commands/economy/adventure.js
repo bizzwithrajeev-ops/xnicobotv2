@@ -146,7 +146,7 @@ async function runAdventure(message, biomeData) {
         const coins = rand(event.coinRange[0], event.coinRange[1]);
         totalCoins.value += coins;
         totalExp.value += 10;
-        stageText += `💰 Found **${formatNumber(coins)}** coins!`;
+        stageText += `<:Money:1473377877239140529> Found **${formatNumber(coins)}** coins!`;
         break;
       }
       case 'treasure': {
@@ -239,8 +239,8 @@ async function runAdventure(message, biomeData) {
       addSeparator(resultContainer, SeparatorSpacingSize.Small);
 
       const summaryLines = [
-        '### 💰 Rewards',
-        `> 🪙 **Coins:** +${formatNumber(totalCoins.value)}`,
+        '### <:Money:1473377877239140529> Rewards',
+        `> <:Money:1473377877239140529> **Coins:** +${formatNumber(totalCoins.value)}`,
         `> 📊 **XP:** +${totalExp.value}`,
       ];
       if (items.length > 0 && !failed) {

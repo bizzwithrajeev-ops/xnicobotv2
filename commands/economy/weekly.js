@@ -67,8 +67,8 @@ async function handleWeekly(reply, userId, guildId) {
     const container = createContainer(0xCAD7E6);
 
     let rewardText = `# 🎁 Weekly Reward Claimed!\n\n`;
-    rewardText += `### 💰 Reward Breakdown\n`;
-    rewardText += `> 🪙 **Base Reward:** ${formatNumber(baseReward)} coins\n`;
+    rewardText += `### <:Money:1473377877239140529> Reward Breakdown\n`;
+    rewardText += `> <:Money:1473377877239140529> **Base Reward:** ${formatNumber(baseReward)} coins\n`;
     if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatNumber(streakBonus)} coins\n`;
     if (globalBonus > 0) rewardText += `> <:Crown:1506010837368963142> **Global Bonus:** +${formatNumber(globalBonus)} coins\n`;
     if (loyaltyBonus > 0) rewardText += `> <:Star:1473038501766369300> **Loyalty Bonus** (Week ${weeklyClaimCount}): +${formatNumber(loyaltyBonus)} coins\n`;
@@ -78,8 +78,8 @@ async function handleWeekly(reply, userId, guildId) {
 
     addTextDisplay(container, [
         `### 📊 Summary`,
-        `> 💵 **Total Received:** ${formatNumber(totalReward)} coins`,
-        `> 💰 **New Balance:** ${formatNumber(userData.coins)} coins`,
+        `> <:Money:1473377877239140529> **Total Received:** ${formatNumber(totalReward)} coins`,
+        `> <:Money:1473377877239140529> **New Balance:** ${formatNumber(userData.coins)} coins`,
         `> <:Bookopen:1473038576391557130> **Weeks Claimed:** ${weeklyClaimCount}`,
         '',
         `-# Come back next week for another reward!`,

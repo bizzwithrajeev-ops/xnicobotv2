@@ -12,7 +12,7 @@ const CRIMES = [
   { name: 'Hacking', emoji: '💻', successRate: 0.45, minReward: 400, maxReward: 1500, minFine: 200, maxFine: 800 },
   { name: 'Art Forgery', emoji: '<:Palette:1473039029476917461>', successRate: 0.50, minReward: 300, maxReward: 1200, minFine: 150, maxFine: 600 },
   { name: 'Drug Deal', emoji: '💊', successRate: 0.30, minReward: 1500, maxReward: 6000, minFine: 800, maxFine: 2500 },
-  { name: 'Counterfeiting', emoji: '💵', successRate: 0.42, minReward: 600, maxReward: 2500, minFine: 300, maxFine: 1200 },
+  { name: 'Counterfeiting', emoji: '<:Money:1473377877239140529>', successRate: 0.42, minReward: 600, maxReward: 2500, minFine: 300, maxFine: 1200 },
 ];
 
 const SUCCESS_MESSAGES = [
@@ -66,7 +66,7 @@ async function handleCrime(reply, userId) {
       `<:Checkedbox:1473038547165384804> **SUCCESS!**`,
       `> ${msg}`,
       '',
-      `💰 **Reward:** +${formatNumber(reward)} coins`,
+      `<:Money:1473377877239140529> **Reward:** +${formatNumber(reward)} coins`,
       `💼 **Balance:** ${formatNumber(userData.coins)} coins`,
       `<:Invoice:1473039492217835550> **Crimes Committed:** ${userData.crimeCount}`,
       '',

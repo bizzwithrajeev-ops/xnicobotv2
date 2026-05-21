@@ -16,11 +16,11 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('set')
             .setDescription('Set a custom currency symbol and name')
-            .addStringOption(o => o.setName('symbol').setDescription('Currency emoji/symbol (e.g. <:Sketch:1473038248493453352>, 🪙, ⛃, $)').setRequired(true))
+            .addStringOption(o => o.setName('symbol').setDescription('Currency emoji/symbol (e.g. <:Sketch:1473038248493453352>, <:Money:1473377877239140529>, ⛃, $)').setRequired(true))
             .addStringOption(o => o.setName('name').setDescription('Currency name (e.g. gems, gold, credits)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('reset')
-            .setDescription('Reset currency to default (💰 coins)'))
+            .setDescription('Reset currency to default (<:Money:1473377877239140529> coins)'))
         .addSubcommand(sub => sub
             .setName('view')
             .setDescription('View current currency settings'))
@@ -64,9 +64,9 @@ module.exports = {
             }
 
             const container = buildSuccessResponse('Currency Reset', 'Currency has been reset to the default.', {
-                'Symbol': '💰',
+                'Symbol': '<:Money:1473377877239140529>',
                 'Name': 'coins',
-                'Example': '💰 1,500 coins'
+                'Example': '<:Money:1473377877239140529> 1,500 coins'
             });
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -77,7 +77,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# 💰 Currency Settings\n\n` +
+                    `# <:Money:1473377877239140529> Currency Settings\n\n` +
                     `**Symbol:** ${symbol}\n` +
                     `**Name:** ${name}\n` +
                     `**Example:** ${formatCoins(2500, guildId)}\n\n` +
@@ -101,7 +101,7 @@ module.exports = {
             if (!symbol) {
                 const container = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# 💰 Currency Set\n\nUsage: \`-currency set <symbol> [name]\`\n\nExamples:\n> \`-currency set <:Sketch:1473038248493453352> gems\`\n> \`-currency set 🪙 gold\`\n> \`-currency set $ credits\``
+                        `# <:Money:1473377877239140529> Currency Set\n\nUsage: \`-currency set <symbol> [name]\`\n\nExamples:\n> \`-currency set <:Sketch:1473038248493453352> gems\`\n> \`-currency set <:Money:1473377877239140529> gold\`\n> \`-currency set $ credits\``
                     ));
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -128,7 +128,7 @@ module.exports = {
                 delete settings[guildId].currencyName;
                 saveSettings(settings);
             }
-            const container = buildSuccessResponse('Currency Reset', 'Currency has been reset to the default (💰 coins).');
+            const container = buildSuccessResponse('Currency Reset', 'Currency has been reset to the default (<:Money:1473377877239140529> coins).');
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -138,7 +138,7 @@ module.exports = {
         const container = new ContainerBuilder()
             .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# 💰 Currency Settings\n\n` +
+                `# <:Money:1473377877239140529> Currency Settings\n\n` +
                 `**Symbol:** ${symbol}\n` +
                 `**Name:** ${name}\n` +
                 `**Example:** ${formatCoins(2500, guildId)}\n\n` +

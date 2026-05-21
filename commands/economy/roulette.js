@@ -189,7 +189,7 @@ async function handleRoulette(reply, userId, guildId, args) {
         addTextDisplay(c, [
             `<:Checkedbox:1473038547165384804> **You won ${formatCoinsShort(payoutGross - bet, guildId)} profit!**`,
             ``,
-            `💰 **Payout:** ${formatCoinsShort(payoutGross, guildId)}`,
+            `<:Money:1473377877239140529> **Payout:** ${formatCoinsShort(payoutGross, guildId)}`,
             `💼 **Balance:** ${formatCoinsShort(userData.coins, guildId)}`,
         ].join('\n'));
     } else {

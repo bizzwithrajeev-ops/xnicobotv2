@@ -122,7 +122,7 @@ module.exports = {
       addTextDisplay(container, `# 🗡️ Weapon Upgraded!\n\n` +
         `<:Star:1473038501766369300> Level: **${pet.weapon.level}/${MAX_WEAPON_LEVEL}**\n` +
         `⚔️ ATK: **${pet.weapon.baseAtk}**\n` +
-        `💰 Cost: ${formatNumber(cost)} coins`);
+        `<:Money:1473377877239140529> Cost: ${formatNumber(cost)} coins`);
 
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

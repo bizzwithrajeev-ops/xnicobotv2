@@ -29,7 +29,7 @@ module.exports = {
         if (!target) {
             const container = createContainer(0xCAD7E6);
             addTextDisplay(container, [
-                `# 💰 Rob Command`,
+                `# <:Money:1473377877239140529> Rob Command`,
                 '',
                 `**Usage:** \`rob @user\``,
                 '',
@@ -87,11 +87,11 @@ module.exports = {
 
             const container = createContainer(0xCAD7E6);
             addTextDisplay(container, [
-                `# 💰 Robbery Successful!`,
+                `# <:Money:1473377877239140529> Robbery Successful!`,
                 '',
                 `<:Checkedbox:1473038547165384804> You stole **${formatNumber(amount)}** coins from **${target.username}**!`,
                 '',
-                `💰 **Your Balance:** ${formatNumber(robber.coins)} coins`,
+                `<:Money:1473377877239140529> **Your Balance:** ${formatNumber(robber.coins)} coins`,
                 '',
                 `-# Cooldown: 1 minute`,
             ].join('\n'));
@@ -105,12 +105,12 @@ module.exports = {
 
         const container = createContainer(0xED4245);
         addTextDisplay(container, [
-            `# 💰 Robbery Failed!`,
+            `# <:Money:1473377877239140529> Robbery Failed!`,
             '',
             `<:Cancel:1473037949187657818> You got caught!`,
             '',
             `💸 **Fine:** ${formatNumber(fine)} coins`,
-            `💰 **Your Balance:** ${formatNumber(robber.coins)} coins`,
+            `<:Money:1473377877239140529> **Your Balance:** ${formatNumber(robber.coins)} coins`,
             '',
             `-# Cooldown: 1 minute`,
         ].join('\n'));

@@ -81,7 +81,7 @@ module.exports = {
       addTextDisplay(c, [
         '<:Cancel:1473037949187657818> **Not enough coins!**',
         '',
-        `💰 Cost: **${formatNumber(totalCost)}** coins`,
+        `<:Money:1473377877239140529> Cost: **${formatNumber(totalCost)}** coins`,
         `💼 Wallet: **${formatNumber(userData.coins)}** coins`,
         `📉 Short: **${formatNumber(deficit)}** coins`,
       ].join('\n'));
@@ -106,7 +106,7 @@ module.exports = {
       '# 🛒 Purchase Successful',
       '',
       `<:Checkedbox:1473038547165384804> Bought **${qty}× ${item.emoji} ${item.name}**`,
-      `💰 Cost: **${formatNumber(totalCost)}** coins`,
+      `<:Money:1473377877239140529> Cost: **${formatNumber(totalCost)}** coins`,
       '',
       `💼 Wallet: **${formatNumber(userData.coins)}** coins`,
       `📦 Owned: **${newOwned}/${item.maxOwn}**`,

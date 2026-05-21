@@ -78,7 +78,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       '',
       `✅ *${flavor}*`,
       '',
-      `💰 **Total stolen:** ${formatNumber(totalReward)} coins`,
+      `<:Money:1473377877239140529> **Total stolen:** ${formatNumber(totalReward)} coins`,
       `👥 **Split between ${allParticipants.length} crew member(s):**`,
       ...shareLines,
       '',

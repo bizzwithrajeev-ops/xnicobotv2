@@ -26,7 +26,7 @@ function buildShopPage(category, userId) {
 
   const container = createContainer(cat.color);
 
-  addTextDisplay(container, `# 🛒 Economy Shop — ${cat.emoji} ${cat.label}\n💰 Your Wallet: **${formatNumber(userData.coins)}** coins`);
+  addTextDisplay(container, `# 🛒 Economy Shop — ${cat.emoji} ${cat.label}\n<:Money:1473377877239140529> Your Wallet: **${formatNumber(userData.coins)}** coins`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   if (items.length === 0) {
@@ -41,7 +41,7 @@ function buildShopPage(category, userId) {
       addTextDisplay(container, [
         `### ${item.emoji} ${item.name}${statusTag}`,
         `${item.description}`,
-        `-# 💰 ${formatNumber(item.price)} coins  ·  📦 Owned: ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> \`${item.id}\``,
+        `-# <:Money:1473377877239140529> ${formatNumber(item.price)} coins  ·  📦 Owned: ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> \`${item.id}\``,
       ].join('\n'));
     }
   }

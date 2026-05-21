@@ -1,50 +1,60 @@
 'use strict';
 
 /**
- * Custom Shop System — Admins create custom items with custom actions.
+ * Custom Shop System — Server admins create custom items with automated actions.
  *
- * Actions an item can perform when bought:
- *   - give_role: Assign a role to the buyer
- *   - remove_role: Remove a role from the buyer
- *   - send_dm: Send a DM to the buyer with custom text
- *   - add_coins: Give bonus coins
- *   - custom_reply: Send a custom message in channel
- *
- * Setup: /customshop add <name> <price> <action> [role/message]
- * Buy:   /customshop buy <item>
- * List:  /customshop list
+ * Integrates with the per-guild custom currency system (economy-settings).
+ * Items execute actions on purchase: give_role, remove_role, send_dm, add_coins, custom_reply.
  */
 
 const {
     SlashCommandBuilder, PermissionFlagsBits, MessageFlags,
-    ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
+    ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder,
+    SeparatorBuilder, SeparatorSpacingSize,
     ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle
 } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
+const { getEconomySettings, getCurrency, getCurrencyName, formatCoinsShort } = require('../../utils/currencyHelper');
 
 const STORE = 'custom-shop';
 
+// ── Emojis ───────────────────────────────────────────────────────────────
 const E = {
-    shop:   '<:Folder:1473039340425973972>',
-    coin:   '<:Money:1473377877239140529>',
-    check:  '<:Checkedbox:1473038547165384804>',
-    cancel: '<:Cancel:1473037949187657818>',
-    add:    '<:Add:1473038100862337035>',
-    trash:  '<:Trash:1473038090074591293>',
-    edit:   '<:Editalt:1473038138577256670>',
-    star:   '<:Star:1473038501766369300>',
-    cart:   '<:Attach:1473037923979886694>',
-    info:   '<:Inforect:1473038624172937287>',
-    role:   '<:Shield:1473038669831995494>',
-    dm:     '<:Envelope:1473038885364695113>',
-    fire:   '<:Fire:1473038604812161218>',
+    shop:     '<:Folder:1473039340425973972>',
+    coin:     '<:Money:1473377877239140529>',
+    check:    '<:Checkedbox:1473038547165384804>',
+    cancel:   '<:Cancel:1473037949187657818>',
+    add:      '<:Add:1473038100862337035>',
+    trash:    '<:Trash:1473038090074591293>',
+    edit:     '<:Editalt:1473038138577256670>',
+    star:     '<:Star:1473038501766369300>',
+    cart:     '<:Attach:1473037923979886694>',
+    info:     '<:Inforect:1473038624172937287>',
+    role:     '<:Shield:1473038669831995494>',
+    dm:       '<:Envelope:1473038885364695113>',
+    fire:     '<:Fire:1473038604812161218>',
+    settings: '<:Settings:1473037894703779851>',
+    lightning:'<:Lightning:1473038797540298792>',
+    document: '<:Document:1473039496995143731>',
+    user:     '<:User:1473038971398520977>',
+    clock:    '<:Clock:1473039102113878056>',
 };
+
+const ACTION_LABELS = {
+    give_role:    { emoji: E.role, label: 'Give Role' },
+    remove_role:  { emoji: E.role, label: 'Remove Role' },
+    send_dm:      { emoji: E.dm, label: 'Send DM' },
+    add_coins:    { emoji: E.coin, label: 'Bonus Coins' },
+    custom_reply: { emoji: E.fire, label: 'Custom Reply' },
+};
+
+// ── Storage ──────────────────────────────────────────────────────────────
 
 function getShop(guildId) {
     const all = jsonStore.peek(STORE) || {};
-    return all[guildId] || { items: [], currency: 'coins' };
+    return all[guildId] || { items: [] };
 }
 
 function saveShop(guildId, shop) {
@@ -53,70 +63,114 @@ function saveShop(guildId, shop) {
     jsonStore.write(STORE, all);
 }
 
-function buildShopPanel(guild, shop) {
+// ── Card Builders ────────────────────────────────────────────────────────
+
+function buildShopPanel(guild, shop, guildId) {
     const items = shop.items || [];
+    const currency = getCurrency(guildId);
+    const currencyName = getCurrencyName(guildId);
 
     const container = new ContainerBuilder().setAccentColor(0xFBBF24);
+
+    // Header
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `## ${E.shop} ${guild.name}'s Custom Shop\n-# ${items.length} item${items.length !== 1 ? 's' : ''} available`
+        `## ${E.shop} ${guild.name} Custom Shop\n` +
+        `-# ${items.length} item${items.length !== 1 ? 's' : ''} · Currency: ${currency} ${currencyName}`
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
     if (items.length === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `${E.info} No items in the shop yet.\n\n` +
-            `Admins can add items with:\n` +
-            `> \`/customshop add\` or \`-customshop add <name> <price> <action>\`\n\n` +
-            `**Available actions:**\n` +
-            `> ${E.role} \`give_role\` — Assign a role on purchase\n` +
-            `> ${E.role} \`remove_role\` — Remove a role on purchase\n` +
-            `> ${E.dm} \`send_dm\` — DM buyer with custom text\n` +
-            `> ${E.coin} \`add_coins\` — Give bonus coins\n` +
-            `> ${E.fire} \`custom_reply\` — Send custom message in channel`
+            `${E.info} **No items in the shop yet.**\n\n` +
+            `### ${E.settings} Admin Setup\n` +
+            `> \`/customshop add\` — Add a new item\n` +
+            `> \`-customshop add <name> <price> <action> <data>\`\n\n` +
+            `### ${E.document} Available Actions\n` +
+            `> ${E.role} **give_role** — Assign a role on purchase\n` +
+            `> ${E.role} **remove_role** — Remove a role on purchase\n` +
+            `> ${E.dm} **send_dm** — DM buyer with custom text\n` +
+            `> ${E.coin} **add_coins** — Give bonus coins\n` +
+            `> ${E.fire} **custom_reply** — Send custom message in channel`
         ));
     } else {
-        let itemList = '';
+        let itemList = `### ${E.cart} Available Items\n\n`;
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
-            const actionLabel = { give_role: '🛡️ Role', remove_role: '🛡️ -Role', send_dm: '📩 DM', add_coins: '💰 Coins', custom_reply: '💬 Reply' }[item.action] || item.action;
-            itemList += `> \`${i + 1}.\` **${item.name}** — ${E.coin} ${item.price.toLocaleString()} · ${actionLabel}\n`;
+            const actionInfo = ACTION_LABELS[item.action] || { emoji: E.star, label: item.action };
+            itemList += `**${i + 1}.** ${E.star} **${item.name}**\n`;
+            itemList += `> ${currency} \`${item.price.toLocaleString()}\` ${currencyName} · ${actionInfo.emoji} ${actionInfo.label}\n`;
+            if (item.description) itemList += `> -# ${item.description}\n`;
+            itemList += `\n`;
         }
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(itemList));
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# Use \`/customshop buy <item name>\` or \`-customshop buy <number>\` to purchase`
+        `-# ${E.cart} \`/customshop buy <item>\` to purchase · ${E.settings} Admins: \`/customshop add\` · \`/customshop remove\``
     ));
+
+    // Add buy select menu if items exist
+    if (items.length > 0 && items.length <= 25) {
+        const select = new StringSelectMenuBuilder()
+            .setCustomId('cshop_buy_select')
+            .setPlaceholder(`${items.length} items available — select to buy`)
+            .addOptions(items.map((item, i) => ({
+                label: `${item.name} — ${item.price.toLocaleString()} ${currencyName}`,
+                value: String(i),
+                emoji: E.star,
+                description: (ACTION_LABELS[item.action]?.label || item.action).slice(0, 50)
+            })));
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+    }
 
     return container;
 }
 
-async function executeAction(interaction, member, item, guild) {
+function buildPurchaseResult(item, userData, results, guildId) {
+    const currency = getCurrency(guildId);
+    const currencyName = getCurrencyName(guildId);
+
+    return new ContainerBuilder().setAccentColor(0x57F287)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `## ${E.check} Purchase Successful!\n\n` +
+            `${E.star} **Item:** ${item.name}\n` +
+            `${E.coin} **Cost:** ${currency} ${item.price.toLocaleString()} ${currencyName}\n` +
+            `${E.lightning} **Balance:** ${currency} ${userData.coins.toLocaleString()} ${currencyName}`
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### ${E.fire} Effects\n${results.map(r => `> ${r}`).join('\n')}`
+        ));
+}
+
+// ── Action Executor ──────────────────────────────────────────────────────
+
+async function executeAction(member, item, guild, guildId) {
     const results = [];
 
     switch (item.action) {
         case 'give_role': {
             const role = guild.roles.cache.get(item.actionData);
             if (role) {
-                await member.roles.add(role).catch(() => results.push('Failed to add role'));
-                results.push(`${E.role} Received role **${role.name}**`);
-            } else results.push('Role not found');
+                await member.roles.add(role).catch(() => results.push(`${E.cancel} Failed to add role`));
+                if (!results.length) results.push(`${E.role} Received role **${role.name}**`);
+            } else results.push(`${E.cancel} Role not found`);
             break;
         }
         case 'remove_role': {
             const role = guild.roles.cache.get(item.actionData);
             if (role) {
-                await member.roles.remove(role).catch(() => results.push('Failed to remove role'));
-                results.push(`${E.role} Removed role **${role.name}**`);
-            } else results.push('Role not found');
+                await member.roles.remove(role).catch(() => results.push(`${E.cancel} Failed to remove role`));
+                if (!results.length) results.push(`${E.role} Removed role **${role.name}**`);
+            } else results.push(`${E.cancel} Role not found`);
             break;
         }
         case 'send_dm': {
             try {
                 await member.user.send(item.actionData || 'Thank you for your purchase!');
-                results.push(`${E.dm} DM sent`);
-            } catch { results.push('Could not DM (DMs disabled)'); }
+                results.push(`${E.dm} DM sent successfully`);
+            } catch { results.push(`${E.cancel} Could not DM (DMs disabled)`); }
             break;
         }
         case 'add_coins': {
@@ -126,25 +180,56 @@ async function executeAction(interaction, member, item, guild) {
                 const { userData } = economyManager.getUser(economy, member.id);
                 userData.coins += bonus;
                 economyManager.saveEconomy(economy);
-                results.push(`${E.coin} Received **${bonus.toLocaleString()}** bonus coins`);
+                results.push(`${E.coin} Received **${bonus.toLocaleString()}** bonus ${getCurrencyName(guildId)}`);
             }
             break;
         }
         case 'custom_reply': {
-            results.push(item.actionData || 'Item purchased!');
+            results.push(item.actionData || `${E.check} Item purchased!`);
             break;
         }
         default:
-            results.push('Item purchased');
+            results.push(`${E.check} Item purchased`);
     }
 
     return results;
 }
 
+// ── Buy logic (shared between slash, prefix, and select menu) ────────────
+
+async function processBuy(userId, guildId, guild, itemIndex, reply) {
+    const shop = getShop(guildId);
+    const item = shop.items[itemIndex];
+    if (!item) return reply({ content: `${E.cancel} Item not found.`, flags: MessageFlags.Ephemeral });
+
+    const economy = economyManager.loadEconomy();
+    const { userData } = economyManager.getUser(economy, userId);
+    const currency = getCurrency(guildId);
+    const currencyName = getCurrencyName(guildId);
+
+    if (userData.coins < item.price) {
+        return reply({
+            content: `${E.cancel} You need ${currency} **${item.price.toLocaleString()}** ${currencyName} but only have ${currency} **${userData.coins.toLocaleString()}**.`,
+            flags: MessageFlags.Ephemeral
+        });
+    }
+
+    userData.coins -= item.price;
+    economyManager.saveEconomy(economy);
+
+    const member = await guild.members.fetch(userId).catch(() => null);
+    const results = member ? await executeAction(member, item, guild, guildId) : [`${E.check} Purchased`];
+
+    const container = buildPurchaseResult(item, userData, results, guildId);
+    return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+}
+
+// ── Command Module ───────────────────────────────────────────────────────
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('customshop')
-        .setDescription('Custom server shop with configurable items')
+        .setDescription('Custom server shop with configurable items and actions')
         .addSubcommand(sub => sub.setName('list').setDescription('View the custom shop'))
         .addSubcommand(sub => sub
             .setName('buy')
@@ -153,88 +238,69 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('add')
             .setDescription('Add an item to the shop (Admin)')
-            .addStringOption(o => o.setName('name').setDescription('Item name').setRequired(true))
-            .addIntegerOption(o => o.setName('price').setDescription('Price in coins').setRequired(true).setMinValue(1))
+            .addStringOption(o => o.setName('name').setDescription('Item name').setRequired(true).setMaxLength(50))
+            .addIntegerOption(o => o.setName('price').setDescription('Price').setRequired(true).setMinValue(1))
             .addStringOption(o => o.setName('action').setDescription('Action on purchase').setRequired(true)
                 .addChoices(
                     { name: '🛡️ Give Role', value: 'give_role' },
                     { name: '🛡️ Remove Role', value: 'remove_role' },
                     { name: '📩 Send DM', value: 'send_dm' },
-                    { name: '💰 Add Coins', value: 'add_coins' },
+                    { name: '<:Money:1473377877239140529> Add Coins', value: 'add_coins' },
                     { name: '💬 Custom Reply', value: 'custom_reply' }
                 ))
-            .addStringOption(o => o.setName('data').setDescription('Role ID, DM text, coin amount, or reply text').setRequired(true)))
+            .addStringOption(o => o.setName('data').setDescription('Role ID, DM text, coin amount, or reply text').setRequired(true))
+            .addStringOption(o => o.setName('description').setDescription('Short description shown in shop').setRequired(false).setMaxLength(100)))
         .addSubcommand(sub => sub
             .setName('remove')
             .setDescription('Remove an item from the shop (Admin)')
             .addStringOption(o => o.setName('item').setDescription('Item name or number').setRequired(true))),
 
     prefix: 'customshop',
-    description: 'Custom server shop system',
+    description: 'Custom server shop with configurable items',
     usage: 'customshop [list|buy|add|remove]',
     category: 'economy',
-    aliases: ['cshop', 'servershop'],
+    aliases: ['cshop', 'servershop', 'guildshop'],
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
-        const shop = getShop(interaction.guild.id);
+        const guildId = interaction.guild.id;
+        const shop = getShop(guildId);
 
         if (sub === 'list') {
-            const panel = buildShopPanel(interaction.guild, shop);
+            const panel = buildShopPanel(interaction.guild, shop, guildId);
             return interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 });
         }
 
         if (sub === 'buy') {
             const input = interaction.options.getString('item');
             const idx = parseInt(input) - 1;
-            const item = shop.items[idx] || shop.items.find(i => i.name.toLowerCase() === input.toLowerCase());
-
-            if (!item) return interaction.reply({ content: `${E.cancel} Item not found. Use \`/customshop list\` to see available items.`, flags: MessageFlags.Ephemeral });
-
-            const economy = economyManager.loadEconomy();
-            const { userData } = economyManager.getUser(economy, interaction.user.id);
-
-            if (userData.coins < item.price) {
-                return interaction.reply({ content: `${E.cancel} You need **${item.price.toLocaleString()}** coins but only have **${userData.coins.toLocaleString()}**.`, flags: MessageFlags.Ephemeral });
-            }
-
-            userData.coins -= item.price;
-            economyManager.saveEconomy(economy);
-
-            const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-            const results = await executeAction(interaction, member, item, interaction.guild);
-
-            const container = new ContainerBuilder().setAccentColor(0x57F287)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `## ${E.check} Purchase Successful!\n\n` +
-                    `**Item:** ${item.name}\n` +
-                    `**Cost:** ${E.coin} ${item.price.toLocaleString()}\n` +
-                    `**Balance:** ${E.coin} ${userData.coins.toLocaleString()}\n\n` +
-                    `### ${E.fire} Effects\n${results.map(r => `> ${r}`).join('\n')}`
-                ));
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const itemIdx = (idx >= 0 && idx < shop.items.length) ? idx : shop.items.findIndex(i => i.name.toLowerCase() === input.toLowerCase());
+            if (itemIdx < 0) return interaction.reply({ content: `${E.cancel} Item not found. Use \`/customshop list\`.`, flags: MessageFlags.Ephemeral });
+            return processBuy(interaction.user.id, guildId, interaction.guild, itemIdx, (opts) => interaction.reply(opts));
         }
 
         if (sub === 'add') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
                 return interaction.reply({ content: `${E.cancel} You need **Manage Server** permission.`, flags: MessageFlags.Ephemeral });
             }
+            if (shop.items.length >= 25) return interaction.reply({ content: `${E.cancel} Maximum 25 items per shop.`, flags: MessageFlags.Ephemeral });
 
             const name = interaction.options.getString('name');
             const price = interaction.options.getInteger('price');
             const action = interaction.options.getString('action');
             const data = interaction.options.getString('data');
+            const description = interaction.options.getString('description') || '';
 
-            if (shop.items.length >= 25) return interaction.reply({ content: `${E.cancel} Maximum 25 items per shop.`, flags: MessageFlags.Ephemeral });
             if (shop.items.some(i => i.name.toLowerCase() === name.toLowerCase())) {
-                return interaction.reply({ content: `${E.cancel} An item with that name already exists.`, flags: MessageFlags.Ephemeral });
+                return interaction.reply({ content: `${E.cancel} An item named **${name}** already exists.`, flags: MessageFlags.Ephemeral });
             }
 
-            shop.items.push({ name, price, action, actionData: data, createdBy: interaction.user.id, createdAt: Date.now() });
-            saveShop(interaction.guild.id, shop);
+            shop.items.push({ name, price, action, actionData: data, description, createdBy: interaction.user.id, createdAt: Date.now() });
+            saveShop(guildId, shop);
 
+            const actionInfo = ACTION_LABELS[action] || { emoji: E.star, label: action };
             return interaction.reply({
-                content: `${E.check} Added **${name}** to the shop for ${E.coin} ${price.toLocaleString()} (action: \`${action}\`)`,
+                content: `${E.check} Added **${name}** to the shop!\n> ${getCurrency(guildId)} ${price.toLocaleString()} · ${actionInfo.emoji} ${actionInfo.label}`,
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -243,100 +309,87 @@ module.exports = {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
                 return interaction.reply({ content: `${E.cancel} You need **Manage Server** permission.`, flags: MessageFlags.Ephemeral });
             }
-
             const input = interaction.options.getString('item');
             const idx = parseInt(input) - 1;
-            const itemIdx = idx >= 0 && idx < shop.items.length ? idx : shop.items.findIndex(i => i.name.toLowerCase() === input.toLowerCase());
-
+            const itemIdx = (idx >= 0 && idx < shop.items.length) ? idx : shop.items.findIndex(i => i.name.toLowerCase() === input.toLowerCase());
             if (itemIdx < 0) return interaction.reply({ content: `${E.cancel} Item not found.`, flags: MessageFlags.Ephemeral });
 
             const removed = shop.items.splice(itemIdx, 1)[0];
-            saveShop(interaction.guild.id, shop);
-
+            saveShop(guildId, shop);
             return interaction.reply({ content: `${E.trash} Removed **${removed.name}** from the shop.`, flags: MessageFlags.Ephemeral });
         }
     },
 
     async executePrefix(message, args) {
         const sub = args[0]?.toLowerCase();
-        const shop = getShop(message.guild.id);
+        const guildId = message.guild.id;
+        const shop = getShop(guildId);
 
-        if (!sub || sub === 'list') {
-            const panel = buildShopPanel(message.guild, shop);
+        if (!sub || sub === 'list' || sub === 'view') {
+            const panel = buildShopPanel(message.guild, shop, guildId);
             return message.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 });
         }
 
         if (sub === 'buy') {
             const input = args.slice(1).join(' ');
             if (!input) return message.reply(`${E.cancel} Usage: \`-customshop buy <item name or number>\``);
-
             const idx = parseInt(input) - 1;
-            const item = (idx >= 0 && shop.items[idx]) || shop.items.find(i => i.name.toLowerCase() === input.toLowerCase());
-            if (!item) return message.reply(`${E.cancel} Item not found. Use \`-customshop list\`.`);
-
-            const economy = economyManager.loadEconomy();
-            const { userData } = economyManager.getUser(economy, message.author.id);
-
-            if (userData.coins < item.price) {
-                return message.reply(`${E.cancel} You need **${item.price.toLocaleString()}** coins (you have ${userData.coins.toLocaleString()}).`);
-            }
-
-            userData.coins -= item.price;
-            economyManager.saveEconomy(economy);
-
-            const member = await message.guild.members.fetch(message.author.id).catch(() => null);
-            const results = await executeAction(message, member, item, message.guild);
-
-            const container = new ContainerBuilder().setAccentColor(0x57F287)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `## ${E.check} Purchase Successful!\n\n` +
-                    `**Item:** ${item.name}\n` +
-                    `**Cost:** ${E.coin} ${item.price.toLocaleString()}\n` +
-                    `**Balance:** ${E.coin} ${userData.coins.toLocaleString()}\n\n` +
-                    `### ${E.fire} Effects\n${results.map(r => `> ${r}`).join('\n')}`
-                ));
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const itemIdx = (idx >= 0 && shop.items[idx]) ? idx : shop.items.findIndex(i => i.name.toLowerCase() === input.toLowerCase());
+            if (itemIdx < 0) return message.reply(`${E.cancel} Item not found. Use \`-customshop list\`.`);
+            return processBuy(message.author.id, guildId, message.guild, itemIdx, (opts) => message.reply(opts));
         }
 
         if (sub === 'add') {
             if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
                 return message.reply(`${E.cancel} You need **Manage Server** permission.`);
             }
-            // Format: -customshop add <name> <price> <action> <data>
+            // -customshop add <name> <price> <action> [data...]
             const name = args[1];
             const price = parseInt(args[2]);
             const action = args[3];
             const data = args.slice(4).join(' ');
 
             if (!name || !price || !action) {
-                return message.reply(`${E.cancel} Usage: \`-customshop add <name> <price> <action> <data>\`\n\nActions: \`give_role\`, \`remove_role\`, \`send_dm\`, \`add_coins\`, \`custom_reply\``);
+                return message.reply(
+                    `${E.cancel} **Usage:** \`-customshop add <name> <price> <action> <data>\`\n\n` +
+                    `**Actions:** \`give_role\`, \`remove_role\`, \`send_dm\`, \`add_coins\`, \`custom_reply\`\n` +
+                    `**Example:** \`-customshop add VIP 5000 give_role 123456789\``
+                );
+            }
+            if (shop.items.length >= 25) return message.reply(`${E.cancel} Maximum 25 items.`);
+            if (shop.items.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+                return message.reply(`${E.cancel} Item **${name}** already exists.`);
             }
 
-            if (shop.items.length >= 25) return message.reply(`${E.cancel} Maximum 25 items.`);
-
-            shop.items.push({ name, price, action, actionData: data || '', createdBy: message.author.id, createdAt: Date.now() });
-            saveShop(message.guild.id, shop);
-
-            return message.reply(`${E.check} Added **${name}** for ${E.coin} ${price.toLocaleString()} (action: \`${action}\`)`);
+            shop.items.push({ name, price, action, actionData: data || '', description: '', createdBy: message.author.id, createdAt: Date.now() });
+            saveShop(guildId, shop);
+            return message.reply(`${E.check} Added **${name}** for ${getCurrency(guildId)} ${price.toLocaleString()} (${action})`);
         }
 
-        if (sub === 'remove') {
+        if (sub === 'remove' || sub === 'delete') {
             if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
                 return message.reply(`${E.cancel} You need **Manage Server** permission.`);
             }
             const input = args.slice(1).join(' ');
             const idx = parseInt(input) - 1;
-            const itemIdx = idx >= 0 && idx < shop.items.length ? idx : shop.items.findIndex(i => i.name.toLowerCase() === input.toLowerCase());
-
+            const itemIdx = (idx >= 0 && idx < shop.items.length) ? idx : shop.items.findIndex(i => i.name.toLowerCase() === input.toLowerCase());
             if (itemIdx < 0) return message.reply(`${E.cancel} Item not found.`);
-
             const removed = shop.items.splice(itemIdx, 1)[0];
-            saveShop(message.guild.id, shop);
-            return message.reply(`${E.trash} Removed **${removed.name}** from the shop.`);
+            saveShop(guildId, shop);
+            return message.reply(`${E.trash} Removed **${removed.name}**.`);
         }
 
-        // Unknown subcommand
-        const panel = buildShopPanel(message.guild, shop);
+        // Unknown — show shop
+        const panel = buildShopPanel(message.guild, shop, guildId);
         return message.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+    },
+
+    // ── Select Menu Handler (buy from dropdown) ──────────────────────────
+
+    async handleSelectMenu(interaction) {
+        if (interaction.customId !== 'cshop_buy_select') return false;
+        const idx = parseInt(interaction.values[0]);
+        if (isNaN(idx)) return false;
+        return processBuy(interaction.user.id, interaction.guild.id, interaction.guild, idx, (opts) => interaction.reply(opts));
     }
 };

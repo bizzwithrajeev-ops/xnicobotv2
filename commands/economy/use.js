@@ -103,7 +103,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
       userData.coins += coins;
       return {
         success: true,
-        title: '💰 Coin Bag Opened',
+        title: '<:Money:1473377877239140529> Coin Bag Opened',
         result: `You found **${formatNumber(coins)} coins** inside the bag!`,
         extra: `💼 New balance: **${formatNumber(userData.coins)}** coins`,
       };
@@ -224,7 +224,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
         return {
           success: true,
           title: '📦 Mystery Box Opened',
-          result: `💰 You found **${formatNumber(coins)} coins** inside!`,
+          result: `<:Money:1473377877239140529> You found **${formatNumber(coins)} coins** inside!`,
           extra: `💼 New balance: **${formatNumber(userData.coins)}** coins`,
         };
       } else if (roll < 0.80) {
@@ -276,7 +276,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
         return {
           success: true,
           title: '💠 Crystal Box Opened',
-          result: `💰 You found **${formatNumber(coins)} coins** sparkling inside!`,
+          result: `<:Money:1473377877239140529> You found **${formatNumber(coins)} coins** sparkling inside!`,
           extra: `💼 New balance: **${formatNumber(userData.coins)}** coins`,
         };
       } else if (roll < 0.75) {

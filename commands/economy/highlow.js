@@ -123,7 +123,7 @@ async function handleHighLowButton(interaction) {
             `## ${firstNumber} → **${secondNumber}**`,
             '',
             `🤝 **Same number! Push — no coins lost.**`,
-            `💰 **Balance:** ${formatNumber(userData.coins)} coins`,
+            `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
         ].join('\n'));
 
         return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -143,7 +143,7 @@ async function handleHighLowButton(interaction) {
             ? `<:Checkedbox:1473038547165384804> **Won ${formatNumber(winAmount)} coins!** ${multiplier > 1 ? `(${multiplier}x)` : ''}`
             : `<:Cancel:1473037949187657818> **Lost ${formatNumber(bet)} coins**`,
         '',
-        `💰 **Balance:** ${formatNumber(userData.coins)} coins`,
+        `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
     ].join('\n'));
 
     return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });

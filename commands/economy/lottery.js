@@ -144,7 +144,7 @@ function buildUI(lottery, userId) {
             `# 🎟️ Server Lottery`,
             `*Fair draw · Server-wide · Transparent*\n`,
 
-            `## 💰 Jackpot`,
+            `## <:Money:1473377877239140529> Jackpot`,
             `**${formatNumber(lottery.jackpot)} coins**`,
             `📈 Recent Growth: +${formatNumber(growth)}\n`,
 
@@ -188,7 +188,7 @@ module.exports = {
 
             winners.forEach((w, i) => {
                 text += `${medals[i]} <@${w.id}>\n`;
-                text += `> 💰 ${formatNumber(w.reward)} coins\n\n`;
+                text += `> <:Money:1473377877239140529> ${formatNumber(w.reward)} coins\n\n`;
             });
 
             const c = createContainer(0x57F287);

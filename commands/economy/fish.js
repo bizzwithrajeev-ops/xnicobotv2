@@ -98,7 +98,7 @@ async function handleFish(reply, userId) {
   addSeparator(container, SeparatorSpacingSize.Small);
 
   addTextDisplay(container, [
-    `> 💰 **+${formatNumber(value)}** coins`,
+    `> <:Money:1473377877239140529> **+${formatNumber(value)}** coins`,
     `> 📊 **+${xpGain}** XP`,
     `> 🎣 Rod: **${RODS[rodLevel]}**`,
     `> <:Invoice:1473039492217835550> Total Fish: **${userData.fishCaught}**`,

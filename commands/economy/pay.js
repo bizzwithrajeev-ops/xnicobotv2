@@ -89,7 +89,7 @@ async function handlePay(ctx, senderId, target, amount) {
         const container = createContainer();
         addTextDisplay(
             container,
-            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n💰 **Your Balance:** ${formatNumber(sender.coins)} coins`
+            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n<:Money:1473377877239140529> **Your Balance:** ${formatNumber(sender.coins)} coins`
         );
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -107,8 +107,8 @@ async function handlePay(ctx, senderId, target, amount) {
     addTextDisplay(
         container,
         `# 💸 Payment Successful\n\n` +
-        `You paid **${target.username}** 🪙 ${formatNumber(amount)} coins\n\n` +
-        `💰 **Your New Balance:** ${formatNumber(sender.coins)} coins`
+        `You paid **${target.username}** <:Money:1473377877239140529> ${formatNumber(amount)} coins\n\n` +
+        `<:Money:1473377877239140529> **Your New Balance:** ${formatNumber(sender.coins)} coins`
     );
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
