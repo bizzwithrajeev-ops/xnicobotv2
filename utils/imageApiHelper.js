@@ -1,20 +1,23 @@
 const apiKeyManager = require('./apiKeyManager');
 
 function getConfiguredImageApiBaseUrl() {
+    // Support multiple image API providers
     const configuredUrl = (apiKeyManager.resolve('image_api', 'url') || process.env.IMAGE_API_URL || '').trim();
-    if (!configuredUrl) return null;
 
-    try {
-        const parsed = new URL(configuredUrl);
-        const normalizedPath = parsed.pathname.replace(/\/+$/, '');
-        return `${parsed.origin}${normalizedPath}`;
-    } catch {
-        return null;
+    // If it looks like a URL, use it directly
+    if (configuredUrl.startsWith('http')) {
+        try {
+            const parsed = new URL(configuredUrl);
+            return `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`;
+        } catch { /* fall through */ }
     }
+
+    // Default: use some-random-api.com (free, no key required)
+    return 'https://some-random-api.com/canvas/misc';
 }
 
 function isImageApiConfigured() {
-    return getConfiguredImageApiBaseUrl() !== null;
+    return true; // Always available with the free fallback
 }
 
 function buildImageApiRequestUrl(endpoint, params = {}) {

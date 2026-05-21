@@ -3055,7 +3055,7 @@ client.on('interactionCreate', async (interaction) => {
                     const guildId = afterPrefix.substring(0, firstUnderscorePos);
                     const buttonId = afterPrefix.substring(firstUnderscorePos + 1);
 
-                    const buttonsConfig = jsonStore.read('button-commands');
+                    const buttonsConfig = jsonStore.peek('button-commands') || {};
                     const btnData = buttonsConfig[guildId]?.[buttonId];
 
                     if (!btnData || !btnData.actions || btnData.actions.length === 0) {
@@ -5641,7 +5641,7 @@ client.on('interactionCreate', async (interaction) => {
                         });
                     }
 
-                    const menusConfig = jsonStore.read('select-menus');
+                    const menusConfig = jsonStore.peek('select-menus') || {};
                     const menuData = menusConfig[guildId]?.[menuId];
 
                     if (!menuData || !menuData.options) {
@@ -8898,7 +8898,7 @@ client.on('guildMemberAdd', async (member) => {
         // Handle AutoRole Assignment (runs independently of welcomer)
         try {
             if (jsonStore.has('autorole')) {
-                const autoroleConfig = jsonStore.read('autorole');
+                const autoroleConfig = jsonStore.peek('autorole') || {};
                 const guildAutorole = autoroleConfig[member.guild.id];
 
                 if (guildAutorole) {
@@ -8935,7 +8935,7 @@ client.on('guildMemberAdd', async (member) => {
 
         if (!jsonStore.has('welcomer')) return;
 
-        const config = jsonStore.read('welcomer');
+        const config = jsonStore.peek('welcomer') || {};
         const guildConfig = config[member.guild.id];
 
         if (!guildConfig || !guildConfig.enabled) {
@@ -9058,7 +9058,7 @@ client.on('guildMemberAdd', async (member) => {
                 if (guildConfig.actionButtons?.length > 0) {
                     try {
                         if (jsonStore.has('button-commands')) {
-                            const btnConfig = jsonStore.read('button-commands');
+                            const btnConfig = jsonStore.peek('button-commands') || {};
                             const gId = member.guild.id;
                             if (btnConfig[gId]) {
                                 const styleMap = { 'primary': ButtonStyle.Primary, 'secondary': ButtonStyle.Secondary, 'success': ButtonStyle.Success, 'danger': ButtonStyle.Danger, 'link': ButtonStyle.Link };
@@ -9086,7 +9086,7 @@ client.on('guildMemberAdd', async (member) => {
                 if (guildConfig.actionMenus?.length > 0) {
                     try {
                         if (jsonStore.has('select-menus')) {
-                            const menuConfig = jsonStore.read('select-menus');
+                            const menuConfig = jsonStore.peek('select-menus') || {};
                             const gId = member.guild.id;
                             if (menuConfig[gId]) {
                                 for (const menuId of guildConfig.actionMenus.slice(0, 5)) {
@@ -9293,7 +9293,7 @@ client.on('guildCreate', async (guild) => {
 
     // Blacklist check
     if (jsonStore.has('blacklist')) {
-        const blacklist = jsonStore.read('blacklist');
+        const blacklist = jsonStore.peek('blacklist') || {};
         if (blacklist.guilds?.find(g => g.id === guild.id)) {
             log.warning(`Guild ${guild.name} is blacklisted. Leaving...`);
             await guild.leave();
@@ -9733,7 +9733,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         if (oldName !== newName) {
             const tagConfigPath = path.join(__dirname, 'datas', 'servertag.json');
             if (jsonStore.has('servertag')) {
-                const tagConfig = jsonStore.read('servertag');
+                const tagConfig = jsonStore.peek('servertag') || {};
                 const guildTagConfig = tagConfig[newMember.guild.id];
                 if (guildTagConfig?.enabled && guildTagConfig?.roleId) {
                     const tag = guildTagConfig.tag.toLowerCase();
@@ -10236,7 +10236,7 @@ client.on('guildMemberRemove', async (member) => {
     // Leave Message System
     try {
         if (jsonStore.has('welcomer')) {
-            const welcomerConfig = jsonStore.read('welcomer');
+            const welcomerConfig = jsonStore.peek('welcomer') || {};
             const guildConfig = welcomerConfig[member.guild.id];
             const leaveConfig = guildConfig?.leave;
 
@@ -10333,7 +10333,7 @@ client.on('guildMemberRemove', async (member) => {
                                 if (leaveConfig.actionButtons?.length > 0) {
                                     try {
                                         if (jsonStore.has('button-commands')) {
-                                            const btnConfig = jsonStore.read('button-commands');
+                                            const btnConfig = jsonStore.peek('button-commands') || {};
                                             const gId = member.guild.id;
                                             if (btnConfig[gId]) {
                                                 const styleMap = { 'primary': ButtonStyle.Primary, 'secondary': ButtonStyle.Secondary, 'success': ButtonStyle.Success, 'danger': ButtonStyle.Danger, 'link': ButtonStyle.Link };
