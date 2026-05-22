@@ -235,7 +235,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Premium & Keys',      emoji: '<:Money:1473377877239140529>',      cmds: ['addpremium', 'removepremium', 'premiumstats', 'premiums', 'transferpremium', 'createkey', 'deletekey', 'listkeys', 'createserverkey', 'addserverpremium', 'removeserverpremium', 'activateserverpremium', 'syncpremium'] },
         { name: 'Guild Management',    emoji: '<:Pin:1473038806612447500>',        cmds: ['serverlist', 'leaveguild', 'serverinfo-owner', 'guild-search', 'getinvite'] },
         { name: 'User Management',     emoji: '<:Shield:1473038669831995494>',     cmds: ['globalban', 'globalunban', 'blacklist', 'noprefix', 'dmuser', 'userlookup', 'addowner', 'removeowner', 'listowners'] },
-        { name: 'Badge System',        emoji: '<:Fire:1473038604812161218>',       cmds: ['badge-give', 'badge-remove', 'badge-list'] },
+        { name: 'Badge System',        emoji: '<:Fire:1473038604812161218>',       cmds: ['badge-create', 'badge-edit', 'badge-give', 'badge-remove', 'badge-list'] },
         { name: 'Bot Health & Stats',  emoji: '<:Lightning:1473038797540298792>',  cmds: ['botstats', 'bothealth', 'systemlogs', 'botinvite', 'botpanel'] },
         { name: 'Utilities',           emoji: '<:Envelope:1473038885364695113>',   cmds: ['broadcast', 'clearcache', 'activity', 'botnick', 'vote-notify', 'topgg-sync'] },
     ],

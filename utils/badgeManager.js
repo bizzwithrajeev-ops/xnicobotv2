@@ -157,6 +157,23 @@ const DEFAULT_BADGES = Object.freeze([
 
 const BADGE_BY_ID = new Map(DEFAULT_BADGES.map(b => [b.badgeId, b]));
 
+const CUSTOM_BADGE_STORE = 'custom-badges';
+
+function readCustomBadges() {
+    try {
+        if (!jsonStore.has(CUSTOM_BADGE_STORE)) return [];
+        const raw = jsonStore.read(CUSTOM_BADGE_STORE);
+        if (Array.isArray(raw)) return raw;
+        if (raw && typeof raw === 'object') return Object.values(raw);
+        return [];
+    } catch { return []; }
+}
+
+function writeCustomBadges(arr) {
+    try { jsonStore.write(CUSTOM_BADGE_STORE, Array.isArray(arr) ? arr : []); }
+    catch (e) { log.error('[Badges] failed to write custom-badges:', e?.message); }
+}
+
 class BadgeManager {
     constructor() {
         this.badgesPath = path.join(__dirname, '../assets/badges');
@@ -172,10 +189,45 @@ class BadgeManager {
     // ── Catalog access ──────────────────────────────────────────────
 
     /**
+     * Build the in-memory catalog as defaults + persisted custom
+     * badges. Custom badges are positioned after defaults but each
+     * entry's stored `position` is honored when sorting.
+     */
+    _fullCatalog() {
+        const customs = readCustomBadges()
+            .filter(b => b && typeof b === 'object' && typeof b.badgeId === 'string')
+            // drop overrides of default badge ids; defaults always win
+            .filter(b => !BADGE_BY_ID.has(b.badgeId.toLowerCase()))
+            .map(b => ({
+                position:    Number.isFinite(b.position) ? b.position : 1000,
+                badgeId:     b.badgeId.toLowerCase(),
+                name:        String(b.name || b.badgeId),
+                emoji:       b.emoji || '<:Award:1473038391632203887>',
+                description: String(b.description || ''),
+                color:       b.color || '#bcf1e4',
+                imageUrl:    b.imageUrl || null,
+                custom:      true,
+            }));
+        const all = [...DEFAULT_BADGES.map(b => ({ ...b })), ...customs];
+        all.sort((a, b) => a.position - b.position);
+        return all;
+    }
+
+    _lookupAny(badgeId) {
+        if (typeof badgeId !== 'string') return null;
+        const id = badgeId.toLowerCase();
+        const def = BADGE_BY_ID.get(id);
+        if (def) return { ...def };
+        const c = readCustomBadges().find(b => b?.badgeId?.toLowerCase() === id);
+        if (c) return { ...c, custom: true };
+        return null;
+    }
+
+    /**
      * Whole catalog, sorted by position ascending.
      */
     getCatalog() {
-        return DEFAULT_BADGES.map(b => ({ ...b }));
+        return this._fullCatalog();
     }
 
     /**
@@ -183,19 +235,18 @@ class BadgeManager {
      * callers can't accidentally mutate the frozen catalog.
      */
     getBadge(badgeId) {
-        if (typeof badgeId !== 'string') return null;
-        const b = BADGE_BY_ID.get(badgeId.toLowerCase());
-        return b ? { ...b } : null;
+        return this._lookupAny(badgeId);
     }
 
     /**
-     * Returns true if the given badgeId exists in the catalog. The
-     * legacy `isDefaultBadge` name is kept as an alias because
-     * a few command files still call it.
+     * Returns true if the given badgeId exists in the catalog (default
+     * or custom).
      */
     isDefaultBadge(badgeId) {
         if (typeof badgeId !== 'string') return false;
-        return BADGE_BY_ID.has(badgeId.toLowerCase());
+        const id = badgeId.toLowerCase();
+        if (BADGE_BY_ID.has(id)) return true;
+        return readCustomBadges().some(b => b?.badgeId?.toLowerCase() === id);
     }
 
     // ── User-badge store ────────────────────────────────────────────
@@ -212,34 +263,40 @@ class BadgeManager {
 
     /**
      * Boot-time housekeeping:
-     *   1. Drop the legacy `custom-badges` store entirely (no longer
-     *      consulted post-refactor; previously caused stale badge
-     *      data to override the in-code catalog).
-     *   2. Sweep `user-badges` for orphan ids that aren't in the
-     *      current catalog and persist the cleanup if anything
-     *      changed.
+     *   1. Sweep `user-badges` for orphan ids that aren't in the
+     *      current catalog (defaults + custom) and persist the
+     *      cleanup if anything changed.
+     *   2. Custom badges are loaded from the `custom-badges` store
+     *      lazily via `_lookupAny` / `_fullCatalog`, so we just need
+     *      to keep that store healthy here (drop entries with
+     *      missing/invalid fields).
      */
     async initializeDefaultBadges() {
         try {
-            // 1. Retire legacy custom badges store.
-            if (jsonStore.has('custom-badges')) {
-                try {
-                    jsonStore.delete('custom-badges');
-                    log.info('[Badges] Removed legacy custom-badges store (catalog now lives in code).');
-                } catch (e) {
-                    // Non-fatal — fall back to overwriting with an empty array.
-                    try { jsonStore.write('custom-badges', []); } catch {}
-                }
+            // 1. Tidy custom-badges store: drop malformed rows.
+            const customs = readCustomBadges();
+            const cleaned = customs.filter(b =>
+                b && typeof b === 'object' &&
+                typeof b.badgeId === 'string' && b.badgeId.length > 0 &&
+                !BADGE_BY_ID.has(b.badgeId.toLowerCase()) // never shadow defaults
+            );
+            if (cleaned.length !== customs.length) {
+                writeCustomBadges(cleaned);
+                log.info(`[Badges] Removed ${customs.length - cleaned.length} malformed custom badge row(s).`);
             }
 
             // 2. Sweep orphan user-badge entries.
+            const validIds = new Set([
+                ...BADGE_BY_ID.keys(),
+                ...cleaned.map(b => b.badgeId.toLowerCase())
+            ]);
+
             const userBadges = this.readUserBadges();
             let dirty = false;
             let orphaned = 0;
             for (const userId of Object.keys(userBadges)) {
                 const list = Array.isArray(userBadges[userId]) ? userBadges[userId] : [];
-                const filtered = list.filter(id => BADGE_BY_ID.has(id));
-                // Also dedupe — a few users had the same badge listed twice.
+                const filtered = list.filter(id => validIds.has(id));
                 const deduped = [...new Set(filtered)];
                 if (deduped.length !== list.length) {
                     orphaned += list.length - deduped.length;
@@ -270,12 +327,18 @@ class BadgeManager {
             const ids = Array.isArray(userBadges[userId]) ? userBadges[userId] : [];
             if (ids.length === 0) return [];
 
+            const customMap = new Map(readCustomBadges()
+                .filter(b => b && typeof b === 'object' && typeof b.badgeId === 'string')
+                .map(b => [b.badgeId.toLowerCase(), b]));
+
             const badges = [];
             for (const id of ids) {
                 const def = BADGE_BY_ID.get(id);
-                if (def) badges.push({ ...def });
+                if (def) { badges.push({ ...def }); continue; }
+                const c = customMap.get(id);
+                if (c) badges.push({ ...c, custom: true });
             }
-            badges.sort((a, b) => a.position - b.position);
+            badges.sort((a, b) => (a.position ?? 1000) - (b.position ?? 1000));
             return badges;
         } catch (error) {
             log.error('Error getting user badges:', error);
@@ -292,7 +355,8 @@ class BadgeManager {
                 return { success: false, message: 'A valid badge ID is required.' };
             }
 
-            const badge = BADGE_BY_ID.get(badgeId);
+            const id = badgeId.toLowerCase();
+            const badge = this._lookupAny(id);
             if (!badge) {
                 return { success: false, message: 'Badge not found' };
             }
@@ -300,11 +364,11 @@ class BadgeManager {
             const userBadges = this.readUserBadges();
             if (!userBadges[userId]) userBadges[userId] = [];
 
-            if (userBadges[userId].includes(badgeId)) {
+            if (userBadges[userId].includes(id)) {
                 return { success: false, message: 'User already has this badge' };
             }
 
-            userBadges[userId].push(badgeId);
+            userBadges[userId].push(id);
             this.writeUserBadges(userBadges);
 
             return { success: true, badge: { ...badge }, totalBadges: userBadges[userId].length };
@@ -319,19 +383,126 @@ class BadgeManager {
             if (!userId || typeof userId !== 'string') {
                 return { success: false, message: 'A valid user ID is required.' };
             }
+            const id = String(badgeId || '').toLowerCase();
             const userBadges = this.readUserBadges();
-            if (!userBadges[userId] || !userBadges[userId].includes(badgeId)) {
+            if (!userBadges[userId] || !userBadges[userId].includes(id)) {
                 return { success: false, message: 'User does not have this badge' };
             }
 
-            userBadges[userId] = userBadges[userId].filter(b => b !== badgeId);
+            userBadges[userId] = userBadges[userId].filter(b => b !== id);
             this.writeUserBadges(userBadges);
 
-            const badge = BADGE_BY_ID.get(badgeId);
+            const badge = this._lookupAny(id);
             return { success: true, badge: badge ? { ...badge } : null, totalBadges: userBadges[userId].length };
         } catch (error) {
             log.error('Error removing badge from user:', error);
             return { success: false, message: 'Error removing badge' };
+        }
+    }
+
+    // ── Custom-badge writes (owner only) ───────────────────────────
+    //
+    // Owners can create / edit / delete custom badges through the
+    // `badge-create`, `badge-edit`, `badge-remove` commands. Default
+    // badges are immutable — the catalog edit + restart workflow is
+    // still the recommended way to change anything in DEFAULT_BADGES.
+
+    async createCustomBadge(payload) {
+        try {
+            if (!payload || typeof payload !== 'object') {
+                return { success: false, message: 'Badge data is required.' };
+            }
+            const badgeId = String(payload.badgeId || '').trim().toLowerCase();
+            if (!/^[a-z0-9_-]{2,32}$/.test(badgeId)) {
+                return { success: false, message: 'Badge ID must be 2-32 chars: letters, digits, dash or underscore.' };
+            }
+            if (BADGE_BY_ID.has(badgeId)) {
+                return { success: false, message: 'That badge ID is reserved by a default badge.' };
+            }
+
+            const customs = readCustomBadges();
+            if (customs.some(b => b?.badgeId?.toLowerCase() === badgeId)) {
+                return { success: false, message: 'A custom badge with that ID already exists.' };
+            }
+
+            const name = String(payload.name || badgeId).trim().slice(0, 50);
+            const emoji = String(payload.emoji || '<:Award:1473038391632203887>').slice(0, 80);
+            const description = String(payload.description || '').slice(0, 200);
+            const color = typeof payload.color === 'string' && /^#?[0-9a-fA-F]{6}$/.test(payload.color)
+                ? (payload.color.startsWith('#') ? payload.color : `#${payload.color}`)
+                : '#bcf1e4';
+            const imageUrl = typeof payload.imageUrl === 'string' && /^https?:\/\//.test(payload.imageUrl)
+                ? payload.imageUrl
+                : null;
+
+            // Position custom badges after defaults; preserve insertion order.
+            const maxDefault = DEFAULT_BADGES.reduce((m, b) => Math.max(m, b.position || 0), 0);
+            const maxCustom  = customs.reduce((m, b) => Math.max(m, b?.position || 0), maxDefault + 100);
+            const position   = Number.isFinite(payload.position) ? Number(payload.position) : (maxCustom + 10);
+
+            const badge = { position, badgeId, name, emoji, description, color, imageUrl, custom: true, createdAt: Date.now() };
+            customs.push(badge);
+            writeCustomBadges(customs);
+
+            return { success: true, badge: { ...badge } };
+        } catch (error) {
+            log.error('Error creating custom badge:', error);
+            return { success: false, message: 'Error creating badge' };
+        }
+    }
+
+    async editBadge(badgeId, patch) {
+        try {
+            const id = String(badgeId || '').toLowerCase();
+            if (BADGE_BY_ID.has(id)) {
+                return { success: false, message: 'Default badges are immutable. Edit `utils/badgeManager.js` and restart.' };
+            }
+            const customs = readCustomBadges();
+            const idx = customs.findIndex(b => b?.badgeId?.toLowerCase() === id);
+            if (idx < 0) return { success: false, message: 'Badge not found.' };
+
+            const allowed = ['name', 'emoji', 'description', 'color', 'imageUrl', 'position'];
+            for (const key of allowed) {
+                if (patch && key in patch) customs[idx][key] = patch[key];
+            }
+            writeCustomBadges(customs);
+            return { success: true, badge: { ...customs[idx], custom: true } };
+        } catch (error) {
+            log.error('Error editing badge:', error);
+            return { success: false, message: 'Error editing badge' };
+        }
+    }
+
+    async deleteBadge(badgeId) {
+        try {
+            const id = String(badgeId || '').toLowerCase();
+            if (BADGE_BY_ID.has(id)) {
+                return { success: false, message: 'Default badges cannot be deleted at runtime.' };
+            }
+            const customs = readCustomBadges();
+            const before = customs.length;
+            const filtered = customs.filter(b => b?.badgeId?.toLowerCase() !== id);
+            if (filtered.length === before) {
+                return { success: false, message: 'Badge not found.' };
+            }
+            writeCustomBadges(filtered);
+
+            // Also strip from any user that owned it.
+            const userBadges = this.readUserBadges();
+            let users = 0;
+            for (const userId of Object.keys(userBadges)) {
+                const list = Array.isArray(userBadges[userId]) ? userBadges[userId] : [];
+                if (list.includes(id)) {
+                    userBadges[userId] = list.filter(b => b !== id);
+                    users++;
+                }
+            }
+            if (users > 0) this.writeUserBadges(userBadges);
+
+            return { success: true, usersAffected: users };
+        } catch (error) {
+            log.error('Error deleting badge:', error);
+            return { success: false, message: 'Error deleting badge' };
         }
     }
 
@@ -344,43 +515,18 @@ class BadgeManager {
         return this.getCatalog();
     }
 
-    // ── Removed APIs ────────────────────────────────────────────────
-    //
-    // The following methods used to let owners create / edit /
-    // delete badges at runtime. They are now hard no-ops because the
-    // catalog is code-managed. The legacy command files have been
-    // disabled (their data field is set to null and their handlers
-    // return a "removed" notice).
-    //
-    // Keep these stubs around so any third-party code that still
-    // imports them doesn't crash — they just refuse the operation.
-
-    async createCustomBadge() {
-        return { success: false, message: 'Custom badges have been removed. Edit `utils/badgeManager.js` and restart the bot to update the catalog.' };
-    }
-
-    async editBadge() {
-        return { success: false, message: 'Badge editing is now code-managed. Edit `utils/badgeManager.js` and restart the bot to update the catalog.' };
-    }
-
-    async deleteBadge() {
-        return { success: false, message: 'Badge deletion is now code-managed. Edit `utils/badgeManager.js` and restart the bot to update the catalog.' };
-    }
-
     async purgeBadgeFromAllUsers(badgeId) {
-        // Still useful as an admin tool — strips a badge id from every
-        // user without touching the catalog. Used by the badge-remove
-        // command for a "remove from everyone" flag.
         try {
-            if (!badgeId || typeof badgeId !== 'string') {
+            const id = String(badgeId || '').toLowerCase();
+            if (!id) {
                 return { success: false, usersAffected: 0, message: 'A valid badge ID is required.' };
             }
             const userBadges = this.readUserBadges();
             let affected = 0;
             for (const userId of Object.keys(userBadges)) {
                 const list = Array.isArray(userBadges[userId]) ? userBadges[userId] : [];
-                if (list.includes(badgeId)) {
-                    userBadges[userId] = list.filter(b => b !== badgeId);
+                if (list.includes(id)) {
+                    userBadges[userId] = list.filter(b => b !== id);
                     affected++;
                 }
             }

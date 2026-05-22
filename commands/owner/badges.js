@@ -19,11 +19,13 @@ const { BADGE_ICONS } = require('../../utils/badgeUI');
 
 function buildHelpContainer() {
     let content = `# ${BADGE_ICONS.Award} Owner Badge Suite\n\n`;
-    content += 'Award and revoke badges from users. The badge **catalog** is now code-managed — see `utils/badgeManager.js` to add or rename badges, then restart the bot.\n\n';
+    content += 'Award and revoke badges, plus create or edit custom ones at runtime. Default badges live in `utils/badgeManager.js` and require a restart to change.\n\n';
     content += `### Available Commands\n`;
-    content += `> ${BADGE_ICONS.Edit} **List** — \`/badge-list [user]\`\n`;
+    content += `> ${BADGE_ICONS.Edit}  **List** — \`/badge-list [user]\`\n`;
     content += `> ${BADGE_ICONS.Award} **Give** — \`/badge-give <user> <badge-id>\`\n`;
-    content += `> ${BADGE_ICONS.Trash} **Remove** — \`/badge-remove <user> <badge-id>\`\n\n`;
+    content += `> ${BADGE_ICONS.Trash} **Remove** — \`/badge-remove <user> <badge-id>\`\n`;
+    content += `> ${BADGE_ICONS.Award} **Create** — \`/badge-create id name [emoji] [...]\`\n`;
+    content += `> ${BADGE_ICONS.Edit}  **Edit** — \`/badge-edit id name=... emoji=... [...]\`\n\n`;
     content += '-# Click any button below for the exact command syntax.';
 
     const container = new ContainerBuilder()
@@ -31,19 +33,23 @@ function buildHelpContainer() {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-    const row = new ActionRowBuilder().addComponents(
+    const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('badge_help_list').setLabel('List').setStyle(ButtonStyle.Secondary).setEmoji(BADGE_ICONS.Edit),
         new ButtonBuilder().setCustomId('badge_help_give').setLabel('Give').setStyle(ButtonStyle.Primary).setEmoji(BADGE_ICONS.Award),
-        new ButtonBuilder().setCustomId('badge_help_remove').setLabel('Remove').setStyle(ButtonStyle.Danger).setEmoji(BADGE_ICONS.Trash)
+        new ButtonBuilder().setCustomId('badge_help_remove').setLabel('Remove').setStyle(ButtonStyle.Danger).setEmoji(BADGE_ICONS.Trash),
+        new ButtonBuilder().setCustomId('badge_help_create').setLabel('Create').setStyle(ButtonStyle.Success).setEmoji(BADGE_ICONS.Award),
+        new ButtonBuilder().setCustomId('badge_help_edit').setLabel('Edit').setStyle(ButtonStyle.Secondary).setEmoji(BADGE_ICONS.Edit)
     );
 
-    return [container, row];
+    return [container, row1];
 }
 
 const HELP_TEXT = {
     list: '`/badge-list [user]` — Lists every badge in the catalog, or the badges owned by a specific user.',
     give: '`/badge-give <user> <badge-id>` — Awards an existing badge to a user.',
-    remove: '`/badge-remove <user> <badge-id>` — Revokes a badge from a user.'
+    remove: '`/badge-remove <user> <badge-id>` — Revokes a badge from a user.',
+    create: '`/badge-create id name [emoji] [description] [color] [image]` — Creates a new custom badge. Prefix form uses pipes: `badge-create alpha-tester | Alpha Tester | <:Award:1473038391632203887> | Joined the alpha | #5865F2`.',
+    edit: '`/badge-edit id [name] [emoji] [description] [color] [image] [position]` — Edits an existing custom badge. Prefix form uses `field=value` tokens: `badge-edit alpha-tester name="VIP Tester" color=#FF00AA`.'
 };
 
 module.exports = {

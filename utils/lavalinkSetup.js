@@ -361,38 +361,89 @@ function setupLavalinkEvents(client, lavalinkManager) {
     });
 
     // ── trackStuck ──
+    //
+    // We see this fire when the Lavalink node receives no audio
+    // packets for `thresholdMs` ms.  Common causes:
+    //   1. Source CDN throttling (YouTube's most-frequent failure mode)
+    //   2. Voice WS hiccup that didn't propagate `playerSocketClosed`
+    //   3. Track URL expired mid-playback (Spotify resolved -> YT)
+    //
+    // Recovery strategy (each step short-circuits on success):
+    //   A. If we've consumed > 3 s of audio, seek back to position 0
+    //      and wait — Lavalink usually recovers without skipping.
+    //   B. Re-resolve the track from the current source so a stale
+    //      streaming URL is replaced.  Try SoundCloud as a fallback
+    //      for YouTube failures (most common in production).
+    //   C. As a last resort, reconnect the voice socket and skip.
+    //
+    // We rate-limit the chat notification so the user isn't spammed
+    // with "Track got stuck — skipping" on every poll cycle.
+    const STUCK_NOTIFY_COOLDOWN = 30_000;
+    const stuckNotifyAt = new Map(); // guildId → ms timestamp
+
+    function notifyStuckOnce(channel, guildId, body) {
+        if (!channel) return;
+        const now = Date.now();
+        const last = stuckNotifyAt.get(guildId) || 0;
+        if (now - last < STUCK_NOTIFY_COOLDOWN) return;
+        stuckNotifyAt.set(guildId, now);
+        channel.send(body).catch(() => {});
+    }
+
     lavalinkManager.on('trackStuck', async (player, track, thresholdMs) => {
         const title = (track?.info?.title || 'Unknown').substring(0, 35);
         log.warning(`Track stuck: "${title}" (threshold ${thresholdMs}ms)`);
 
         if (!player || player.destroyed) return;
-
         const channel = client.channels.cache.get(player.textChannelId);
+        const guildId = player.guildId;
 
-        // Step 1: try seeking back to 0 to un-stick the stream first
+        // Step A: seek-restart. Only if we've actually played some audio.
         try {
             const pos = player.position || 0;
-            if (pos > 3000) {
-                log.info(`trackStuck: attempting seek-restart for "${title}"`);
+            if (pos > 3000 && !track?._stuckSeekAttempted) {
+                if (track) track._stuckSeekAttempted = true;
+                log.info(`trackStuck: seek-restart attempt for "${title}"`);
                 await player.seek(0);
-                // give Lavalink 3 seconds to recover; if still stuck the event fires again
+                // Lavalink takes a beat to resume; if still stuck the
+                // event will fire again and we'll fall through.
                 return;
             }
         } catch (seekErr) {
-            log.warning(`trackStuck: seek-restart failed (${seekErr.message}) — skipping`);
+            log.warning(`trackStuck: seek-restart failed (${seekErr.message})`);
         }
 
-        // Step 2: try reconnecting the voice socket before skipping
+        // Step B: try to re-resolve the same track from a fallback source.
         try {
-            if (player.voiceChannelId) {
-                await player.connect();
+            if (track?.info?.title && !track._stuckResolveAttempted) {
+                track._stuckResolveAttempted = true;
+                const sourceName = (track.info.sourceName || '').toLowerCase();
+                // YouTube → SoundCloud is the most common rescue path.
+                const fallbackPrefix = sourceName.includes('youtube') ? 'scsearch' : 'ytsearch';
+                const query = `${fallbackPrefix}:${track.info.title}${track.info.author ? ' ' + track.info.author : ''}`;
+                const result = await player.search({ query }, track.requester).catch(() => null);
+                const replacement = result?.tracks?.[0];
+                if (replacement) {
+                    replacement._stuckResolveAttempted = true; // never re-attempt
+                    replacement.requester = track.requester;
+                    await player.queue.add(replacement, 0);
+                    notifyStuckOnce(channel, guildId,
+                        `<:Inforect:1473038624172937287> Stream stalled — retrying with an alternative source.`);
+                    await player.skip().catch(() => {});
+                    return;
+                }
             }
-        } catch (_) {}
-
-        // Step 3: skip to next track
-        if (channel) {
-            channel.send(`<:Inforect:1473038624172937287> Track got stuck and couldn't recover — skipping to next.`).catch(() => {});
+        } catch (resolveErr) {
+            log.warning(`trackStuck: re-resolve failed (${resolveErr.message})`);
         }
+
+        // Step C: voice-socket nudge then skip.
+        try {
+            if (player.voiceChannelId) await player.connect().catch(() => {});
+        } catch {}
+
+        notifyStuckOnce(channel, guildId,
+            `<:Inforect:1473038624172937287> Couldn't recover playback — skipping to the next track.`);
 
         try {
             if (player.queue?.tracks?.length > 0) {

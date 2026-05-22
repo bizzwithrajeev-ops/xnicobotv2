@@ -1,6 +1,17 @@
 const https = require('https');
 const http = require('http');
-const { EmbedBuilder } = require('discord.js');
+const {
+    EmbedBuilder,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MediaGalleryBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags,
+} = require('discord.js');
 
 const jsonStore = require('./jsonStore');
 const log = require('./logger-styled');
@@ -120,11 +131,54 @@ function decodeXMLEntities(str) {
 }
 
 /**
- * Build a YouTube notification embed.
+ * Build a Components V2 container for a YouTube upload / livestream
+ * notification.  Discord rejects mixing v2 components with embeds, so
+ * the caller must send with `flags: MessageFlags.IsComponentsV2` and
+ * NOT pass an `embeds` array.
+ */
+function buildYouTubeContainer(video, isLive, messageText) {
+    const container = new ContainerBuilder().setAccentColor(0xFF0000);
+
+    const thumb = `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
+    try {
+        container.addMediaGalleryComponents(
+            new MediaGalleryBuilder().addItems(item => item.setURL(thumb))
+        );
+    } catch { /* ignore — Discord will reject if URL is unreachable */ }
+
+    const liveBadge = isLive ? '🔴 **LIVE**' : '<:YoutubeLive:1473038797540298792> **New Upload**';
+    let body = `# ${liveBadge}\n\n`;
+    body += `### ${video.title}\n`;
+    body += `-# by **${video.channelName}**\n`;
+    if (messageText && messageText.trim()) {
+        body += `\n${messageText.trim()}\n`;
+    }
+    body += `\n-# Posted <t:${Math.floor(video.published.getTime() / 1000)}:R>`;
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(body));
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+    );
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setLabel(isLive ? 'Watch Live' : 'Watch Now')
+                .setStyle(ButtonStyle.Link)
+                .setURL(video.url)
+                .setEmoji('▶️')
+        )
+    );
+
+    return container;
+}
+
+/**
+ * Build a YouTube notification embed (legacy fallback path).
  */
 function buildYouTubeEmbed(video, isLive = false) {
     const embed = new EmbedBuilder()
-        .setColor(isLive ? 0xFF0000 : 0xFF0000)
+        .setColor(0xFF0000)
         .setAuthor({ name: video.channelName, iconURL: 'https://i.imgur.com/3pGrCPv.png' })
         .setTitle(`${isLive ? '🔴 LIVE: ' : ''}${video.title}`)
         .setURL(video.url)
@@ -300,13 +354,33 @@ async function pollYouTube(client, log) {
                             allowedMentions.roles = [ytConfig.pingRole];
                         }
                     }
-                    const embed = buildYouTubeEmbed(video, isLive);
 
-                    await notifyChannel.send({
-                        content: `${pingRole}${messageText}`,
-                        embeds: [embed],
-                        allowedMentions
-                    });
+                    // Components V2 path — preferred. Send the ping as
+                    // a separate plain message so it remains pingable
+                    // (mentions in v2 containers don't trigger pings on
+                    // every client).
+                    try {
+                        if (pingRole.trim()) {
+                            await notifyChannel.send({
+                                content: `${pingRole}${messageText.split('\n')[0]}`,
+                                allowedMentions,
+                            });
+                        }
+                        const container = buildYouTubeContainer(video, isLive, messageText);
+                        await notifyChannel.send({
+                            components: [container],
+                            flags: MessageFlags.IsComponentsV2,
+                        });
+                    } catch (sendErr) {
+                        // Fallback to legacy embed if the v2 send fails
+                        // (e.g. missing permission to use v2 components).
+                        const embed = buildYouTubeEmbed(video, isLive);
+                        await notifyChannel.send({
+                            content: `${pingRole}${messageText}`,
+                            embeds: [embed],
+                            allowedMentions,
+                        });
+                    }
 
                     if (log) log.info(`[Social Notify] YouTube: Notified ${guild.name} about ${video.title} by ${video.channelName}`);
                 } catch (e) {
