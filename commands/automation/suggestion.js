@@ -870,7 +870,7 @@ module.exports = {
 
     name: 'suggestion',
     prefix: 'suggest',
-    aliases: ['suggestion'],
+    aliases: [],
     category: 'automation',
     description: 'Professional suggestion system — numbered IDs, vote bars, threads, moderation, and DM notifications',
     usage: '/suggestion suggest <text>  |  /suggestion setup  |  /suggestion moderate <msgId> <approved|denied|considered>',

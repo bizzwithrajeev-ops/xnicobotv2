@@ -77,7 +77,7 @@ async function handleWeekly(reply, userId, guildId) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
-        `### 📊 Summary`,
+        `### <:transfer:1479780506718437396> Summary`,
         `> <:Money:1473377877239140529> **Total Received:** ${formatNumber(totalReward)} coins`,
         `> <:Money:1473377877239140529> **New Balance:** ${formatNumber(userData.coins)} coins`,
         `> <:Bookopen:1473038576391557130> **Weeks Claimed:** ${weeklyClaimCount}`,

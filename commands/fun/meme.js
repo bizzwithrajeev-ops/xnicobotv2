@@ -85,7 +85,7 @@ module.exports = {
     description: 'Get a random meme from Reddit',
     usage: 'meme [english|hindi|anime|gaming]',
     category: 'fun',
-    aliases: ['reddit', 'randommeme'],
+    aliases: ['randommeme'],
 
     async execute(interaction) {
         await interaction.deferReply();

@@ -445,7 +445,7 @@ module.exports = {
     description: 'Minesweeper gambling — reveal tiles, avoid mines, cash out anytime (max 100k)',
     usage: 'mines <bet>',
     category: 'economy',
-    aliases: ['minesweeper', 'mine', 'ms'],
+    aliases: ['minesweeper', 'ms'],
     
     handleMinesInteraction,
     

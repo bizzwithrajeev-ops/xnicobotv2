@@ -1,7 +1,49 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+'use strict';
+
+const {
+    SlashCommandBuilder,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SectionBuilder,
+    ThumbnailBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MessageFlags,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
+} = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const botCustomize = require('../../utils/botCustomize');
+
+// ─── Emojis ────────────────────────────────────────────────────────────────────
+const E = {
+    bot:       '<:bots:1473368718120849500>',
+    server:    '<:Folderopen:1473039552783323348>',
+    members:   '<:members:1473038912212435086>',
+    commands:  '<:Bookopen:1473038576391557130>',
+    ping:      '<:Heartbeat:1473038409961308221>',
+    clock:     '<:Clock:1473039102113878056>',
+    memory:    '<:Cursor:1473038064564834544>',
+    music:     '<:Music:1473039311057190972>',
+    node:      '<:Lightningalt:1473038679906844824>',
+    shield:    '<:Shield:1473038669831995494>',
+    dev:       '<:Crown:1506010837368963142>',
+    fire:      '<:Fire:1473038604812161218>',
+    code:      '<:developer:1485248261492178995>',
+    link:      '<:Link:1473038786530316298>',
+    star:      '<:Star:1473038501766369300>',
+    topgg:     '<:topgg:1473546762248523839>',
+    check:     '<:Checkedbox:1473038547165384804>',
+    cpu:       '<:Lightning:1473038797540298792>',
+    database:  '<:Document:1473039496995143731>',
+    globe:     '<:Globe:1473039496995143731>',
+    channel:   '<:Chat:1473038936241864865>',
+};
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatUptime(seconds) {
     const d = Math.floor(seconds / 86400);
@@ -37,6 +79,27 @@ function countCommands(baseDir) {
     return total;
 }
 
+function getCpuUsage() {
+    const cpus = os.cpus();
+    let totalIdle = 0, totalTick = 0;
+    for (const cpu of cpus) {
+        for (const type in cpu.times) totalTick += cpu.times[type];
+        totalIdle += cpu.times.idle;
+    }
+    return ((1 - totalIdle / totalTick) * 100).toFixed(1);
+}
+
+function getSystemUptime() {
+    const sec = os.uptime();
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor(sec / 3600) % 24;
+    if (d > 0) return `${d}d ${h}h`;
+    const m = Math.floor(sec / 60) % 60;
+    return `${h}h ${m}m`;
+}
+
+// ─── Build the professional botinfo panel ──────────────────────────────────────
+
 function buildBotInfo(client, guild) {
     const guildId = guild?.id;
     const accentColor = botCustomize.getEmbedColor(guildId);
@@ -44,80 +107,140 @@ function buildBotInfo(client, guild) {
     const prefix = guildCustom.prefix || process.env.PREFIX || '-';
 
     const totalMembers = client.guilds.cache.reduce((a, g) => a + g.memberCount, 0);
+    const totalChannels = client.channels.cache.size;
     const totalCommands = countCommands(path.join(__dirname, '..'));
     const uptime = formatUptime(process.uptime());
-    const heap = formatBytes(process.memoryUsage().heapUsed);
-    const api = Math.round(client.ws.ping);
+    const mem = process.memoryUsage();
+    const heapUsed = formatBytes(mem.heapUsed);
+    const heapTotal = formatBytes(mem.heapTotal);
+    const rss = formatBytes(mem.rss);
+    const apiPing = Math.round(client.ws.ping);
+    const cpuUsage = getCpuUsage();
+    const platform = `${os.type()} ${os.arch()}`;
+    const nodeVersion = process.version;
+    const djsVersion = require('discord.js').version;
 
     const lavalinkPlayers = client.lavalink?.players?.size || 0;
-    const lavalinkNodes = client.lavalink?.nodeManager?.nodes ? [...client.lavalink.nodeManager.nodes.values()].filter(n => n.connected).length : 0;
+    const lavalinkNodes = client.lavalink?.nodeManager?.nodes
+        ? [...client.lavalink.nodeManager.nodes.values()].filter(n => n.connected).length
+        : 0;
+
+    const shardId = guild?.shardId ?? 0;
+    const createdTs = Math.floor(client.user.createdTimestamp / 1000);
 
     const container = new ContainerBuilder().setAccentColor(accentColor);
 
-    // Header with avatar
-    const header = new SectionBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `# <:bots:1473368718120849500> ${client.user.username}\nAll-in-one Discord bot with **${totalCommands}+** commands`
+    // ── Header ──
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                    `## ${E.bot} ${client.user.username}\n` +
+                    `-# All-in-one Discord bot · **${totalCommands}** commands · **${client.guilds.cache.size.toLocaleString()}** servers`
+                )
             )
-        )
-        .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: client.user.displayAvatarURL({ size: 256 }) } }));
-    container.addSectionComponents(header);
+            .setThumbnailAccessory(
+                new ThumbnailBuilder({ media: { url: client.user.displayAvatarURL({ size: 256 }) } })
+            )
+    );
+
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-    // Stats
+    // ── Overview Stats ──
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `> <:Folderopen:1473039552783323348> **${client.guilds.cache.size.toLocaleString()}** servers · <:members:1473038912212435086> **${totalMembers.toLocaleString()}** users · <:Bookopen:1473038576391557130> **${totalCommands}** commands\n` +
-        `> <:Heartbeat:1473038409961308221> **${api}ms** latency · <:Clock:1473039102113878056> **${uptime}** uptime · <:Cursor:1473038064564834544> **${heap}** memory\n` +
-        `> <:Music:1473039311057190972> **${lavalinkPlayers}** active players · <:Lightningalt:1473038679906844824> **${lavalinkNodes}** node(s) · <:Shield:1473038669831995494> Shard **#${guild?.shardId ?? 0}**`
+        `### ${E.globe} Overview\n` +
+        `${E.server} **Servers:** ${client.guilds.cache.size.toLocaleString()}  ·  ` +
+        `${E.members} **Users:** ${totalMembers.toLocaleString()}  ·  ` +
+        `${E.channel} **Channels:** ${totalChannels.toLocaleString()}\n` +
+        `${E.commands} **Commands:** ${totalCommands}  ·  ` +
+        `${E.shield} **Shard:** #${shardId}  ·  ` +
+        `${E.dev} **Prefix:** \`${prefix}\``
     ));
+
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-    // Info
+    // ── Performance ──
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `> <:Shield:1473038669831995494> **Developer:** <@${process.env.OWNER_ID}> · **Prefix:** \`${prefix}\`\n` +
-        `> <:Fire:1473038604812161218> **Node.js:** ${process.version} · **Discord.js:** v${require('discord.js').version}\n` +
-        `> <:Clock:1473039102113878056> **Created:** <t:${Math.floor(client.user.createdTimestamp / 1000)}:D> (<t:${Math.floor(client.user.createdTimestamp / 1000)}:R>)`
+        `### ${E.cpu} Performance\n` +
+        `${E.ping} **API Latency:** ${apiPing}ms  ·  ` +
+        `${E.clock} **Uptime:** ${uptime}\n` +
+        `${E.memory} **Memory:** ${heapUsed} / ${heapTotal} (RSS: ${rss})\n` +
+        `${E.fire} **CPU:** ${cpuUsage}%  ·  ` +
+        `**Platform:** ${platform}`
     ));
 
-    // Link buttons
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+    // ── Music Engine ──
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### ${E.music} Music Engine\n` +
+        `${E.node} **Nodes:** ${lavalinkNodes} connected  ·  ` +
+        `${E.music} **Active Players:** ${lavalinkPlayers}`
+    ));
+
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+    // ── Technical ──
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### ${E.code} Technical\n` +
+        `${E.fire} **Node.js:** ${nodeVersion}  ·  ` +
+        `**Discord.js:** v${djsVersion}\n` +
+        `${E.dev} **Developer:** <@${process.env.OWNER_ID}>\n` +
+        `${E.clock} **Created:** <t:${createdTs}:D> (<t:${createdTs}:R>)`
+    ));
+
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+    // ── Branding footer ──
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `-# ${E.star} Thank you for using ${client.user.username} · Trusted by ${client.guilds.cache.size.toLocaleString()} communities`
+    ));
+
+    // ── Link Buttons ──
     const linkRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('check_ping')
             .setLabel('Ping')
-            .setEmoji('<:Heartbeat:1473038409961308221>')
+            .setEmoji(E.ping)
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setLabel('Invite')
             .setURL(`https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`)
             .setStyle(ButtonStyle.Link)
-            .setEmoji('<:bots:1473368718120849500>'),
+            .setEmoji(E.bot),
         new ButtonBuilder()
             .setLabel('Support')
             .setURL(process.env.SUPPORT_SERVER || 'https://discord.gg/Zs35X7Umak')
             .setStyle(ButtonStyle.Link)
-            .setEmoji('<:members:1473038912212435086>'),
+            .setEmoji(E.members),
         new ButtonBuilder()
             .setLabel('Vote')
             .setURL(`https://top.gg/bot/${client.user.id}/vote`)
             .setStyle(ButtonStyle.Link)
-            .setEmoji('<:topgg:1473546762248523839>')
+            .setEmoji(E.topgg),
+        new ButtonBuilder()
+            .setLabel('Website')
+            .setURL(process.env.BOT_WEBSITE || 'https://thenico.vercel.app')
+            .setStyle(ButtonStyle.Link)
+            .setEmoji(E.globe)
     );
 
     return { container, linkRow };
 }
 
+// ─── Module Export ─────────────────────────────────────────────────────────────
+
 module.exports = {
-    aliases: ['bi', 'about', 'botstat'],
+    aliases: ['bi', 'about', 'botstat', 'info'],
     category: 'basic',
     prefix: 'botinfo',
-    description: 'Display bot information',
+    description: 'Display detailed bot information, stats, and performance metrics',
     usage: 'botinfo',
     dmAllowed: true,
 
     data: new SlashCommandBuilder()
         .setName('botinfo')
-        .setDescription('Display bot information'),
+        .setDescription('Display detailed bot information, stats, and performance metrics'),
 
     async execute(interaction) {
         const { container, linkRow } = buildBotInfo(interaction.client, interaction.guild);

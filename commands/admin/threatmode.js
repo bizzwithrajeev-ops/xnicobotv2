@@ -36,7 +36,7 @@ function buildThreatPanel(guildConfig, guildName) {
 
     let statusText;
     if (superActive) {
-        statusText = `<:dnd:1473370101427343403> **Super Threat Mode is active** — it overrides Threat Mode.\nDisable Super Threat Mode first to use Threat Mode.`;
+        statusText = `<:Toggleoff:1473038582813032590> **Super Threat Mode is active** — it overrides Threat Mode.\nDisable Super Threat Mode first to use Threat Mode.`;
     } else if (isActive) {
         statusText = `<:Infotriangle:1473038460456800459> **THREAT MODE ACTIVE**\nStricter limits — faster response, action: \`kick\``;
     } else {
@@ -154,7 +154,7 @@ module.exports = {
         const gc = config[guildId];
 
         if (gc.superThreatMode) {
-            return interaction.reply({ content: '<:dnd:1473370101427343403> **Super Threat Mode** is active. Disable it first before using Threat Mode.', flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: '<:Toggleoff:1473038582813032590> **Super Threat Mode** is active. Disable it first before using Threat Mode.', flags: MessageFlags.Ephemeral });
         }
 
         const willEnable = !gc.threatMode;

@@ -70,7 +70,7 @@ const FILTER_INFO = {
     mentionSpam: { label: 'Mention Spam', emoji: '📢', desc: 'Mass mentioning users/roles' },
     duplicateSpam: { label: 'Duplicate Spam', emoji: '📋', desc: 'Repeated identical messages' },
     inviteSpam: { label: 'Invite Spam', emoji: '✉', desc: 'Discord server invite links' },
-    newlineSpam: { label: 'Newline Spam', emoji: '📄', desc: 'Excessive line breaks' }
+    newlineSpam: { label: 'Newline Spam', emoji: '<:Invoice:1473039492217835550>', desc: 'Excessive line breaks' }
 };
 
 const FILTER_NAMES = Object.keys(FILTER_INFO);

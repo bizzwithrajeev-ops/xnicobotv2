@@ -55,7 +55,7 @@ async function buildShardStatus(client) {
         content += `> <:Caretright:1473038207221502106> **Shard IDs:** ${shardIds.join(', ')}\n`;
         content += `> <:Caretright:1473038207221502106> **Total Shards:** ${totalShards}\n`;
         content += `> <:Caretright:1473038207221502106> **WS Ping:** ${client.ws.ping}ms\n`;
-        content += `> <:Caretright:1473038207221502106> **WS Status:** <:online:1455550955679387743> Connected\n\n`;
+        content += `> <:Caretright:1473038207221502106> **WS Status:** <:online:1485248286653943900> Connected\n\n`;
 
         try {
             const results = await client.shard.broadcastEval(c => ({
@@ -70,7 +70,7 @@ async function buildShardStatus(client) {
 
             content += `### <:Document:1473039496995143731> All Shards\n`;
             for (const shard of results) {
-                const shardHealth = shard.ping < 100 ? '<:online:1455550955679387743>' :
+                const shardHealth = shard.ping < 100 ? '<:online:1485248286653943900>' :
                     shard.ping < 200 ? '<:idle:1455550955679387745>' : '<:dnd:1473370101427343403>';
                 content += `> ${shardHealth} **Shard ${shard.id}** — ${shard.guilds} guilds, ${shard.members.toLocaleString()} members, ${shard.ping}ms, ${formatBytes(shard.memory)}\n`;
             }
@@ -80,7 +80,7 @@ async function buildShardStatus(client) {
         content += `### <:Invoice:1473039492217835550> Single Instance\n`;
         content += `> <:Caretright:1473038207221502106> **Mode:** No sharding (single process)\n`;
         content += `> <:Caretright:1473038207221502106> **WS Ping:** ${client.ws.ping}ms\n`;
-        content += `> <:Caretright:1473038207221502106> **WS Status:** <:online:1455550955679387743> Connected\n\n`;
+        content += `> <:Caretright:1473038207221502106> **WS Status:** <:online:1485248286653943900> Connected\n\n`;
     }
 
     content += `### <:Bookopen:1473038576391557130> Guild Distribution\n`;

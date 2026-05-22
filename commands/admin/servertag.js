@@ -474,7 +474,7 @@ module.exports = {
                 content += `### Current Reward Settings\n`;
                 content += `> **Coin Reward:** ${guildConfig.coinReward || 0} coins\n`;
                 content += `> **XP Reward:** ${guildConfig.xpReward || 0} XP\n`;
-                content += `> **DM Notify:** ${guildConfig.dmNotify !== false ? '<:online:1473369837245042762> Enabled' : '<:dnd:1473370101427343403> Disabled'}\n`;
+                content += `> **DM Notify:** ${guildConfig.dmNotify !== false ? '<:online:1473369837245042762> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
                 content += `> **Notify Channel:** ${guildConfig.notifyChannel ? `<#${guildConfig.notifyChannel}>` : 'None'}\n\n`;
                 content += `### Configure\n`;
                 content += `> \`servertag reward <coins> [xp]\` — Set coin & XP rewards\n`;
@@ -772,14 +772,14 @@ module.exports = {
             content += `### Current Setup\n`;
             content += `> **Tag:** ${guildConfig.tag}\n`;
             content += `> **Reward Role:** ${role ? role : 'Deleted'}\n`;
-            content += `> **Status:** ${guildConfig.enabled ? '<:online:1473369837245042762> Enabled' : '<:dnd:1473370101427343403> Disabled'}\n`;
+            content += `> **Status:** ${guildConfig.enabled ? '<:online:1473369837245042762> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
             content += `> **Members with Role:** ${membersWithRole}\n`;
             content += `> **Configured By:** <@${guildConfig.setBy}>\n`;
             content += `> **Set At:** <t:${Math.floor(new Date(guildConfig.setAt).getTime() / 1000)}:R>\n\n`;
             content += `### Rewards\n`;
             content += `> **Coin Reward:** ${guildConfig.coinReward || 0} coins\n`;
             content += `> **XP Reward:** ${guildConfig.xpReward || 0} XP\n`;
-            content += `> **DM Notify:** ${guildConfig.dmNotify !== false ? '<:online:1473369837245042762> On' : '<:dnd:1473370101427343403> Off'}\n`;
+            content += `> **DM Notify:** ${guildConfig.dmNotify !== false ? '<:online:1473369837245042762> On' : '<:Toggleoff:1473038582813032590> Off'}\n`;
             content += `> **Announce Channel:** ${guildConfig.notifyChannel ? `<#${guildConfig.notifyChannel}>` : 'None'}\n`;
             content += `> **Total Tag Users:** ${lb.length}\n\n`;
             content += `-# Use \`servertag equip\` to join • \`servertag scan\` to sync • \`servertag leaderboard\` for top users`;

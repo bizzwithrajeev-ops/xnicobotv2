@@ -13,16 +13,16 @@ module.exports = {
     description: 'Get a random yes or no answer to your question',
     usage: 'random-yes-no [question]',
     category: 'fun',
-    aliases: ['yesno', 'yn', 'askyesno'],
+    aliases: ['yn', 'askyesno'],
 
     async execute(interaction) {
         const question = interaction.options.getString('question');
         const answer = Math.random() < 0.5 ? 'Yes' : 'No';
         const isYes = answer === 'Yes';
 
-        let content = `# ${isYes ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} ${answer}!\n\n`;
+        let content = `# ${isYes ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} ${answer}!\n\n`;
         if (question) {
-            content = `# 🎱 Yes or No?\n\n**Question:** ${question}\n\n**Answer:** ${isYes ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} **${answer}**`;
+            content = `# 🎱 Yes or No?\n\n**Question:** ${question}\n\n**Answer:** ${isYes ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **${answer}**`;
         }
 
         const container = new ContainerBuilder()
@@ -39,9 +39,9 @@ module.exports = {
         const answer = Math.random() < 0.5 ? 'Yes' : 'No';
         const isYes = answer === 'Yes';
 
-        let content = `# ${isYes ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} ${answer}!\n\n`;
+        let content = `# ${isYes ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} ${answer}!\n\n`;
         if (question) {
-            content = `# 🎱 Yes or No?\n\n**Question:** ${question}\n\n**Answer:** ${isYes ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} **${answer}**`;
+            content = `# 🎱 Yes or No?\n\n**Question:** ${question}\n\n**Answer:** ${isYes ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **${answer}**`;
         }
 
         const container = new ContainerBuilder()

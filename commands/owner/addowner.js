@@ -11,7 +11,7 @@ module.exports = {
     description: 'Add a user as bot co-owner',
     usage: 'addowner <@user>',
     category: 'owner',
-    aliases: ['coowner'],
+    aliases: [],
     ownerOnly: true,
     
     async executePrefix(message, args) {

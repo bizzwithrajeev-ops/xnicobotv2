@@ -107,7 +107,7 @@ async function runAdventure(message, biomeData) {
     `# <:Fire:1473038604812161218> Adventure: ${biomeData.name}`,
     '',
     `${biomeData.emoji} Embarking on a **${stages}-stage** adventure!`,
-    pet ? `> 🐾 Pet: ${pet.emoji} **${pet.name}** (Lv.${pet.level}) | <:Heartalt:1473038488893526016> ${pet.hp}/${pet.maxHp} HP` : '> <:Infotriangle:1473038460456800459> No pet — combat will be harder!',
+    pet ? `> 🐾 Pet: ${pet.emoji} **${pet.name}** (Lv.${pet.level}) | <:Heart:1473038659514007616> ${pet.hp}/${pet.maxHp} HP` : '> <:Infotriangle:1473038460456800459> No pet — combat will be harder!',
     '',
     `Press **Continue** to advance through each stage.`,
   ].join('\n'));
@@ -231,7 +231,7 @@ async function runAdventure(message, biomeData) {
 
       const resultContainer = createContainer(failed ? 0xED4245 : 0xCAD7E6);
       addTextDisplay(resultContainer, [
-        `# ${failed ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'} Adventure ${failed ? 'Failed' : 'Complete'}!`,
+        `# ${failed ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} Adventure ${failed ? 'Failed' : 'Complete'}!`,
         '',
         stageText,
       ].join('\n'));
@@ -241,7 +241,7 @@ async function runAdventure(message, biomeData) {
       const summaryLines = [
         '### <:Money:1473377877239140529> Rewards',
         `> <:Money:1473377877239140529> **Coins:** +${formatNumber(totalCoins.value)}`,
-        `> 📊 **XP:** +${totalExp.value}`,
+        `> <:transfer:1479780506718437396> **XP:** +${totalExp.value}`,
       ];
       if (items.length > 0 && !failed) {
         summaryLines.push(`> 📦 **Items:** ${items.join(', ')}`);

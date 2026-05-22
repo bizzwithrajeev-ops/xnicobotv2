@@ -110,7 +110,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0x57F287)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <:Checkedbox:1473038547165384804> Vanity Guard Enabled\n\n` +
+                    `# <:Toggleon:1473038585501581312> Vanity Guard Enabled\n\n` +
                     `Your server's vanity URL is now protected.\n` +
                     `Only whitelisted users can change it.\n\n` +
                     `-# Use \`vanityguard wl @user\` to whitelist users`
@@ -128,7 +128,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0xED4245)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <:Cancel:1473037949187657818> Vanity Guard Disabled\n\n` +
+                    `# <:Toggleoff:1473038582813032590> Vanity Guard Disabled\n\n` +
                     `Vanity URL protection has been turned off.\n` +
                     `Anyone with \`MANAGE_GUILD\` can now change the vanity.`
                 ));

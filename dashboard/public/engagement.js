@@ -152,7 +152,7 @@ function _renderAutoreactBody(g) {
             <h4 class="mb-1">Add Trigger</h4>
             <div class="grid g-2">
                 <div class="form-row"><label>Trigger Word</label><input type="text" id="ar-trigger" placeholder="hello"><div class="hint">Case insensitive. First match wins.</div></div>
-                <div class="form-row"><label>Emojis (space-separated)</label><input type="text" id="ar-emojis" placeholder="👋 🎉 ❤️"><div class="hint">Standard emojis or custom &lt;:name:id&gt;</div></div>
+                <div class="form-row"><label>Emojis (space-separated)</label><input type="text" id="ar-emojis" placeholder="👋 🎉 <:Heart:1473038659514007616>"><div class="hint">Standard emojis or custom &lt;:name:id&gt;</div></div>
             </div>
             <button class="btn sm" onclick="window.__arAdd()">${icon('user-plus')} Add Trigger</button>
         </div>

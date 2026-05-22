@@ -61,12 +61,12 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
       .filter(([, qty]) => qty > 0)
       .map(([t, qty]) => {
         const val = (prices[t] || 0) * qty;
-        return `> ${STOCKS[t]?.emoji || '📊'} **${t}** × ${qty} = ${formatNumber(val)} coins`;
+        return `> ${STOCKS[t]?.emoji || '<:transfer:1479780506718437396>'} **${t}** × ${qty} = ${formatNumber(val)} coins`;
       });
 
     const c = createContainer(0xCAD7E6);
     addTextDisplay(c, [
-      `# 📊 Stock Market`,
+      `# <:transfer:1479780506718437396> Stock Market`,
       `-# Prices refresh every hour`,
       '',
       ...marketLines,
@@ -168,7 +168,7 @@ module.exports = {
       .addStringOption(o => o.setName('ticker').setDescription('Stock ticker').setRequired(true))
       .addIntegerOption(o => o.setName('amount').setDescription('Quantity to sell').setRequired(false).setMinValue(1).setMaxValue(1000))),
   prefix: 'stocks',
-  aliases: ['stock', 'market'],
+  aliases: ['stock'],
   category: 'economy',
   description: 'Buy and sell fictional stocks',
   usage: 'stocks <view|buy|sell> [ticker] [amount]',

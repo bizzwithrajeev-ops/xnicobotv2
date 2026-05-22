@@ -456,7 +456,7 @@ module.exports = {
 
     name: 'feedback',
     prefix: 'feedback',
-    aliases: ['feedback', 'fb'],
+    aliases: ['fb'],
     category: 'automation',
     description: 'Professional feedback system — star ratings, review cards, stats, and logs channel mirroring',
     usage: '/feedback setup  |  /feedback panel  |  /feedback stats',

@@ -100,7 +100,7 @@ module.exports = {
                 .setAccentColor(0x57F287)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <:Bullhorn:1473038903157199093> Level Announcement Channel\n\n> **Current Channel:** ${channel || '`Deleted Channel`'}\n> **Status:** <:online:1455550955679387743> Active\n\n### <:Document:1473039496995143731> Commands\n\`-levelchannel set #channel\` — Set announcement channel\n\`-levelchannel disable\` — Remove and use same channel`)
+                        .setContent(`# <:Bullhorn:1473038903157199093> Level Announcement Channel\n\n> **Current Channel:** ${channel || '`Deleted Channel`'}\n> **Status:** <:online:1485248286653943900> Active\n\n### <:Document:1473039496995143731> Commands\n\`-levelchannel set #channel\` — Set announcement channel\n\`-levelchannel disable\` — Remove and use same channel`)
                 )
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
             
@@ -126,7 +126,7 @@ module.exports = {
             .setAccentColor(0xFEE75C)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:Bullhorn:1473038903157199093> Level Announcement Channel\n\n> **Status:** <:offline:1455550928282419302> Not Configured\n> **Mode:** Announcements sent in same channel\n\n### <:Document:1473039496995143731> Commands\n\`-levelchannel set #channel\` — Set announcement channel\n\`-levelchannel disable\` — Remove and use same channel`)
+                    .setContent(`# <:Bullhorn:1473038903157199093> Level Announcement Channel\n\n> **Status:** <:offline:1485248289690616041> Not Configured\n> **Mode:** Announcements sent in same channel\n\n### <:Document:1473039496995143731> Commands\n\`-levelchannel set #channel\` — Set announcement channel\n\`-levelchannel disable\` — Remove and use same channel`)
             )
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
         

@@ -14,13 +14,13 @@ async function handleWithdraw(reply, userId, args) {
     if (amount === undefined || amount === null || isNaN(amount) || amount <= 0) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# 🏦 Withdraw`,
+            `# <:Invoice:1473039492217835550> Withdraw`,
             '',
             `**Usage:** \`withdraw <amount | all>\``,
             '',
             `**Your Balances:**`,
             `<:Money:1473377877239140529> Wallet: ${formatNumber(user.coins)} coins`,
-            `🏦 Bank: ${formatNumber(user.bank)} coins`,
+            `<:Invoice:1473039492217835550> Bank: ${formatNumber(user.bank)} coins`,
             '',
             `**Examples:**`,
             `\`withdraw 500\``,
@@ -41,7 +41,7 @@ async function handleWithdraw(reply, userId, args) {
 
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-        `# 🏦 Withdrawal Successful`,
+        `# <:Invoice:1473039492217835550> Withdrawal Successful`,
         '',
         `<:Checkedbox:1473038547165384804> Withdrew **${formatNumber(amount)}** coins from your bank.`,
     ].join('\n'));
@@ -51,7 +51,7 @@ async function handleWithdraw(reply, userId, args) {
     addTextDisplay(container, [
         `**New Balances:**`,
         `<:Money:1473377877239140529> Wallet: ${formatNumber(user.coins)} coins`,
-        `🏦 Bank: ${formatNumber(user.bank)} coins`,
+        `<:Invoice:1473039492217835550> Bank: ${formatNumber(user.bank)} coins`,
         `<:Invoice:1473039492217835550> **Total:** ${formatNumber(user.coins + user.bank)} coins`,
     ].join('\n'));
 

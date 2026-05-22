@@ -56,10 +56,10 @@ function buildPanel(ytConfig, guild) {
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
     // Status section
-    const statusEmoji = ytConfig.enabled ? '<:online:1455550955679387743>' : '<:offline:1455550933508333662>';
+    const statusEmoji = ytConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
     const channelText = ytConfig.notifyChannel ? `<#${ytConfig.notifyChannel}>` : '`Not Set`';
     const roleText = ytConfig.pingRole ? `<@&${ytConfig.pingRole}>` : '`None`';
-    const liveText = ytConfig.liveEnabled ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550933508333662> Disabled';
+    const liveText = ytConfig.liveEnabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1455550933508333662> Disabled';
 
     let statusBlock = '```ansi\n\u001b[1;37m YouTube Notification Settings\n';
     statusBlock += '─────────────────────────────────\n';

@@ -93,7 +93,7 @@ function buildMainPanel(guildConfig) {
     const totalTracked = Object.entries(PLATFORM_INFO).reduce((n, [p]) => n + getAccountList(guildConfig[p] || {}, p).length, 0);
     const activePlatforms = Object.entries(PLATFORM_INFO).filter(([p]) => guildConfig[p]?.enabled).length;
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `> <:online:1455550955679387743> **${activePlatforms}** active platforms  •  **${totalTracked}** total tracked accounts`
+        `> <:online:1485248286653943900> **${activePlatforms}** active platforms  •  **${totalTracked}** total tracked accounts`
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
@@ -154,10 +154,10 @@ function buildYouTubePanel(guildConfig) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(ansi));
 
     // ── Rich settings display ──
-    const statusEmoji = ytConfig.enabled ? '<:online:1455550955679387743>' : '<:offline:1455550933508333662>';
+    const statusEmoji = ytConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
     const channelText = ytConfig.notifyChannel ? `<#${ytConfig.notifyChannel}>` : '`Not Set`';
     const roleText = ytConfig.pingRole ? `<@&${ytConfig.pingRole}>` : '`None`';
-    const liveText = ytConfig.liveEnabled ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550933508333662> Disabled';
+    const liveText = ytConfig.liveEnabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1455550933508333662> Disabled';
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `${statusEmoji} **Status:** ${ytConfig.enabled ? 'Enabled' : 'Disabled'}\n` +
@@ -278,7 +278,7 @@ function buildPlatformPanel(guildConfig, platform) {
     ansi += '```';
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(ansi));
 
-    const statusEmoji = pConfig.enabled ? '<:online:1455550955679387743>' : '<:offline:1455550933508333662>';
+    const statusEmoji = pConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
     const channelText = pConfig.notifyChannel ? `<#${pConfig.notifyChannel}>` : '`Not Set`';
     const roleText = pConfig.pingRole ? `<@&${pConfig.pingRole}>` : '`None`';
 

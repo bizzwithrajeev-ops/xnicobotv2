@@ -20,7 +20,7 @@ const puzzles = [
     { emojis: '🏠⬆️🎈', answer: 'up', accepts: ['up'] },
     { emojis: '🐀👨‍🍳🇫🇷', answer: 'ratatouille', accepts: ['ratatouille'] },
     { emojis: '🚀👨‍🚀🌙', answer: 'interstellar', accepts: ['interstellar'] },
-    { emojis: '🤖❤️🌱', answer: 'wall-e', accepts: ['wall-e', 'walle', 'wall e'] },
+    { emojis: '🤖<:Heart:1473038659514007616>🌱', answer: 'wall-e', accepts: ['wall-e', 'walle', 'wall e'] },
     { emojis: '🦈🌊😱', answer: 'jaws', accepts: ['jaws'] },
     { emojis: '👨‍🔬⚡🧟', answer: 'frankenstein', accepts: ['frankenstein'] },
     { emojis: '🧜‍♀️🌊🏰', answer: 'the little mermaid', accepts: ['the little mermaid', 'little mermaid'] },

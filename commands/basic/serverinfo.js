@@ -35,7 +35,7 @@ const E = {
     crown:     '<:Crown:1506010837368963142>',
     lightning: '<:Lightningalt:1473038679906844824>',
     bots:      '<:bots:1473368718120849500>',
-    online:    '<:online:1455550955679387743>',
+    online:    '<:online:1485248286653943900>',
     offline:   '<:offline:1455550933508333662>',
     copy:      '<:Copy:1473039575302803629>',
     clock:     '<:Clock:1473039102113878056>',

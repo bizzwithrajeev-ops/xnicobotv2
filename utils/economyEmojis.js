@@ -50,7 +50,7 @@ const EMOJIS = {
     craft:      '<:Palette:1473039029476917461>',
 
     // Social
-    heart:      '<:Heartalt:1473038488893526016>',
+    heart:      '<:Heart:1473038659514007616>',
     chat:       '<:Chat:1473038936241864865>',
     bullhorn:   '<:Bullhorn:1473038903157199093>',
 };

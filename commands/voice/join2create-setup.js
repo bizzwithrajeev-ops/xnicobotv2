@@ -164,7 +164,7 @@ module.exports = {
 
                 jsonStore.write('join2create', config);
 
-                const successText = `# <:Checkedbox:1473038547165384804> Join-to-Create Enabled\n-# Temporary voice channels are now available`;
+                const successText = `# <:Toggleon:1473038585501581312> Join-to-Create Enabled\n-# Temporary voice channels are now available`;
                 const configText = `### <:Document:1473039496995143731> Configuration\n` +
                     `**Trigger Channel:** ${triggerChannel}\n` +
                     `**Control Panel:** ${interfaceChannel}`;

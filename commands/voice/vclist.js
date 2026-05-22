@@ -29,7 +29,7 @@ module.exports = {
             totalMembers += memberCount;
 
             const limitStr = ch.userLimit ? `/${ch.userLimit}` : '';
-            const statusIcon = memberCount > 0 ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+            const statusIcon = memberCount > 0 ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 
             content += `${statusIcon} **${ch.name}** — \`${memberCount}${limitStr}\` members\n`;
 

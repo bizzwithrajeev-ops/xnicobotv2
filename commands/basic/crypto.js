@@ -15,7 +15,7 @@ async function getCryptoData(coin) {
 function buildCryptoContainer(coin, data) {
     const change = data.usd_24h_change ? data.usd_24h_change.toFixed(2) : 'N/A';
     const isUp = data.usd_24h_change >= 0;
-    const changeEmoji = isUp ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const changeEmoji = isUp ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const sign = isUp ? '+' : '';
     
     return new ContainerBuilder()

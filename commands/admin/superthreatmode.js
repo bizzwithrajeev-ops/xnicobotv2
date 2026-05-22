@@ -31,7 +31,7 @@ const SUPER_THREAT_LIMITS = {
 function buildSuperThreatPanel(guildConfig, guildName) {
     const isActive = guildConfig.superThreatMode || false;
 
-    const headerText = `# <:dnd:1473370101427343403> Super Threat Mode\n-# Maximum lockdown for **${guildName}**`;
+    const headerText = `# <:Toggleoff:1473038582813032590> Super Threat Mode\n-# Maximum lockdown for **${guildName}**`;
 
     const statusText = isActive
         ? `<:dnd:1473370101427343403> **SUPER THREAT MODE ACTIVE**\nZero tolerance — all protections at maximum, action: \`ban\``
@@ -61,7 +61,7 @@ function buildSuperThreatPanel(guildConfig, guildName) {
                 .setCustomId('superthreat_toggle')
                 .setLabel(isActive ? 'Disable Super Threat Mode' : 'Enable Super Threat Mode')
                 .setStyle(isActive ? ButtonStyle.Success : ButtonStyle.Danger)
-                .setEmoji(isActive ? '<:online:1473369837245042762>' : '<:dnd:1473370101427343403>')
+                .setEmoji(isActive ? '<:online:1473369837245042762>' : '<:Toggleoff:1473038582813032590>')
         );
 
     const container = new ContainerBuilder()

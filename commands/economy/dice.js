@@ -98,7 +98,7 @@ module.exports = {
     description: 'Roll dice — higher roll wins (max 100k bet)',
     usage: 'dice <amount> [@opponent]',
     category: 'economy',
-    aliases: ['roll', 'diceroll'],
+    aliases: ['diceroll'],
 
     async execute(interaction) {
         if (await gamblingGuard(interaction)) return;

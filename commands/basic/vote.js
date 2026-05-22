@@ -10,7 +10,7 @@ function buildVoteResponse(client) {
                 `# <:Fire:1473038604812161218> Vote for Nico!\n\n` +
                 `Support **Nico** by voting on both platforms! Your vote helps us grow and improve.\n\n` +
                 `<:Present:1473038450465706076> **Rewards:** Get special perks for voting!\n` +
-                `<:Heartalt:1473038488893526016> **Support:** Your vote helps us reach more servers\n` +
+                `<:Heart:1473038659514007616> **Support:** Your vote helps us reach more servers\n` +
                 `<:Lightningalt:1473038817673085010> **Streak:** Vote daily to build your streak!`
             )
         )

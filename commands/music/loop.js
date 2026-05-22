@@ -30,7 +30,7 @@ module.exports = {
     description: 'Cycle or set the loop/repeat mode',
     usage: 'loop [off|track|queue]',
     category: 'music',
-    aliases: ['lp', 'rp', 'repeat'],
+    aliases: ['lp', 'rp'],
 
     data: new SlashCommandBuilder()
         .setName('loop')

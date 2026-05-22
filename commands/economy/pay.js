@@ -126,7 +126,7 @@ module.exports = {
         .addIntegerOption(o => o.setName('amount').setDescription('Amount to pay').setRequired(true).setMinValue(1)),
     name: 'pay',
     prefix: 'pay',
-    aliases: ['give', 'transfer'],
+    aliases: ['transfer'],
     category: 'economy',
 
     /* ---------- SLASH ---------- */

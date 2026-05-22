@@ -117,7 +117,7 @@ module.exports = {
     description: 'Spin the multiplier wheel — 0x to 5x payout (max 100k)',
     usage: 'gamble <amount>',
     category: 'economy',
-    aliases: ['bet', 'spin'],
+    aliases: ['bet'],
 
     async execute(interaction) {
         // Honour the per-guild "Gambling enabled" toggle from the dashboard.

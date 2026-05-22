@@ -60,7 +60,7 @@ function generateCaptcha(preferredType = 'random') {
             { emojis: '🐶🐱🐭🐹🐰', animal: 'dog', emoji: '🐶' },
             { emojis: '🚗🚕🚙🚌🚎', vehicle: 'car', emoji: '🚗' },
             { emojis: '⚽🏀🏈⚾🎾', sport: 'soccer', emoji: '⚽' },
-            { emojis: '<:Heartalt:1473038488893526016>💙💚💛🧡', color: 'red', emoji: '<:Heartalt:1473038488893526016>' }
+            { emojis: '<:Heart:1473038659514007616>💙💚💛🧡', color: 'red', emoji: '<:Heart:1473038659514007616>' }
         ];
         
         const set = emojiSets[Math.floor(Math.random() * emojiSets.length)];

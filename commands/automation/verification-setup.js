@@ -450,7 +450,7 @@ module.exports = {
                         .setAccentColor(0xED4245)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
-                                `# <:Cancel:1473037949187657818> Verification System Disabled\n\n` +
+                                `# <:Toggleoff:1473038582813032590> Verification System Disabled\n\n` +
                                 `The verification system has been disabled and channel permissions have been reverted.\n\n` +
                                 `### <:Settings:1473037894703779851> Permissions Reverted\n` +
                                 `**Channels Restored:** ${revertedCount} channels made visible to \`@everyone\`\n` +
@@ -473,7 +473,7 @@ module.exports = {
                         .setAccentColor(0xED4245)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
-                                `# <:Cancel:1473037949187657818> Verification System Disabled\n\n` +
+                                `# <:Toggleoff:1473038582813032590> Verification System Disabled\n\n` +
                                 `The verification system has been disabled for this server.\n\n` +
                                 `### <:Infotriangle:1473038460456800459> Important Notes\n` +
                                 `• New members will no longer need to complete captcha verification\n` +

@@ -51,11 +51,11 @@ module.exports = {
                 const activeProtections = ['banProtection', 'kickProtection', 'channelDelete', 'channelCreate', 'roleDelete', 'roleCreate', 'webhookCreate', 'botAdd']
                     .filter(k => antinuke[k]?.enabled).length;
                 if (activeProtections >= 6) score += 5;
-                checks.push(`<:Checkedbox:1473038547165384804> **Antinuke** — Active (${activeProtections}/8 protections)`);
+                checks.push(`<:Toggleon:1473038585501581312> **Antinuke** — Active (${activeProtections}/8 protections)`);
                 if (activeProtections < 6) recommendations.push('Enable all antinuke protections for full coverage');
                 if (!antinuke.logChannel) recommendations.push('Set an antinuke log channel for audit trail');
             } else {
-                checks.push(`<:Cancel:1473037949187657818> **Antinuke** — Disabled`);
+                checks.push(`<:Toggleoff:1473038582813032590> **Antinuke** — Disabled`);
                 recommendations.push('**Enable antinuke** — protects against mass bans, kicks, channel/role deletion');
             }
 
@@ -66,10 +66,10 @@ module.exports = {
                 const activeModules = ['joinRate', 'accountAge', 'autoLockdown', 'suspiciousPatterns']
                     .filter(k => antiraid[k]?.enabled).length;
                 if (activeModules >= 3) score += 5;
-                checks.push(`<:Checkedbox:1473038547165384804> **Antiraid** — Active (${activeModules}/4 modules)`);
+                checks.push(`<:Toggleon:1473038585501581312> **Antiraid** — Active (${activeModules}/4 modules)`);
                 if (!antiraid.logChannel) recommendations.push('Set an antiraid log channel');
             } else {
-                checks.push(`<:Cancel:1473037949187657818> **Antiraid** — Disabled`);
+                checks.push(`<:Toggleoff:1473038582813032590> **Antiraid** — Disabled`);
                 recommendations.push('**Enable antiraid** — protects against coordinated raid attacks');
             }
 
@@ -89,9 +89,9 @@ module.exports = {
                 ];
                 const features = featureChecks.filter(Boolean).length;
                 if (features >= 3) score += 5;
-                checks.push(`<:Checkedbox:1473038547165384804> **Automod** — Active (${features}/${featureChecks.length} filters on)`);
+                checks.push(`<:Toggleon:1473038585501581312> **Automod** — Active (${features}/${featureChecks.length} filters on)`);
             } else {
-                checks.push(`<:Cancel:1473037949187657818> **Automod** — Disabled`);
+                checks.push(`<:Toggleoff:1473038582813032590> **Automod** — Disabled`);
                 recommendations.push('**Enable automod** — filters invites, links, spam, and mass mentions');
             }
 
@@ -99,9 +99,9 @@ module.exports = {
             maxScore += 10;
             if (antialt?.enabled) {
                 score += 10;
-                checks.push(`<:Checkedbox:1473038547165384804> **Anti-Alt** — Active (min age: ${antialt.minAge || 7} days)`);
+                checks.push(`<:Toggleon:1473038585501581312> **Anti-Alt** — Active (min age: ${antialt.minAge || 7} days)`);
             } else {
-                checks.push(`<:Cancel:1473037949187657818> **Anti-Alt** — Disabled`);
+                checks.push(`<:Toggleoff:1473038582813032590> **Anti-Alt** — Disabled`);
                 recommendations.push('**Enable anti-alt** — blocks newly made accounts used for raids');
             }
 
@@ -114,14 +114,14 @@ module.exports = {
                 score += 10;
                 const limit = standaloneSpam.maxMessages || antispam.maxMessages || 5;
                 const interval = (standaloneSpam.interval || antispam.interval || 5000) / 1000;
-                checks.push(`<:Checkedbox:1473038547165384804> **Anti-Spam** — Active (${limit} msg/${interval}s)`);
+                checks.push(`<:Toggleon:1473038585501581312> **Anti-Spam** — Active (${limit} msg/${interval}s)`);
             } else if (automodSpamEnabled) {
                 score += 10;
                 const spamLimit = automod.spam?.messageLimit || 5;
                 const spamWindow = (automod.spam?.timeWindow || 5000) / 1000;
-                checks.push(`<:Checkedbox:1473038547165384804> **Anti-Spam** — Active via AutoMod (${spamLimit} msg/${spamWindow}s)`);
+                checks.push(`<:Toggleon:1473038585501581312> **Anti-Spam** — Active via AutoMod (${spamLimit} msg/${spamWindow}s)`);
             } else {
-                checks.push(`<:Cancel:1473037949187657818> **Anti-Spam** — Disabled`);
+                checks.push(`<:Toggleoff:1473038582813032590> **Anti-Spam** — Disabled`);
                 recommendations.push('**Enable antispam** — prevents message flooding (`/antispam enable`)');
             }
 
@@ -146,9 +146,9 @@ module.exports = {
             maxScore += 5;
             if (verification?.enabled) {
                 score += 5;
-                checks.push(`<:Checkedbox:1473038547165384804> **Verification** — Active`);
+                checks.push(`<:Toggleon:1473038585501581312> **Verification** — Active`);
             } else {
-                checks.push(`<:Cancel:1473037949187657818> **Verification** — Disabled`);
+                checks.push(`<:Toggleoff:1473038582813032590> **Verification** — Disabled`);
                 recommendations.push('Consider enabling verification for new members');
             }
 

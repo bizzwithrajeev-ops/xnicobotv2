@@ -20,13 +20,13 @@ async function handleDeposit(reply, userId, args) {
     if (amount === undefined || amount === null || isNaN(amount) || amount <= 0) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            '# 🏦 Deposit',
+            '# <:Invoice:1473039492217835550> Deposit',
             '',
             '**Usage:** `deposit <amount | all>`',
             '',
             '**Your Balances:**',
             `<:Money:1473377877239140529> Wallet: ${formatNumber(userData.coins)} coins`,
-            `🏦 Bank: ${formatNumber(userData.bank)} coins`,
+            `<:Invoice:1473039492217835550> Bank: ${formatNumber(userData.bank)} coins`,
             '',
             '**Examples:**',
             '`deposit 500`',
@@ -47,7 +47,7 @@ async function handleDeposit(reply, userId, args) {
 
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-        '# 🏦 Deposit Successful',
+        '# <:Invoice:1473039492217835550> Deposit Successful',
         '',
         `<:Checkedbox:1473038547165384804> Deposited **${formatNumber(amount)}** coins.`,
     ].join('\n'));
@@ -57,7 +57,7 @@ async function handleDeposit(reply, userId, args) {
     addTextDisplay(container, [
         '**New Balances:**',
         `<:Money:1473377877239140529> Wallet: ${formatNumber(userData.coins)} coins`,
-        `🏦 Bank: ${formatNumber(userData.bank)} coins`,
+        `<:Invoice:1473039492217835550> Bank: ${formatNumber(userData.bank)} coins`,
         `<:Invoice:1473039492217835550> **Total:** ${formatNumber(userData.coins + userData.bank)} coins`,
     ].join('\n'));
 

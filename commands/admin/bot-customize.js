@@ -796,7 +796,7 @@ module.exports = {
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
             } catch (updateErr) {
                 await interaction.reply({ 
-                    content: `<:Checkedbox:1473038547165384804> Delete Commands: **${guildConfig.deleteCommands ? 'Enabled' : 'Disabled'}**`, 
+                    content: `<:Toggleon:1473038585501581312> Delete Commands: **${guildConfig.deleteCommands ? 'Enabled' : 'Disabled'}**`, 
                     flags: MessageFlags.Ephemeral 
                 }).catch(() => {});
             }
@@ -813,7 +813,7 @@ module.exports = {
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
             } catch (updateErr) {
                 await interaction.reply({ 
-                    content: `<:Checkedbox:1473038547165384804> Ephemeral Responses: **${guildConfig.ephemeralResponses ? 'Enabled' : 'Disabled'}**`, 
+                    content: `<:Toggleon:1473038585501581312> Ephemeral Responses: **${guildConfig.ephemeralResponses ? 'Enabled' : 'Disabled'}**`, 
                     flags: MessageFlags.Ephemeral 
                 }).catch(() => {});
             }

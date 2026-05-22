@@ -98,7 +98,7 @@ module.exports = {
                     .setAccentColor(0xED4245)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
-                            `# <:Cancel:1473037949187657818> Starboard Disabled\n\n` +
+                            `# <:Toggleoff:1473038582813032590> Starboard Disabled\n\n` +
                             `The starboard has been disabled for this server.\n\n` +
                             `*Use \`-starboard #channel\` to re-enable it.*`
                         )

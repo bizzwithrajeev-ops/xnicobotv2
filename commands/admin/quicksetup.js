@@ -216,7 +216,7 @@ function buildPanel(session, guildName) {
         ? `<:online:1473369837245042762> **All ${totalSystems} systems selected** — Ready to deploy`
         : enabledCount === 0
             ? `<:idle:1473370085719863366> **No systems selected** — Select systems below`
-            : `<:dnd:1473370101427343403> **${enabledCount}/${totalSystems} systems selected**`;
+            : `<:Toggleoff:1473038582813032590> **${enabledCount}/${totalSystems} systems selected**`;
 
     // Systems list with toggle state
     let systemsText = '### <:Document:1473039496995143731> Protection Systems\n';
@@ -326,7 +326,7 @@ function buildResultPanel(results, session, guildName) {
 
     const statusText = failCount === 0
         ? `<:online:1473369837245042762> **${successCount} system${successCount !== 1 ? 's' : ''} enabled** • ${disabledSystems.length} kept disabled — Setup complete`
-        : `<:dnd:1473370101427343403> **${successCount} enabled, ${failCount} failed** — Check bot permissions`;
+        : `<:Toggleoff:1473038582813032590> **${successCount} enabled, ${failCount} failed** — Check bot permissions`;
 
     // Enabled systems
     let enabledText = '### <:Toggleon:1473038585501581312> Enabled Systems\n';

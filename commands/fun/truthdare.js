@@ -82,7 +82,7 @@ module.exports = {
             .setDescription('Truth or Dare?')
             .addChoices(
                 { name: '💙 Truth', value: 'truth' },
-                { name: '🔥 Dare', value: 'dare' },
+                { name: '<:Fire:1473038604812161218> Dare', value: 'dare' },
                 { name: '🎲 Random', value: 'random' }
             )
             .setRequired(false)),
@@ -91,7 +91,7 @@ module.exports = {
     description: 'Play Truth or Dare',
     usage: 'truthdare [truth|dare]',
     category: 'fun',
-    aliases: ['tod', 'truth', 'dare', 'truthordare'],
+    aliases: [],
 
     async execute(interaction) {
         let type = interaction.options.getString('type') || 'random';

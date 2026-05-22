@@ -7,7 +7,7 @@ module.exports = {
     description: 'Remove the second owner from this guild',
     usage: 'removeowner',
     category: 'admin',
-    aliases: ['remove-owner', 'delowner'],
+    aliases: ['delowner'],
 
     async executePrefix(message) {
         if (!trust.isGuildOwner(message.guild, message.author.id)) {

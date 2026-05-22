@@ -20,7 +20,7 @@ module.exports = {
     description: 'Spotify status viewing is no longer available',
     usage: 'spotify',
     category: 'utility',
-    aliases: ['sp'],
+    aliases: [],
 
     data: new SlashCommandBuilder()
         .setName('spotify')

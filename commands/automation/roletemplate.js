@@ -66,7 +66,7 @@ const TEMPLATES = {
             { name: '🧒 Under 13',  color: '#73C6B6', emoji: '🧒' },
             { name: '🧑 13-15',     color: '#85C1E9', emoji: '🧑' },
             { name: '🧑 16-17',     color: '#A29BFE', emoji: '🎓' },
-            { name: '🧑 18-20',     color: '#FDCB6E', emoji: '🔥' },
+            { name: '🧑 18-20',     color: '#FDCB6E', emoji: '<:Fire:1473038604812161218>' },
             { name: '🧑 21-25',     color: '#E17055', emoji: '☕' },
             { name: '🧑 26+',       color: '#D63031', emoji: '🎩' }
         ]

@@ -246,7 +246,7 @@ module.exports = {
                     .setAccentColor(0xED4245)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
-                            `# <:Cancel:1473037949187657818> All Logging Disabled\n\n` +
+                            `# <:Toggleoff:1473038582813032590> All Logging Disabled\n\n` +
                             `All logging has been disabled for this server.\n\n` +
                             `No events will be logged until you configure logging channels again.\n\n` +
                             `*Use \`/logging set-all #channel\` to quickly re-enable all logging*`
@@ -265,7 +265,7 @@ module.exports = {
                         .setAccentColor(0xED4245)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
-                                `# <:Cancel:1473037949187657818> ${info.name} Logging Disabled\n\n` +
+                                `# <:Toggleoff:1473038582813032590> ${info.name} Logging Disabled\n\n` +
                                 `${info.emoji} **${info.name} Logs** have been disabled.\n\n` +
                                 `Events related to ${info.desc} will no longer be logged.\n\n` +
                                 `*Use \`/logging set-${type} #channel\` to re-enable*`
@@ -393,7 +393,7 @@ module.exports = {
                     .setAccentColor(0xED4245)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
-                            `# <:Cancel:1473037949187657818> All Logging Disabled\n\n` +
+                            `# <:Toggleoff:1473038582813032590> All Logging Disabled\n\n` +
                             `All logging has been disabled for this server.`
                         )
                     )
@@ -412,7 +412,7 @@ module.exports = {
                         .setAccentColor(0xED4245)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
-                                `# <:Cancel:1473037949187657818> ${logTypeNames[type].name} Logging Disabled`
+                                `# <:Toggleoff:1473038582813032590> ${logTypeNames[type].name} Logging Disabled`
                             )
                         )
                         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))

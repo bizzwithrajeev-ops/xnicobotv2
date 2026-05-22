@@ -61,7 +61,7 @@ function buildMainPanel(guildConfig, guild) {
     content += `Track member invites, reward top inviters, and monitor server growth with comprehensive analytics.\n\n`;
     
     content += `### <:Bookopen:1473038576391557130> Current Configuration\n`;
-    content += `**Status:** ${enabled ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550928282419302> Disabled'}\n`;
+    content += `**Status:** ${enabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n`;
     content += `**Log Channel:** ${logChannel ? `<#${logChannel.id}>` : '*Not configured*'}\n`;
     content += `**Reward Roles:** ${rewards.length} configured\n\n`;
     
@@ -120,7 +120,7 @@ function createControlRow(guildConfig) {
                 .setCustomId('invite_toggle')
                 .setLabel(guildConfig.enabled ? 'Disable Tracking' : 'Enable Tracking')
                 .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(guildConfig.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('invite_channel')
                 .setLabel('Log Channel')

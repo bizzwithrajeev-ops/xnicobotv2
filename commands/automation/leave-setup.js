@@ -54,7 +54,7 @@ module.exports = {
                     .setCustomId('welcomer_leave_toggle')
                     .setLabel(guildConfig.leaveEnabled ? 'Disable' : 'Enable')
                     .setStyle(guildConfig.leaveEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                    .setEmoji(guildConfig.leaveEnabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                    .setEmoji(guildConfig.leaveEnabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
                 new ButtonBuilder()
                     .setCustomId('leave_preview')
                     .setLabel('Preview')
@@ -73,7 +73,7 @@ module.exports = {
                         `# <:Userplus:1473038912212435086> Leave Message System\n\n` +
                         `Send automatic goodbye messages when members leave your server.\n\n` +
                         `### <:Bookopen:1473038576391557130> Current Configuration\n` +
-                        `**Status:** ${guildConfig.leaveEnabled ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550928282419302> Disabled'}\n` +
+                        `**Status:** ${guildConfig.leaveEnabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n` +
                         `**Channel:** ${guildConfig.leaveChannelId ? `<#${guildConfig.leaveChannelId}>` : '*Not set (will use welcome channel)*'}\n` +
                         `**Message:** \`${previewMsg}\`\n\n` +
                         `### <:Chat:1473038936241864865> How to Use\n` +

@@ -2095,11 +2095,11 @@ app.get('/api/commands', authMiddleware, (req, res) => {
             { name: 'Voice', count: 21, icon: '🔊', desc: 'Join-to-create, voice roles' },
             { name: 'Image', count: 15, icon: '🖼️', desc: 'Blur, greyscale, rotate, deepfry, sepia' },
             { name: 'Leveling', count: 12, icon: '📈', desc: 'XP, rank cards, level roles' },
-            { name: 'Backup', count: 12, icon: '💾', desc: 'Config & server structure backups' },
+            { name: 'Backup', count: 12, icon: '<:Save:1473038120030306386>', desc: 'Config & server structure backups' },
             { name: 'Action', count: 25, icon: '🎭', desc: 'Roleplay action commands' },
             { name: 'Social', count: 7, icon: '💬', desc: 'Profiles, badges, marriage' },
             { name: 'Webhook', count: 6, icon: '🔗', desc: 'Create, send, manage webhooks' },
-            { name: 'Stats', count: 11, icon: '📊', desc: 'Server stats channels' }
+            { name: 'Stats', count: 11, icon: '<:transfer:1479780506718437396>', desc: 'Server stats channels' }
         ], totalCommands: 535
     });
 });

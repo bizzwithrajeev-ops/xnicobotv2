@@ -7,7 +7,7 @@ module.exports = {
     description: 'Assign a user as the second owner of the guild',
     usage: 'add-owner <@user|userId>',
     category: 'admin',
-    aliases: ['setowner', 'secondowner'],
+    aliases: ['setowner'],
 
     async executePrefix(message, args) {
         if (!trust.isGuildOwner(message.guild, message.author.id)) {

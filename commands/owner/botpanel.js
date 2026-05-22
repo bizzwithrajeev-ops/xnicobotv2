@@ -549,7 +549,7 @@ function buildRotationSettingsPanel(client) {
     } else {
         activities.forEach((act, i) => {
             const isIncluded = settings[i] !== false;
-            content += `> ${isIncluded ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} ${act.type}: ${act.text}\n`;
+            content += `> ${isIncluded ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} ${act.type}: ${act.text}\n`;
         });
     }
 
@@ -766,7 +766,7 @@ function buildVariablesPanel(client) {
     content += `### <:Edit:1473037903625191580> Example Usage\n`;
     content += `> \`Watching {members} members\`\n`;
     content += `> \`Playing in {guilds} servers\`\n`;
-    content += `> \`🔥 {boosts} boosts | {online} online\``;
+    content += `> \`<:Fire:1473038604812161218> {boosts} boosts | {online} online\``;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));

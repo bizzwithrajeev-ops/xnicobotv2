@@ -21,7 +21,7 @@ async function handleBalance(reply, targetUser) {
         `### <:User:1473038971398520977> ${targetUser.username}`,
         '',
         `> <:Money:1473377877239140529> **Wallet:** ${formatNumber(wallet)} coins`,
-        `> 🏦 **Bank:** ${formatNumber(bank)} coins`,
+        `> <:Invoice:1473039492217835550> **Bank:** ${formatNumber(bank)} coins`,
     ].join('\n'));
 
     addSeparator(container, SeparatorSpacingSize.Small);

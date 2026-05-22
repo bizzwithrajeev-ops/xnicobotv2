@@ -295,7 +295,7 @@ module.exports = {
             const chId = config.channelMap?.[key];
             const ch = chId ? guild.channels.cache.get(chId) : null;
             const val = stats[key] ?? 0;
-            const status = ch ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+            const status = ch ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
             return `${status} **${STAT_TYPES[key]?.label || key}** — ${val.toLocaleString()} ${ch ? '' : '*(channel missing)*'}`;
         }).join('\n');
 

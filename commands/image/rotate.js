@@ -30,7 +30,7 @@ module.exports = {
     description: 'Rotate an image',
     usage: 'rotate [degrees] [image|@user|url]',
     category: 'image',
-    aliases: ['spin', 'turn'],
+    aliases: ['turn'],
 
     async execute(interaction) {
         if (!isImageApiConfigured()) return interaction.reply({ content: getUnavailableMessage(), flags: MessageFlags.Ephemeral });

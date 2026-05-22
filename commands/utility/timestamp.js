@@ -6,7 +6,7 @@ module.exports = {
     description: 'Generate Discord timestamp formats',
     usage: 'timestamp [date/time or "now"]',
     category: 'utility',
-    aliases: ['ts', 'time'],
+    aliases: ['ts'],
 
     async executePrefix(message, args) {
         const timeInput = args.join(' ') || 'now';

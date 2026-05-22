@@ -159,7 +159,7 @@ module.exports = {
             const stats = node.stats || {};
 
             let content = `# 🧪 Node Test: ${id}\n\n` +
-                `**<:Invoice:1473039492217835550> Status:** ${isConnected ? '<:online:1455550955679387743> Connected' : '<:offline:1455550933508333662> Disconnected'}\n` +
+                `**<:Invoice:1473039492217835550> Status:** ${isConnected ? '<:online:1485248286653943900> Connected' : '<:offline:1455550933508333662> Disconnected'}\n` +
                 `**<:Bookopen:1473038576391557130> Host:** \`${node.options?.host || 'Unknown'}:${node.options?.port || 'Unknown'}\`\n` +
                 `**<:Lock:1473038513749491773> Secure:** ${node.options?.secure ? 'Yes' : 'No'}\n` +
                 `**<:Fileuser:1473039570630348810> Session ID:** \`${node.sessionId || 'N/A'}\`\n` +

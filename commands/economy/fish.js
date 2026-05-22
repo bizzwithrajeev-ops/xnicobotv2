@@ -99,7 +99,7 @@ async function handleFish(reply, userId) {
 
   addTextDisplay(container, [
     `> <:Money:1473377877239140529> **+${formatNumber(value)}** coins`,
-    `> 📊 **+${xpGain}** XP`,
+    `> <:transfer:1479780506718437396> **+${xpGain}** XP`,
     `> 🎣 Rod: **${RODS[rodLevel]}**`,
     `> <:Invoice:1473039492217835550> Total Fish: **${userData.fishCaught}**`,
     '',

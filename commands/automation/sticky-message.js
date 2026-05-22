@@ -64,7 +64,7 @@ function errorContainer(text) {
 }
 
 function buildStickyHelpText(guildConfig) {
-    const status = guildConfig.enabled ? '<:online:1455550955679387743> **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+    const status = guildConfig.enabled ? '<:online:1485248286653943900> **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
     const count = Object.keys(guildConfig.messages || {}).length;
 
     return `## <:Pin:1473038806612447500> Sticky Message System\n\n` +
@@ -134,7 +134,7 @@ function buildPanelButtons(guildConfig) {
                 .setCustomId('sticky_toggle')
                 .setLabel(guildConfig.enabled ? 'Disable' : 'Enable')
                 .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(guildConfig.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('sticky_list')
                 .setLabel('List All')
@@ -319,7 +319,7 @@ module.exports = {
         }
 
         let text = `## <:Pin:1473038806612447500> Active Sticky Messages\n\n`;
-        text += `**Status:** ${guildConfig.enabled ? '<:online:1455550955679387743> Enabled' : '<:dnd:1473370101427343403> Disabled'}\n\n`;
+        text += `**Status:** ${guildConfig.enabled ? '<:online:1485248286653943900> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
 
         for (const [channelId, data] of list) {
             const ch = interaction.guild.channels.cache.get(channelId);
@@ -341,7 +341,7 @@ module.exports = {
         const container = new ContainerBuilder()
             .setAccentColor(color)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### ${guildConfig.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} Sticky Messages ${guildConfig.enabled ? 'Enabled' : 'Disabled'}\nThe system is now **${guildConfig.enabled ? 'active' : 'inactive'}**.`
+                `### ${guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} Sticky Messages ${guildConfig.enabled ? 'Enabled' : 'Disabled'}\nThe system is now **${guildConfig.enabled ? 'active' : 'inactive'}**.`
             ));
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -390,7 +390,7 @@ module.exports = {
         if (sub === 'toggle') {
             guildConfig.enabled = !guildConfig.enabled;
             saveConfig(config);
-            return message.reply({ components: [successContainer(`### ${guildConfig.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} Sticky Messages ${guildConfig.enabled ? 'Enabled' : 'Disabled'}`)], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [successContainer(`### ${guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} Sticky Messages ${guildConfig.enabled ? 'Enabled' : 'Disabled'}`)], flags: MessageFlags.IsComponentsV2 });
         }
 
         if (sub === 'list') {

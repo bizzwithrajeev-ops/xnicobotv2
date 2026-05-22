@@ -26,7 +26,7 @@ const E = {
     award:     '<:Award:1473038391632203887>',
     caret:     '<:Caretright:1473038207221502106>',
     sketch:    '<:Sketch:1473038248493453352>',
-    online:    '<:online:1455550955679387743>',
+    online:    '<:online:1485248286653943900>',
     offline:   '<:offline:1455550933508333662>',
     book:      '<:Bookopen:1473038576391557130>',
     star:      '<:Star:1473038501766369300>',

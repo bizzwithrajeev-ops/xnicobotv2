@@ -137,10 +137,10 @@ module.exports = {
                 : 'None';
 
             const serverWideStatus = guildConfig
-                ? (guildConfig.serverWide ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>')
+                ? (guildConfig.serverWide ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>')
                 : 'N/A (DMs)';
             const multiStatus = guildConfig
-                ? (guildConfig.multiCommand ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>')
+                ? (guildConfig.multiCommand ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>')
                 : 'N/A (DMs)';
 
             const container = new ContainerBuilder().addTextDisplayComponents(

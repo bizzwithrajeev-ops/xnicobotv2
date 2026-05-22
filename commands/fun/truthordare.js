@@ -78,7 +78,7 @@ module.exports = {
     prefix: 'truthordare',
     description: 'Play Truth or Dare - get a random challenge!',
     usage: 'truthordare <truth|dare>',
-    category: 'games',
+    category: 'fun',
     aliases: ['tod', 'truth', 'dare'],
 
     async execute(interaction) {

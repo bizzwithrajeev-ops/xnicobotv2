@@ -87,7 +87,7 @@ module.exports = {
         `# <:Sketch:1473038248493453352> ${target.username}'s Economy Profile`,
         ``,
         `> <:Money:1473377877239140529> **Wallet:** ${economyManager.formatNumber(wallet)}`,
-        `> 🏦 **Bank:** ${economyManager.formatNumber(bank)}`,
+        `> <:Invoice:1473039492217835550> **Bank:** ${economyManager.formatNumber(bank)}`,
         `> <:Sketch:1473038248493453352> **Total:** ${economyManager.formatNumber(total)}`,
         ``,
         `> <:Invoice:1473039492217835550> **Level:** ${level} (${xp}/${xpNeeded} XP)`,

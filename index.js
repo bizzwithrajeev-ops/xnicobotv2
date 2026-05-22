@@ -3381,7 +3381,7 @@ client.on('interactionCreate', async (interaction) => {
                         }
                     } else {
                         // Build standard response with Components V2 summary
-                        let statusEmoji = successCount > 0 ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+                        let statusEmoji = successCount > 0 ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
                         let content = `# ${statusEmoji} Button Actions Complete\n\n`;
 
                         if (btnData.actions.length > 0) {
@@ -4927,7 +4927,7 @@ client.on('interactionCreate', async (interaction) => {
 
                         const newState = !wasEnabled;
                         let content = `# <:Fire:1473038604812161218> Leveling System\n\n`;
-                        content += `**Status:** ${newState ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550928282419302> Disabled'}\n\n`;
+                        content += `**Status:** ${newState ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
                         content += `### <:Document:1473039496995143731> Available Commands\n`;
                         content += `> \`-toggleleveling on\` — Enable leveling system\n`;
                         content += `> \`-toggleleveling off\` — Disable leveling system\n`;
@@ -4950,7 +4950,7 @@ client.on('interactionCreate', async (interaction) => {
                                         .setCustomId('toggleleveling_toggle')
                                         .setLabel(newState ? 'Disable' : 'Enable')
                                         .setStyle(newState ? ButtonStyle.Danger : ButtonStyle.Success)
-                                        .setEmoji(newState ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>')
+                                        .setEmoji(newState ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>')
                                 )
                             );
 
@@ -5979,7 +5979,7 @@ client.on('interactionCreate', async (interaction) => {
                         }
                     } else {
                         // Build standard response with Components V2 summary
-                        let statusEmoji = successCount > 0 ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+                        let statusEmoji = successCount > 0 ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
                         let content = `# ${statusEmoji} Selection Complete\n\n`;
                         content += `**Selected:** ${selectedValues.join(', ')}\n`;
                         content += `**Results:** ${successCount} successful, ${errorCount} failed\n\n`;

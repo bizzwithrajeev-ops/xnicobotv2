@@ -44,7 +44,7 @@ function isAuthorised(guild, userId, guildConfig) {
 
 function buildPanel(guildConfig, guildName) {
     const statusEmoji = guildConfig.enabled
-        ? '<:dnd:1473370101427343403>'
+        ? '<:Toggleoff:1473038582813032590>'
         : '<:online:1473369837245042762>';
     const statusText = guildConfig.enabled
         ? '**EMERGENCY MODE ACTIVE** — Server is locked down'
@@ -172,7 +172,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0xED4245)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <:dnd:1473370101427343403> Emergency Mode Activated\n\n` +
+                    `# <:Toggleoff:1473038582813032590> Emergency Mode Activated\n\n` +
                     `<:Checkedbox:1473038547165384804> Stripped permissions from **${stripped}** roles\n` +
                     `<:Checkedbox:1473038547165384804> Dangerous permissions removed\n` +
                     `<:Checkedbox:1473038547165384804> Original permissions saved for restoration\n\n` +

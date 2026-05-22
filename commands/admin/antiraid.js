@@ -48,7 +48,7 @@ function getDefaultConfig() {
 }
 
 function buildAntiraidPanel(guildConfig) {
-    const statusEmoji = guildConfig.enabled ? '<:online:1473369837245042762>' : '<:dnd:1473370101427343403>';
+    const statusEmoji = guildConfig.enabled ? '<:online:1473369837245042762>' : '<:Toggleoff:1473038582813032590>';
     const logChannel = guildConfig.logChannel ? `<#${guildConfig.logChannel}>` : '*Not configured*';
     const bypassRole = guildConfig.bypassRoleId ? `<@&${guildConfig.bypassRoleId}>` : '*None*';
 
@@ -58,10 +58,10 @@ function buildAntiraidPanel(guildConfig) {
         : '*None*';
 
     const protectionStatus = [
-        `${guildConfig.joinRate?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} **Join Rate Limit** — \`${guildConfig.joinRate?.limit || 10} joins/${(guildConfig.joinRate?.timeWindow || 10000) / 1000}s\` → \`${guildConfig.joinRate?.action || 'kick'}\``,
-        `${guildConfig.accountAge?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} **Account Age Check** — Min: \`${guildConfig.accountAge?.minDays || 7} days\` → \`${guildConfig.accountAge?.action || 'kick'}\``,
-        `${guildConfig.autoLockdown?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} **Auto Lockdown** — After \`${guildConfig.autoLockdown?.threshold || 15}\` violations → Lock for \`${(guildConfig.autoLockdown?.duration || 300000) / 60000}min\``,
-        `${guildConfig.suspiciousPatterns?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} **Suspicious Patterns** → \`${guildConfig.suspiciousPatterns?.action || 'kick'}\``,
+        `${guildConfig.joinRate?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Join Rate Limit** — \`${guildConfig.joinRate?.limit || 10} joins/${(guildConfig.joinRate?.timeWindow || 10000) / 1000}s\` → \`${guildConfig.joinRate?.action || 'kick'}\``,
+        `${guildConfig.accountAge?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Account Age Check** — Min: \`${guildConfig.accountAge?.minDays || 7} days\` → \`${guildConfig.accountAge?.action || 'kick'}\``,
+        `${guildConfig.autoLockdown?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Auto Lockdown** — After \`${guildConfig.autoLockdown?.threshold || 15}\` violations → Lock for \`${(guildConfig.autoLockdown?.duration || 300000) / 60000}min\``,
+        `${guildConfig.suspiciousPatterns?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Suspicious Patterns** → \`${guildConfig.suspiciousPatterns?.action || 'kick'}\``,
         ``,
         `**Bypass Role:** ${bypassRole}`,
         `**Log Channel:** ${logChannel}`,
@@ -109,7 +109,7 @@ function buildAntiraidPanel(guildConfig) {
                 .setCustomId('antiraid_toggle')
                 .setLabel(guildConfig.enabled ? 'Disable System' : 'Enable System')
                 .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(guildConfig.enabled ? '<:dnd:1473370101427343403>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Checkedbox:1473038547165384804>'),
             new ButtonBuilder()
                 .setCustomId('antiraid_enable_all')
                 .setLabel('Enable All')

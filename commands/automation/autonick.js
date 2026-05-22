@@ -64,7 +64,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> AutoNick Enabled\n\n` +
+                        `# <:Toggleon:1473038585501581312> AutoNick Enabled\n\n` +
                         `**Format:** ${format}\n` +
                         `**Example:** ${format.replace(/{user}/g, interaction.user.username)}\n\n` +
                         `**Set by:** ${interaction.user.username}`
@@ -82,7 +82,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> AutoNick Disabled\n\nAuto-nickname system has been disabled.`
+                        `# <:Toggleoff:1473038582813032590> AutoNick Disabled\n\nAuto-nickname system has been disabled.`
                     )
                 );
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -96,7 +96,7 @@ module.exports = {
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Folder:1473039340425973972> AutoNick Status\n\n` +
-                            `**Status:** <:offline:1455550928282419302> Disabled\n\n` +
+                            `**Status:** <:offline:1485248289690616041> Disabled\n\n` +
                             `Use \`/autonick setup\` to enable it.`
                         )
                     );
@@ -108,7 +108,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Folder:1473039340425973972> AutoNick Configuration\n\n` +
-                        `**Status:** <:online:1455550955679387743> Enabled\n` +
+                        `**Status:** <:online:1485248286653943900> Enabled\n` +
                         `**Format:** ${guildConfig.format}`
                     )
                 );
@@ -163,7 +163,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> AutoNick Enabled\n\n` +
+                        `# <:Toggleon:1473038585501581312> AutoNick Enabled\n\n` +
                         `**Format:** ${formatInput}\n` +
                         `**Example:** ${formatInput.replace(/{user}/g, message.author.username)}\n\n` +
                         `**Set by:** ${message.author.username}`
@@ -181,7 +181,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> AutoNick Disabled\n\nAuto-nickname system has been disabled.`
+                        `# <:Toggleoff:1473038582813032590> AutoNick Disabled\n\nAuto-nickname system has been disabled.`
                     )
                 );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -195,7 +195,7 @@ module.exports = {
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Folder:1473039340425973972> AutoNick Status\n\n` +
-                            `**Status:** <:offline:1455550928282419302> Disabled\n\n` +
+                            `**Status:** <:offline:1485248289690616041> Disabled\n\n` +
                             `Use \`-autonick setup <format>\` to enable it.`
                         )
                     );
@@ -207,7 +207,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Folder:1473039340425973972> AutoNick Configuration\n\n` +
-                        `**Status:** <:online:1455550955679387743> Enabled\n` +
+                        `**Status:** <:online:1485248286653943900> Enabled\n` +
                         `**Format:** ${guildConfig.format}`
                     )
                 );

@@ -66,7 +66,7 @@ function buildVoteStatsPanel(user, userData, clientId) {
         statsContent += `### <:Present:1473038450465706076> Rewards for Voting\n`;
         statsContent += `• <:Fire:1473038604812161218> Build a daily voting streak\n`;
         statsContent += `• <:Award:1473038391632203887> Earn the exclusive **Voter** badge on your profile\n`;
-        statsContent += `• <:Heartalt:1473038488893526016> Help the bot reach more servers\n\n`;
+        statsContent += `• <:Heart:1473038659514007616> Help the bot reach more servers\n\n`;
         statsContent += `-# Click below to cast your first vote!`;
     } else {
         const streak = userData.streak || 0;
@@ -124,7 +124,7 @@ function buildVoteStatsPanel(user, userData, clientId) {
             .setCustomId('voterem_toggle')
             .setLabel(remindersOn ? 'Disable Reminders' : 'Enable Reminders')
             .setStyle(remindersOn ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(remindersOn ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+            .setEmoji(remindersOn ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId('voterem_refresh')
             .setLabel('Refresh')

@@ -60,11 +60,11 @@ function buildBoosterPanel(guildConfig, guild) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-    const statusEmoji = guildConfig.enabled ? '<:online:1455550955679387743>' : '<:offline:1455550933508333662>';
+    const statusEmoji = guildConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
     const channelText = guildConfig.channel ? `<#${guildConfig.channel}>` : '`Not Set`';
     const boosterRoleText = guildConfig.boosterRole ? `<@&${guildConfig.boosterRole}>` : '`Discord Default`';
-    const dmEnabled = guildConfig.dmThankYou?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-    const unboostEnabled = guildConfig.unboostMessage?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const dmEnabled = guildConfig.dmThankYou?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+    const unboostEnabled = guildConfig.unboostMessage?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 
     let settingsText = '```ansi\n\u001b[1;35m╔══════════════════════════════════╗\n';
     settingsText += '\u001b[1;35m║     \u001b[1;37mBooster System Settings      \u001b[1;35m║\n';
@@ -165,8 +165,8 @@ function buildEmbedConfigPanel(guildConfig) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-    const useEmbed = embedConfig.embed ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-    const showThumb = embedConfig.embedThumbnail ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const useEmbed = embedConfig.embed ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+    const showThumb = embedConfig.embedThumbnail ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 
     let settingsText = '```ansi\n\u001b[1;37m Embed Settings\n';
     settingsText += '────────────────────────\n';

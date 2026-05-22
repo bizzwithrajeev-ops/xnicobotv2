@@ -228,7 +228,7 @@ module.exports = {
                 const roleName = role ? role.toString() : '~~Deleted Role~~';
                 content += `**${i + 1}.** \`${entry.text}\` → ${roleName}\n`;
             }
-            content += `\n-# ${guildConfig.entries.length} rule(s) • Status: ${guildConfig.enabled ? '<:online:1473369837245042762> Active' : '<:dnd:1473370101427343403> Paused'}`;
+            content += `\n-# ${guildConfig.entries.length} rule(s) • Status: ${guildConfig.enabled ? '<:online:1473369837245042762> Active' : '<:Toggleoff:1473038582813032590> Paused'}`;
 
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.CYAN)
@@ -292,7 +292,7 @@ module.exports = {
 
             let content = `# ${EMOJIS.SETTINGS} Status Role Configuration\n\n`;
             content += `### System Status\n`;
-            content += `> **Status:** ${guildConfig.enabled ? '<:online:1473369837245042762> Active' : '<:dnd:1473370101427343403> Paused'}\n`;
+            content += `> **Status:** ${guildConfig.enabled ? '<:online:1473369837245042762> Active' : '<:Toggleoff:1473038582813032590> Paused'}\n`;
             content += `> **Rules:** ${guildConfig.entries.length}\n\n`;
             content += `### Active Rules\n`;
             for (let i = 0; i < Math.min(guildConfig.entries.length, 10); i++) {

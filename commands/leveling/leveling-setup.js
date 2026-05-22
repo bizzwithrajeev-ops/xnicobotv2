@@ -55,7 +55,7 @@ function buildMainPanel(config, guild) {
     content += `Reward active members with XP, levels, and role rewards!\n\n`;
     
     content += `### <:Bookopen:1473038576391557130> Current Configuration\n`;
-    content += `**Status:** ${enabled ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550928282419302> Disabled'}\n`;
+    content += `**Status:** ${enabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n`;
     const announceCh = levelingConfig.announcementChannel || levelingConfig.announcements?.customChannelId;
     content += `**Announcement Channel:** ${announceCh ? `<#${announceCh}>` : '*Uses message channel*'}\n\n`;
     
@@ -65,7 +65,7 @@ function buildMainPanel(config, guild) {
     content += `**Multiplier:** ${levelingConfig.multiplier || 1}x\n\n`;
     
     content += `### <:Award:1473038391632203887> Role Rewards\n`;
-    content += `**Stack Roles:** ${levelingConfig.stackRoles ? '<:Checkedbox:1473038547165384804> Yes' : '<:Cancel:1473037949187657818> No'}\n`;
+    content += `**Stack Roles:** ${levelingConfig.stackRoles ? '<:Toggleon:1473038585501581312> Yes' : '<:Toggleoff:1473038582813032590> No'}\n`;
     content += `**Level Roles:** ${levelingConfig.roles?.length || 0} configured\n\n`;
     
     content += `### <:Commentblock:1473370739351490794> Exclusions\n`;
@@ -106,7 +106,7 @@ function createControlRow(levelingConfig) {
                 .setCustomId('leveling_toggle')
                 .setLabel(levelingConfig.enabled ? 'Disable' : 'Enable')
                 .setStyle(levelingConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(levelingConfig.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(levelingConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('leveling_channel')
                 .setLabel('Announcement Channel')

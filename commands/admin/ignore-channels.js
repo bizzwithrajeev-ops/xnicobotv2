@@ -89,7 +89,7 @@ function buildMainPanel(guildConfig, guild) {
     let headerContent = `# <:Commentblock:1473370739351490794> Ignore Channels System\n`;
     headerContent += `-# Disable bot commands in specific channels or categories\n\n`;
     headerContent += `### Current Status\n`;
-    headerContent += `> **System:** ${guildConfig.enabled ? '<:online:1473369837245042762> Enabled' : '<:dnd:1473370101427343403> Disabled'}\n`;
+    headerContent += `> **System:** ${guildConfig.enabled ? '<:online:1473369837245042762> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     headerContent += `> **Ignored Channels:** ${channelCount}\n`;
     headerContent += `> **Ignored Categories:** ${categoryCount}\n`;
     headerContent += `> **Bypass Roles:** ${bypassCount}\n`;
@@ -106,7 +106,7 @@ function buildMainPanel(guildConfig, guild) {
             .setCustomId('ignorech_toggle_system')
             .setLabel(guildConfig.enabled ? 'Disable System' : 'Enable System')
             .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(guildConfig.enabled ? '<:dnd:1473370101427343403>' : '<:online:1473369837245042762>'),
+            .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:online:1473369837245042762>'),
         new ButtonBuilder()
             .setCustomId('ignorech_view_channels')
             .setLabel('View Channels')
@@ -372,9 +372,9 @@ function buildSettingsPanel(guildConfig, guild) {
     const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
     
     let content = `# <:Settings:1473037894703779851> Ignore System Settings\n\n`;
-    content += `**Notify Users:** ${guildConfig.notifyUser ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
+    content += `**Notify Users:** ${guildConfig.notifyUser ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     content += `-# When enabled, users will see a message when their command is blocked\n\n`;
-    content += `**Allow Admins:** ${guildConfig.allowAdmins ? '<:Checkedbox:1473038547165384804> Yes' : '<:Cancel:1473037949187657818> No'}\n`;
+    content += `**Allow Admins:** ${guildConfig.allowAdmins ? '<:Toggleon:1473038585501581312> Yes' : '<:Toggleoff:1473038582813032590> No'}\n`;
     content += `-# Administrators can bypass ignored channels\n\n`;
     content += `**Custom Message:** ${guildConfig.customMessage ? '<:Checkedbox:1473038547165384804> Set' : '<:Cancel:1473037949187657818> Default'}\n`;
     content += `-# Custom message shown when commands are blocked`;

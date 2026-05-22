@@ -61,7 +61,7 @@ function buildPanelButtons(guildConfig) {
                 .setCustomId('autoreact_toggle')
                 .setLabel(guildConfig.enabled ? 'Disable' : 'Enable')
                 .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(guildConfig.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('autoreact_clear')
                 .setLabel('Clear All')
@@ -73,10 +73,10 @@ function buildPanelButtons(guildConfig) {
 }
 
 function buildPanelContent(guildConfig) {
-    const statusText = guildConfig.enabled ? '<:online:1455550955679387743>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+    const statusText = guildConfig.enabled ? '<:online:1485248286653943900>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
     const countText = `**Total Reactions:** ${guildConfig.reactions?.length || 0}`;
 
-    return `# 😄 Autoreact System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoreactions to automatically react when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Reaction** - Create a trigger → emoji reaction\n<:Bookopen:1473038576391557130> **List All** - View all configured reactions\n<:Trash:1473038090074591293> **Remove Reaction** - Delete a specific reaction\n\n**Controls:**\n${guildConfig.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'} **${guildConfig.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all reactions\n\n**Emoji Support:**\n• Unicode emojis: 😀, 👍, ❤️, etc.\n• Custom server emojis: :emojiname:\n• Multiple reactions per trigger!\n\n**Tips:**\n• Triggers are case-insensitive\n• Triggers can be partial matches\n\n**Slash Commands:**\n\`/autoreact add\` - Add a reaction directly\n\`/autoreact remove\` - Remove by number\n\`/autoreact list\` - View all reactions\n\`/autoreact toggle\` - Enable/disable\n\`/autoreact clear\` - Remove all`;
+    return `# 😄 Autoreact System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoreactions to automatically react when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Reaction** - Create a trigger → emoji reaction\n<:Bookopen:1473038576391557130> **List All** - View all configured reactions\n<:Trash:1473038090074591293> **Remove Reaction** - Delete a specific reaction\n\n**Controls:**\n${guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} **${guildConfig.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all reactions\n\n**Emoji Support:**\n• Unicode emojis: 😀, 👍, <:Heart:1473038659514007616>, etc.\n• Custom server emojis: :emojiname:\n• Multiple reactions per trigger!\n\n**Tips:**\n• Triggers are case-insensitive\n• Triggers can be partial matches\n\n**Slash Commands:**\n\`/autoreact add\` - Add a reaction directly\n\`/autoreact remove\` - Remove by number\n\`/autoreact list\` - View all reactions\n\`/autoreact toggle\` - Enable/disable\n\`/autoreact clear\` - Remove all`;
 }
 
 module.exports = {
@@ -237,7 +237,7 @@ module.exports = {
         }
 
         let listText = `# 😄 Autoreaction List\n\n`;
-        listText += `**Status:** ${guildConfig.enabled ? '<:online:1455550955679387743> Enabled' : '<:dnd:1473370101427343403> Disabled'}\n\n`;
+        listText += `**Status:** ${guildConfig.enabled ? '<:online:1485248286653943900> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
 
         guildConfig.reactions.forEach((item, index) => {
             listText += `**${index + 1}.** \`${item.trigger}\` → ${item.emojis.join(' ')}\n`;
@@ -258,7 +258,7 @@ module.exports = {
         updateCache(guildId, config[guildId]);
 
         await interaction.reply({
-            content: `${guildConfig.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} Autoreact system **${guildConfig.enabled ? 'enabled' : 'disabled'}**!`,
+            content: `${guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} Autoreact system **${guildConfig.enabled ? 'enabled' : 'disabled'}**!`,
             flags: MessageFlags.Ephemeral
         });
     },

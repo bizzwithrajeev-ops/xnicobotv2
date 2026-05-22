@@ -175,7 +175,7 @@ async function setupStatsChannels(guild, selectedStats = ['members', 'humans', '
     let category;
     try {
         category = await guild.channels.create({
-            name: '📄 Server Stats',
+            name: '<:Invoice:1473039492217835550> Server Stats',
             type: ChannelType.GuildCategory,
             position: 0,
             permissionOverwrites: [

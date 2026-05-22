@@ -71,10 +71,10 @@ async function handleDaily(reply, userId, guildId) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
-        `### 📊 Summary`,
+        `### <:transfer:1479780506718437396> Summary`,
         `> <:Money:1473377877239140529> **Total Received:** ${formatNumber(totalReward)} coins`,
         `> <:Money:1473377877239140529> **New Balance:** ${formatNumber(user.coins)} coins`,
-        `> <:Fire:1473038604812161218> **Current Streak:** ${streak} day${streak !== 1 ? 's' : ''} ${streak >= 7 ? '🔥' : streak >= 3 ? '<:Star:1473038501766369300>' : ''}`,
+        `> <:Fire:1473038604812161218> **Current Streak:** ${streak} day${streak !== 1 ? 's' : ''} ${streak >= 7 ? '<:Fire:1473038604812161218>' : streak >= 3 ? '<:Star:1473038501766369300>' : ''}`,
         '',
         `-# Come back tomorrow to keep your streak going!`,
     ].join('\n'));

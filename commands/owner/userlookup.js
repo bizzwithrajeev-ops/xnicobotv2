@@ -68,7 +68,7 @@ module.exports = {
                     `**Bot:** ${user.bot ? 'Yes' : 'No'}\n` +
                     `**Created:** <t:${Math.floor(user.createdTimestamp / 1000)}:F> (<t:${Math.floor(user.createdTimestamp / 1000)}:R>)\n` +
                     `**Flags:** ${flagDisplay}\n` +
-                    `**Premium:** ${isPremium ? '<:Checkedbox:1473038547165384804> Yes' : '<:Cancel:1473037949187657818> No'}\n` +
+                    `**Premium:** ${isPremium ? '<:Toggleon:1473038585501581312> Yes' : '<:Toggleoff:1473038582813032590> No'}\n` +
                     `**Badges:** ${badges.length > 0 ? badges.map(b => `${b.emoji || '🏅'} ${b.name}`).join(', ') : 'None'}`
                 )
             )

@@ -260,7 +260,7 @@ async function handleWelcomerButtons(interaction) {
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:Checkedbox:1473038547165384804> Welcomer Enabled\n\nComponents v2 welcomer has been enabled!`)
+                    .setContent(`# <:Toggleon:1473038585501581312> Welcomer Enabled\n\nComponents v2 welcomer has been enabled!`)
             );
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -280,7 +280,7 @@ async function handleWelcomerButtons(interaction) {
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:Cancel:1473037949187657818> Welcomer Disabled\n\nWelcomer has been disabled!`)
+                    .setContent(`# <:Toggleoff:1473038582813032590> Welcomer Disabled\n\nWelcomer has been disabled!`)
             );
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -614,7 +614,7 @@ async function handleWelcomerButtons(interaction) {
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# ${enabled ? '<:Checkedbox:1473038547165384804> Welcomer Enabled' : '<:Cancel:1473037949187657818> Welcomer Disabled'}\n\nWelcomer has been ${enabled ? 'enabled' : 'disabled'}!`)
+                    .setContent(`# ${enabled ? '<:Toggleon:1473038585501581312> Welcomer Enabled' : '<:Toggleoff:1473038582813032590> Welcomer Disabled'}\n\nWelcomer has been ${enabled ? 'enabled' : 'disabled'}!`)
             );
 
         await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1537,8 +1537,8 @@ async function handleModalSubmit(interaction) {
                 );
             const controlButtons = new ActionRowBuilder()
                 .addComponents(
-                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Checkedbox:1473038547165384804>'),
-                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Cancel:1473037949187657818>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Toggleon:1473038585501581312>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Toggleoff:1473038582813032590>'),
                     new ButtonBuilder().setCustomId('welcomer_preview').setLabel('Preview').setStyle(ButtonStyle.Secondary).setEmoji('<:Eye:1473038435056095242>')
                 );
 
@@ -1608,8 +1608,8 @@ async function handleModalSubmit(interaction) {
                 );
             const controlButtons = new ActionRowBuilder()
                 .addComponents(
-                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Checkedbox:1473038547165384804>'),
-                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Cancel:1473037949187657818>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Toggleon:1473038585501581312>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Toggleoff:1473038582813032590>'),
                     new ButtonBuilder().setCustomId('welcomer_preview').setLabel('Preview').setStyle(ButtonStyle.Secondary).setEmoji('<:Eye:1473038435056095242>')
                 );
 
@@ -1660,8 +1660,8 @@ async function handleModalSubmit(interaction) {
                 );
             const controlButtons = new ActionRowBuilder()
                 .addComponents(
-                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Checkedbox:1473038547165384804>'),
-                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Cancel:1473037949187657818>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Toggleon:1473038585501581312>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Toggleoff:1473038582813032590>'),
                     new ButtonBuilder().setCustomId('welcomer_preview').setLabel('Preview').setStyle(ButtonStyle.Secondary).setEmoji('<:Eye:1473038435056095242>')
                 );
 
@@ -1703,7 +1703,7 @@ async function handleModalSubmit(interaction) {
         // Update the original message with refreshed UI
         try {
             const guildConfig = config[guildId] || {};
-            const canvasStatus = guildConfig.canvas?.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled';
+            const canvasStatus = guildConfig.canvas?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
 
             const setupButtons = new ActionRowBuilder()
                 .addComponents(
@@ -1714,8 +1714,8 @@ async function handleModalSubmit(interaction) {
                 );
             const controlButtons = new ActionRowBuilder()
                 .addComponents(
-                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Checkedbox:1473038547165384804>'),
-                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Cancel:1473037949187657818>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Toggleon:1473038585501581312>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Toggleoff:1473038582813032590>'),
                     new ButtonBuilder().setCustomId('welcomer_preview').setLabel('Preview').setStyle(ButtonStyle.Secondary).setEmoji('<:Eye:1473038435056095242>')
                 );
 
@@ -1769,8 +1769,8 @@ async function handleModalSubmit(interaction) {
             const controlButtons = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder().setCustomId('welcomer_setup_canvas').setLabel('Canvas Mode').setStyle(guildConfig.canvas?.enabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('<:Palette:1473039029476917461>'),
-                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Checkedbox:1473038547165384804>'),
-                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Cancel:1473037949187657818>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_enable').setLabel('Enable').setStyle(ButtonStyle.Success).setEmoji('<:Toggleon:1473038585501581312>'),
+                    new ButtonBuilder().setCustomId('welcomer_toggle_disable').setLabel('Disable').setStyle(ButtonStyle.Danger).setEmoji('<:Toggleoff:1473038582813032590>'),
                     new ButtonBuilder().setCustomId('welcomer_preview').setLabel('Preview').setStyle(ButtonStyle.Secondary).setEmoji('<:Eye:1473038435056095242>')
                 );
 
@@ -2101,7 +2101,7 @@ async function handleModalSubmit(interaction) {
         if (global.updateAutoreactCache) {
             global.updateAutoreactCache(guildId, config[guildId]);
         }
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Autoreaction added!\nTrigger: \`${trigger}\`\nEmojis: ${emojis.join(' ')}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Autoreaction added!\nTrigger: \`${trigger}\`\nEmojis: ${emojis.join(' ')}`, flags: MessageFlags.Ephemeral });
     }
 
     else if (interaction.customId === 'autoreact_modal_remove') {
@@ -2155,7 +2155,7 @@ async function handleModalSubmit(interaction) {
             global.updateAutomodCache(guildId, config[guildId]);
         }
 
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Bad words filter ${enabled ? 'enabled' : 'disabled'}!\nWords: ${words.length}\nAction: ${action}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Bad words filter ${enabled ? 'enabled' : 'disabled'}!\nWords: ${words.length}\nAction: ${action}`, flags: MessageFlags.Ephemeral });
         
         const { updatePanel } = require('./panelRegistry');
         const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
@@ -2199,7 +2199,7 @@ async function handleModalSubmit(interaction) {
             global.updateAutomodCache(guildId, config[guildId]);
         }
 
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Anti-spam ${enabled ? 'enabled' : 'disabled'}!\nLimit: ${limit} messages in ${time}s\nAction: ${action}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Anti-spam ${enabled ? 'enabled' : 'disabled'}!\nLimit: ${limit} messages in ${time}s\nAction: ${action}`, flags: MessageFlags.Ephemeral });
         
         const { updatePanel } = require('./panelRegistry');
         const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
@@ -2235,7 +2235,7 @@ async function handleModalSubmit(interaction) {
             global.updateAutomodCache(guildId, config[guildId]);
         }
 
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Link filter ${enabled ? 'enabled' : 'disabled'}!\nWhitelisted: ${whitelist.length} domains\nAction: ${action}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Link filter ${enabled ? 'enabled' : 'disabled'}!\nWhitelisted: ${whitelist.length} domains\nAction: ${action}`, flags: MessageFlags.Ephemeral });
         
         const { updatePanel } = require('./panelRegistry');
         const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
@@ -2268,7 +2268,7 @@ async function handleModalSubmit(interaction) {
             global.updateAutomodCache(guildId, config[guildId]);
         }
 
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Invite blocker ${enabled ? 'enabled' : 'disabled'}!\nAction: ${action}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Invite blocker ${enabled ? 'enabled' : 'disabled'}!\nAction: ${action}`, flags: MessageFlags.Ephemeral });
         
         const { updatePanel } = require('./panelRegistry');
         const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
@@ -2307,7 +2307,7 @@ async function handleModalSubmit(interaction) {
             global.updateAutomodCache(guildId, config[guildId]);
         }
 
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Mass mention filter ${enabled ? 'enabled' : 'disabled'}!\nLimit: ${limit} mentions\nAction: ${action}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Mass mention filter ${enabled ? 'enabled' : 'disabled'}!\nLimit: ${limit} mentions\nAction: ${action}`, flags: MessageFlags.Ephemeral });
         
         const { updatePanel } = require('./panelRegistry');
         const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
@@ -2350,7 +2350,7 @@ async function handleModalSubmit(interaction) {
         if (global.updateAutomodCache) {
             global.updateAutomodCache(guildId, config[guildId]);
         }
-        await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Caps lock filter ${enabled ? 'enabled' : 'disabled'}!\nThreshold: ${percentage}% on messages >${minLength} chars\nAction: ${action}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `<:Toggleon:1473038585501581312> Caps lock filter ${enabled ? 'enabled' : 'disabled'}!\nThreshold: ${percentage}% on messages >${minLength} chars\nAction: ${action}`, flags: MessageFlags.Ephemeral });
         
         const { updatePanel } = require('./panelRegistry');
         const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
@@ -3299,9 +3299,9 @@ async function handleAutoresponderButtons(interaction) {
     }
 
     function buildAutoresponderPanel(gc) {
-        const statusText = gc.enabled ? '<:online:1455550955679387743>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+        const statusText = gc.enabled ? '<:online:1485248286653943900>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
         const countText = `**Total Responses:** ${gc.responses?.length || 0}`;
-        const panelText = `# <:Fire:1473038604812161218> Autoresponder System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoresponders to automatically reply when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Response** - Create a new trigger → response pair\n<:Bookopen:1473038576391557130> **List All** - View all configured responses\n<:Trash:1473038090074591293> **Remove Response** - Delete a specific response\n\n**Controls:**\n${gc.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'} **${gc.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all responses\n\n**Tips:**\n• Triggers are case-insensitive\n• Triggers can be partial matches\n• Supports Components v2 for beautiful responses!`;
+        const panelText = `# <:Fire:1473038604812161218> Autoresponder System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoresponders to automatically reply when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Response** - Create a new trigger → response pair\n<:Bookopen:1473038576391557130> **List All** - View all configured responses\n<:Trash:1473038090074591293> **Remove Response** - Delete a specific response\n\n**Controls:**\n${gc.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} **${gc.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all responses\n\n**Tips:**\n• Triggers are case-insensitive\n• Triggers can be partial matches\n• Supports Components v2 for beautiful responses!`;
 
         const setupButtons = new ActionRowBuilder()
             .addComponents(
@@ -3311,7 +3311,7 @@ async function handleAutoresponderButtons(interaction) {
             );
         const controlButtons = new ActionRowBuilder()
             .addComponents(
-                new ButtonBuilder().setCustomId('autoresponder_toggle').setLabel(gc.enabled ? 'Disable' : 'Enable').setStyle(gc.enabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji(gc.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                new ButtonBuilder().setCustomId('autoresponder_toggle').setLabel(gc.enabled ? 'Disable' : 'Enable').setStyle(gc.enabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji(gc.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
                 new ButtonBuilder().setCustomId('autoresponder_clear').setLabel('Clear All').setStyle(ButtonStyle.Danger).setEmoji('<:Trash:1473038090074591293>')
             );
 
@@ -3406,7 +3406,7 @@ async function handleAutoresponderButtons(interaction) {
         const container = buildAutoresponderPanel(config[guildId]);
         await interaction.editReply({ components: [container] });
         await interaction.followUp({
-            content: `<:Checkedbox:1473038547165384804> Autoresponder **${config[guildId].enabled ? 'enabled' : 'disabled'}**!`,
+            content: `<:Toggleon:1473038585501581312> Autoresponder **${config[guildId].enabled ? 'enabled' : 'disabled'}**!`,
             flags: MessageFlags.Ephemeral
         }).catch(() => {});
     }
@@ -3457,9 +3457,9 @@ async function handleAutoreactButtons(interaction) {
     }
 
     function buildAutoreactPanel(gc) {
-        const statusText = gc.enabled ? '<:online:1455550955679387743>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+        const statusText = gc.enabled ? '<:online:1485248286653943900>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
         const countText = `**Total Reactions:** ${gc.reactions?.length || 0}`;
-        const panelText = `# 😄 Autoreact System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoreactions to automatically react when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Reaction** - Create a trigger → emoji reaction\n<:Bookopen:1473038576391557130> **List All** - View all configured reactions\n<:Trash:1473038090074591293> **Remove Reaction** - Delete a specific reaction\n\n**Controls:**\n${gc.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'} **${gc.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all reactions\n\n**Emoji Support:**\n• Unicode emojis: 😀, 👍, ❤️\n• Custom server emojis: :emojiname:\n• Multiple reactions per trigger!`;
+        const panelText = `# 😄 Autoreact System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoreactions to automatically react when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Reaction** - Create a trigger → emoji reaction\n<:Bookopen:1473038576391557130> **List All** - View all configured reactions\n<:Trash:1473038090074591293> **Remove Reaction** - Delete a specific reaction\n\n**Controls:**\n${gc.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} **${gc.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all reactions\n\n**Emoji Support:**\n• Unicode emojis: 😀, 👍, <:Heart:1473038659514007616>\n• Custom server emojis: :emojiname:\n• Multiple reactions per trigger!`;
 
         const setupButtons = new ActionRowBuilder()
             .addComponents(
@@ -3469,7 +3469,7 @@ async function handleAutoreactButtons(interaction) {
             );
         const controlButtons = new ActionRowBuilder()
             .addComponents(
-                new ButtonBuilder().setCustomId('autoreact_toggle').setLabel(gc.enabled ? 'Disable' : 'Enable').setStyle(gc.enabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji(gc.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                new ButtonBuilder().setCustomId('autoreact_toggle').setLabel(gc.enabled ? 'Disable' : 'Enable').setStyle(gc.enabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji(gc.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
                 new ButtonBuilder().setCustomId('autoreact_clear').setLabel('Clear All').setStyle(ButtonStyle.Danger).setEmoji('<:Trash:1473038090074591293>')
             );
 
@@ -3497,7 +3497,7 @@ async function handleAutoreactButtons(interaction) {
             .setCustomId('emojis')
             .setLabel('Emojis (separate with spaces)')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('👍 <:Heartalt:1473038488893526016> <:Money:1473377877239140529>')
+            .setPlaceholder('👍 <:Heart:1473038659514007616> <:Money:1473377877239140529>')
             .setRequired(true);
 
         modal.addComponents(
@@ -3564,7 +3564,7 @@ async function handleAutoreactButtons(interaction) {
         const container = buildAutoreactPanel(config[guildId]);
         await interaction.editReply({ components: [container] });
         await interaction.followUp({
-            content: `<:Checkedbox:1473038547165384804> Autoreact **${config[guildId].enabled ? 'enabled' : 'disabled'}**!`,
+            content: `<:Toggleon:1473038585501581312> Autoreact **${config[guildId].enabled ? 'enabled' : 'disabled'}**!`,
             flags: MessageFlags.Ephemeral
         }).catch(() => {});
     }
@@ -4019,16 +4019,16 @@ async function handleAutomodButtons(interaction) {
         const guildId = interaction.guild.id;
         const guildConfig = config[guildId] || { enabled: false };
 
-        const statusText = guildConfig.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:dnd:1473370101427343403> Disabled';
-        const badWordsStatus = guildConfig.badWords?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const spamStatus = guildConfig.spam?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const linksStatus = guildConfig.links?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const invitesStatus = guildConfig.invites?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const mentionsStatus = guildConfig.massMention?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const capsStatus = guildConfig.caps?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const profanityStatus = guildConfig.profanity?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const sexualStatus = guildConfig.sexualContent?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
-        const slursStatus = guildConfig.slurs?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+        const statusText = guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
+        const badWordsStatus = guildConfig.badWords?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const spamStatus = guildConfig.spam?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const linksStatus = guildConfig.links?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const invitesStatus = guildConfig.invites?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const mentionsStatus = guildConfig.massMention?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const capsStatus = guildConfig.caps?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const profanityStatus = guildConfig.profanity?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const sexualStatus = guildConfig.sexualContent?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
+        const slursStatus = guildConfig.slurs?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 
         const logChannel = guildConfig.logChannel ? `<#${guildConfig.logChannel}>` : 'Not set';
 
@@ -5959,7 +5959,7 @@ async function handleStickyButtons(interaction) {
             .setAccentColor(color)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`### ${guildConfig.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} Sticky Messages ${guildConfig.enabled ? 'Enabled' : 'Disabled'}\nThe system is now **${guildConfig.enabled ? 'active' : 'inactive'}**.`)
+                    .setContent(`### ${guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} Sticky Messages ${guildConfig.enabled ? 'Enabled' : 'Disabled'}\nThe system is now **${guildConfig.enabled ? 'active' : 'inactive'}**.`)
             );
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });

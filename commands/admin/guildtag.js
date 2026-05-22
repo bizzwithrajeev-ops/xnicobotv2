@@ -242,7 +242,7 @@ module.exports = {
                 let preview = formatNickname('Username', tag);
                 let reqText = '';
                 if (tag.cost > 0) reqText += `💰 ${tag.cost.toLocaleString()} coins`;
-                if (tag.requiredLevel > 0) reqText += `${reqText ? ' • ' : ''}📊 Lv.${tag.requiredLevel}+`;
+                if (tag.requiredLevel > 0) reqText += `${reqText ? ' • ' : ''}<:transfer:1479780506718437396> Lv.${tag.requiredLevel}+`;
                 if (tag.requiredRole) reqText += `${reqText ? ' • ' : ''}🔒 <@&${tag.requiredRole}>`;
 
                 content += `### ${tag.emoji || '🏷️'} ${tag.name}${equipped}\n`;
@@ -573,7 +573,7 @@ module.exports = {
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
-            let content = `# 🔥 Your Tag Streaks\n\n`;
+            let content = `# <:Fire:1473038604812161218> Your Tag Streaks\n\n`;
             let claimedAny = false;
 
             for (const tagId of userData.equipped) {

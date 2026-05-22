@@ -20,7 +20,7 @@ function buildVotePanel(config, client) {
         .setAccentColor(0xCAD7E6);
 
     let content = `# <:Fire:1473038604812161218> Top.gg Vote Notifications\n\n`;
-    content += `**Status:** ${config?.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
+    content += `**Status:** ${config?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     content += `**Channel:** ${config?.channelId ? `<#${config.channelId}>` : '*Not set*'}\n`;
     content += `**Ping Role:** ${config?.pingRoleId ? `<@&${config.pingRoleId}>` : '*None*'}\n\n`;
 
@@ -73,7 +73,7 @@ function createControlRow(config) {
             .setCustomId('vote_toggle')
             .setLabel(config?.enabled ? 'Disable' : 'Enable')
             .setStyle(config?.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(config?.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+            .setEmoji(config?.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setLabel('Top.gg')
             .setURL('https://top.gg')

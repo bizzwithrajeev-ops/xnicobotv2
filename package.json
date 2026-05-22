@@ -1,19 +1,52 @@
 {
-  "name": "xNico Pro",
-  "version": "1.0.0",
+  "name": "xnico",
+  "version": "2.0.0",
   "main": "index.js",
+  "description": "xNico — a professional all-in-one Discord bot. Music, moderation, fun, economy, leveling, tickets, and more.",
+  "author": {
+    "name": "Rajeev (Rexzy)",
+    "url": "https://thenico.vercel.app"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://thenico.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rexzy-Rajeev/xnicobotv2"
+  },
+  "bugs": {
+    "url": "https://discord.gg/Zs35X7Umak"
+  },
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "discordjs",
+    "moderation",
+    "music",
+    "lavalink",
+    "economy",
+    "leveling",
+    "automod",
+    "tickets",
+    "xnico"
+  ],
   "scripts": {
     "start": "bash start.sh",
     "start:bot": "node shard.js",
     "start:bot:noshard": "node index.js",
     "start:dashboard": "node dashboard/server.js",
     "start:lavalink": "cd lavalink && java -jar Lavalink.jar",
+    "register": "node register-commands.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "credits": {
+    "owner": "Rexzy aka Rajeev",
+    "developer": "Rajeev (Rexzy)",
+    "license": "Licensed by Rajeev",
+    "notice": "All design, code, and branding © Rajeev (Rexzy). Unauthorized resale prohibited."
+  },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.100",
     "adm-zip": "^0.5.17",

@@ -16,10 +16,12 @@ const THEME = {
         WARNING: '<:Infotriangle:1473038460456800459>',
         INFO: '<:Inforect:1473038624172937287>',
         LOADING: '<a:Load:1479681956273852607>',
-        ONLINE: '<:online:1455550955679387743>',
+        ONLINE: '<:online:1485248286653943900>',
         OFFLINE: '<:dnd:1473370101427343403>',
         DND: '<:dnd:1455550955679387744>',
         IDLE: '<:idle:1455550955679387745>',
+        TOGGLE_ON: '<:Toggleon:1473038585501581312>',
+        TOGGLE_OFF: '<:Toggleoff:1473038582813032590>',
 
         SHIELD: '<:Shield:1473038669831995494>',
         SETTINGS: '<:Settings:1473037894703779851>',
@@ -81,11 +83,11 @@ const THEME = {
 };
 
 function formatStatus(enabled) {
-    return enabled ? `<:Checkedbox:1473038547165384804> Enabled` : `<:dnd:1473370101427343403> Disabled`;
+    return enabled ? `<:Toggleon:1473038585501581312> Enabled` : `<:Toggleoff:1473038582813032590> Disabled`;
 }
 
 function formatCheck(enabled) {
-    return enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    return enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 }
 
 function formatBulletList(items, emoji = THEME.EMOJIS.ARROW_RIGHT) {
@@ -110,9 +112,9 @@ function createFooterText() {
 
 function createStatusBadge(enabled, activeText = 'ACTIVE', inactiveText = 'INACTIVE') {
     if (enabled) {
-        return `${THEME.EMOJIS.ONLINE} **${activeText}**`;
+        return `${THEME.EMOJIS.TOGGLE_ON} **${activeText}**`;
     }
-    return `${THEME.EMOJIS.OFFLINE} **${inactiveText}**`;
+    return `${THEME.EMOJIS.TOGGLE_OFF} **${inactiveText}**`;
 }
 
 function createProgressBar(current, max, length = 10, filledChar = '█', emptyChar = '░') {

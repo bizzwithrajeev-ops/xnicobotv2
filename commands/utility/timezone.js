@@ -84,7 +84,7 @@ module.exports = {
             .setDescription('Remove your saved timezone')),
 
     prefix: 'timezone',
-    aliases: ['tz', 'time', 'settz'],
+    aliases: ['tz', 'settz'],
     description: 'Set or view your timezone',
     usage: 'timezone set <zone> | timezone view [@user] | timezone list | timezone remove',
     category: 'utility',

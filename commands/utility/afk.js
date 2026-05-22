@@ -71,7 +71,7 @@ module.exports = {
         };
         saveAfkConfig(afkConfig);
         
-        const dmStatus = dmNotifications ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled';
+        const dmStatus = dmNotifications ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
         const container = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 💤 AFK Status Set\n\nYou are now AFK: **${afkMessage}**\n\n<:Bookopen:1473038576391557130>**AFK Count:** ${afkStats[userId].count}\n📬 **DM Notifications:** ${dmStatus}`));
         
@@ -115,7 +115,7 @@ module.exports = {
         
         saveAfkConfig(afkConfig);
         
-        const dmStatus = dmNotifications ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled';
+        const dmStatus = dmNotifications ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()

@@ -115,7 +115,7 @@ module.exports = {
                     new TextDisplayBuilder()
                         .setContent(
                             `# <:Bullhorn:1473038903157199093> Announcement Configuration\n\n` +
-                            `**Status:** ${config.enabled !== false ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n` +
+                            `**Status:** ${config.enabled !== false ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
                             `**Location:** ${locationText}\n` +
                             `**Message:** ${config.message || 'GG {user}, you just advanced to **Level {level}**!'}`
                         )
@@ -142,7 +142,7 @@ module.exports = {
                 new TextDisplayBuilder()
                     .setContent(
                         `# <:Bullhorn:1473038903157199093> Announcement Configuration\n\n` +
-                        `**Status:** ${config.enabled !== false ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n` +
+                        `**Status:** ${config.enabled !== false ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
                         `**Location:** ${locationText}\n` +
                         `**Message:** ${config.message || 'GG {user}, you just advanced to **Level {level}**!'}\n\n` +
                         `Use \`/leveling-announcement\` for configuration options.`

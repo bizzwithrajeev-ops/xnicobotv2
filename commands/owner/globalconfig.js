@@ -58,8 +58,8 @@ module.exports = {
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `**Default Prefix:** \`${config.defaultPrefix}\`\n` +
-                            `**Maintenance Mode:** ${config.maintenanceMode ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n` +
-                            `**Developer Mode:** ${config.developerMode ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n` +
+                            `**Maintenance Mode:** ${config.maintenanceMode ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
+                            `**Developer Mode:** ${config.developerMode ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
                             `**Max Guilds:** ${config.maxGuilds}\n` +
                             `**Command Cooldown:** ${config.commandCooldown}ms\n` +
                             `**Embed Color:** ${config.embedColor}\n\n` +

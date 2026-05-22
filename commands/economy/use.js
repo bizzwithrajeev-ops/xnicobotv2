@@ -117,7 +117,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
         success: true,
         title: '🩹 Health Pack Used',
         result: `${activePet.emoji} **${activePet.name}**'s HP fully restored!`,
-        extra: `❤️ HP: **${before}** → **${maxHp}**`,
+        extra: `<:Heart:1473038659514007616> HP: **${before}** → **${maxHp}**`,
       };
     }
 
@@ -312,7 +312,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
         success: true,
         title: '🥚 Dragon Egg Hatched!',
         result: `🐉 A **Legendary ${dragonName}** has hatched from your egg!`,
-        extra: `🔥 HP: **150** · ATK: **60** · Rarity: **Legendary** — check it with \`pets\`!`,
+        extra: `<:Fire:1473038604812161218> HP: **150** · ATK: **60** · Rarity: **Legendary** — check it with \`pets\`!`,
       };
     }
 

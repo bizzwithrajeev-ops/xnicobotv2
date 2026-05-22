@@ -40,7 +40,7 @@ module.exports = {
     description: 'Set, view, or reset the secondary (extra) owner for this server',
     usage: 'extraowner [set @user|view|reset]',
     category: 'admin',
-    aliases: ['secondowner', 'coowner'],
+    aliases: ['secondowner'],
     prefixOnly: true,
 
     async executePrefix(message, args) {

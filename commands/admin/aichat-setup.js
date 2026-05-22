@@ -37,7 +37,7 @@ function getGuildConfig(guildId) {
 function buildSetupPanel(guildId) {
     const config = getGuildConfig(guildId);
     const channel = config.channelId ? `<#${config.channelId}>` : 'Not set';
-    const status = config.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled';
+    const status = config.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
     const promptStatus = config.systemPrompt?.trim() ? 'Custom' : 'Default smart prompt';
 
     const container = new ContainerBuilder()

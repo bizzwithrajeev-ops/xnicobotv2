@@ -108,7 +108,7 @@ function buildWarnContainer(memberUser, memberId, moderator, reason, warnCount, 
     const active = warnCount >= t.warns;
     const current = warnCount === t.warns;
     const marker = current ? ' <:Caretright:1473038207221502106>' : '';
-    const icon = active ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>';
+    const icon = active ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>';
     return `${icon} **${t.warns}** warn${t.warns > 1 ? 's' : ''} → ${t.label}${marker}`;
   });
   addTextDisplay(container, `### <:Document:1473039496995143731> Punishment Ladder\n${ladderLines.join('\n')}`);
@@ -138,7 +138,7 @@ module.exports = {
   description: 'Warn a member — progressive punishments apply automatically',
   usage: 'warn <@user> [reason]',
   category: 'admin',
-  aliases: ['w', 'warning'],
+  aliases: ['warning'],
 
   async execute(interaction) {
     const user = interaction.options.getUser('user');

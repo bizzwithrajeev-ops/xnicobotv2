@@ -114,7 +114,7 @@ function buildMultiResult(ok, fail) {
         .setAccentColor(fail.length && !ok.length ? COLORS.ERROR : COLORS.SUCCESS);
     ctr.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-            `# ${ok.length ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>'} Steal Sticker Results\n\n${lines.join('\n')}`
+            `# ${ok.length ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} Steal Sticker Results\n\n${lines.join('\n')}`
         )
     );
     ctr.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));

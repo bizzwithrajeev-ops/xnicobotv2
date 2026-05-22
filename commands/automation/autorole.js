@@ -46,7 +46,7 @@ function buildStatusPanel(guildConfig, guild) {
     const isActive = hasHumans || hasBots;
 
     let content = `# <:Bookopen:1473038576391557130> Autorole Status\n\n`;
-    content += `**Status:** ${isActive ? '<:online:1455550955679387743> Enabled' : '<:offline:1455550928282419302> Disabled'}\n\n`;
+    content += `**Status:** ${isActive ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
 
     if (hasHumans) {
         const humanRoles = guildConfig.humans.map(id => {
@@ -208,7 +208,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Autorole Disabled\n\nAll autoroles have been cleared. New members will no longer receive automatic roles.`
+                        `# <:Toggleoff:1473038582813032590> Autorole Disabled\n\nAll autoroles have been cleared. New members will no longer receive automatic roles.`
                     ));
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -272,7 +272,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Autorole Disabled\n\nAll autoroles have been cleared.`
+                        `# <:Toggleoff:1473038582813032590> Autorole Disabled\n\nAll autoroles have been cleared.`
                     ));
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }

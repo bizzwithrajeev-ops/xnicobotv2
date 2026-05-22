@@ -29,7 +29,7 @@ function buildStatusPanel(guildConfig) {
             new TextDisplayBuilder().setContent(
                 `# <:Shield:1473038669831995494> Anti-Alt Configuration\n\n` +
                 `### <:Invoice:1473039492217835550> Current Settings\n` +
-                `**Status:** ${guildConfig.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n` +
+                `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
                 `**Minimum Age:** ${guildConfig.minAge} days\n\n` +
                 `### <:Edit:1473037903625191580> Commands\n` +
                 `\`/antialt enable\` - Enable anti-alt\n` +

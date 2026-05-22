@@ -320,7 +320,7 @@ function normalizeHexColor(input, fallback = '#bcf1e4') {
 function buildMainPanel(guildConfig, guildId) {
     const mode = guildConfig.mode || 'components';
     const isComponents = mode === 'components';
-    const statusEmoji = guildConfig.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const statusEmoji = guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = guildConfig.channelId ? `<#${guildConfig.channelId}>` : '*Not set*';
     const modeText = isComponents ? '**Components V2**' : '**Embed**';
     const modeEmoji = isComponents ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
@@ -340,8 +340,8 @@ function buildMainPanel(guildConfig, guildId) {
         content += `- **Image Position:** ${imgPos === 'top' ? '⬆️ Top' : imgPos === 'side' ? '↔️ Side' : '⬇️ Bottom'}\n`;
         const welcomeBtnPos = guildConfig.buttonPosition || 'bottom';
         content += `- **Buttons:** ${btnCount > 0 ? '<:Checkedbox:1473038547165384804> ' + btnCount + ' button' + (btnCount > 1 ? 's' : '') + ' · ' + (welcomeBtnPos === 'top' ? '⬆️ Top' : '⬇️ Bottom') : '<:Cancel:1473037949187657818> None'}\n`;
-        content += `- **Canvas Mode:** ${guildConfig.canvas?.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
-        content += `- **Colorless:** ${guildConfig.colorless ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
+        content += `- **Canvas Mode:** ${guildConfig.canvas?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
+        content += `- **Colorless:** ${guildConfig.colorless ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
         content += `- **Accent Color:** ${guildConfig.colorless ? '*None (colorless)*' : (guildConfig.color || '#bcf1e4')}\n\n`;
     } else {
         content += `### Embed Features:\n`;
@@ -353,12 +353,12 @@ function buildMainPanel(guildConfig, guildId) {
     }
     
     content += `### Extra Features:\n`;
-    content += `- **Ping User:** ${guildConfig.pingUser ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
-    content += `- **DM Welcome:** ${guildConfig.dmWelcome?.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
+    content += `- **Ping User:** ${guildConfig.pingUser ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
+    content += `- **DM Welcome:** ${guildConfig.dmWelcome?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     if (guildConfig.dmWelcome?.enabled && guildConfig.dmWelcome?.content) {
         content += `  - DM Message: \`${guildConfig.dmWelcome.content.substring(0, 100)}${guildConfig.dmWelcome.content.length > 100 ? '...' : ''}\`\n`;
     }
-    content += `- **Auto-Delete:** ${guildConfig.autoDelete > 0 ? '<:Checkedbox:1473038547165384804> ' + guildConfig.autoDelete + 's' : '<:Cancel:1473037949187657818> Disabled'}\n\n`;
+    content += `- **Auto-Delete:** ${guildConfig.autoDelete > 0 ? '<:Checkedbox:1473038547165384804> ' + guildConfig.autoDelete + 's' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
     
     content += `### Message Preview:\n\`\`\`\n${(guildConfig.content || guildConfig.message || 'Welcome {user} to {server}!').substring(0, 200)}${(guildConfig.content || guildConfig.message || '').length > 200 ? '...' : ''}\n\`\`\``;
     
@@ -491,7 +491,7 @@ function createSetupRow2(guildConfig) {
 }
 
 function buildCanvasPanel(canvasConfig) {
-    const statusEmoji = canvasConfig?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const statusEmoji = canvasConfig?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     
     let content = `# <:Picture:1473039568398843957> Welcome Canvas Setup\n\n`;
     content += `**Status:** ${statusEmoji} ${canvasConfig?.enabled ? 'Enabled' : 'Disabled'}\n\n`;
@@ -568,7 +568,7 @@ function createCanvasControlRow(canvasConfig) {
                 .setCustomId('canvas_toggle')
                 .setLabel(canvasConfig?.enabled ? 'Disable Canvas' : 'Enable Canvas')
                 .setStyle(canvasConfig?.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(canvasConfig?.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(canvasConfig?.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('canvas_back')
                 .setLabel('Back to Welcomer')
@@ -612,7 +612,7 @@ function buildCanvasContainer(canvasConfig) {
 function buildLeavePanel(leaveConfig) {
     const mode = leaveConfig?.mode || 'components';
     const isComponents = mode === 'components';
-    const statusEmoji = leaveConfig?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const statusEmoji = leaveConfig?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = leaveConfig?.channelId ? `<#${leaveConfig.channelId}>` : '*Not set*';
     const modeText = isComponents ? '**Components V2**' : '**Embed**';
     const modeEmoji = isComponents ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
@@ -621,7 +621,7 @@ function buildLeavePanel(leaveConfig) {
     content += `**Status:** ${statusEmoji} ${leaveConfig?.enabled ? 'Enabled' : 'Disabled'}\n`;
     content += `**Channel:** ${channelText}\n`;
     content += `**Mode:** ${modeEmoji} ${modeText}\n`;
-    content += `**Canvas Card:** ${leaveConfig?.canvas?.enabled ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n\n`;
+    content += `**Canvas Card:** ${leaveConfig?.canvas?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
     
     if (isComponents) {
         const btnCount = (leaveConfig?.buttons?.length || 0) + (leaveConfig?.actionButtons?.length || 0);
@@ -632,7 +632,7 @@ function buildLeavePanel(leaveConfig) {
         content += `- **Image Position:** ${imgPos === 'top' ? '⬆️ Top' : imgPos === 'side' ? '↔️ Side' : '⬇️ Bottom'}\n`;
         const leaveBtnPos = leaveConfig?.buttonPosition || 'bottom';
         content += `- **Buttons:** ${btnCount > 0 ? '<:Checkedbox:1473038547165384804> ' + btnCount + ' button' + (btnCount > 1 ? 's' : '') + ' · ' + (leaveBtnPos === 'top' ? '⬆️ Top' : '⬇️ Bottom') : '<:Cancel:1473037949187657818> None'}\n`;
-        content += `- **Colorless:** ${leaveConfig?.colorless ? '<:Checkedbox:1473038547165384804> Enabled' : '<:Cancel:1473037949187657818> Disabled'}\n`;
+        content += `- **Colorless:** ${leaveConfig?.colorless ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
         content += `- **Accent Color:** ${leaveConfig?.colorless ? '*None (colorless)*' : (leaveConfig?.color || '#ED4245')}\n\n`;
     } else {
         content += `### Embed Features:\n`;
@@ -649,7 +649,7 @@ function buildLeavePanel(leaveConfig) {
 }
 
 function buildLeaveCanvasPanel(canvasConfig) {
-    const statusEmoji = canvasConfig?.enabled ? '<:Checkedbox:1473038547165384804>' : '<:Cancel:1473037949187657818>';
+    const statusEmoji = canvasConfig?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     
     let content = `# <:Palette:1473039029476917461> Leave Canvas Card Setup\n\n`;
     content += `**Status:** ${statusEmoji} ${canvasConfig?.enabled ? 'Enabled' : 'Disabled'}\n\n`;
@@ -718,7 +718,7 @@ function createLeaveCanvasControlRow(canvasConfig) {
                 .setCustomId('leave_canvas_toggle')
                 .setLabel(canvasConfig?.enabled ? 'Disable Canvas' : 'Enable Canvas')
                 .setStyle(canvasConfig?.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(canvasConfig?.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(canvasConfig?.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('leave_canvas_back')
                 .setLabel('Back to Leave Setup')
@@ -834,7 +834,7 @@ function createLeaveControlRow(leaveConfig) {
                 .setCustomId('leave_toggle')
                 .setLabel(leaveConfig?.enabled ? 'Disable Leave' : 'Enable Leave')
                 .setStyle(leaveConfig?.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(leaveConfig?.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(leaveConfig?.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('leave_back')
                 .setLabel('Back')
@@ -971,7 +971,7 @@ function buildWelcomerContainer(guildConfig, guildId) {
                 .setCustomId('welcomer_toggle')
                 .setLabel(guildConfig.enabled ? 'Disable Welcomer' : 'Enable Welcomer')
                 .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(guildConfig.enabled ? '<:Cancel:1473037949187657818>' : '<:Checkedbox:1473038547165384804>'),
+                .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
             new ButtonBuilder()
                 .setCustomId('welcomer_colorless')
                 .setLabel(guildConfig.colorless ? 'Disable Colorless' : 'Enable Colorless')
@@ -1014,7 +1014,7 @@ function buildTemplateManagementPanel(userId) {
     content += `Built-in templates: **${builtInCount}** (**${builtInComponentsCount}** Components V2 + **${builtInEmbedCount}** Embed).\n\n`;
     content += `### ✨ Built-in Starter Templates\n`;
     for (const item of builtInEntries) {
-        const modeIcon = item.template?.mode === 'components' ? '🔥' : '📄';
+        const modeIcon = item.template?.mode === 'components' ? '<:Fire:1473038604812161218>' : '<:Invoice:1473039492217835550>';
         content += `• **${item.name}** ${modeIcon}\n`;
     }
     content += `\n`;
@@ -1253,7 +1253,7 @@ function buildLeaveTemplateManagementPanel() {
     content += `Built-in templates: **${entries.length}** (**${componentsCount}** Components V2 + **${embedCount}** Embed).\n\n`;
     content += `### ✨ Built-in Leave Templates\n`;
     for (const item of entries) {
-        const modeIcon = item.template?.mode === 'components' ? '🔥' : '📄';
+        const modeIcon = item.template?.mode === 'components' ? '<:Fire:1473038604812161218>' : '<:Invoice:1473039492217835550>';
         const canvasIcon = item.template?.canvas?.enabled ? ' 🖼️' : '';
         content += `• **${item.name}** ${modeIcon}${canvasIcon}\n`;
     }

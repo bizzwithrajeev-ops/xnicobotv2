@@ -8,7 +8,7 @@ module.exports = {
     description: 'Check this server\'s premium status',
     usage: 'serverpremium',
     category: 'utility',
-    aliases: ['sp', 'serverprem', 'guildpremium'],
+    aliases: ['serverprem', 'guildpremium'],
     
     async executePrefix(message) {
       try {

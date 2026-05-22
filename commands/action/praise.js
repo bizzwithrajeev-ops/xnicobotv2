@@ -8,7 +8,7 @@ module.exports = createActionCommand({
     searchQuery: 'anime praise compliment',
     nekosEndpoint: 'thumbsup',
     waifuEndpoint: 'happy',
-    aliases: ['compliment'],
+    aliases: [],
     fallbackGifs: [
         'https://media.tenor.com/Q3h6yUQIpKQAAAAC/anime-happy.gif',
         'https://media.tenor.com/h4rkN5eMHnIAAAAC/happy-anime.gif',

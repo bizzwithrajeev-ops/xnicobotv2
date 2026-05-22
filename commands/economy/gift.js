@@ -93,7 +93,7 @@ module.exports = {
     .addStringOption(o => o.setName('item').setDescription('Item ID to gift').setRequired(true))
     .addIntegerOption(o => o.setName('quantity').setDescription('Quantity to gift').setRequired(false).setMinValue(1).setMaxValue(100)),
   prefix: 'gift',
-  aliases: ['give'],
+  aliases: [],
   category: 'economy',
   description: 'Gift an inventory item to another user',
   usage: 'gift <@user> <item_id> [quantity]',

@@ -19,7 +19,7 @@ const economyManager = require('../../utils/economyManager');
 const SORT_MODES = {
     total:        { label: 'Richest',      emoji: '<:Sketch:1473038248493453352>', accentInt: 0xFFD700, icon: '<:Money:1473377877239140529>', unit: 'Net Worth'    },
     coins:        { label: 'Wallet',       emoji: '<:Money:1473377877239140529>', accentInt: 0x22C55E, icon: '👛', unit: 'Wallet'       },
-    bank:         { label: 'Bank',         emoji: '🏦', accentInt: 0x3B82F6, icon: '🏦', unit: 'Bank'         },
+    bank:         { label: 'Bank',         emoji: '<:Invoice:1473039492217835550>', accentInt: 0x3B82F6, icon: '<:Invoice:1473039492217835550>', unit: 'Bank'         },
     workCount:    { label: 'Most Worked',  emoji: '💼', accentInt: 0xF97316, icon: '🔨', unit: 'Shifts'       },
     totalGambled: { label: 'Top Gamblers', emoji: '🎰', accentInt: 0x8B5CF6, icon: '🎲', unit: 'Gambled'      },
     miningCount:  { label: 'Top Miners',   emoji: '⛏',  accentInt: 0x78716C, icon: '⛏️', unit: 'Times Mined' },
@@ -46,8 +46,8 @@ function fmtNum(n) {
 }
 
 function statLine(e, sortBy) {
-    if (sortBy === 'total')        return `<:Money:1473377877239140529> ${fmtNum(e.coins)} wallet  ·  🏦 ${fmtNum(e.bank)} bank`;
-    if (sortBy === 'coins')        return `🏦 ${fmtNum(e.bank)} bank  ·  <:Money:1473377877239140529> ${fmtNum(e.total)} net`;
+    if (sortBy === 'total')        return `<:Money:1473377877239140529> ${fmtNum(e.coins)} wallet  ·  <:Invoice:1473039492217835550> ${fmtNum(e.bank)} bank`;
+    if (sortBy === 'coins')        return `<:Invoice:1473039492217835550> ${fmtNum(e.bank)} bank  ·  <:Money:1473377877239140529> ${fmtNum(e.total)} net`;
     if (sortBy === 'bank')         return `<:Money:1473377877239140529> ${fmtNum(e.coins)} wallet  ·  <:Money:1473377877239140529> ${fmtNum(e.total)} net`;
     if (sortBy === 'workCount')    return `<:Money:1473377877239140529> ${fmtNum(e.total)} net worth`;
     if (sortBy === 'totalGambled') return `<:Money:1473377877239140529> ${fmtNum(e.total)} net worth`;
@@ -198,7 +198,7 @@ module.exports = {
             .addChoices(
                 { name: '<:Sketch:1473038248493453352> Net Worth',    value: 'total'        },
                 { name: '<:Money:1473377877239140529> Wallet',       value: 'coins'        },
-                { name: '🏦 Bank',         value: 'bank'         },
+                { name: '<:Invoice:1473039492217835550> Bank',         value: 'bank'         },
                 { name: '💼 Most Worked',  value: 'workCount'    },
                 { name: '🎰 Top Gamblers', value: 'totalGambled' },
                 { name: '⛏ Top Miners',   value: 'miningCount'  }
