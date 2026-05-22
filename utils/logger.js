@@ -1338,6 +1338,249 @@ async function logCommandUsage(guild, user, commandName, channelId, type = 'slas
 }
 
 /* ═══════════════════════════════════════════════════════
+   <:Shield:1473038669831995494> SECURITY EVENT LOGS
+   (Anti-Nuke triggers, Anti-Raid actions, Anti-Alt detections,
+    Threat / Emergency mode, Vanity Guard, Whitelist edits, etc.)
+
+   These all route through the `'security'` log channel category.
+   `logging-setup.js` exposes a "Security Logs" toggle so guilds
+   can pick which channel receives these events.
+   ═══════════════════════════════════════════════════════ */
+
+/**
+ * Anti-Nuke trigger executed (a user hit the limit and was punished).
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - executor:    { id, username, tag? } the offender
+ *   - action:      string action key ('ban'|'kick'|'channel'|...)
+ *   - punishment:  string, e.g. 'remove_roles' / 'ban' / 'kick_bot'
+ *   - limit:       number
+ *   - timeWindow:  ms
+ *   - violations:  number
+ *   - target:      optional string identifier (channel name etc.)
+ */
+async function logAntinukeTrigger(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const accentMap = { ban: 0xFF0000, kick: 0xFF6600, kick_both: 0xFF0000, kick_bot: 0xFF6600, ban_bot: 0xFF0000, remove_roles: 0xFFA500, timeout: 0xFFCC00 };
+    const accent = accentMap[payload.punishment] || 0xED4245;
+
+    const c = buildLogContainer(accent);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} Anti-Nuke Triggered\n` +
+        `${E.shine} **Threat:** \`${payload.action}\`\n` +
+        `${E.user} **Offender:** ${payload.executor?.username || 'Unknown'} (<@${payload.executor?.id}>)\n` +
+        `${E.bolt} **Violations:** \`${payload.violations}\` / \`${payload.limit}\` in \`${Math.round((payload.timeWindow || 0) / 1000)}s\`\n` +
+        `${E.moderate} **Punishment:** \`${payload.punishment}\`` +
+        (payload.target ? `\n${E.read} **Target:** \`${payload.target}\`` : '')
+    ));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
+ * Anti-Raid action: a member was kicked/banned for joining during a raid burst,
+ * or the guild was auto-locked / unlocked.
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - kind:         'kick' | 'ban' | 'lockdown_on' | 'lockdown_off'
+ *   - user?:        affected user (for kick/ban)
+ *   - reason:       string
+ *   - joinRate?:    number (joins-per-window when triggered)
+ */
+async function logAntiraidAction(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const titleMap = {
+        kick:           'Anti-Raid Kick',
+        ban:            'Anti-Raid Ban',
+        lockdown_on:    'Anti-Raid Lockdown Engaged',
+        lockdown_off:   'Anti-Raid Lockdown Released',
+    };
+    const accentMap = {
+        kick:           0xFF6600,
+        ban:            0xFF0000,
+        lockdown_on:    0xED4245,
+        lockdown_off:   0x57F287,
+    };
+
+    const c = buildLogContainer(accentMap[payload.kind] || 0xED4245);
+    let body =
+        `# ${E.shield} ${titleMap[payload.kind] || 'Anti-Raid Action'}\n`;
+    if (payload.user) {
+        body += `${E.user} **User:** ${payload.user.username || payload.user.tag || 'Unknown'} (<@${payload.user.id}>)\n`;
+    }
+    if (payload.joinRate != null) {
+        body += `${E.bolt} **Join rate:** \`${payload.joinRate}\` in window\n`;
+    }
+    body += `${E.read} **Reason:** ${payload.reason || 'Anti-raid trigger'}\n`;
+
+    c.addTextDisplayComponents(text(body.trimEnd()));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
+ * Anti-Alt: an account younger than the configured min-age tried to join.
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - user:        the user
+ *   - accountAge:  ms since account creation
+ *   - minAge:      configured threshold, ms
+ *   - action:      'kick' | 'ban' | 'flag'
+ */
+async function logAntialtDetection(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const days = Math.round((payload.accountAge || 0) / 86_400_000);
+    const minDays = Math.round((payload.minAge || 0) / 86_400_000);
+
+    const c = buildLogContainer(payload.action === 'ban' ? 0xFF0000 : 0xFF6600);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} Anti-Alt Detected\n` +
+        `${E.user} **User:** ${payload.user?.username || 'Unknown'} (<@${payload.user?.id}>)\n` +
+        `${E.clock} **Account age:** \`${days}d\` (minimum: \`${minDays}d\`)\n` +
+        `${E.moderate} **Action:** \`${payload.action || 'flag'}\``
+    ));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
+ * Vanity Guard: vanity URL change attempt detected (and possibly reverted).
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - executor:    { id, username }
+ *   - oldVanity:   string|null
+ *   - newVanity:   string|null
+ *   - reverted:    bool
+ *   - punishment:  string|null  (e.g. 'kick'|'ban'|'none')
+ */
+async function logVanityGuard(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const c = buildLogContainer(payload.reverted ? 0xFEE75C : 0xED4245);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} Vanity Guard Triggered\n` +
+        `${E.link} **Vanity:** \`${payload.oldVanity || 'none'}\` → \`${payload.newVanity || 'none'}\`\n` +
+        (payload.executor
+            ? `${E.user} **Executor:** ${payload.executor.username || 'Unknown'} (<@${payload.executor.id}>)\n`
+            : `${E.user} **Executor:** *unknown* (no audit log entry)\n`) +
+        `${E.moderate} **Result:** ${payload.reverted ? 'Reverted' : 'Could NOT revert (boost tier <3)'}` +
+        (payload.punishment && payload.punishment !== 'none' ? `\n${E.shine} **Punishment:** \`${payload.punishment}\`` : '')
+    ));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
+ * Threat / Emergency / Super-threat mode toggled.
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - mode:        'threat' | 'super-threat' | 'emergency'
+ *   - enabled:     boolean
+ *   - actor:       { id, username }
+ *   - extra?:      string (e.g. roles affected)
+ */
+async function logThreatMode(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const labelMap = {
+        threat:         'Threat Mode',
+        'super-threat': 'Super Threat Mode',
+        emergency:      'Emergency Mode',
+    };
+    const label = labelMap[payload.mode] || 'Security Mode';
+
+    const c = buildLogContainer(payload.enabled ? 0xED4245 : 0x57F287);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} ${label} ${payload.enabled ? 'Engaged' : 'Released'}\n` +
+        (payload.actor
+            ? `${E.user} **Actor:** ${payload.actor.username || 'Unknown'} (<@${payload.actor.id}>)\n`
+            : '') +
+        (payload.extra ? `${E.info} ${payload.extra}\n` : '') +
+        `${E.clock} **At:** ${tsR(new Date())}`
+    ));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
+ * Whitelist add/remove for antinuke or automod.
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - kind:        'antinuke' | 'automod'
+ *   - operation:   'add' | 'remove' | 'reset'
+ *   - subjectType: 'user' | 'role'
+ *   - subjectId:   string
+ *   - actor:       { id, username }
+ */
+async function logWhitelistChange(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const verb = payload.operation === 'remove' ? 'Removed from'
+              : payload.operation === 'reset'  ? 'Reset'
+              :                                  'Added to';
+    const target = payload.subjectType === 'role' ? `<@&${payload.subjectId}>` : `<@${payload.subjectId}>`;
+
+    const c = buildLogContainer(Colors.update);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} ${payload.kind === 'automod' ? 'AutoMod' : 'Anti-Nuke'} Whitelist\n` +
+        `${E.read} **Action:** ${verb} ${payload.kind} whitelist\n` +
+        (payload.subjectId ? `${E.user} **Subject:** ${target} (\`${payload.subjectId}\`)\n` : '') +
+        (payload.actor ? `${E.user} **By:** ${payload.actor.username || 'Unknown'} (<@${payload.actor.id}>)` : '')
+    ));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
+ * Catch-all for security configuration changes that don't fit elsewhere
+ * (botblock toggle, blacklisted-word added, quicksetup applied, ...).
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - title:   short title, e.g. 'Bot-Block Channel'
+ *   - body:    multi-line markdown body
+ *   - actor?:  { id, username }
+ *   - kind?:   'enable' | 'disable' | 'change'  (controls accent color)
+ */
+async function logSecurityConfigChange(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const accentMap = { enable: 0x57F287, disable: 0xED4245, change: 0xCAD7E6 };
+    const c = buildLogContainer(accentMap[payload.kind] || 0xCAD7E6);
+    c.addTextDisplayComponents(text(
+        `# ${E.shield} ${payload.title || 'Security Config Update'}\n` +
+        (payload.body || '') +
+        (payload.actor ? `\n${E.user} **By:** ${payload.actor.username || 'Unknown'} (<@${payload.actor.id}>)` : '')
+    ));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/* ═══════════════════════════════════════════════════════
    EXPORTS
    ═══════════════════════════════════════════════════════ */
 
@@ -1387,6 +1630,14 @@ module.exports = {
     logBoostEvent,
     // Commands
     logCommandUsage,
+    // Security (anti-nuke, anti-raid, anti-alt, vanity guard, threat / emergency, whitelist)
+    logAntinukeTrigger,
+    logAntiraidAction,
+    logAntialtDetection,
+    logVanityGuard,
+    logThreatMode,
+    logWhitelistChange,
+    logSecurityConfigChange,
     // Helpers
     invalidateCache,
     getLogChannel,

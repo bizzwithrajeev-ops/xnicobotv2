@@ -125,19 +125,19 @@ function buildAutomodPanel(guildConfig) {
         .addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('automod_toggle_filters')
-                .setPlaceholder('⚡ Select filters to enable (deselect to disable)')
+                .setPlaceholder('Select filters to enable (deselect to disable)')
                 .setMinValues(0)
                 .setMaxValues(9)
                 .setOptions([
-                    { label: 'Bad Words', description: `${guildConfig.badWords?.words?.length || 0} words • Action: ${guildConfig.badWords?.action || 'delete'}`, value: 'badWords', emoji: { name: '💬' }, default: guildConfig.badWords?.enabled || false },
-                    { label: 'Anti-Spam', description: `${guildConfig.spam?.messageLimit || 5} msgs/${Math.round((guildConfig.spam?.timeWindow || 5000) / 1000)}s • Action: ${guildConfig.spam?.action || 'timeout'}`, value: 'spam', emoji: { name: '🔄' }, default: guildConfig.spam?.enabled || false },
-                    { label: 'Link Filter', description: `${guildConfig.links?.whitelist?.length || 0} whitelisted • Action: ${guildConfig.links?.action || 'delete'}`, value: 'links', emoji: { name: '🔗' }, default: guildConfig.links?.enabled || false },
-                    { label: 'Invite Blocker', description: `Action: ${guildConfig.invites?.action || 'delete'}`, value: 'invites', emoji: { name: '✉' }, default: guildConfig.invites?.enabled || false },
-                    { label: 'Mass Mentions', description: `Limit: ${guildConfig.massMention?.limit || 5}+ mentions • Action: ${guildConfig.massMention?.action || 'delete'}`, value: 'massMention', emoji: { name: '📢' }, default: guildConfig.massMention?.enabled || false },
-                    { label: 'Caps Lock', description: `${guildConfig.caps?.percentage || 70}%+ uppercase • Action: ${guildConfig.caps?.action || 'delete'}`, value: 'caps', emoji: { name: '🔠' }, default: guildConfig.caps?.enabled || false },
-                    { label: 'Profanity', description: 'Discord built-in profanity filter', value: 'profanity', emoji: { name: '🤬' }, default: guildConfig.profanity?.enabled || false },
-                    { label: 'Sexual Content', description: 'Discord built-in sexual content filter', value: 'sexualContent', emoji: { name: '🔞' }, default: guildConfig.sexualContent?.enabled || false },
-                    { label: 'Slurs', description: 'Discord built-in slurs filter', value: 'slurs', emoji: { name: '🚷' }, default: guildConfig.slurs?.enabled || false }
+                    { label: 'Bad Words',       description: `${guildConfig.badWords?.words?.length || 0} words • Action: ${guildConfig.badWords?.action || 'delete'}`,                                                value: 'badWords',       emoji: { id: '1473038936241864865', name: 'Chat' },         default: guildConfig.badWords?.enabled || false },
+                    { label: 'Anti-Spam',       description: `${guildConfig.spam?.messageLimit || 5} msgs/${Math.round((guildConfig.spam?.timeWindow || 5000) / 1000)}s • Action: ${guildConfig.spam?.action || 'timeout'}`, value: 'spam',           emoji: { id: '1473037911581528165', name: 'Refresh' },      default: guildConfig.spam?.enabled || false },
+                    { label: 'Link Filter',     description: `${guildConfig.links?.whitelist?.length || 0} whitelisted • Action: ${guildConfig.links?.action || 'delete'}`,                                          value: 'links',          emoji: { id: '1473037923979886694', name: 'Attach' },       default: guildConfig.links?.enabled || false },
+                    { label: 'Invite Blocker',  description: `Action: ${guildConfig.invites?.action || 'delete'}`,                                                                                                    value: 'invites',        emoji: { id: '1473038885364695113', name: 'Envelope' },     default: guildConfig.invites?.enabled || false },
+                    { label: 'Mass Mentions',   description: `Limit: ${guildConfig.massMention?.limit || 5}+ mentions • Action: ${guildConfig.massMention?.action || 'delete'}`,                                       value: 'massMention',    emoji: { id: '1473038903157199093', name: 'Bullhorn' },     default: guildConfig.massMention?.enabled || false },
+                    { label: 'Caps Lock',       description: `${guildConfig.caps?.percentage || 70}%+ uppercase • Action: ${guildConfig.caps?.action || 'delete'}`,                                                  value: 'caps',           emoji: { id: '1473038797540298792', name: 'Lightning' },    default: guildConfig.caps?.enabled || false },
+                    { label: 'Profanity',       description: 'Discord built-in profanity filter',                                                                                                                      value: 'profanity',      emoji: { id: '1473037949187657818', name: 'Cancel' },       default: guildConfig.profanity?.enabled || false },
+                    { label: 'Sexual Content',  description: 'Discord built-in sexual content filter',                                                                                                                 value: 'sexualContent',  emoji: { id: '1473038460456800459', name: 'Infotriangle' }, default: guildConfig.sexualContent?.enabled || false },
+                    { label: 'Slurs',           description: 'Discord built-in slurs filter',                                                                                                                          value: 'slurs',          emoji: { id: '1473038669831995494', name: 'Shield' },       default: guildConfig.slurs?.enabled || false }
                 ])
         );
 
@@ -146,7 +146,7 @@ function buildAutomodPanel(guildConfig) {
         .addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('automod_configure_filter')
-                .setPlaceholder('⚙️ Select a filter to configure limits & action')
+                .setPlaceholder('<:Settings:1473037894703779851> Select a filter to configure limits & action')
                 .setMinValues(1)
                 .setMaxValues(1)
                 .setOptions([

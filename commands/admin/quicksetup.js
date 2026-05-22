@@ -148,10 +148,14 @@ function applySystemConfig(guildId, systemKey, enable, logChannelId) {
         const config = loadJSON(systemKey);
 
         if (!enable) {
-            if (config[guildId]) {
-                config[guildId].enabled = false;
-            } else {
+            // Preserve all existing config; flip only the `enabled` flag.
+            // Previously this branch overwrote the whole object, wiping
+            // whitelisted users / log channel / bypass roles whenever a
+            // system was unchecked in the wizard.
+            if (!config[guildId] || typeof config[guildId] !== 'object') {
                 config[guildId] = { enabled: false };
+            } else {
+                config[guildId].enabled = false;
             }
             saveJSON(systemKey, config);
             if (systemKey === 'antialt' && global.updateAntialtCache) global.updateAntialtCache(guildId, config[guildId]);
@@ -168,7 +172,20 @@ function applySystemConfig(guildId, systemKey, enable, logChannelId) {
             antinuke: () => getSecureAntinuke(logChannelId),
             automod: () => getSecureAutomod(logChannelId)
         };
-        config[guildId] = generators[systemKey]();
+
+        // Merge defaults with any pre-existing config so the user keeps
+        // their whitelist, bypass role, and log channel customizations.
+        const generated = generators[systemKey]();
+        const existing = (config[guildId] && typeof config[guildId] === 'object') ? config[guildId] : {};
+        // Honor existing arrays/IDs that the secure preset wouldn't know about:
+        const preserveKeys = ['whitelistedUsers', 'whitelistedRoles', 'ignoredRoles', 'ignoredChannels', 'bypassRoleId', 'logChannel', '_savedThreatLimits', '_savedLimits'];
+        const merged = { ...generated };
+        for (const k of preserveKeys) {
+            if (existing[k] !== undefined) merged[k] = existing[k];
+        }
+        // Always honor the explicitly-passed log channel
+        if (logChannelId) merged.logChannel = logChannelId;
+        config[guildId] = merged;
         saveJSON(systemKey, config);
 
         if (systemKey === 'antialt' && global.updateAntialtCache) global.updateAntialtCache(guildId, config[guildId]);

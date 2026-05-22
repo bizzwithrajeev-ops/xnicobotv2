@@ -160,30 +160,32 @@ function grantPremium(userId, duration, keyCode = 'DIRECT_GRANT') {
 
     savePremiumData(premiumData);
 
-    // ── Webhook: User Premium activated ──
-    try {
-        const PREMIUM_WEBHOOK = 'https://discord.com/api/webhooks/1457415882190880944/_iJ_4EqDIEHYKKzl1V881VsAMBGTFE_zaVGuMcM2_jwml7gU1resxTnYWr_YdAa-Hysd';
-        const durationText = duration === null ? '♾️ Permanent' : `${duration} day${duration !== 1 ? 's' : ''}`;
-        const expiresText = expiresAt ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>` : '`Never`';
-        const premiumEmbed = {
-            title: '👑  User Premium Activated',
-            color: 0xF1C40F,
-            fields: [
-                { name: '👤 User ID', value: `\`${userId}\` (<@${userId}>)`, inline: false },
-                { name: '⏱️ Duration', value: `\`${durationText}\``, inline: true },
-                { name: '📅 Expires', value: expiresText, inline: true },
-                { name: '🔑 Key Used', value: `\`${keyCode}\``, inline: true },
-                { name: '🔄 Type', value: existing ? '`Extended/Renewed`' : '`New Activation`', inline: true },
-            ],
-            footer: { text: 'Premium System • User Premium' },
-            timestamp: new Date().toISOString()
-        };
-        fetch(PREMIUM_WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'Premium System', embeds: [premiumEmbed] })
-        }).catch(() => {});
-    } catch (e) {}
+    // ── Optional audit webhook (env-gated) ──
+    const premiumWebhook = process.env.PREMIUM_AUDIT_WEBHOOK;
+    if (premiumWebhook) {
+        try {
+            const durationText = duration === null ? '♾️ Permanent' : `${duration} day${duration !== 1 ? 's' : ''}`;
+            const expiresText = expiresAt ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>` : '`Never`';
+            const premiumEmbed = {
+                title: '👑  User Premium Activated',
+                color: 0xF1C40F,
+                fields: [
+                    { name: '👤 User ID', value: `\`${userId}\` (<@${userId}>)`, inline: false },
+                    { name: '⏱️ Duration', value: `\`${durationText}\``, inline: true },
+                    { name: '📅 Expires', value: expiresText, inline: true },
+                    { name: '🔑 Key Used', value: `\`${keyCode}\``, inline: true },
+                    { name: '🔄 Type', value: existing ? '`Extended/Renewed`' : '`New Activation`', inline: true },
+                ],
+                footer: { text: 'Premium System • User Premium' },
+                timestamp: new Date().toISOString()
+            };
+            fetch(premiumWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: 'Premium System', embeds: [premiumEmbed] })
+            }).catch(() => {});
+        } catch (_) {}
+    }
 
     return expiresAt;
 }
@@ -244,31 +246,33 @@ function grantServerPremium(guildId, duration, keyCode = 'DIRECT_GRANT', activat
 
     saveServerPremium(serverData);
 
-    // ── Webhook: Server Premium activated ──
-    try {
-        const PREMIUM_WEBHOOK = 'https://discord.com/api/webhooks/1457415882190880944/_iJ_4EqDIEHYKKzl1V881VsAMBGTFE_zaVGuMcM2_jwml7gU1resxTnYWr_YdAa-Hysd';
-        const durationText = duration === null ? '♾️ Permanent' : `${duration} day${duration !== 1 ? 's' : ''}`;
-        const expiresText = expiresAt ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>` : '`Never`';
-        const serverPremEmbed = {
-            title: '<:Sketch:1473038248493453352>  Server Premium Activated',
-            color: 0x9B59B6,
-            fields: [
-                { name: '🏷️ Server ID', value: `\`${guildId}\``, inline: true },
-                { name: '👤 Activated By', value: activatedBy ? `<@${activatedBy}>` : '`System/Owner`', inline: true },
-                { name: '⏱️ Duration', value: `\`${durationText}\``, inline: true },
-                { name: '📅 Expires', value: expiresText, inline: true },
-                { name: '🔑 Key Used', value: `\`${keyCode}\``, inline: true },
-                { name: '🔄 Type', value: existing ? '`Extended/Renewed`' : '`New Activation`', inline: true },
-            ],
-            footer: { text: 'Premium System • Server Premium' },
-            timestamp: new Date().toISOString()
-        };
-        fetch(PREMIUM_WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'Premium System', embeds: [serverPremEmbed] })
-        }).catch(() => {});
-    } catch (e) {}
+    // ── Optional audit webhook (env-gated) ──
+    const premiumWebhook = process.env.PREMIUM_AUDIT_WEBHOOK;
+    if (premiumWebhook) {
+        try {
+            const durationText = duration === null ? '♾️ Permanent' : `${duration} day${duration !== 1 ? 's' : ''}`;
+            const expiresText = expiresAt ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>` : '`Never`';
+            const serverPremEmbed = {
+                title: '<:Sketch:1473038248493453352>  Server Premium Activated',
+                color: 0x9B59B6,
+                fields: [
+                    { name: '🏷️ Server ID', value: `\`${guildId}\``, inline: true },
+                    { name: '👤 Activated By', value: activatedBy ? `<@${activatedBy}>` : '`System/Owner`', inline: true },
+                    { name: '⏱️ Duration', value: `\`${durationText}\``, inline: true },
+                    { name: '📅 Expires', value: expiresText, inline: true },
+                    { name: '🔑 Key Used', value: `\`${keyCode}\``, inline: true },
+                    { name: '🔄 Type', value: existing ? '`Extended/Renewed`' : '`New Activation`', inline: true },
+                ],
+                footer: { text: 'Premium System • Server Premium' },
+                timestamp: new Date().toISOString()
+            };
+            fetch(premiumWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: 'Premium System', embeds: [serverPremEmbed] })
+            }).catch(() => {});
+        } catch (_) {}
+    }
 
     return expiresAt;
 }

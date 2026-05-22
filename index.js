@@ -13,7 +13,7 @@ const { createLavalinkManager, setupLavalinkEvents, initLavalink, autoplayStatus
 const premiumManager = require('./utils/premiumManager');
 const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleAutomodSelectMenus, handleStickyButtons, handleVerificationButtons, handleAntiNukeButtons, handleProfileButtons, handleEmbedButtons, handleComponentsButtons, handleModalSubmit, replacePlaceholders } = require('./utils/interactionHandlers');
 const { preloadGuildInvites, refreshGuildInvite, handleMemberJoin, handleMemberLeave, isTrackingEnabled } = require('./utils/inviteManager');
-const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate } = require('./utils/logger');
+const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate, logAntinukeTrigger, logAntiraidAction, logAntialtDetection, logVanityGuard, logThreatMode, logWhitelistChange, logSecurityConfigChange } = require('./utils/logger');
 const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CModals } = require('./utils/join2createHandler');
 const { updateMusicPanel, buildIdlePanel, buildVoiceStatus, buildWaitingStatus, updateVoiceChannelStatus, EMOJIS: MUSIC_EMOJIS } = require('./utils/musicPanel');
 const log = require('./utils/logger-styled');
@@ -7070,7 +7070,21 @@ client.on('messageCreate', async (message) => {
                         await savedChannel.send(`<:Shield:1473038669831995494> **${savedAuthorTag}** has been banned by AutoMod. Reason: ${allReasons}`).catch(() => { });
                     }
 
-                    // ── Log to log channel ──
+                    // ── Mirror to central automod logger so the dedicated
+                    //    /logging set-automod channel receives a webhook-aware,
+                    //    mention-suppressed copy.
+                    try {
+                        await logAutomodAction(savedGuild, {
+                            user: { id: savedAuthorId, username: savedAuthorTag },
+                            action,
+                            reason: violations.map(v => `${v.filter}: ${v.reason}`).join(' · '),
+                            rule: violations.map(v => v.filter).join(', '),
+                            channelId: savedChannel.id,
+                            content: savedContent,
+                        });
+                    } catch (_) {}
+
+                    // ── Log to legacy automod-config logChannel ──
                     if (automodConfig.logChannel) {
                         const logCh = savedGuild.channels.cache.get(automodConfig.logChannel);
                         if (logCh) {
@@ -7089,36 +7103,44 @@ client.on('messageCreate', async (message) => {
                                             `-# <t:${Math.floor(Date.now() / 1000)}:R>`
                                         )
                                 );
-                            await logCh.send({ components: [logContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+                            await logCh.send({
+                                components: [logContainer],
+                                allowedMentions: { parse: [] },
+                                flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+                            }).catch(() => { });
                         }
                     }
 
-                    // ── Webhook: AutoMod violation log ──
-                    try {
-                        const AUTOMOD_WEBHOOK = 'https://discord.com/api/webhooks/1457415882190880944/_iJ_4EqDIEHYKKzl1V881VsAMBGTFE_zaVGuMcM2_jwml7gU1resxTnYWr_YdAa-Hysd';
-                        const violationListWh = violations.map(v => `• **${v.filter}** — ${v.reason}`).join('\n');
-                        const actionColors = { ban: 0xFF0000, kick: 0xFF6600, timeout: 0xFFA500, delete: 0xFFCC00, warn: 0xFFEE00 };
-                        const automodWhEmbed = {
-                            title: '🛡️  AutoMod Triggered',
-                            color: actionColors[action] || 0xFFCC00,
-                            thumbnail: { url: savedAuthor.displayAvatarURL?.({ dynamic: true, size: 256 }) || '' },
-                            fields: [
-                                { name: '🏷️ Server', value: `\`${savedGuild.name}\` (\`${savedGuild.id}\`)`, inline: false },
-                                { name: '👤 User', value: `${savedAuthorTag} (<@${savedAuthorId}>)`, inline: true },
-                                { name: '📌 Channel', value: `<#${savedChannel.id}>`, inline: true },
-                                { name: '⚡ Action Taken', value: `\`${action.toUpperCase()}\``, inline: true },
-                                { name: '📋 Violations', value: violationListWh || 'N/A', inline: false },
-                                { name: '💬 Message Content', value: `\`\`\`\n${savedContent.substring(0, 300)}${savedContent.length > 300 ? '...' : ''}\n\`\`\``, inline: false },
-                            ],
-                            footer: { text: `Server Members: ${savedGuild.memberCount.toLocaleString()}` },
-                            timestamp: new Date().toISOString()
-                        };
-                        fetch(AUTOMOD_WEBHOOK, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ username: client.user.username, avatar_url: client.user.displayAvatarURL({ size: 256 }), embeds: [automodWhEmbed] })
-                        }).catch(err => log.error(`AutoMod webhook failed: ${err.message}`));
-                    } catch (e) { }
+                    // ── Optional external audit webhook (gated by env var) ──
+                    // Only fires when MODERATION_AUDIT_WEBHOOK is explicitly configured;
+                    // never embed a hardcoded URL again.
+                    const moderationAuditWebhook = process.env.MODERATION_AUDIT_WEBHOOK;
+                    if (moderationAuditWebhook) {
+                        try {
+                            const violationListWh = violations.map(v => `• **${v.filter}** — ${v.reason}`).join('\n');
+                            const actionColors = { ban: 0xFF0000, kick: 0xFF6600, timeout: 0xFFA500, delete: 0xFFCC00, warn: 0xFFEE00 };
+                            const automodWhEmbed = {
+                                title: '🛡️  AutoMod Triggered',
+                                color: actionColors[action] || 0xFFCC00,
+                                thumbnail: { url: savedAuthor.displayAvatarURL?.({ dynamic: true, size: 256 }) || '' },
+                                fields: [
+                                    { name: '🏷️ Server', value: `\`${savedGuild.name}\` (\`${savedGuild.id}\`)`, inline: false },
+                                    { name: '👤 User', value: `${savedAuthorTag} (<@${savedAuthorId}>)`, inline: true },
+                                    { name: '📌 Channel', value: `<#${savedChannel.id}>`, inline: true },
+                                    { name: '⚡ Action Taken', value: `\`${action.toUpperCase()}\``, inline: true },
+                                    { name: '📋 Violations', value: violationListWh || 'N/A', inline: false },
+                                    { name: '💬 Message Content', value: `\`\`\`\n${savedContent.substring(0, 300)}${savedContent.length > 300 ? '...' : ''}\n\`\`\``, inline: false },
+                                ],
+                                footer: { text: `Server Members: ${savedGuild.memberCount.toLocaleString()}` },
+                                timestamp: new Date().toISOString()
+                            };
+                            fetch(moderationAuditWebhook, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ username: client.user.username, avatar_url: client.user.displayAvatarURL({ size: 256 }), embeds: [automodWhEmbed] })
+                            }).catch(err => log.error(`AutoMod webhook failed: ${err.message}`));
+                        } catch (_) { /* never let webhook failures break automod */ }
+                    }
                 } catch (error) {
                     log.error(`AutoMod action error (${action}): ${error.message}`);
                 }
@@ -8414,8 +8436,25 @@ const ANTINUKE_PUNISH_LABELS = {
 const ANTINUKE_PUNISH_COLORS = { ban: 0xFF0000, kick: 0xFF6600, remove_roles: 0xFFA500, timeout: 0xFFCC00, kick_bot: 0xFF6600, kick_both: 0xFF0000, ban_bot: 0xFF0000 };
 
 function sendAntiNukeLog(guild, config, executor, action, limit, timeWindow, recentCount, actionType, target) {
-    if (!config.logChannel) return;
+    // Always route through the central logger so the dedicated 'security'
+    // log channel (configured via /logging set-security) receives a properly
+    // formatted, webhook-aware message with mentions suppressed.
+    try {
+        logAntinukeTrigger(guild, {
+            executor,
+            action,
+            punishment: actionType,
+            limit,
+            timeWindow,
+            violations: recentCount,
+            target,
+        }).catch(() => {});
+    } catch (_) {}
 
+    // Backward compat: also send to the legacy `config.logChannel` set in
+    // /antinuke if it's configured. Allows guilds who haven't migrated to
+    // the per-category logging-setup channels yet to keep working.
+    if (!config.logChannel) return;
     const logChannel = guild.channels.cache.get(config.logChannel);
     if (!logChannel) return;
 
@@ -8431,7 +8470,7 @@ function sendAntiNukeLog(guild, config, executor, action, limit, timeWindow, rec
                 .setContent(
                     `# ${meta.emoji} Anti-Nuke Triggered\n\n` +
                     `${meta.emoji} **Protection:** ${meta.label}\n` +
-                    `<:Userblock:1473038868184826149> **Offender:** <@${executor.id}> (\`${executor.id}\`)\n` +
+                    `<:User:1473038971398520977> **Offender:** <@${executor.id}> (\`${executor.id}\`)\n` +
                     `<:Lightningalt:1473038679906844824> **Violations:** \`${recentCount}\` / \`${limit}\` in \`${timeWindow / 1000}s\`\n` +
                     `<:Shield:1473038669831995494> **Punishment:** \`${punishLabel}\`\n` +
                     (target ? `<:Bookmark:1473039494604132423> **Target:** \`${target}\`\n` : '') +
@@ -8440,7 +8479,11 @@ function sendAntiNukeLog(guild, config, executor, action, limit, timeWindow, rec
                 )
         );
 
-    logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
+    logChannel.send({
+        components: [container],
+        allowedMentions: { parse: [] },
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+    }).catch(() => { });
 }
 
 async function checkAntiNuke(guild, action, executor, target = null) {
@@ -8488,30 +8531,33 @@ async function checkAntiNuke(guild, action, executor, target = null) {
         if (success) {
             sendAntiNukeLog(guild, config, executor, action, limit, timeWindow, violationCount, actionType, target);
 
-            try {
-                const ANTINUKE_WEBHOOK = 'https://discord.com/api/webhooks/1457415882190880944/_iJ_4EqDIEHYKKzl1V881VsAMBGTFE_zaVGuMcM2_jwml7gU1resxTnYWr_YdAa-Hysd';
-                const antinukeWhEmbed = {
-                    title: '🔐  Anti-Nuke Protection Triggered',
-                    color: ANTINUKE_PUNISH_COLORS[actionType] || 0xFF0000,
-                    thumbnail: { url: guild.iconURL({ dynamic: true, size: 512 }) || '' },
-                    fields: [
-                        { name: '🏷️ Server', value: `\`${guild.name}\` (\`${guild.id}\`)`, inline: false },
-                        { name: '👤 Offender', value: `${executor.username || 'Unknown'} (<@${executor.id}>)`, inline: true },
-                        { name: '⚡ Threat Action', value: `\`${action}\``, inline: true },
-                        { name: '🛡️ Response', value: `\`${actionType.toUpperCase()}\``, inline: true },
-                        { name: '<:transfer:1479780506718437396> Violations', value: `\`${actions.length}\` actions in \`${(timeWindow / 1000)}s\` (limit: \`${limit}\`)`, inline: false },
-                        { name: '🎯 Target', value: target ? `\`${target}\`` : 'N/A', inline: true },
-                        { name: '👥 Server Members', value: `\`${guild.memberCount.toLocaleString()}\``, inline: true },
-                    ],
-                    footer: { text: `Anti-Nuke • Protection Active` },
-                    timestamp: new Date().toISOString()
-                };
-                fetch(ANTINUKE_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: client.user?.username || 'Bot', avatar_url: client.user?.displayAvatarURL({ size: 256 }) || '', embeds: [antinukeWhEmbed] })
-                }).catch(() => { });
-            } catch (e) { }
+            // ── Optional external audit webhook (gated by env var) ──
+            const antinukeAuditWebhook = process.env.MODERATION_AUDIT_WEBHOOK;
+            if (antinukeAuditWebhook) {
+                try {
+                    const antinukeWhEmbed = {
+                        title: '🔐  Anti-Nuke Protection Triggered',
+                        color: ANTINUKE_PUNISH_COLORS[actionType] || 0xFF0000,
+                        thumbnail: { url: guild.iconURL({ dynamic: true, size: 512 }) || '' },
+                        fields: [
+                            { name: '🏷️ Server', value: `\`${guild.name}\` (\`${guild.id}\`)`, inline: false },
+                            { name: '👤 Offender', value: `${executor.username || 'Unknown'} (<@${executor.id}>)`, inline: true },
+                            { name: '⚡ Threat Action', value: `\`${action}\``, inline: true },
+                            { name: '🛡️ Response', value: `\`${actionType.toUpperCase()}\``, inline: true },
+                            { name: '🔁 Violations', value: `\`${actions.length}\` actions in \`${(timeWindow / 1000)}s\` (limit: \`${limit}\`)`, inline: false },
+                            { name: '🎯 Target', value: target ? `\`${target}\`` : 'N/A', inline: true },
+                            { name: '👥 Server Members', value: `\`${guild.memberCount.toLocaleString()}\``, inline: true },
+                        ],
+                        footer: { text: `Anti-Nuke • Protection Active` },
+                        timestamp: new Date().toISOString()
+                    };
+                    fetch(antinukeAuditWebhook, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: client.user?.username || 'Bot', avatar_url: client.user?.displayAvatarURL({ size: 256 }) || '', embeds: [antinukeWhEmbed] })
+                    }).catch(() => { });
+                } catch (_) { /* never let webhook failures break antinuke */ }
+            }
         }
     } catch (error) {
         log.error(`Anti-Nuke punishment error (${action}):`, error);
@@ -10183,7 +10229,22 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
                         } catch {}
                     }
 
-                    // Send a guard alert to the configured log channel (if any)
+                    // Send a guard alert via the central security logger so
+                    // the configured /logging set-security channel receives a
+                    // consistent, webhook-aware message with mentions
+                    // suppressed.
+                    try {
+                        await logVanityGuard(newGuild, {
+                            executor: executor ? { id: executorId, username: executor.username || executor.tag } : null,
+                            oldVanity: oldGuild.vanityURLCode || null,
+                            newVanity: newGuild.vanityURLCode || null,
+                            reverted: newGuild.premiumTier >= 3 && Boolean(oldGuild.vanityURLCode),
+                            punishment: guildVg.action || 'none',
+                        });
+                    } catch (_) {}
+
+                    // Backward compat: also send to the legacy
+                    // `vanityguard.logChannelId` if set on this guild.
                     try {
                         const logChId = guildVg.logChannelId;
                         if (logChId) {
@@ -10197,7 +10258,11 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
                                 const container = new ContainerBuilder()
                                     .setAccentColor(0xED4245)
                                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(alert));
-                                await ch.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                                await ch.send({
+                                    components: [container],
+                                    allowedMentions: { parse: [] },
+                                    flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+                                }).catch(() => {});
                             }
                         }
                     } catch {}

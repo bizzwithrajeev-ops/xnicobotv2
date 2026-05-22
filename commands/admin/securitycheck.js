@@ -77,9 +77,19 @@ module.exports = {
             maxScore += 15;
             if (automod?.enabled) {
                 score += 10;
-                const features = [automod.antiInvite, automod.antiLink, automod.antiSpam, automod.antiMassMention].filter(Boolean).length;
+                // The automod config is keyed by filter name — `spam.enabled`,
+                // `links.enabled`, etc. (NOT antiSpam/antiLink booleans).
+                const featureChecks = [
+                    automod.spam?.enabled,
+                    automod.links?.enabled,
+                    automod.invites?.enabled,
+                    automod.massMention?.enabled,
+                    automod.badWords?.enabled,
+                    automod.caps?.enabled,
+                ];
+                const features = featureChecks.filter(Boolean).length;
                 if (features >= 3) score += 5;
-                checks.push(`<:Checkedbox:1473038547165384804> **Automod** — Active (${features}/4 features)`);
+                checks.push(`<:Checkedbox:1473038547165384804> **Automod** — Active (${features}/${featureChecks.length} filters on)`);
             } else {
                 checks.push(`<:Cancel:1473037949187657818> **Automod** — Disabled`);
                 recommendations.push('**Enable automod** — filters invites, links, spam, and mass mentions');
@@ -97,10 +107,14 @@ module.exports = {
 
             // 5. Anti-spam (check both standalone antispam.json AND automod spam module)
             maxScore += 10;
-            const automodSpamEnabled = automod?.spam?.enabled || automod?.antiSpam;
+            const automodSpamEnabled = automod?.spam?.enabled;
+            // antispam config layout: { enabled, filters: { messageSpam: { maxMessages, interval, action }, ... } }
+            const standaloneSpam = antispam?.filters?.messageSpam || {};
             if (antispam?.enabled) {
                 score += 10;
-                checks.push(`<:Checkedbox:1473038547165384804> **Anti-Spam** — Active (${antispam.maxMessages || 5} msg/${(antispam.interval || 5000) / 1000}s)`);
+                const limit = standaloneSpam.maxMessages || antispam.maxMessages || 5;
+                const interval = (standaloneSpam.interval || antispam.interval || 5000) / 1000;
+                checks.push(`<:Checkedbox:1473038547165384804> **Anti-Spam** — Active (${limit} msg/${interval}s)`);
             } else if (automodSpamEnabled) {
                 score += 10;
                 const spamLimit = automod.spam?.messageLimit || 5;

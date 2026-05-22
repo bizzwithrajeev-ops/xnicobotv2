@@ -15,69 +15,63 @@ function saveLogs(data) {
     jsonStore.write('logs', data);
 }
 
+// Single source of truth for log categories so slash + prefix paths stay aligned.
+const logTypeNames = {
+    message:    { name: 'Message',    emoji: '<:Chat:1473038936241864865>',     desc: 'message edits, deletions, and reactions' },
+    member:     { name: 'Member',     emoji: '<:User:1473038971398520977>',     desc: 'joins, leaves, role changes, and bans' },
+    voice:      { name: 'Voice',      emoji: '<:Volumeup:1473039290136002844>', desc: 'VC joins, leaves, and streaming activity' },
+    server:     { name: 'Server',     emoji: '<:Settings:1473037894703779851>', desc: 'channel/role changes and server settings' },
+    moderation: { name: 'Moderation', emoji: '<:banhammer:1473367388597780592>',desc: 'warns, kicks, bans, and mod actions' },
+    automod:    { name: 'AutoMod',    emoji: '<:Shield:1473038669831995494>',   desc: 'automod filter triggers (spam, links, words, mentions)' },
+    security:   { name: 'Security',   emoji: '<:Shield:1473038669831995494>',   desc: 'Anti-Nuke / Anti-Raid / Vanity Guard / threat-mode events' },
+    boost:      { name: 'Boost',      emoji: '<:Sketch:1473038248493453352>',   desc: 'server boost / unboost events' },
+    commands:   { name: 'Commands',   emoji: '<:Gamepad:1473039216429498409>',  desc: 'slash and prefix command usage' },
+};
+const ALL_LOG_KEYS = Object.keys(logTypeNames);
+
 function buildLoggingPanel(config, guild) {
-    const hasAnyLog = config.message || config.member || config.voice || config.server || config.moderation;
     const mode = config.mode || 'bot';
-    
+
     let content = `# <:Document:1473039496995143731> Server Logging System\n\n`;
     content += `Monitor and track all server activities with comprehensive logging. Each log type captures specific events to help you manage your server effectively.\n\n`;
-    
+
     content += `### <:Settings:1473037894703779851> Delivery Mode\n`;
     content += `<:Lightning:1473038797540298792> **Mode:** ${mode === 'webhook' ? '<:Attach:1473037923979886694> Webhook' : '<:bots:1473368718120849500> Bot Message'} — *All log messages are sent silently (no pings)*\n\n`;
-    
+
     content += `### <:Fire:1473038604812161218> Log Channels Configuration\n`;
-    content += `<:Chat:1473038936241864865> **Message Logs:** ${config.message ? `<#${config.message}>` : '*Not configured*'}`;
-    if (mode === 'webhook' && config.webhooks?.message) content += ` <:Attach:1473037923979886694>`;
-    content += `\n*Tracks: Message edits, deletions, bulk deletes, reactions*\n\n`;
-    
-    content += `<:User:1473038971398520977> **Member Logs:** ${config.member ? `<#${config.member}>` : '*Not configured*'}`;
-    if (mode === 'webhook' && config.webhooks?.member) content += ` <:Attach:1473037923979886694>`;
-    content += `\n*Tracks: Joins, leaves, role changes, nickname updates, bans*\n\n`;
-    
-    content += `<:Volumeup:1473039290136002844> **Voice Logs:** ${config.voice ? `<#${config.voice}>` : '*Not configured*'}`;
-    if (mode === 'webhook' && config.webhooks?.voice) content += ` <:Attach:1473037923979886694>`;
-    content += `\n*Tracks: VC joins, leaves, moves, mutes, deafens, streaming*\n\n`;
-    
-    content += `<:Settings:1473037894703779851> **Server Logs:** ${config.server ? `<#${config.server}>` : '*Not configured*'}`;
-    if (mode === 'webhook' && config.webhooks?.server) content += ` <:Attach:1473037923979886694>`;
-    content += `\n*Tracks: Channel/role creates, settings changes, emoji updates*\n\n`;
-    
-    content += `<:Shield:1473038669831995494> **Moderation Logs:** ${config.moderation ? `<#${config.moderation}>` : '*Not configured*'}`;
-    if (mode === 'webhook' && config.webhooks?.moderation) content += ` <:Attach:1473037923979886694>`;
-    content += `\n*Tracks: Warns, kicks, bans, timeouts, mod actions*\n\n`;
-    
+
+    const rows = [
+        { key: 'message',    emoji: '<:Chat:1473038936241864865>',         name: 'Message Logs',     desc: 'Message edits, deletions, bulk deletes, reactions' },
+        { key: 'member',     emoji: '<:User:1473038971398520977>',         name: 'Member Logs',      desc: 'Joins, leaves, role changes, nickname updates, bans' },
+        { key: 'voice',      emoji: '<:Volumeup:1473039290136002844>',     name: 'Voice Logs',       desc: 'VC joins, leaves, moves, mutes, deafens, streaming' },
+        { key: 'server',     emoji: '<:Settings:1473037894703779851>',     name: 'Server Logs',      desc: 'Channel/role creates, settings changes, emoji updates' },
+        { key: 'moderation', emoji: '<:banhammer:1473367388597780592>',    name: 'Moderation Logs',  desc: 'Warns, kicks, bans, timeouts, mod actions' },
+        { key: 'automod',    emoji: '<:Shield:1473038669831995494>',       name: 'AutoMod Logs',     desc: 'Filter triggers (spam, links, words, mentions)' },
+        { key: 'security',   emoji: '<:Shield:1473038669831995494>',       name: 'Security Logs',    desc: 'Anti-Nuke, Anti-Raid, Anti-Alt, Vanity Guard, Threat mode' },
+        { key: 'boost',      emoji: '<:Sketch:1473038248493453352>',       name: 'Boost Logs',       desc: 'Server boost / unboost events' },
+        { key: 'commands',   emoji: '<:Gamepad:1473039216429498409>',      name: 'Command Logs',     desc: 'Slash and prefix command usage' },
+    ];
+
+    for (const row of rows) {
+        const target = config[row.key] ? `<#${config[row.key]}>` : '*Not configured*';
+        const wh = (mode === 'webhook' && config.webhooks?.[row.key]) ? ' <:Attach:1473037923979886694>' : '';
+        content += `${row.emoji} **${row.name}:** ${target}${wh}\n*Tracks: ${row.desc}*\n\n`;
+    }
+
     content += `### <:Edit:1473037903625191580> Quick Setup Guide\n`;
-    content += `**Slash Commands:**\n`;
-    content += `\`/logging set-message #channel\` - Set message logs\n`;
-    content += `\`/logging set-member #channel\` - Set member logs\n`;
-    content += `\`/logging set-voice #channel\` - Set voice logs\n`;
-    content += `\`/logging set-server #channel\` - Set server logs\n`;
-    content += `\`/logging set-moderation #channel\` - Set mod logs\n`;
-    content += `\`/logging set-all #channel\` - Set all logs to one channel\n`;
-    content += `\`/logging disable <type>\` - Disable a log type\n`;
-    content += `\`/logging set-mode <bot|webhook>\` - Switch delivery mode\n`;
-    content += `\`/logging set-webhook <type> <url>\` - Set webhook URL\n\n`;
-    
-    content += `**Prefix Commands:**\n`;
-    content += `\`-logging message #channel\` - Set message logs\n`;
-    content += `\`-logging member #channel\` - Set member logs\n`;
-    content += `\`-logging voice #channel\` - Set voice logs\n`;
-    content += `\`-logging server #channel\` - Set server logs\n`;
-    content += `\`-logging moderation #channel\` - Set mod logs\n`;
-    content += `\`-logging all #channel\` - Set all logs to one channel\n`;
-    content += `\`-logging disable <type>\` - Disable a log type\n`;
-    content += `\`-logging mode <bot|webhook>\` - Switch delivery mode\n`;
-    content += `\`-logging webhook <type> <url>\` - Set webhook URL`;
-    
+    content += `**Slash:** \`/logging set-<type> #channel\` · \`/logging set-all #channel\` · \`/logging disable <type>\` · \`/logging set-mode <bot|webhook>\` · \`/logging set-webhook <type> <url>\`\n`;
+    content += `**Prefix:** \`-logging <type> #channel\` · \`-logging all #channel\` · \`-logging disable <type>\` · \`-logging mode <bot|webhook>\` · \`-logging webhook <type> <url>\`\n`;
+    content += `**Types:** message · member · voice · server · moderation · automod · security · boost · commands`;
+
     return content;
 }
 
 function buildLoggingContainer(config, guild) {
-    const hasAnyLog = config.message || config.member || config.voice || config.server || config.moderation;
-    const configuredCount = [config.message, config.member, config.voice, config.server, config.moderation].filter(Boolean).length;
-    
+    const trackedKeys = ['message', 'member', 'voice', 'server', 'moderation', 'automod', 'security', 'boost', 'commands'];
+    const configuredCount = trackedKeys.filter(k => config[k]).length;
+
     return new ContainerBuilder()
-        .setAccentColor(configuredCount === 5 ? 0x57F287 : configuredCount > 0 ? 0xFEE75C : 0xED4245)
+        .setAccentColor(configuredCount === trackedKeys.length ? 0x57F287 : configuredCount > 0 ? 0xFEE75C : 0xED4245)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(buildLoggingPanel(config, guild))
         )
@@ -115,6 +109,22 @@ module.exports = {
                 .addChannelOption(option =>
                     option.setName('channel').setDescription('The channel for moderation logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
         .addSubcommand(subcommand =>
+            subcommand.setName('set-automod').setDescription('Set channel for AutoMod filter logs')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel for AutoMod logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand.setName('set-security').setDescription('Set channel for Anti-Nuke / Anti-Raid / Vanity Guard / Threat-mode logs')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel for security logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand.setName('set-boost').setDescription('Set channel for boost / unboost logs')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel for boost logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand.setName('set-commands').setDescription('Set channel for slash / prefix command usage logs')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel for command usage logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+        .addSubcommand(subcommand =>
             subcommand.setName('set-all').setDescription('Set all log types to a single channel')
                 .addChannelOption(option =>
                     option.setName('channel').setDescription('The channel for all logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
@@ -130,6 +140,10 @@ module.exports = {
                             { name: 'Voice Logs', value: 'voice' },
                             { name: 'Server Logs', value: 'server' },
                             { name: 'Moderation Logs', value: 'moderation' },
+                            { name: 'AutoMod Logs', value: 'automod' },
+                            { name: 'Security Logs', value: 'security' },
+                            { name: 'Boost Logs', value: 'boost' },
+                            { name: 'Command Logs', value: 'commands' },
                             { name: 'All Logs', value: 'all' }
                         )))
         .addSubcommand(subcommand =>
@@ -150,6 +164,10 @@ module.exports = {
                             { name: 'Voice Logs', value: 'voice' },
                             { name: 'Server Logs', value: 'server' },
                             { name: 'Moderation Logs', value: 'moderation' },
+                            { name: 'AutoMod Logs', value: 'automod' },
+                            { name: 'Security Logs', value: 'security' },
+                            { name: 'Boost Logs', value: 'boost' },
+                            { name: 'Command Logs', value: 'commands' },
                             { name: 'All Logs', value: 'all' }
                         ))
                 .addStringOption(option =>
@@ -165,39 +183,24 @@ module.exports = {
         }
 
         const subcommand = interaction.options.getSubcommand();
-        const logTypeNames = {
-            message: { name: 'Message', emoji: '<:Chat:1473038936241864865>', desc: 'message edits, deletions, and reactions' },
-            member: { name: 'Member', emoji: '<:User:1473038971398520977>', desc: 'joins, leaves, role changes, and bans' },
-            voice: { name: 'Voice', emoji: '<:Volumeup:1473039290136002844>', desc: 'VC joins, leaves, and streaming activity' },
-            server: { name: 'Server', emoji: '<:Settings:1473037894703779851>', desc: 'channel/role changes and server settings' },
-            moderation: { name: 'Moderation', emoji: '<:Shield:1473038669831995494>', desc: 'warns, kicks, bans, and mod actions' }
-        };
 
         if (subcommand.startsWith('set-') && !['set-mode', 'set-webhook'].includes(subcommand)) {
             const channel = interaction.options.getChannel('channel');
             const type = subcommand.replace('set-', '');
             
             if (type === 'all') {
-                logs[guildId].message = channel.id;
-                logs[guildId].member = channel.id;
-                logs[guildId].voice = channel.id;
-                logs[guildId].server = channel.id;
-                logs[guildId].moderation = channel.id;
+                for (const key of ALL_LOG_KEYS) logs[guildId][key] = channel.id;
                 saveLogs(logs);
                 invalidateCache();
-                
+
+                const lines = ALL_LOG_KEYS.map(k => `${logTypeNames[k].emoji} **${logTypeNames[k].name} Logs** — ${logTypeNames[k].desc}`).join('\n');
                 const container = new ContainerBuilder()
                     .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> All Logging Channels Configured\n\n` +
-                            `All 5 log types have been set to ${channel}\n\n` +
-                            `### Logs Now Active\n` +
-                            `<:Chat:1473038936241864865> **Message Logs** - Edits, deletions, reactions\n` +
-                            `<:User:1473038971398520977> **Member Logs** - Joins, leaves, role changes\n` +
-                            `<:Volumeup:1473039290136002844> **Voice Logs** - VC activity, streaming\n` +
-                            `<:Settings:1473037894703779851> **Server Logs** - Settings, channels, roles\n` +
-                            `<:Shield:1473038669831995494> **Moderation Logs** - Warns, bans, kicks\n\n` +
+                            `All ${ALL_LOG_KEYS.length} log types have been set to ${channel}\n\n` +
+                            `### Logs Now Active\n${lines}\n\n` +
                             `*Use \`/logging view\` to see your full configuration*`
                         )
                     )
@@ -316,7 +319,7 @@ module.exports = {
             
             if (!logs[guildId].webhooks) logs[guildId].webhooks = {};
             
-            const allTypes = ['message', 'member', 'voice', 'server', 'moderation'];
+            const allTypes = ALL_LOG_KEYS;
             if (type === 'all') {
                 for (const t of allTypes) {
                     logs[guildId].webhooks[t] = url;
@@ -368,14 +371,6 @@ module.exports = {
 
         const action = args[0]?.toLowerCase();
         const channel = message.mentions.channels.first();
-
-        const logTypeNames = {
-            message: { name: 'Message', emoji: '<:Chat:1473038936241864865>', desc: 'message edits, deletions, and reactions' },
-            member: { name: 'Member', emoji: '<:User:1473038971398520977>', desc: 'joins, leaves, role changes, and bans' },
-            voice: { name: 'Voice', emoji: '<:Volumeup:1473039290136002844>', desc: 'VC joins, leaves, and streaming activity' },
-            server: { name: 'Server', emoji: '<:Settings:1473037894703779851>', desc: 'channel/role changes and server settings' },
-            moderation: { name: 'Moderation', emoji: '<:Shield:1473038669831995494>', desc: 'warns, kicks, bans, and mod actions' }
-        };
 
         if (!action || action === 'view') {
             const config = logs[guildId] || {};
@@ -465,9 +460,9 @@ module.exports = {
                 return message.reply('<:Cancel:1473037949187657818> Usage: `-logging webhook <type> <url>`\nTypes: `message`, `member`, `voice`, `server`, `moderation`, `all`');
             }
             
-            const allTypes = ['message', 'member', 'voice', 'server', 'moderation'];
+            const allTypes = ALL_LOG_KEYS;
             if (type !== 'all' && !allTypes.includes(type)) {
-                return message.reply('<:Cancel:1473037949187657818> Invalid log type! Use: `message`, `member`, `voice`, `server`, `moderation`, or `all`');
+                return message.reply(`<:Cancel:1473037949187657818> Invalid log type! Use: ${ALL_LOG_KEYS.map(k => '`' + k + '`').join(', ')}, or \`all\``);
             }
             
             const webhookUrlRegex = /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d+\/.+$/;
