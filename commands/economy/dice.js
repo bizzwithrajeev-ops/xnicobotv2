@@ -26,7 +26,7 @@ async function handleDice(reply, userId, args, opponent = null) {
     if (!betResult.valid) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# 🎲 Dice Roll`,
+            `# <:Gamepad:1473039216429498409> Dice Roll`,
             '',
             `**Usage:** \`dice <amount> [@opponent]\``,
             `**Max Bet:** ${formatNumber(MAX_BET)}`,
@@ -68,7 +68,7 @@ async function handleDice(reply, userId, args, opponent = null) {
     const container = createContainer(won ? 0x57F287 : (tie ? 0xFEE75C : 0xED4245));
 
     addTextDisplay(container, [
-        `# 🎲 Dice Roll`,
+        `# <:Gamepad:1473039216429498409> Dice Roll`,
         '',
         `### You: ${DICE_FACES[playerRoll - 1]} **${playerRoll}**`,
         `### ${opponentName}: ${DICE_FACES[opponentRoll - 1]} **${opponentRoll}**`,

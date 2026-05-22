@@ -138,7 +138,7 @@ const CATEGORY_GROUP_RULES = {
     // ── 13. Basic & Misc ─────────────────────────────────────
     basic: [
         { name: 'Bot Core',            emoji: '<:xnico:1486755083390550036>',       cmds: ['help', 'botinfo', 'ping', 'invite', 'uptime', 'vote', 'support', 'variables'] },
-        { name: 'Premium',             emoji: '<:Fire:1473038604812161218>',       cmds: ['premium', 'premiumperks', 'redeemkey', 'serverpremium'] },
+        { name: 'Premium',             emoji: '<:Crown:1506010837368963142>',     cmds: ['premium', 'redeemkey', 'redeemserverkey', 'serverpremium'] },
         { name: 'Reminders & AFK',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['afk', 'reminder', 'announce'] },
         { name: 'Lookup & APIs',       emoji: '<:Attach:1473037923979886694>',     cmds: ['github', 'npm', 'define', 'urban', 'urbanrandom', 'wikipedia', 'reddit', 'youtube', 'spotify', 'weather', 'color', 'ip'] },
         { name: 'Media & Tools',       emoji: '<:Pin:1473038806612447500>',        cmds: ['image', 'screenshot', 'qrcode', 'shorten', 'pastebin', 'calculate', 'password', 'uuid', 'download'] },

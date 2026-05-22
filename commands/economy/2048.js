@@ -136,7 +136,7 @@ function buildContainer(game, payoutInfo = null) {
     else if (game.status === 'cashed') header = `### <:Money:1473377877239140529> Cashed out at tile ${top}!`;
     else                              header = `Slide tiles. Highest tile: **${top}**  ·  Current payout: **${mult}×**`;
 
-    let content = `# 🎮 2048\n\n**Bet:** ${formatCoinsShort(game.bet, game.guildId)}  •  **Score:** ${game.score}\n\n${header}\n\`\`\`\n${board}\n\`\`\``;
+    let content = `# <:Gamepad:1473039216429498409> 2048\n\n**Bet:** ${formatCoinsShort(game.bet, game.guildId)}  •  **Score:** ${game.score}\n\n${header}\n\`\`\`\n${board}\n\`\`\``;
     if (payoutInfo) content += `\n${payoutInfo}`;
 
     const accent = game.status === 'won' ? 0x57F287

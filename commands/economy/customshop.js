@@ -227,6 +227,13 @@ async function processBuy(userId, guildId, guild, itemIndex, reply) {
 // ── Command Module ───────────────────────────────────────────────────────
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite message instead of execution.
+     */
+    premiumOnly: true,
+
     data: new SlashCommandBuilder()
         .setName('customshop')
         .setDescription('Custom server shop with configurable items and actions')

@@ -457,6 +457,35 @@ function buildExpiredPanel(commandHint, contextMsg = null) {
     return container;
 }
 
+/**
+ * Build a Components V2 "Premium required" response. Used by the
+ * dispatcher when a user without premium tries to run a `premiumOnly`
+ * command, and reusable by individual commands that gate sub-features
+ * behind premium (e.g. premium-only buttons).
+ *
+ * @param {string} [commandName] Display name of the gated command, e.g. `feedback`.
+ * @returns {ContainerBuilder}
+ */
+function buildPremiumGate(commandName) {
+    const container = new ContainerBuilder().setAccentColor(0xF1C40F);
+    let content = `# <:Crown:1506010837368963142> Premium Required\n\n`;
+    if (commandName) {
+        content += `\`${commandName}\` is a premium-only feature.\n`;
+    } else {
+        content += `This feature is premium-only.\n`;
+    }
+    content += `\n### How to unlock\n`;
+    content += `▸ \`/redeemkey <KEY>\` — activate **user** premium for yourself\n`;
+    content += `▸ \`/redeemserverkey <KEY>\` — activate **server** premium for everyone in this server\n`;
+    content += `▸ Owner: \`/genkey\` to generate a key, then share it with the user / server admin\n\n`;
+    content += `-# Premium also bypasses command cooldowns and unlocks bot customization, custom currency, custom shop, loans, and more.`;
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+    return container;
+}
+
 module.exports = {
     COLORS,
     EMOJIS,
@@ -481,5 +510,6 @@ module.exports = {
     buildInvalidUsage,
     buildCooldownResponse,
     buildLoadingResponse,
-    buildExpiredPanel
+    buildExpiredPanel,
+    buildPremiumGate
 };

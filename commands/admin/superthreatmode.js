@@ -85,6 +85,13 @@ function buildSuperThreatPanel(guildConfig, guildName) {
 }
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite message instead of execution.
+     */
+    premiumOnly: true,
+
     data: new SlashCommandBuilder()
         .setName('superthreatmode')
         .setDescription('Set guild\'s super threat mode — maximum lockdown')

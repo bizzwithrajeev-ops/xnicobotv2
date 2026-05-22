@@ -60,6 +60,13 @@ function buildPanel(guildConfig, guildName) {
 }
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite message instead of execution.
+     */
+    premiumOnly: true,
+
     name: 'nightmode',
     prefix: 'nightmode',
     description: 'Lock or unlock the server by revoking send-message permissions in all channels',

@@ -70,7 +70,7 @@ async function handleSlots(reply, userId, args) {
   if (!bet || isNaN(bet) || bet < MIN_BET) {
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-      `# 🎰 Slot Machine`,
+      `# <:Gamepad:1473039216429498409> Slot Machine`,
       '',
       `**Usage:** \`slots <amount>\``,
       `**Min Bet:** ${formatNumber(MIN_BET)}`,
@@ -123,7 +123,7 @@ async function handleSlots(reply, userId, args) {
   const container = createContainer(won ? 0xCAD7E6 : 0xED4245);
 
   addTextDisplay(container, [
-    `# 🎰 Slot Machine`,
+    `# <:Gamepad:1473039216429498409> Slot Machine`,
     '',
     `## ${reelEmojis.join(' | ')}`,
   ].join('\n'));

@@ -14,7 +14,7 @@ const OUTCOMES = [
     { multiplier: 1,   weight: 15, label: '🔄 Break Even', color: 0xCAD7E6 },
     { multiplier: 1.5, weight: 15, label: '📈 1.5x',      color: 0x57F287 },
     { multiplier: 2,   weight: 10, label: '🎉 2x',        color: 0x57F287 },
-    { multiplier: 3,   weight: 4,  label: '🔥 3x',        color: 0x5865F2 },
+    { multiplier: 3,   weight: 4,  label: '<:Fire:1473038604812161218> 3x',        color: 0x5865F2 },
     { multiplier: 5,   weight: 1,  label: '<:Sketch:1473038248493453352> JACKPOT 5x', color: 0xA855F7 },
 ];
 
@@ -44,7 +44,7 @@ async function handleGamble(reply, userId, args) {
     if (!betResult.valid) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# 🎰 Gamble`,
+            `# <:Gamepad:1473039216429498409> Gamble`,
             '',
             `**Usage:** \`gamble <amount>\``,
             `**Max Bet:** ${formatNumber(MAX_BET)}`,
@@ -85,7 +85,7 @@ async function handleGamble(reply, userId, args) {
     const container = createContainer(outcome.color);
 
     addTextDisplay(container, [
-        `# 🎰 Gamble`,
+        `# <:Gamepad:1473039216429498409> Gamble`,
         '',
         `## ${outcome.label}`,
         `> Multiplier: **${outcome.multiplier}x**`,

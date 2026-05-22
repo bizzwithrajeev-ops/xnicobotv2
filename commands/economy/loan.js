@@ -20,7 +20,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
     const c = createContainer(0xCAD7E6);
     if (active.length === 0) {
       addTextDisplay(c, [
-        `# 🏦 Loan Office`,
+        `# <:Invoice:1473039492217835550> Loan Office`,
         '',
         `You have no outstanding loans.`,
         '',
@@ -44,7 +44,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
         return s + Math.floor(l.amount * Math.pow(1 + INTEREST_RATE, days));
       }, 0);
       addTextDisplay(c, [
-        `# 🏦 Your Loans`,
+        `# <:Invoice:1473039492217835550> Your Loans`,
         '',
         ...lines,
         '',
@@ -84,7 +84,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
     const dayOwed = Math.floor(amount * (1 + INTEREST_RATE));
     const c = createContainer(0xCAD7E6);
     addTextDisplay(c, [
-      `# 🏦 Loan Approved!`,
+      `# <:Invoice:1473039492217835550> Loan Approved!`,
       '',
       `<:Money:1473377877239140529> **Borrowed:** +${formatNumber(amount)} coins`,
       `📋 **After 1 day:** ${formatNumber(dayOwed)} coins owed (${INTEREST_RATE * 100}% daily interest)`,
@@ -122,7 +122,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
 
     const c = createContainer(0xCAD7E6);
     addTextDisplay(c, [
-      `# 🏦 Loan Repaid!`,
+      `# <:Checkedbox:1473038547165384804> Loan Repaid!`,
       '',
       `💸 **Paid:** ${formatNumber(result.paid || repayAmt)} coins`,
       result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatNumber(stillOwed)} coins`,
@@ -137,6 +137,13 @@ async function handleLoan(reply, userId, subcommand, amount) {
 }
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite message instead of execution.
+     */
+    premiumOnly: true,
+
   data: new SlashCommandBuilder()
     .setName('loan')
     .setDescription('Take or repay a loan — interest compounds daily at 10%')

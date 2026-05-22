@@ -48,7 +48,7 @@ function buildContainer(game, payoutInfo = null) {
     if (game.status === 'won') header = `### 🏆 All Pairs Found!`;
     else header = `Flip cards to find matching emoji pairs.`;
 
-    let content = `# 🃏 Memory\n\n**Bet:** ${formatCoinsShort(game.bet, game.guildId)}  •  **Pairs:** ${game.matched}/8  •  **Flips:** ${game.flips}\n\n${header}`;
+    let content = `# <:Gamepad:1473039216429498409> Memory\n\n**Bet:** ${formatCoinsShort(game.bet, game.guildId)}  •  **Pairs:** ${game.matched}/8  •  **Flips:** ${game.flips}\n\n${header}`;
     if (payoutInfo) content += `\n\n${payoutInfo}`;
 
     const accent = game.status === 'won' ? 0x57F287 : 0xCAD7E6;

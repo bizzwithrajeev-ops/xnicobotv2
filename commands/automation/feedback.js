@@ -447,6 +447,13 @@ async function handleInteraction(interaction) {
 
 /* ─── Command ─── */
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite message instead of execution.
+     */
+    premiumOnly: true,
+
     name: 'feedback',
     prefix: 'feedback',
     aliases: ['feedback', 'fb'],

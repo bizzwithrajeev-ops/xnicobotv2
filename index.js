@@ -3686,6 +3686,19 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
 
+            // Handle premium info buttons (premium_view_status / features / pricing)
+            if (interaction.customId.startsWith('premium_view_')) {
+                try {
+                    const premiumCmd = client.commands.get('premium');
+                    if (premiumCmd?.handleButton) {
+                        const handled = await premiumCmd.handleButton(interaction);
+                        if (handled) return;
+                    }
+                } catch (e) {
+                    log.error(`Premium button handler: ${e.message}`, e);
+                }
+            }
+
             // Handle recommendations buttons
             if (interaction.customId.startsWith('rec_')) {
                 const cache = interaction.client.recommendationCache?.get(interaction.message.id);
@@ -6401,7 +6414,15 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (command.premiumOnly && !premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
-        return interaction.reply({ content: '<:Cancel:1473037949187657818> This feature requires **Premium**. Use `redeemkey` to activate or ask an admin to activate server premium.', flags: MessageFlags.Ephemeral }).catch(() => { });
+        try {
+            const { buildPremiumGate } = require('./utils/responseBuilder');
+            return interaction.reply({
+                components: [buildPremiumGate(`/${interaction.commandName}`)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            }).catch(() => {});
+        } catch {
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> This feature requires **Premium**. Use `/redeemkey` to activate or ask an admin to activate server premium.', flags: MessageFlags.Ephemeral }).catch(() => { });
+        }
     }
 
     // ── Bot Permission Pre-Check ──
@@ -8231,7 +8252,16 @@ client.on('messageCreate', async (message) => {
         }
 
         if (command.premiumOnly && !premiumManager.hasPremiumAccess(message.author.id, message.guild?.id)) {
-            return message.reply('<:Cancel:1473037949187657818> This feature requires **Premium**. Use `redeemkey` to activate or ask an admin to activate server premium.').catch(() => { });
+            try {
+                const { buildPremiumGate } = require('./utils/responseBuilder');
+                const prefixHint = `${getGuildPrefix(message.guild?.id)}${commandName}`;
+                return message.reply({
+                    components: [buildPremiumGate(prefixHint)],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
+            } catch {
+                return message.reply('<:Cancel:1473037949187657818> This feature requires **Premium**. Use `redeemkey` to activate or ask an admin to activate server premium.').catch(() => { });
+            }
         }
 
         // ── Bot Permission Pre-Check ──

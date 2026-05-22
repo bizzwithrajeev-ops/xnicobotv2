@@ -51,6 +51,13 @@ function buildSetupPanel(guild, cfg) {
 }
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite message instead of execution.
+     */
+    premiumOnly: true,
+
     data: new SlashCommandBuilder()
         .setName('confession-setup')
         .setDescription('Set up the anonymous confession system')

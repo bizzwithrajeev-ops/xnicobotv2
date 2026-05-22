@@ -77,7 +77,7 @@ function buildContainer(game, hideDealer = true, resultText = null, payout = 0) 
         : formatCards(game.dealerCards);
     const dealerTotalDisplay = hideDealer ? '?' : dealerTotal;
 
-    let content = `# 🃏 Blackjack\n\n`;
+    let content = `# <:Gamepad:1473039216429498409> Blackjack\n\n`;
     content += `**Bet:** ${formatCoinsShort(game.bet, game.guildId)}\n\n`;
     content += `**Dealer's Hand** (${dealerTotalDisplay})\n`;
     content += `> ${dealerDisplay}\n\n`;
