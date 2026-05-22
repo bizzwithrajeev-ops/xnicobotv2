@@ -181,6 +181,59 @@ const HANDLERS = {
     // notifyModuleUpdate('voice', …) — which maps voice -> join2create —
     // resolves to a documented no-op rather than falling off the table.
     join2create() { /* read-through via utils/join2createHandler */ },
+
+    'media-only'() { /* read-through via utils/interactionHandlers */ },
+
+    welcomer(data) {
+        // welcomer config is read by message handlers and slash command,
+        // each does its own jsonStore.read('welcomer'). The cache used by
+        // the bot for member-join logic is index.js's local welcomerCache.
+        if (typeof global.updateWelcomerCache === 'function') {
+            rebuildPerGuildCache(
+                () => global.welcomerCache,
+                (gid, cfg) => global.updateWelcomerCache(gid, cfg),
+                data
+            );
+        }
+    },
+
+    'economy-settings'() {
+        // economy reads through jsonStore on each command — no dedicated
+        // in-memory cache to clear. Future-proof: try to invalidate any
+        // module-level cache the manager exposes.
+        try {
+            const eco = require('./economyManager');
+            if (eco && typeof eco.invalidateCache === 'function') {
+                eco.invalidateCache();
+            }
+        } catch {}
+    },
+
+    'social-notify'() {
+        try {
+            const sn = require('./socialNotifyManager');
+            if (sn && typeof sn.invalidateCache === 'function') {
+                sn.invalidateCache();
+            }
+        } catch {}
+    },
+
+    'vote-config'() {
+        try {
+            const vm = require('./voteManager');
+            if (vm && typeof vm.invalidateCache === 'function') {
+                vm.invalidateCache();
+            }
+        } catch {}
+    },
+
+    confessions() {
+        // /confess and confession-setup read jsonStore on demand
+    },
+
+    'vanity-protect'() {
+        // antinuke vanity protection reads through jsonStore on demand
+    },
 };
 
 /**

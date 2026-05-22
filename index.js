@@ -2,6 +2,11 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
+// Install emoji guard FIRST so all subsequent ButtonBuilder.setEmoji calls
+// are sanitized against the bot's known-good emoji set.
+const emojiGuard = require('./utils/emojiGuard');
+emojiGuard.installPatches();
+
 const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, ActivityType, PresenceUpdateStatus, ContainerBuilder, TextDisplayBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, SectionBuilder, ThumbnailBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SeparatorBuilder, SeparatorSpacingSize, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { formatTime, isOwner } = require('./utils/helpers');
 const { createLavalinkManager, setupLavalinkEvents, initLavalink, autoplayStatus, lastPlayedTracks, autoplayHistory, panelUpdateIntervals, panelUpdateInProgress, previousVolume, nowPlayingMessages, musicPanelCache, musicPanelChannelCache, inactivityTimers } = require('./utils/lavalinkSetup');
@@ -1015,6 +1020,10 @@ const { Events } = require('discord.js');
 client.on(Events.ClientReady, async () => {
     log.startup();
     log.bot(`${client.user.username}`);
+
+    // Wire client into emoji guard so unknown IDs get sanitized against
+    // the live emoji cache.
+    emojiGuard.attachClient(client);
 
     const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
     log.info(`${client.guilds.cache.size} servers • ${totalMembers.toLocaleString()} users`);
@@ -10155,27 +10164,92 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
     try { await updateServerStats(newGuild); } catch { }
 
     // ── Vanity Guard Enforcement ──
-    if (oldGuild.vanityURLCode && oldGuild.vanityURLCode !== newGuild.vanityURLCode) {
+    if (oldGuild.vanityURLCode !== newGuild.vanityURLCode) {
         try {
-            const vgConfig = jsonStore.read('vanityguard');
+            const vgConfig = jsonStore.has('vanityguard') ? (jsonStore.read('vanityguard') || {}) : {};
             const guildVg = vgConfig[newGuild.id];
             if (guildVg?.enabled) {
-                const auditLogs = await newGuild.fetchAuditLogs({ type: 101, limit: 5 });
-                const entry = auditLogs.entries.find(e =>
-                    e.target?.id === newGuild.id &&
-                    Date.now() - e.createdTimestamp < 10000
-                );
-                const executorId = entry?.executor?.id;
+                // Audit log type 1 = GUILD_UPDATE. Vanity changes fall under
+                // this type with `changes[].key === 'vanity_url_code'`.
+                let executorId = null;
+                let executor = null;
+                try {
+                    const auditLogs = await newGuild.fetchAuditLogs({ type: 1, limit: 6 });
+                    const entry = auditLogs.entries.find(e => {
+                        if (!e.changes) return false;
+                        if (Date.now() - e.createdTimestamp > 15_000) return false;
+                        return e.changes.some(c => c.key === 'vanity_url_code');
+                    });
+                    if (entry) {
+                        executorId = entry.executor?.id || null;
+                        executor = entry.executor || null;
+                    }
+                } catch (auditErr) {
+                    log.warning(`[VanityGuard] Could not fetch audit logs in ${newGuild.id}: ${auditErr.message}`);
+                }
 
+                // Trust check: server owner OR explicit whitelist OR antinuke whitelist
                 const trust = require('./utils/trustManager');
-                const isAllowed = executorId && (
-                    trust.isServerOwner(newGuild, executorId) ||
-                    (guildVg.whitelistedUsers || []).includes(executorId)
-                );
+                let isAllowed = false;
+                if (executorId) {
+                    if (trust.isServerOwner(newGuild, executorId)) isAllowed = true;
+                    if ((guildVg.whitelistedUsers || []).includes(executorId)) isAllowed = true;
+                    // Also honor the antinuke whitelist if present.
+                    try {
+                        const antinukeData = jsonStore.has('antinuke') ? jsonStore.read('antinuke') : {};
+                        const aw = antinukeData?.[newGuild.id]?.whitelist;
+                        if (Array.isArray(aw) && aw.includes(executorId)) isAllowed = true;
+                    } catch {}
+                    // Bot itself is always allowed (e.g. boost-tier downgrade clears vanity)
+                    if (executorId === client.user.id) isAllowed = true;
+                }
 
                 if (!isAllowed) {
-                    await newGuild.setVanityCode(oldGuild.vanityURLCode, 'Vanity Guard — unauthorized change reverted');
-                    log.warning(`[VanityGuard] Reverted vanity change in ${newGuild.name} (${newGuild.id}) — executor: ${executorId || 'unknown'}`);
+                    // Restore the previous vanity. setVanityCode requires the
+                    // boost tier to still be 3+; if not, just log and skip.
+                    if (newGuild.premiumTier >= 3 && oldGuild.vanityURLCode) {
+                        try {
+                            await newGuild.setVanityCode(oldGuild.vanityURLCode, 'Vanity Guard — unauthorized change reverted');
+                            log.warning(`[VanityGuard] Reverted vanity change in ${newGuild.name} (${newGuild.id}) by ${executor?.tag || executorId || 'unknown'}`);
+                        } catch (revertErr) {
+                            log.error(`[VanityGuard] Failed to revert vanity for ${newGuild.id}: ${revertErr.message}`);
+                        }
+                    } else {
+                        log.warning(`[VanityGuard] Cannot revert vanity in ${newGuild.id} — boost tier ${newGuild.premiumTier} insufficient`);
+                    }
+
+                    // Punish executor if configured
+                    if (executorId && executorId !== client.user.id) {
+                        try {
+                            const member = await newGuild.members.fetch(executorId).catch(() => null);
+                            if (member && member.bannable) {
+                                if (guildVg.action === 'ban') {
+                                    await member.ban({ reason: 'Vanity Guard — unauthorized vanity change' });
+                                } else if (guildVg.action === 'kick' && member.kickable) {
+                                    await member.kick('Vanity Guard — unauthorized vanity change');
+                                }
+                            }
+                        } catch {}
+                    }
+
+                    // Send a guard alert to the configured log channel (if any)
+                    try {
+                        const logChId = guildVg.logChannelId;
+                        if (logChId) {
+                            const ch = newGuild.channels.cache.get(logChId);
+                            if (ch?.isTextBased()) {
+                                const alert =
+                                    `## <:Shield:1473038669831995494> Vanity Guard Triggered\n` +
+                                    `> Vanity changed from \`${oldGuild.vanityURLCode || 'none'}\` to \`${newGuild.vanityURLCode || 'none'}\`\n` +
+                                    `> Executor: ${executor ? `<@${executorId}> (${executor.tag})` : '*unknown*'}\n` +
+                                    `> Result: ${newGuild.premiumTier >= 3 ? 'Reverted' : 'Could not revert (insufficient boost tier)'}`;
+                                const container = new ContainerBuilder()
+                                    .setAccentColor(0xED4245)
+                                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(alert));
+                                await ch.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                            }
+                        }
+                    } catch {}
                 }
             }
         } catch (err) {

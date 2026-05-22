@@ -18,7 +18,9 @@ function saveConfig(config) {
 function getDefault() {
     return {
         enabled: false,
-        whitelistedUsers: []
+        whitelistedUsers: [],
+        logChannelId: null,
+        action: 'none' // 'none' | 'kick' | 'ban'
     };
 }
 
@@ -34,22 +36,29 @@ function buildPanel(guildConfig, guildName) {
     const statusText = guildConfig.enabled
         ? '**Active** — Vanity URL is protected'
         : '**Inactive** — Vanity URL is not protected';
+    const logChDisplay = guildConfig.logChannelId ? `<#${guildConfig.logChannelId}>` : '*Not set*';
+    const actionDisplay = (guildConfig.action || 'none') === 'none'
+        ? 'Revert only'
+        : (guildConfig.action === 'kick' ? 'Revert + Kick' : 'Revert + Ban');
 
     const content =
         `# <:Shield:1473038669831995494> Vanity Guard\n` +
         `-# Protect your server's vanity URL for **${guildName}**\n\n` +
-        `${statusEmoji} ${statusText}\n\n` +
-        `### <:Document:1473039496995143731> What Vanity Guard Does\n` +
-        `▸ Monitors vanity URL changes\n` +
-        `▸ Reverts unauthorized vanity modifications\n` +
-        `▸ Only whitelisted users can change the vanity\n` +
-        `▸ Logs all vanity change attempts\n\n` +
+        `${statusEmoji} ${statusText}\n` +
+        `<:Document:1473039496995143731> **Log channel:** ${logChDisplay}\n` +
+        `<:Lightningalt:1473038679906844824> **Action on violation:** ${actionDisplay}\n\n` +
+        `### What Vanity Guard Does\n` +
+        `▸ Monitors vanity URL changes via guildUpdate + audit log\n` +
+        `▸ Reverts unauthorized changes (boost tier 3 required)\n` +
+        `▸ Optionally kicks/bans the offender\n` +
+        `▸ Sends an alert to your log channel\n\n` +
         `### <:Userplus:1473038912212435086> Whitelisted Users (${wlCount})\n` +
         `${wlDisplay}\n\n` +
-        `### <:Lightningalt:1473038679906844824> Commands\n` +
-        `▸ \`vanityguard enable\` — Enable protection\n` +
-        `▸ \`vanityguard disable\` — Disable protection\n` +
-        `▸ \`vanityguard wl @user\` — Toggle whitelist for a user\n\n` +
+        `### Commands\n` +
+        `▸ \`vanityguard enable / disable\`\n` +
+        `▸ \`vanityguard wl @user\` — Toggle whitelist\n` +
+        `▸ \`vanityguard log #channel\` — Set alert channel\n` +
+        `▸ \`vanityguard action none|kick|ban\` — Punishment on violation\n\n` +
         BRANDING;
 
     const container = new ContainerBuilder()
@@ -152,6 +161,28 @@ module.exports = {
                     ));
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
+        }
+
+        if (sub === 'log') {
+            const channel = message.mentions.channels.first();
+            if (!channel) {
+                guildConfig.logChannelId = null;
+                saveConfig(config);
+                return message.reply('<:Checkedbox:1473038547165384804> Vanity Guard log channel cleared.');
+            }
+            guildConfig.logChannelId = channel.id;
+            saveConfig(config);
+            return message.reply(`<:Checkedbox:1473038547165384804> Vanity Guard alerts will be sent to ${channel}.`);
+        }
+
+        if (sub === 'action') {
+            const choice = (args[1] || '').toLowerCase();
+            if (!['none', 'kick', 'ban'].includes(choice)) {
+                return message.reply('<:Cancel:1473037949187657818> Action must be one of: `none`, `kick`, `ban`.');
+            }
+            guildConfig.action = choice;
+            saveConfig(config);
+            return message.reply(`<:Checkedbox:1473038547165384804> Action set to **${choice}**.`);
         }
 
         const panel = buildPanel(guildConfig, message.guild.name);

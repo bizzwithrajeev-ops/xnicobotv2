@@ -30,6 +30,8 @@ const MUSIC_THEME = {
     apple: 0xFC3C44
 };
 
+// Confirmed-valid emojis only. Unicode fallbacks used for cross-server emojis
+// that were causing COMPONENT_INVALID_EMOJI errors when the bot lacked access.
 const EMOJIS = {
     play: '<:Play:1473039266081800303>',
     pause: '<:Pause:1473039275829366815>',
@@ -39,24 +41,24 @@ const EMOJIS = {
     loop: '<:Refresh:1473037911581528165>',
     volume: '<:Volumeup:1473039290136002844>',
     mute: '<:Volumeoff:1473039301414621427>',
-    queue: '<:queue:1479349681049043096>',
+    queue: '📜',
     music: '<:Music:1473039311057190972>',
     filters: '<:Fire:1473038604812161218>',
     verify: '<:Checkedbox:1473038547165384804>',
     wrong: '<:Cancel:1473037949187657818>',
-    youtube: '<:YoutubeLive:1435331502710722592>',
-    spotify: '<:spotify:1473663456182800446>',
-    soundcloud: '<:soundCloud:1435332317341159424>',
-    apple: '<:applemusic:1435332305919938680>',
-    live: '<a:live:1435331508989636642>',
-    loading: '<a:Load:1479681956273852607>',
+    youtube: '📺',
+    spotify: '🟢',
+    soundcloud: '🟠',
+    apple: '🍎',
+    live: '🔴',
+    loading: '<:Lightningalt:1473038679906844824>',
     headphone: '<:Headphone:1473039296062689566>',
     fastforward: '<:Fastforward:1473039306292723976>',
     fastrewind: '<:Fastrewind:1473039308620431682>',
     forward: '<:Forward:1473038953182531645>',
-    dislike: '<:Dislike:1473038962762317834>',
-    like: '<:Like:1473038965111259307>',
-    qended: '<:qended:1479349855217516544>',
+    dislike: '👎',
+    like: '👍',
+    qended: '⏹',
     microphone: '<:Microphone:1473039293088927996>',
     musicNote: '<:Music:1473039311057190972>'
 };
@@ -207,7 +209,7 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_queue').setEmoji(EMOJIS.queue).setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heartalt:1473038488893526016>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('panel_like').setEmoji('❤️').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_lyrics').setEmoji('<:Edit:1473037903625191580>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_grab').setEmoji('<:Download:1473039486727225394>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_247').setEmoji('<:Star:1473038501766369300>').setStyle(is247Enabled ? ButtonStyle.Success : ButtonStyle.Secondary)
@@ -278,7 +280,7 @@ function buildIdlePanel(guildId = null) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_queue').setEmoji(EMOJIS.queue).setStyle(ButtonStyle.Secondary).setDisabled(true),
-        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heartalt:1473038488893526016>').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId('panel_like').setEmoji('❤️').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_lyrics').setEmoji('<:Edit:1473037903625191580>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_grab').setEmoji('<:Download:1473039486727225394>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_247').setEmoji('<:Star:1473038501766369300>').setStyle(is247Enabled ? ButtonStyle.Success : ButtonStyle.Secondary)
@@ -447,7 +449,7 @@ function buildFiltersContainer(player) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('filter_clear').setLabel('Clear All').setEmoji('<:Trash:1473038090074591293>').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId('filter_close').setEmoji('1473037949187657818').setLabel('Close').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('filter_close').setEmoji('<:Cancel:1473037949187657818>').setLabel('Close').setStyle(ButtonStyle.Secondary)
     );
 
     container.addActionRowComponents(row1, row2, row3);

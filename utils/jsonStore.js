@@ -27,9 +27,10 @@ const PERIODIC_FLUSH_MS = 5 * 60_000; // force-flush dirty stores every 5 min
 // PG poll cadence — was 3000ms, but the SELECT round-trip + the
 // 'update' fan-out it can cause was the dominant source of high
 // `client.ws.ping` (the gateway heartbeat shares the event loop).
-// 10s feels effectively real-time for the dashboard while cutting
-// the load 3.3×. Keep this as a single tuneable.
-const PG_POLL_MS       = 15_000;
+// 5s gives near-real-time dashboard sync without overloading PG.
+// (Original 3s was tuned for shared-pg-host setups; 15s caused user-visible
+// lag when the dashboard wrote a config from a different process.)
+const PG_POLL_MS       = 5_000;
 const LOCAL_POLL_MS     = 1_500;   // poll local file mtimes every 1.5s for cross-process sync
 const LOCAL_STORE_DIR  = path.join(__dirname, '..', 'json_stores');
 
