@@ -28,19 +28,23 @@ const CV2 = MessageFlags.IsComponentsV2;
 /* ─── Custom emojis ─── */
 const E = {
     feedback  : '<:Lightbulbalt:1473038470787240009>',
-    star      : '⭐',
+    star      : '<:Star:1473038501766369300>',
+    starOn    : '⭐',
+    starOff   : '☆',
     user      : '<:User:1473038971398520977>',
     clock     : '<:Clock:1473039102113878056>',
     check     : '<:Checkedbox:1473038547165384804>',
     cancel    : '<:Cancel:1473037949187657818>',
-    channel   : '<:Chat:1473038936241864865>',
+    channel   : '<:Bullhorn:1473038903157199093>',
+    chat      : '<:Chat:1473038936241864865>',
     trash     : '<:Trash:1473038090074591293>',
     edit      : '<:Edit:1473037903625191580>',
     info      : '<:Inforect:1473038624172937287>',
     fire      : '<:Fire:1473038604812161218>',
     comment   : '<:Commentblock:1473370739351490794>',
-    settings  : '<:Editalt:1473038138577256670>',
+    settings  : '<:Settings:1473037894703779851>',
     stats     : '<:Lightning:1473038797540298792>',
+    document  : '<:Document:1473039496995143731>',
 };
 
 /* ─── Store helpers ─── */
@@ -66,7 +70,6 @@ function getGuildData(guildId) {
     return { store, guildData: store[guildId] };
 }
 
-/* ─── Star builders ─── */
 function buildStarsBar(rating) {
     const n = Math.min(Math.max(parseInt(rating) || 0, 0), 5);
     return '⭐'.repeat(n) + '☆'.repeat(5 - n);
@@ -141,7 +144,7 @@ function buildFeedbackCard({ rating, review, imageUrl, user, feedbackNumber }) {
             new ButtonBuilder()
                 .setCustomId('fb_open_modal')
                 .setLabel('Leave a Review Too')
-                .setEmoji('⭐')
+                .setEmoji('<:Star:1473038501766369300>')
                 .setStyle(ButtonStyle.Secondary)
         )
     );
@@ -183,7 +186,7 @@ function buildPanel(guild) {
             new ButtonBuilder()
                 .setCustomId('fb_open_modal')
                 .setLabel('Write Your Review')
-                .setEmoji('⭐')
+                .setEmoji('<:Star:1473038501766369300>')
                 .setStyle(ButtonStyle.Primary)
         )
     );
@@ -225,14 +228,14 @@ function buildSetupPanel(guildId) {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('fb_setup_channel').setLabel('Set Channel').setStyle(ButtonStyle.Primary).setEmoji('📢'),
-                new ButtonBuilder().setCustomId('fb_setup_logs').setLabel('Set Logs').setStyle(ButtonStyle.Secondary).setEmoji('📋'),
-                new ButtonBuilder().setCustomId('fb_post_panel').setLabel('Post Panel').setStyle(ButtonStyle.Secondary).setEmoji('📝')
+                new ButtonBuilder().setCustomId('fb_setup_channel').setLabel('Set Channel').setStyle(ButtonStyle.Primary).setEmoji(E.channel),
+                new ButtonBuilder().setCustomId('fb_setup_logs').setLabel('Set Logs').setStyle(ButtonStyle.Secondary).setEmoji(E.document),
+                new ButtonBuilder().setCustomId('fb_post_panel').setLabel('Post Panel').setStyle(ButtonStyle.Secondary).setEmoji(E.edit)
             )
         )
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('fb_setup_remove').setLabel('Remove Setup').setStyle(ButtonStyle.Danger).setEmoji('❌')
+                new ButtonBuilder().setCustomId('fb_setup_remove').setLabel('Remove Setup').setStyle(ButtonStyle.Danger).setEmoji(E.cancel)
             )
         );
 }

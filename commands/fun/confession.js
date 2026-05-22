@@ -88,11 +88,12 @@ function buildConfessionCard(text, number, confessionId) {
         ));
 }
 
-function buildReplyCard(replyText, confessionId) {
+function buildReplyCard(replyText, confessionId, originalNumber = 0) {
+    const ref = originalNumber ? formatNum(originalNumber) : `\`${confessionId}\``;
     return new ContainerBuilder()
         .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ${E.chat} Anonymous Reply to ${formatNum(0)}\n-# Confession \`${confessionId}\``
+            `### ${E.chat} Anonymous Reply to ${ref}\n-# Confession \`${confessionId}\``
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -290,7 +291,9 @@ module.exports = {
         if (id.startsWith('confess_modal_reply_')) {
             const confessionId = id.replace('confess_modal_reply_', '');
             const replyText = interaction.fields.getTextInputValue('reply_text');
-            const card = buildReplyCard(replyText, confessionId);
+            const cfg = getGuildConfig(interaction.guild.id);
+            const originalNumber = cfg?.log?.[confessionId]?.number || 0;
+            const card = buildReplyCard(replyText, confessionId, originalNumber);
             await interaction.channel.send({ components: [card], flags: MessageFlags.IsComponentsV2 });
             await interaction.reply({ content: `${E.check} Reply posted anonymously!`, flags: MessageFlags.Ephemeral });
             return true;

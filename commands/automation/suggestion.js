@@ -180,17 +180,17 @@ function buildConfirmCard(tempId, text) {
                     .setCustomId(`sug_pre_submit_${tempId}`)
                     .setLabel('Submit Suggestion')
                     .setStyle(ButtonStyle.Success)
-                    .setEmoji('✅'),
+                    .setEmoji(E.check),
                 new ButtonBuilder()
                     .setCustomId(`sug_pre_edit_${tempId}`)
                     .setLabel('Edit')
                     .setStyle(ButtonStyle.Primary)
-                    .setEmoji('📝'),
+                    .setEmoji(E.edit),
                 new ButtonBuilder()
                     .setCustomId(`sug_pre_cancel_${tempId}`)
                     .setLabel('Cancel')
                     .setStyle(ButtonStyle.Danger)
-                    .setEmoji('❌')
+                    .setEmoji(E.cancel)
             )
         );
 }
@@ -228,7 +228,7 @@ function buildSuggestionCard({ authorUsername, authorId, authorAvatarURL, text, 
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `📊 **Community Vote**\n` +
+                `<:transfer:1479780506718437396> **Community Vote**\n` +
                 `${approvalText(upCount, downCount)}\n` +
                 `-# 👍 ${upCount} upvote${upCount !== 1 ? 's' : ''}  ·  👎 ${downCount} downvote${downCount !== 1 ? 's' : ''}`
             )
@@ -237,11 +237,13 @@ function buildSuggestionCard({ authorUsername, authorId, authorAvatarURL, text, 
             new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`sug_up_${guildId}_${messageId}`)
-                    .setLabel(`Upvote  ·  ${upCount}`)
+                    .setLabel(`Upvote · ${upCount}`)
+                    .setEmoji('<:Like:1473038965111259307>')
                     .setStyle(ButtonStyle.Success),
                 new ButtonBuilder()
                     .setCustomId(`sug_down_${guildId}_${messageId}`)
-                    .setLabel(`Downvote  ·  ${downCount}`)
+                    .setLabel(`Downvote · ${downCount}`)
+                    .setEmoji('<:Dislike:1473038962762317834>')
                     .setStyle(ButtonStyle.Secondary)
             )
         );
@@ -287,7 +289,7 @@ function buildStatusCard({ authorUsername, authorId, authorAvatarURL, text, stat
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `📊 **Final Votes**\n` +
+                `<:transfer:1479780506718437396> **Final Votes**\n` +
                 `${approvalText(upCount, downCount)}\n` +
                 `-# 👍 ${upCount}  ·  👎 ${downCount}  ·  Voting closed`
             )
@@ -326,7 +328,7 @@ function buildLogEntry({ authorUsername, authorId, authorAvatarURL, text, upvote
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `📊 **${upCount}** upvotes  ·  **${downCount}** downvotes\n` +
+                `<:transfer:1479780506718437396> **${upCount}** upvotes  ·  **${downCount}** downvotes\n` +
                 `${makeBar(upCount, downCount)} **${upCount > 0 ? Math.round((upCount / (upCount + downCount)) * 100) : 0}%** approval`
             )
         );
@@ -368,8 +370,8 @@ function buildSetupPanel(guildId) {
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `${E.channel} **Suggestion Channel:** ${ch}\n` +
-                `📋 **Logs Channel:** ${logs}\n` +
-                `📊 **Vote Threshold:** ${threshold} upvotes\n` +
+                `${E.envelope} **Logs Channel:** ${logs}\n` +
+                `${E.sandwatch} **Vote Threshold:** ${threshold} upvotes\n` +
                 `${E.clock} **Thread Slowmode:** ${slowmode === 0 ? 'Off' : slowmode + 's'}`
             )
         )
@@ -383,15 +385,15 @@ function buildSetupPanel(guildId) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('sug_setup_channel').setLabel('Set Channel').setStyle(ButtonStyle.Primary).setEmoji('📢'),
-                new ButtonBuilder().setCustomId('sug_setup_logs').setLabel('Set Logs').setStyle(ButtonStyle.Secondary).setEmoji('📋'),
-                new ButtonBuilder().setCustomId('sug_setup_threshold').setLabel('Vote Threshold').setStyle(ButtonStyle.Secondary).setEmoji('📊'),
-                new ButtonBuilder().setCustomId('sug_setup_slowmode').setLabel('Thread Slowmode').setStyle(ButtonStyle.Secondary).setEmoji('⏰')
+                new ButtonBuilder().setCustomId('sug_setup_channel').setLabel('Set Channel').setStyle(ButtonStyle.Primary).setEmoji('<:Bullhorn:1473038903157199093>'),
+                new ButtonBuilder().setCustomId('sug_setup_logs').setLabel('Set Logs').setStyle(ButtonStyle.Secondary).setEmoji('<:Document:1473039496995143731>'),
+                new ButtonBuilder().setCustomId('sug_setup_threshold').setLabel('Vote Threshold').setStyle(ButtonStyle.Secondary).setEmoji('<:Lightning:1473038797540298792>'),
+                new ButtonBuilder().setCustomId('sug_setup_slowmode').setLabel('Thread Slowmode').setStyle(ButtonStyle.Secondary).setEmoji(E.clock)
             )
         )
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('sug_setup_remove').setLabel('Remove Setup').setStyle(ButtonStyle.Danger).setEmoji('❌')
+                new ButtonBuilder().setCustomId('sug_setup_remove').setLabel('Remove Setup').setStyle(ButtonStyle.Danger).setEmoji(E.cancel)
             )
         );
 }
@@ -453,7 +455,7 @@ function buildDmCard({ text, status, moderatorTag, upvotes, downvotes, guildName
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `📊 **${upCount}** upvote${upCount !== 1 ? 's' : ''}  ·  **${downCount}** downvote${downCount !== 1 ? 's' : ''}\n` +
+                `<:transfer:1479780506718437396> **${upCount}** upvote${upCount !== 1 ? 's' : ''}  ·  **${downCount}** downvote${downCount !== 1 ? 's' : ''}\n` +
                 `-# Reviewed by ${moderatorTag}`
             )
         );
