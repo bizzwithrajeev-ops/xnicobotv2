@@ -41,23 +41,23 @@ const EMOJIS = {
     loop: '<:Refresh:1473037911581528165>',
     volume: '<:Volumeup:1473039290136002844>',
     mute: '<:Volumeoff:1473039301414621427>',
-    queue: '📜',
+    queue: '<:Invoice:1473039492217835550>',
     music: '<:Music:1473039311057190972>',
     filters: '<:Fire:1473038604812161218>',
     verify: '<:Checkedbox:1473038547165384804>',
     wrong: '<:Cancel:1473037949187657818>',
-    youtube: '📺',
-    spotify: '🟢',
-    soundcloud: '🟠',
-    apple: '🍎',
-    live: '🔴',
+    youtube: '<:YoutubeLive:1507444089292066907>',
+    spotify: '<:spotify:1473663456182800446>',
+    soundcloud: '<:soundCloud:1507444310658912438>',
+    apple: '<:applemusic:1507444464334147656>',
+    live: '<:Notificationon:1473038417691676784>',
     loading: '<:Lightningalt:1473038679906844824>',
     headphone: '<:Headphone:1473039296062689566>',
     fastforward: '<:Fastforward:1473039306292723976>',
     fastrewind: '<:Fastrewind:1473039308620431682>',
     forward: '<:Forward:1473038953182531645>',
-    dislike: '👎',
-    like: '👍',
+    dislike: '<:Dislike:1473038962762317834>',
+    like: '<:Like:1473038965111259307>',
     qended: '⏹',
     microphone: '<:Microphone:1473039293088927996>',
     musicNote: '<:Music:1473039311057190972>'
@@ -106,7 +106,7 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 
     const position = player.position || 0;
     const duration = track.info.duration || 0;
-    const isLiveStream = duration === 0;
+    const isLiveStream = duration === 0 || track.info.isStream;
 
     let is247Enabled = false;
     if (jsonStore.has('musicpanel-247')) {
@@ -126,9 +126,9 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 
     // Status line
     const statusParts = [];
-    if (player.paused) statusParts.push(`${EMOJIS.pause} Paused`);
-    if (loopMode === 'track') statusParts.push(`${EMOJIS.loop} Loop`);
-    else if (loopMode === 'queue') statusParts.push(`${EMOJIS.loop} Queue Loop`);
+    if (player.paused)              statusParts.push(`${EMOJIS.pause} Paused`);
+    if (loopMode === 'track')       statusParts.push(`${EMOJIS.loop} Track Loop`);
+    else if (loopMode === 'queue')  statusParts.push(`<:Shuffle:1473039298751107213> Queue Loop`);
     if (autoplayEnabled) statusParts.push('<:Lightningalt:1473038679906844824> Autoplay');
     if (is247Enabled) statusParts.push('<:Star:1473038501766369300> 24/7');
 
@@ -171,25 +171,28 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
     // Up Next section
     if (player.queue.tracks.length > 0) {
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        
+
         const nextTracks = player.queue.tracks.slice(0, 3);
-        let queueText = `-# **Up Next**\n`;
+        let queueText = `### ${EMOJIS.queue} Up Next\n`;
         queueText += nextTracks.map((t, i) => {
             const p = getPlatformInfo(t.info.sourceName);
-            const trackTitle = truncateText(t.info.title, 36);
+            const trackTitle = truncateText(t.info.title, 38);
             const trackDuration = t.info.duration ? formatTime(t.info.duration) : 'LIVE';
-            return `-# ${p.icon} \`${i + 1}.\` ${trackTitle} · \`${trackDuration}\``;
+            return `\`${i + 1}.\` ${p.icon} ${trackTitle} · \`${trackDuration}\``;
         }).join('\n');
-        
+
         if (player.queue.tracks.length > 3) {
-            queueText += `\n-# *+ ${player.queue.tracks.length - 3} more*`;
+            queueText += `\n-# **+${player.queue.tracks.length - 3} more in queue**`;
         }
-        
+
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(queueText));
     }
 
     // --- Control Buttons (3 rows instead of 5) ---
-    const loopEmoji = loopMode === 'track' ? EMOJIS.loop : loopMode === 'queue' ? EMOJIS.loop : EMOJIS.forward;
+    // Distinct loop icon per mode so users can tell what's active.
+    const loopEmoji = loopMode === 'track' ? '<:Refresh:1473037911581528165>' :
+                      loopMode === 'queue' ? '<:Shuffle:1473039298751107213>' :
+                                              EMOJIS.forward;
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_previous').setEmoji(EMOJIS.previous).setStyle(ButtonStyle.Secondary),
@@ -209,7 +212,7 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_queue').setEmoji(EMOJIS.queue).setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('panel_like').setEmoji('❤️').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heart:1473038659514007616>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_lyrics').setEmoji('<:Edit:1473037903625191580>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_grab').setEmoji('<:Download:1473039486727225394>').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('panel_247').setEmoji('<:Star:1473038501766369300>').setStyle(is247Enabled ? ButtonStyle.Success : ButtonStyle.Secondary)
@@ -244,21 +247,23 @@ function buildIdlePanel(guildId = null) {
     
     // Header
     let headerContent = `# ${EMOJIS.music} Music Player\n\n`;
-    headerContent += `No music is currently playing.\n`;
+    headerContent += `**Standby** — no track is playing right now.\n`;
     if (is247Enabled) {
-        headerContent += `\n\`<:Star:1473038501766369300> 24/7 MODE ACTIVE\`\n`;
+        headerContent += `\n<:Star:1473038501766369300> **24/7 Mode** is active — bot will stay in voice.\n`;
     }
-    
+
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerContent));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    
+
     // How to use + platforms in one block
     let infoContent = `### How to Play\n`;
-    infoContent += `-# Join a voice channel and type a song name here, or use \`/play\`\n\n`;
+    infoContent += `> **1.** Join a voice channel\n`;
+    infoContent += `> **2.** Type a song name in this channel — or use \`/play <query>\`\n`;
+    infoContent += `> **3.** Use the buttons below to control playback\n\n`;
     infoContent += `### Supported Platforms\n`;
     infoContent += `${EMOJIS.youtube} YouTube · ${EMOJIS.spotify} Spotify · ${EMOJIS.soundcloud} SoundCloud · ${EMOJIS.apple} Apple Music\n\n`;
-    infoContent += `-# Waiting for requests... · xNico </>`;
-    
+    infoContent += `-# Waiting for your request · xNico </>`;
+
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(infoContent));
 
     // Idle buttons (all disabled except 24/7)
@@ -280,7 +285,7 @@ function buildIdlePanel(guildId = null) {
 
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_queue').setEmoji(EMOJIS.queue).setStyle(ButtonStyle.Secondary).setDisabled(true),
-        new ButtonBuilder().setCustomId('panel_like').setEmoji('❤️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId('panel_like').setEmoji('<:Heart:1473038659514007616>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_lyrics').setEmoji('<:Edit:1473037903625191580>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_grab').setEmoji('<:Download:1473039486727225394>').setStyle(ButtonStyle.Secondary).setDisabled(true),
         new ButtonBuilder().setCustomId('panel_247').setEmoji('<:Star:1473038501766369300>').setStyle(is247Enabled ? ButtonStyle.Success : ButtonStyle.Secondary)
@@ -483,8 +488,10 @@ function buildMusicLoading(message = 'Processing...') {
 }
 
 /**
- * Build voice channel status string with custom emojis and platform info.
- * Used for Discord Voice Channel Status feature.
+ * Build voice channel status string with platform glyphs.
+ * Voice-channel-status (PUT /channels/:id/voice-status) does NOT render
+ * custom guild emojis — only Unicode shows up in the VC sidebar. We use
+ * voiceStatusGlyph() to map the source name to a Unicode glyph.
  * @param {Object} player - Lavalink player
  * @param {Object} [track] - Optional track override (defaults to player.queue.current)
  * @returns {string} Formatted status string
@@ -493,14 +500,14 @@ function buildVoiceStatus(player, track = null) {
     const currentTrack = track || player?.queue?.current;
     if (!currentTrack?.info) return '';
 
-    const platform = getPlatformInfo(currentTrack.info.sourceName);
+    const { voiceStatusGlyph } = require('./musicHelpers');
+    const glyph = voiceStatusGlyph(currentTrack.info.sourceName);
     const title = truncateText(currentTrack.info.title, 40);
 
     if (player?.paused) {
         return `⏸ Paused — ${title}`;
     }
-
-    return `${platform.icon} ${title}`;
+    return `${glyph} ${title}`;
 }
 
 /**

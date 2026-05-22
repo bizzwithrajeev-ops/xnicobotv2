@@ -1,6 +1,34 @@
 const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
 const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { parseTime, formatTime } = require('../../utils/helpers');
+const { parseTime, formatTime, voiceErrorMessage } = require('../../utils/musicHelpers');
+
+async function doSeek(player, member, time) {
+    if (!player || !player.queue.current) return { error: { title: 'No Player', body: 'Nothing is playing.' } };
+    const voiceErr = voiceErrorMessage(member, player);
+    if (voiceErr) return { error: { title: 'Voice Required', body: voiceErr } };
+
+    const duration = player.queue.current.info.duration;
+    if (duration === 0 || player.queue.current.info.isStream) {
+        return { error: { title: 'Cannot Seek', body: 'Cannot seek inside a live stream.' } };
+    }
+    if (!time) return { error: { title: 'Missing Input', body: 'Provide a time. Examples: `90`, `1:30`, `1m30s`.' } };
+
+    const ms = parseTime(time);
+    if (ms == null || ms < 0) return { error: { title: 'Invalid Time', body: 'Could not parse that time.\nFormats: `90` (seconds), `1:30`, `1:02:30`, `1m30s`.' } };
+    if (ms > duration) return { error: { title: 'Out of Bounds', body: `That time is past the end of the track (\`${formatTime(duration)}\`).` } };
+
+    await player.seek(ms);
+    return { ms };
+}
+
+function buildResponse(player, ms) {
+    const t = player.queue.current;
+    return new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `# <:Fastforward:1473039306292723976> Seeked\n\n**${t.info.title}**\n-# Position: \`${formatTime(ms)}\` / \`${formatTime(t.info.duration || 0)}\``
+        )
+    );
+}
 
 module.exports = {
     prefix: 'seek',
@@ -8,79 +36,44 @@ module.exports = {
     usage: 'seek <time>',
     category: 'music',
     aliases: ['sk', 'goto'],
-    
+
     data: new SlashCommandBuilder()
         .setName('seek')
         .setDescription('Seek to a specific time in the song')
         .addStringOption(option =>
             option.setName('time')
-                .setDescription('Time to seek to (e.g., 1:30)')
+                .setDescription('Time to seek to (90, 1:30, 1m30s)')
                 .setRequired(true)),
-    
+
     async execute(interaction, lavalinkManager) {
         try {
             const player = lavalinkManager.getPlayer(interaction.guild.id);
-            if (!player || !player.queue.current) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            if (!interaction.member.voice.channel) return interaction.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
             const time = interaction.options.getString('time');
-            const ms = parseTime(time);
-            const duration = player.queue.current.info.duration;
-            
-            if (duration === 0 || player.queue.current.info.isStream) {
-                return interaction.reply({ components: [buildErrorResponse('Cannot Seek', 'Cannot seek on live streams.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            const result = await doSeek(player, interaction.member, time);
+            if (result.error) {
+                return interaction.reply({ components: [buildErrorResponse(result.error.title, result.error.body)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
-            if (ms === null || ms > duration) {
-                return interaction.reply({ components: [buildErrorResponse('Invalid Time', 'Invalid time format or exceeds duration.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            }
-
-            await player.seek(ms);
-            
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Fastforward:1473039306292723976> Seeked\n\n**Track:** ${player.queue.current.info.title}\n**Position:** ${formatTime(ms)}`)
-                );
-            
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return interaction.reply({ components: [buildResponse(player, result.ms)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Seek Error:', error);
-            const msg = error.message || 'An unknown error occurred';
-            if (interaction.replied || interaction.deferred) await interaction.followUp({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-            else await interaction.reply({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
+            const reply = { components: [buildErrorResponse('Seek Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
+            if (interaction.replied || interaction.deferred) await interaction.followUp(reply).catch(() => {});
+            else await interaction.reply(reply).catch(() => {});
         }
     },
 
     async executePrefix(message, args, lavalinkManager) {
         try {
             const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player || !player.queue.current) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            if (!message.member.voice.channel) return message.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel!')], flags: MessageFlags.IsComponentsV2 });
-
             const time = args[0];
-            if (!time) return message.reply({ components: [buildErrorResponse('Missing Input', 'Please provide a time! (e.g., 1:30)')], flags: MessageFlags.IsComponentsV2 });
-
-            const ms = parseTime(time);
-            const duration = player.queue.current.info.duration;
-            if (duration === 0 || player.queue.current.info.isStream) {
-                return message.reply({ components: [buildErrorResponse('Error', 'Cannot seek on live streams!')], flags: MessageFlags.IsComponentsV2 });
+            const result = await doSeek(player, message.member, time);
+            if (result.error) {
+                return message.reply({ components: [buildErrorResponse(result.error.title, result.error.body)], flags: MessageFlags.IsComponentsV2 });
             }
-            if (ms === null || ms > duration) {
-                return message.reply({ components: [buildErrorResponse('Invalid Input', 'Invalid time format or time exceeds song duration!')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            await player.seek(ms);
-            
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Fastforward:1473039306292723976> Seeked\n\n**Track:** ${player.queue.current.info.title}\n**Position:** ${formatTime(ms)}`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [buildResponse(player, result.ms)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Seek Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            return message.reply({ components: [buildErrorResponse('Seek Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     }
 };

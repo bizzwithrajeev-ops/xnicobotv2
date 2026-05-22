@@ -1,11 +1,13 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { formatTime } = require('../../utils/helpers');
 const { buildErrorResponse } = require('../../utils/responseBuilder');
+const { voiceErrorMessage } = require('../../utils/musicHelpers');
 
 module.exports = {
     async executePrefix(message, args, lavalinkManager) {
-        if (!message.member.voice.channel) {
-            return message.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel!')], flags: MessageFlags.IsComponentsV2 });
+        {
+            const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id));
+            if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 });
         }
 
         const query = args.join(' ');

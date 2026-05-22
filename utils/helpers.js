@@ -25,16 +25,40 @@ function formatTime(ms) {
 }
 
 function parseTime(timeString) {
-    const parts = timeString.split(':').map(Number);
-    if (parts.some(isNaN)) return null;
-    
-    if (parts.length === 2) {
-        const [minutes, seconds] = parts;
-        return (minutes * 60 + seconds) * 1000;
-    } else if (parts.length === 3) {
-        const [hours, minutes, seconds] = parts;
-        return (hours * 3600 + minutes * 60 + seconds) * 1000;
+    if (timeString == null) return null;
+    const s = String(timeString).trim();
+    if (!s) return null;
+
+    // Plain numeric — interpret as seconds.
+    if (/^\d+$/.test(s)) return Number(s) * 1000;
+
+    if (s.includes(':')) {
+        const parts = s.split(':').map(Number);
+        if (parts.some(isNaN)) return null;
+        if (parts.length === 2) {
+            const [minutes, seconds] = parts;
+            return (minutes * 60 + seconds) * 1000;
+        } else if (parts.length === 3) {
+            const [hours, minutes, seconds] = parts;
+            return (hours * 3600 + minutes * 60 + seconds) * 1000;
+        }
+        return null;
     }
+
+    // Suffix form: 1h2m3s
+    const re = /(\d+(?:\.\d+)?)([hms])/gi;
+    let total = 0;
+    let matched = false;
+    let m;
+    while ((m = re.exec(s)) !== null) {
+        matched = true;
+        const value = Number(m[1]);
+        const unit = m[2].toLowerCase();
+        if (unit === 'h') total += value * 3600;
+        else if (unit === 'm') total += value * 60;
+        else if (unit === 's') total += value;
+    }
+    if (matched) return Math.round(total * 1000);
     return null;
 }
 

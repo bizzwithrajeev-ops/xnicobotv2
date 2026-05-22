@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { buildErrorResponse } = require('../../utils/responseBuilder');
+const { voiceErrorMessage } = require('../../utils/musicHelpers');
 
 module.exports = {
     prefix: 'shuffle',
@@ -16,7 +17,7 @@ module.exports = {
         try {
             const player = lavalinkManager.getPlayer(interaction.guild.id);
             if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            if (!interaction.member.voice.channel) return interaction.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            { const __ve = voiceErrorMessage(interaction.member, lavalinkManager?.getPlayer?.(interaction.guild.id)); if (__ve) return interaction.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }); }
 
             if (player.queue.tracks.length < 2) {
                 return interaction.reply({ components: [buildErrorResponse('Not Enough Tracks', 'Need at least 2 tracks to shuffle.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -43,7 +44,7 @@ module.exports = {
         try {
             const player = lavalinkManager.getPlayer(message.guild.id);
             if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            if (!message.member.voice.channel) return message.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel!')], flags: MessageFlags.IsComponentsV2 });
+            { const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id)); if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 }); }
 
             if (player.queue.tracks.length < 2) {
                 return message.reply({ components: [buildErrorResponse('Error', 'Not enough tracks in queue to shuffle!')], flags: MessageFlags.IsComponentsV2 });

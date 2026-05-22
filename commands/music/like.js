@@ -42,7 +42,7 @@ module.exports = {
         if (track.info.artworkUrl) {
             container.addSectionComponents(
                 new SectionBuilder()
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Heartalt:1473038488893526016> Added to Favorites`))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Heart:1473038659514007616> Added to Favorites`))
                     .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: track.info.artworkUrl } }))
             );
             container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
@@ -50,7 +50,7 @@ module.exports = {
         
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                (track.info.artworkUrl ? '' : `# <:Heartalt:1473038488893526016> Added to Favorites\n\n`) +
+                (track.info.artworkUrl ? '' : `# <:Heart:1473038659514007616> Added to Favorites\n\n`) +
                 `**${track.info.title}**\n` +
                 `-# by ${track.info.author} • ${formatTime(track.info.duration)}\n\n` +
                 `-# Use \`/favorites\` to view your saved songs`
@@ -94,7 +94,7 @@ module.exports = {
         if (track.info.artworkUrl) {
             container.addSectionComponents(
                 new SectionBuilder()
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Heartalt:1473038488893526016> Added to Favorites`))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Heart:1473038659514007616> Added to Favorites`))
                     .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: track.info.artworkUrl } }))
             );
             container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
@@ -102,7 +102,7 @@ module.exports = {
         
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                (track.info.artworkUrl ? '' : `# <:Heartalt:1473038488893526016> Added to Favorites\n\n`) +
+                (track.info.artworkUrl ? '' : `# <:Heart:1473038659514007616> Added to Favorites\n\n`) +
                 `**${track.info.title}**\n` +
                 `-# by ${track.info.author} • ${formatTime(track.info.duration)}\n\n` +
                 `-# Use \`favorites\` to view your saved songs`

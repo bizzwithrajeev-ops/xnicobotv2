@@ -39,7 +39,7 @@ function buildMainPanel(userId, favorites, spotifyLinks) {
     const playlistCount = userLinks.playlists?.length || 0;
 
     let content = `# <:Music:1473039311057190972> My Music Library\n\n`;
-    content += `### <:Heartalt:1473038488893526016> Favorites\n`;
+    content += `### <:Heart:1473038659514007616> Favorites\n`;
     content += `> **${favCount}** liked songs saved\n\n`;
     content += `### <:spotify:1473663456182800446> Spotify Playlists\n`;
     content += `> **${playlistCount}** playlists linked\n\n`;
@@ -54,7 +54,7 @@ function createMainButtons() {
             new ButtonBuilder()
                 .setCustomId('mymusic_favorites')
                 .setLabel('View Favorites')
-                .setEmoji('<:Heartalt:1473038488893526016>')
+                .setEmoji('<:Heart:1473038659514007616>')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .setCustomId('mymusic_spotify')
@@ -88,11 +88,11 @@ function buildFavoritesPanel(favorites, page = 1) {
     const start = (validPage - 1) * ITEMS_PER_PAGE;
     const pageSongs = (favorites || []).slice(start, start + ITEMS_PER_PAGE);
 
-    let content = `# <:Heartalt:1473038488893526016> My Favorite Songs\n\n`;
+    let content = `# <:Heart:1473038659514007616> My Favorite Songs\n\n`;
     
     if (!favorites || favorites.length === 0) {
         content += `You haven't liked any songs yet!\n\n`;
-        content += `-# Use the <:Heartalt:1473038488893526016> button on the music panel or \`/like\` to save songs`;
+        content += `-# Use the <:Heart:1473038659514007616> button on the music panel or \`/like\` to save songs`;
     } else {
         content += `-# ${favorites.length} songs saved\n\n`;
         pageSongs.forEach((song, i) => {
@@ -456,9 +456,14 @@ module.exports = {
         }
 
         if (customId === 'mymusic_cancel_clear') {
+            const cancelContainer = new ContainerBuilder()
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder()
+                        .setContent('# <:Cancel:1473037949187657818> Cancelled\n\nClear operation cancelled — your favorites are safe.')
+                );
             await interaction.update({
-                components: [buildErrorResponse('Cancelled', 'Clear operation cancelled.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                components: []
+                components: [cancelContainer],
+                flags: MessageFlags.IsComponentsV2
             });
             return true;
         }

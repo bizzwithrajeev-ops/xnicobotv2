@@ -1,67 +1,72 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { formatTime } = require('../../utils/helpers');
+const { formatTime, voiceErrorMessage } = require('../../utils/musicHelpers');
+
+async function playPrevious(player) {
+    // queue.previous is appended-to-end on each track end, so the most-recent
+    // previous is the *last* element.
+    const prev = (player.queue.previous || []);
+    const previousTrack = prev[prev.length - 1] || prev[0];
+    if (!previousTrack) return null;
+    await player.queue.add(previousTrack, 0);
+    await player.skip();
+    return previousTrack;
+}
+
+function buildResponse(track) {
+    return new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `# <:Skipprev:1473039272193032402> Playing Previous\n\n**${track.info.title}**\n-# Duration: \`${formatTime(track.info.duration || 0)}\``
+        )
+    );
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('previous')
         .setDescription('Play the previous track'),
-    
+
+    prefix: 'previous',
+    description: 'Play the previous track',
+    usage: 'previous',
+    category: 'music',
+    aliases: ['prev'],
+
     async execute(interaction, lavalinkManager) {
         try {
             const player = lavalinkManager.getPlayer(interaction.guild.id);
             if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            if (!interaction.member.voice.channel) return interaction.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            const voiceErr = voiceErrorMessage(interaction.member, player);
+            if (voiceErr) return interaction.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
 
-            const previousTrack = player.queue.previous[0];
-            
-            if (!previousTrack) {
+            const track = await playPrevious(player);
+            if (!track) {
                 return interaction.reply({ components: [buildErrorResponse('No History', 'No previous track available.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
-
-            await player.queue.add(previousTrack, 0);
-            await player.skip();
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Skipprev:1473039272193032402> Playing Previous\n\n**${previousTrack.info.title}**\nDuration: ${formatTime(previousTrack.info.duration)}`)
-                );
-
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return interaction.reply({ components: [buildResponse(track)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Previous Error:', error);
-            const msg = error.message || 'An unknown error occurred';
-            if (interaction.replied || interaction.deferred) await interaction.followUp({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-            else await interaction.reply({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
+            const reply = { components: [buildErrorResponse('Previous Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
+            if (interaction.replied || interaction.deferred) await interaction.followUp(reply).catch(() => {});
+            else await interaction.reply(reply).catch(() => {});
         }
     },
 
     async executePrefix(message, args, lavalinkManager) {
         try {
             const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            if (!message.member.voice.channel) return message.reply({ components: [buildErrorResponse('Voice Required', 'You need to be in a voice channel!')], flags: MessageFlags.IsComponentsV2 });
+            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing.')], flags: MessageFlags.IsComponentsV2 });
+            const voiceErr = voiceErrorMessage(message.member, player);
+            if (voiceErr) return message.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 });
 
-            const previousTrack = player.queue.previous[0];
-            
-            if (!previousTrack) {
-                return message.reply({ components: [buildErrorResponse('No History', 'No previous track available!')], flags: MessageFlags.IsComponentsV2 });
+            const track = await playPrevious(player);
+            if (!track) {
+                return message.reply({ components: [buildErrorResponse('No History', 'No previous track available.')], flags: MessageFlags.IsComponentsV2 });
             }
-
-            await player.queue.add(previousTrack, 0);
-            await player.skip();
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Skipprev:1473039272193032402> Playing Previous\n\n**${previousTrack.info.title}**\nDuration: ${formatTime(previousTrack.info.duration)}`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [buildResponse(track)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Previous Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            return message.reply({ components: [buildErrorResponse('Previous Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     }
 };

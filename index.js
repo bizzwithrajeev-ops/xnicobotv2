@@ -2798,7 +2798,7 @@ client.on('interactionCreate', async (interaction) => {
                 return handleComponentsButtons(interaction);
             }
 
-            // Handle music filter buttons
+            // Handle music filter buttons — delegate to commands/music/filters.js
             if (interaction.customId.startsWith('filter_')) {
                 const player = client.lavalinkManager.getPlayer(interaction.guild.id);
                 if (!player || !player.queue.current) return interaction.reply({ content: '<:Cancel:1473037949187657818> Nothing is playing!', flags: MessageFlags.Ephemeral });
@@ -2806,87 +2806,23 @@ client.on('interactionCreate', async (interaction) => {
                 if (!interaction.member.voice.channel) {
                     return interaction.reply({ content: '<:Cancel:1473037949187657818> You need to be in a voice channel!', flags: MessageFlags.Ephemeral });
                 }
-
                 if (player.voiceChannelId && interaction.member.voice.channel.id !== player.voiceChannelId) {
                     return interaction.reply({ content: '<:Cancel:1473037949187657818> You need to be in the same voice channel as the bot!', flags: MessageFlags.Ephemeral });
                 }
 
                 const filter = interaction.customId.replace('filter_', '');
-                let filterName = '';
-
                 try {
-                    if (filter === 'clear') {
-                        await player.filterManager.resetFilters();
-                        filterName = 'All filters cleared';
-                    } else if (filter === 'bassboost') {
-                        await player.filterManager.setEQ([{ band: 0, gain: 0.4 }, { band: 1, gain: 0.3 }, { band: 2, gain: 0.2 }]);
-                        filterName = 'Bass Boost';
-                    } else if (filter === 'nightcore') {
-                        await player.filterManager.setTimescale({ speed: 1.2, pitch: 1.2 });
-                        filterName = 'Nightcore';
-                    } else if (filter === 'vaporwave') {
-                        await player.filterManager.setTimescale({ speed: 0.8, pitch: 0.8 });
-                        filterName = 'Vaporwave';
-                    } else if (filter === '8d') {
-                        player.filterManager.data.rotation = { rotationHz: 0.2 };
-                        player.filterManager.filters.rotation = true;
-                        await player.filterManager.applyPlayerFilters();
-                        filterName = '8D Audio';
-                    } else if (filter === 'karaoke') {
-                        player.filterManager.data.karaoke = { level: 1.0, monoLevel: 1.0, filterBand: 220.0, filterWidth: 100.0 };
-                        player.filterManager.filters.karaoke = true;
-                        await player.filterManager.applyPlayerFilters();
-                        filterName = 'Karaoke';
-                    } else if (filter === 'tremolo') {
-                        player.filterManager.data.tremolo = { frequency: 4.0, depth: 0.75 };
-                        player.filterManager.filters.tremolo = true;
-                        await player.filterManager.applyPlayerFilters();
-                        filterName = 'Tremolo';
-                    } else if (filter === 'vibrato') {
-                        player.filterManager.data.vibrato = { frequency: 10.0, depth: 0.9 };
-                        player.filterManager.filters.vibrato = true;
-                        await player.filterManager.applyPlayerFilters();
-                        filterName = 'Vibrato';
-                    } else if (filter === 'china') {
-                        await player.filterManager.setTimescale({ speed: 0.7, pitch: 1.3 });
-                        filterName = 'China';
-                    } else if (filter === 'chipmunk') {
-                        await player.filterManager.setTimescale({ speed: 1.3, pitch: 1.4 });
-                        filterName = 'Chipmunk';
-                    } else if (filter === 'daycore') {
-                        await player.filterManager.setTimescale({ speed: 0.75, pitch: 0.75 });
-                        filterName = 'Daycore';
-                    } else if (filter === 'distortion') {
-                        player.filterManager.data.distortion = { sinOffset: 0, sinScale: 1, cosOffset: 0, cosScale: 1, tanOffset: 0, tanScale: 1, offset: 0, scale: 1.2 };
-                        player.filterManager.filters.distortion = true;
-                        await player.filterManager.applyPlayerFilters();
-                        filterName = 'Distortion';
-                    } else if (filter === 'soft') {
-                        await player.filterManager.setEQ([{ band: 4, gain: -0.15 }, { band: 5, gain: -0.15 }]);
-                        filterName = 'Soft';
-                    } else if (filter === 'pop') {
-                        await player.filterManager.setEQ([{ band: 1, gain: 0.1 }, { band: 2, gain: 0.1 }, { band: 3, gain: 0.15 }]);
-                        filterName = 'Pop';
-                    } else if (filter === 'party') {
-                        await player.filterManager.setEQ([{ band: 0, gain: 0.3 }, { band: 1, gain: 0.3 }, { band: 5, gain: 0.3 }]);
-                        filterName = 'Party';
-                    } else if (filter === 'electronic') {
-                        await player.filterManager.setEQ([{ band: 0, gain: 0.375 }, { band: 1, gain: 0.35 }, { band: 6, gain: 0.25 }]);
-                        filterName = 'Electronic';
+                    const filtersModule = require('./commands/music/filters.js');
+                    const label = await filtersModule._applyFilter(player, filter);
+                    if (!label) {
+                        return interaction.reply({ content: `<:Cancel:1473037949187657818> Unknown filter \`${filter}\`.`, flags: MessageFlags.Ephemeral });
                     }
-
-                    const container = new ContainerBuilder()
-                        .addTextDisplayComponents(
-                            new TextDisplayBuilder()
-                                .setContent(`# <:Fire:1473038604812161218> Filter Applied\n\n**${filterName}** ${filter === 'clear' ? '<:Trash:1473038090074591293>' : 'applied! <:Music:1473039311057190972>'}`)
-                        );
-
-                    await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                    const container = filtersModule._buildAppliedContainer(label, filter);
+                    return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 } catch (error) {
                     log.error('Filter apply error', error);
-                    await interaction.reply({ content: 'Failed to apply filter.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                    return interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to apply filter.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 }
-                return;
             }
 
             // Handle join2create interactive buttons
@@ -3724,7 +3660,7 @@ client.on('interactionCreate', async (interaction) => {
                     const start = (newPage - 1) * 10;
                     const pageSongs = favorites.slice(start, start + 10);
 
-                    let content = `# <:Heartalt:1473038488893526016> Your Favorites\n\n`;
+                    let content = `# <:Heart:1473038659514007616> Your Favorites\n\n`;
                     content += `-# ${favorites.length} songs saved\n\n`;
                     pageSongs.forEach((song, i) => {
                         const title = (song.title || 'Unknown').substring(0, 40);
@@ -4266,7 +4202,7 @@ client.on('interactionCreate', async (interaction) => {
                         };
 
                         // These buttons don't require voice channel
-                        const noVoiceRequiredButtons = ['panel_247', 'panel_favorites', 'panel_history', 'panel_queue', 'panel_lyrics', 'panel_grab'];
+                        const noVoiceRequiredButtons = ['panel_247', 'panel_favorites', 'panel_history', 'panel_queue', 'panel_lyrics', 'panel_grab', 'panel_like'];
 
                         if (!noVoiceRequiredButtons.includes(customId)) {
                             if (!interaction.member.voice.channel) {
@@ -4619,8 +4555,7 @@ client.on('interactionCreate', async (interaction) => {
                             if (!interaction.member.voice.channel) {
                                 return await interaction.reply({ content: '<:Cancel:1473037949187657818> Join a voice channel first!', flags: MessageFlags.Ephemeral });
                             }
-                            await interaction.deferUpdate().catch(() => { });
-                            return await interaction.reply({ content: '🎤 Ready! Type a song name in this channel to play music.', flags: MessageFlags.Ephemeral });
+                            return await interaction.reply({ content: '<:Music:1473039311057190972> Ready! Type a song name in this channel to play music.', flags: MessageFlags.Ephemeral });
                         }
 
                         if (customId === 'panel_favorites') {
@@ -4628,11 +4563,27 @@ client.on('interactionCreate', async (interaction) => {
                             if (favoritesCmd) {
                                 return await favoritesCmd.execute(interaction, lavalinkManager);
                             }
-                            return await interaction.reply({ content: '<:Heartalt:1473038488893526016> Use `/favorites` to view your saved songs.', flags: MessageFlags.Ephemeral });
+                            return await interaction.reply({ content: '<:Heart:1473038659514007616> Use `/favorites` to view your saved songs.', flags: MessageFlags.Ephemeral });
                         }
 
                         if (customId === 'panel_history') {
-                            return await interaction.reply({ content: '📜 Play history feature coming soon!', flags: MessageFlags.Ephemeral });
+                            if (!player) {
+                                return await interaction.reply({ content: '<:Cancel:1473037949187657818> No active player.', flags: MessageFlags.Ephemeral });
+                            }
+                            const history = (player.queue?.previous || []).slice().reverse().slice(0, 10);
+                            if (!history.length) {
+                                return await interaction.reply({ content: '<:Cancel:1473037949187657818> No play history yet.', flags: MessageFlags.Ephemeral });
+                            }
+                            const list = history.map((t, i) => {
+                                const p = require('./utils/musicPanel').getPlatformInfo(t.info?.sourceName);
+                                const title = (t.info?.title || 'Unknown').slice(0, 50);
+                                return `\`${(i + 1).toString().padStart(2, ' ')}.\` ${p.icon} **${title}**`;
+                            }).join('\n');
+                            const container = new ContainerBuilder()
+                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                    `# <:History:1473037847568318605> Recent Plays\n\n${list}\n\n-# Showing last ${history.length} tracks (newest first)`
+                                ));
+                            return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
                         }
 
                         if (customId === 'panel_like') {
@@ -4648,7 +4599,7 @@ client.on('interactionCreate', async (interaction) => {
                                 });
 
                                 if (existing) {
-                                    return await interaction.reply({ content: '<:Heartalt:1473038488893526016> This song is already in your favorites!', flags: MessageFlags.Ephemeral });
+                                    return await interaction.reply({ content: '<:Heart:1473038659514007616> This song is already in your favorites!', flags: MessageFlags.Ephemeral });
                                 }
 
                                 await models.FavoriteSong.create({
@@ -4662,7 +4613,7 @@ client.on('interactionCreate', async (interaction) => {
                                     addedAt: new Date().toISOString()
                                 });
 
-                                return await interaction.reply({ content: `<:Heartalt:1473038488893526016> **${track.info.title}** added to favorites!`, flags: MessageFlags.Ephemeral });
+                                return await interaction.reply({ content: `<:Heart:1473038659514007616> **${track.info.title}** added to favorites!`, flags: MessageFlags.Ephemeral });
                             } catch (err) {
                                 log.error(`Like button error: ${err.message}`, err);
                                 return await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to save to favorites!', flags: MessageFlags.Ephemeral });
@@ -8548,7 +8499,7 @@ async function checkAntiNuke(guild, action, executor, target = null) {
                         { name: '👤 Offender', value: `${executor.username || 'Unknown'} (<@${executor.id}>)`, inline: true },
                         { name: '⚡ Threat Action', value: `\`${action}\``, inline: true },
                         { name: '🛡️ Response', value: `\`${actionType.toUpperCase()}\``, inline: true },
-                        { name: '📊 Violations', value: `\`${actions.length}\` actions in \`${(timeWindow / 1000)}s\` (limit: \`${limit}\`)`, inline: false },
+                        { name: '<:transfer:1479780506718437396> Violations', value: `\`${actions.length}\` actions in \`${(timeWindow / 1000)}s\` (limit: \`${limit}\`)`, inline: false },
                         { name: '🎯 Target', value: target ? `\`${target}\`` : 'N/A', inline: true },
                         { name: '👥 Server Members', value: `\`${guild.memberCount.toLocaleString()}\``, inline: true },
                     ],

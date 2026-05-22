@@ -347,10 +347,10 @@ function setupLavalinkEvents(client, lavalinkManager) {
         // Skip to next track or stop
         try {
             if (player.queue?.tracks?.length > 0) {
-                await player.skip().catch(() => player.stopPlaying(false, true).catch(() => {}));
+                await player.skip().catch(() => player.stopPlaying().catch(() => {}));
                 if (channel) channel.send(`<:Inforect:1473038624172937287> \`${trackTitle.slice(0, 40)}\` failed — skipping.`).catch(() => {});
             } else {
-                await player.stopPlaying(false, true).catch(() => {});
+                await player.stopPlaying().catch(() => {});
                 if (channel) channel.send(`<:Inforect:1473038624172937287> \`${trackTitle.slice(0, 40)}\` failed — no more tracks in queue.`).catch(() => {});
             }
         } catch (err) {
@@ -398,11 +398,11 @@ function setupLavalinkEvents(client, lavalinkManager) {
             if (player.queue?.tracks?.length > 0) {
                 await player.skip();
             } else {
-                await player.stopPlaying(false, true);
+                await player.stopPlaying();
             }
         } catch (skipErr) {
             log.error(`trackStuck: skip failed (${skipErr.message}), forcing stop`);
-            try { await player.stopPlaying(false, true); } catch (_) {}
+            try { await player.stopPlaying(); } catch (_) {}
         }
     });
 
@@ -445,7 +445,7 @@ function setupLavalinkEvents(client, lavalinkManager) {
                 if (player.queue?.tracks?.length > 0) {
                     await player.skip().catch(() => {});
                 } else {
-                    await player.stopPlaying(false, true).catch(() => {});
+                    await player.stopPlaying().catch(() => {});
                 }
             } catch (_) {}
         }

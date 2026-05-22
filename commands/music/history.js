@@ -1,75 +1,66 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { formatTime } = require('../../utils/helpers');
+const { formatTime } = require('../../utils/musicHelpers');
+const { getPlatformInfo, truncateText } = require('../../utils/musicPanel');
+
+function buildHistoryContainer(history) {
+    // queue.previous is appended on each track end — most-recent is the LAST element.
+    const recent = history.slice().reverse().slice(0, 10);
+    const lines = recent.map((track, i) => {
+        const platform = getPlatformInfo(track.info?.sourceName);
+        const title = truncateText(track.info?.title || 'Unknown', 45);
+        return `\`${(i + 1).toString().padStart(2, ' ')}.\` ${platform.icon} **${title}**\n-# by ${truncateText(track.info?.author || 'Unknown', 30)} • \`${formatTime(track.info?.duration || 0)}\``;
+    }).join('\n\n');
+
+    return new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `# <:History:1473037847568318605> Recent Plays\n\n${lines}\n\n-# Showing ${recent.length} most recent of ${history.length} played`
+        )
+    );
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('history')
-        .setDescription('Show recently played tracks'),
-    
+        .setDescription('Show recently played tracks (newest first)'),
+
+    prefix: 'history',
+    description: 'Show recently played tracks',
+    usage: 'history',
+    category: 'music',
+    aliases: ['hist', 'recent'],
+
     async execute(interaction, lavalinkManager) {
         try {
             const player = lavalinkManager.getPlayer(interaction.guild.id);
-            
-            if (!player) {
-                return interaction.reply({ components: [buildErrorResponse('No Player', 'No music player active.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'No active music player.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+
+            const history = player.queue.previous || [];
+            if (!history.length) {
+                return interaction.reply({ components: [buildErrorResponse('No History', 'No tracks have been played yet.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
-
-            const history = player.queue.previous;
-
-            if (!history || history.length === 0) {
-                return interaction.reply({ components: [buildErrorResponse('No History', 'No track history available.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            }
-
-            const historyList = history.slice(0, 10).map((track, index) => 
-                `**${index + 1}.** ${track.info.title}\n` +
-                `     Artist: ${track.info.author} | Duration: ${formatTime(track.info.duration)}`
-            ).join('\n\n');
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:queue:1479349681049043096> Track History\n\n${historyList}\n\n**Total:** ${history.length} track(s) played`)
-                );
-
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return interaction.reply({ components: [buildHistoryContainer(history)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('History Error:', error);
-            const msg = error.message || 'An unknown error occurred';
-            if (interaction.replied || interaction.deferred) await interaction.followUp({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-            else await interaction.reply({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
+            const reply = { components: [buildErrorResponse('History Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
+            if (interaction.replied || interaction.deferred) await interaction.followUp(reply).catch(() => {});
+            else await interaction.reply(reply).catch(() => {});
         }
     },
 
     async executePrefix(message, args, lavalinkManager) {
         try {
             const player = lavalinkManager.getPlayer(message.guild.id);
-            
-            if (!player) {
-                return message.reply({ components: [buildErrorResponse('Error', 'No music player active!')], flags: MessageFlags.IsComponentsV2 });
+            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'No active music player.')], flags: MessageFlags.IsComponentsV2 });
+
+            const history = player.queue.previous || [];
+            if (!history.length) {
+                return message.reply({ components: [buildErrorResponse('No History', 'No tracks have been played yet.')], flags: MessageFlags.IsComponentsV2 });
             }
-
-            const history = player.queue.previous;
-
-            if (!history || history.length === 0) {
-                return message.reply({ components: [buildErrorResponse('Error', 'No track history available!')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const historyList = history.slice(0, 10).map((track, index) => 
-                `**${index + 1}.** ${track.info.title}\n` +
-                `     Artist: ${track.info.author} | Duration: ${formatTime(track.info.duration)}`
-            ).join('\n\n');
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:queue:1479349681049043096> Track History\n\n${historyList}\n\n**Total:** ${history.length} track(s) played`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [buildHistoryContainer(history)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('History Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            return message.reply({ components: [buildErrorResponse('History Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     }
 };

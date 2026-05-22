@@ -87,7 +87,7 @@ module.exports = {
             .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
-                    `# <:Heartalt:1473038488893526016> Playing Favorites\n\n` +
+                    `# <:Heart:1473038659514007616> Playing Favorites\n\n` +
                     `**${addedCount}** songs added to queue${shuffle ? ' (shuffled)' : ''}\n\n` +
                     `-# Now playing your favorite songs!`
                 )
@@ -168,7 +168,7 @@ module.exports = {
             .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
-                    `# <:Heartalt:1473038488893526016> Playing Favorites\n\n` +
+                    `# <:Heart:1473038659514007616> Playing Favorites\n\n` +
                     `**${addedCount}** songs added to queue${shuffle ? ' (shuffled)' : ''}\n\n` +
                     `-# Now playing your favorite songs!`
                 )

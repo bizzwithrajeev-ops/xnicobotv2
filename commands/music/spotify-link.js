@@ -54,7 +54,7 @@ function buildProfilePanel(userId, links, favorites) {
     }
 
     if (userFavs.length > 0) {
-        let favText = `\n**<:Heartalt:1473038488893526016> Favorite Songs** (${userFavs.length})\n`;
+        let favText = `\n**<:Heart:1473038659514007616> Favorite Songs** (${userFavs.length})\n`;
         userFavs.slice(0, 8).forEach((song, i) => {
             const dur = song.duration ? `\`${Math.floor(song.duration / 60000)}:${String(Math.floor((song.duration % 60000) / 1000)).padStart(2, '0')}\`` : '';
             favText += `> \`${i + 1}.\` **${song.title}** by ${song.author} ${dur}\n`;
@@ -96,7 +96,7 @@ function buildProfilePanel(userId, links, favorites) {
             .setCustomId('spotlink_view')
             .setLabel('View Favorites')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('<:Heartalt:1473038488893526016>')
+            .setEmoji('<:Heart:1473038659514007616>')
             .setDisabled(userFavs.length === 0)
     );
 
@@ -314,7 +314,7 @@ module.exports = {
                 return true;
             }
 
-            let content = `# <:Heartalt:1473038488893526016> Your Favorite Songs\n\n`;
+            let content = `# <:Heart:1473038659514007616> Your Favorite Songs\n\n`;
             userFavs.slice(0, 20).forEach((song, i) => {
                 const dur = song.duration ? ` \`${Math.floor(song.duration / 60000)}:${String(Math.floor((song.duration % 60000) / 1000)).padStart(2, '0')}\`` : '';
                 content += `\`${i + 1}.\` **${song.title}** by ${song.author}${dur}\n`;
@@ -364,7 +364,7 @@ async function showOtherProfile(ctx, user) {
     }
 
     if (userFavs.length > 0) {
-        let favText = `\n**<:Heartalt:1473038488893526016> Favorite Songs** (${userFavs.length})\n`;
+        let favText = `\n**<:Heart:1473038659514007616> Favorite Songs** (${userFavs.length})\n`;
         userFavs.slice(0, 5).forEach((song, i) => {
             favText += `> \`${i + 1}.\` **${song.title}** by ${song.author}\n`;
         });
