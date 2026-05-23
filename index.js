@@ -1222,10 +1222,27 @@ client.on(Events.ClientReady, async () => {
 
     await initLavalink(client, lavalinkManager);
 
-    // ── Slash commands are registered via `node register-commands.js` ──
-    // Run that script manually whenever you add/change/remove commands.
-    // Removed from boot to avoid rate limits and slow startups.
-    log.info(`[Slash] ${commands.length} slash-capable commands loaded (register via: node register-commands.js)`);
+    // ── Smart slash command auto-registration ──
+    // Only re-registers when TOKEN, CLIENT_ID, or the slash-command set
+    // changes (hash-based). On every other boot this is a no-op.
+    // Run `node register-commands.js` to force a fresh registration.
+    try {
+        const { autoRegister } = require('./utils/slashRegistrar');
+        const result = await autoRegister({
+            client,
+            token: process.env.TOKEN,
+            clientId: process.env.CLIENT_ID || client.user.id,
+            commands,
+        });
+        if (result.registered) {
+            log.success(`[Slash] Auto-registered (${result.reason}) → ${result.global} global + ${result.guild} guild commands.`);
+        } else {
+            log.info(`[Slash] ${commands.length} commands loaded — no registration needed (${result.reason}).`);
+        }
+    } catch (e) {
+        log.error(`[Slash] Auto-registration failed: ${e.message}`);
+        log.warning('[Slash] You can register manually with: node register-commands.js');
+    }
 
     const guilds = Array.from(client.guilds.cache.values());
     const totalGuilds = guilds.length;
