@@ -248,8 +248,12 @@ async function pollYouTube(client, log) {
     if (!cache.channelIds) cache.channelIds = {};
 
     for (const handle of channelMap.keys()) {
-        if (cache.channelIds[handle]) {
-            channelMap.set(handle, cache.channelIds[handle]);
+        const cachedId = cache.channelIds[handle];
+        // Only honour a positive cache hit. Null/undefined means we
+        // failed last time — retry on every poll so a transient
+        // outage doesn't permanently disable a channel.
+        if (cachedId) {
+            channelMap.set(handle, cachedId);
         } else {
             try {
                 const channelId = await resolveYouTubeChannelId(handle);
@@ -257,7 +261,7 @@ async function pollYouTube(client, log) {
                     channelMap.set(handle, channelId);
                     cache.channelIds[handle] = channelId;
                 }
-            } catch { /* ignore */ }
+            } catch { /* ignore — will retry next poll */ }
         }
     }
 
@@ -277,9 +281,14 @@ async function pollYouTube(client, log) {
             // Clear failure state on success
             if (cache.failedHandles[handle]) delete cache.failedHandles[handle];
         } catch (e) {
-            // Only log the first failure per handle, then suppress repeats
-            if (!cache.failedHandles[handle]) {
-                if (log) log.warning(`[Social Notify] YouTube RSS fetch failed for ${handle}: ${e.message} (suppressing future repeats)`);
+            // Log the first failure per handle, then suppress repeats for
+            // 24 hours so we don't spam — but still surface a fresh
+            // warning once per day if the channel keeps failing, so
+            // the issue stays visible.
+            const last = cache.failedHandles[handle] || 0;
+            const ONE_DAY = 24 * 60 * 60 * 1000;
+            if (Date.now() - last > ONE_DAY) {
+                if (log) log.warning(`[Social Notify] YouTube RSS fetch failed for ${handle}: ${e.message} (suppressing repeats for 24h)`);
                 cache.failedHandles[handle] = Date.now();
             }
         }

@@ -93,7 +93,7 @@ function buildMainPanel(guildConfig) {
     const totalTracked = Object.entries(PLATFORM_INFO).reduce((n, [p]) => n + getAccountList(guildConfig[p] || {}, p).length, 0);
     const activePlatforms = Object.entries(PLATFORM_INFO).filter(([p]) => guildConfig[p]?.enabled).length;
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `> <:online:1485248286653943900> **${activePlatforms}** active platforms  •  **${totalTracked}** total tracked accounts`
+        `> <:Toggleon:1473038585501581312> **${activePlatforms}** active platforms  •  **${totalTracked}** total tracked accounts`
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
@@ -154,10 +154,10 @@ function buildYouTubePanel(guildConfig) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(ansi));
 
     // ── Rich settings display ──
-    const statusEmoji = ytConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
+    const statusEmoji = ytConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = ytConfig.notifyChannel ? `<#${ytConfig.notifyChannel}>` : '`Not Set`';
     const roleText = ytConfig.pingRole ? `<@&${ytConfig.pingRole}>` : '`None`';
-    const liveText = ytConfig.liveEnabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1455550933508333662> Disabled';
+    const liveText = ytConfig.liveEnabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `${statusEmoji} **Status:** ${ytConfig.enabled ? 'Enabled' : 'Disabled'}\n` +
@@ -188,7 +188,7 @@ function buildYouTubePanel(guildConfig) {
             .setCustomId('social_toggle_youtube')
             .setLabel(ytConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(ytConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(ytConfig.enabled ? '<:dnd:1473370101427343403>' : '<:online:1473369837245042762>'),
+            .setEmoji(ytConfig.enabled ? '<:dnd:1473370101427343403>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId('social_add_youtube')
             .setLabel('Add Channel')
@@ -278,7 +278,7 @@ function buildPlatformPanel(guildConfig, platform) {
     ansi += '```';
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(ansi));
 
-    const statusEmoji = pConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
+    const statusEmoji = pConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = pConfig.notifyChannel ? `<#${pConfig.notifyChannel}>` : '`Not Set`';
     const roleText = pConfig.pingRole ? `<@&${pConfig.pingRole}>` : '`None`';
 
@@ -308,7 +308,7 @@ function buildPlatformPanel(guildConfig, platform) {
             .setCustomId(`social_toggle_${platform}`)
             .setLabel(pConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(pConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(pConfig.enabled ? '<:dnd:1473370101427343403>' : '<:online:1473369837245042762>'),
+            .setEmoji(pConfig.enabled ? '<:dnd:1473370101427343403>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId(`social_add_${platform}`)
             .setLabel(`Add ${info.itemLabel.slice(0, -1)}`)
@@ -749,5 +749,8 @@ module.exports = {
     loadConfig,
     saveConfig,
     getDefaultGuildConfig,
-    PLATFORM_INFO
+    PLATFORM_INFO,
+    buildMainPanel,
+    buildYouTubePanel,
+    buildPlatformPanel,
 };
