@@ -118,7 +118,7 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 10. Buttons & Selection ───────────────────────────────
     components: [
-        { name: 'Message Components',  emoji: '<:Caretright:1473038207221502106>', cmds: ['button-maker', 'select-menu-maker', 'embed-quick', 'components-quick'] },
+        { name: 'Message Components',  emoji: '<:Caretright:1473038207221502106>', cmds: ['button-maker', 'select-menu-maker'] },
         { name: 'Message Builders',    emoji: '<:Envelope:1473038885364695113>',   cmds: ['message-builder', 'media-gallery'] },
         { name: 'Custom Commands',     emoji: '<:Settings:1473037894703779851>',   cmds: ['customcmd', 'delcustomcmd'] },
     ],

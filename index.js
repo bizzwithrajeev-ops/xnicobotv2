@@ -11,7 +11,7 @@ const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, ActivityT
 const { formatTime, isOwner } = require('./utils/helpers');
 const { createLavalinkManager, setupLavalinkEvents, initLavalink, autoplayStatus, lastPlayedTracks, autoplayHistory, panelUpdateIntervals, panelUpdateInProgress, previousVolume, nowPlayingMessages, musicPanelCache, musicPanelChannelCache, inactivityTimers } = require('./utils/lavalinkSetup');
 const premiumManager = require('./utils/premiumManager');
-const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleAutomodSelectMenus, handleStickyButtons, handleVerificationButtons, handleAntiNukeButtons, handleProfileButtons, handleEmbedButtons, handleComponentsButtons, handleModalSubmit, replacePlaceholders } = require('./utils/interactionHandlers');
+const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleAutomodSelectMenus, handleStickyButtons, handleVerificationButtons, handleAntiNukeButtons, handleProfileButtons, handleModalSubmit, replacePlaceholders } = require('./utils/interactionHandlers');
 const { preloadGuildInvites, refreshGuildInvite, handleMemberJoin, handleMemberLeave, isTrackingEnabled } = require('./utils/inviteManager');
 const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate, logAntinukeTrigger, logAntiraidAction, logAntialtDetection, logVanityGuard, logThreatMode, logWhitelistChange, logSecurityConfigChange } = require('./utils/logger');
 const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CModals } = require('./utils/join2createHandler');
@@ -2093,7 +2093,7 @@ client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) {
         // Handle button interactions
         if (interaction.isButton()) {
-            const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleVerificationButtons, handleProfileButtons, handleEmbedButtons, handleComponentsButtons } = require('./utils/interactionHandlers');
+            const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleVerificationButtons, handleProfileButtons } = require('./utils/interactionHandlers');
 
             // ── Bug Report button handler ──
             if (interaction.customId.startsWith('bug_report')) {
@@ -2805,14 +2805,6 @@ client.on('interactionCreate', async (interaction) => {
             }
             if (interaction.customId.startsWith('profile_') || interaction.customId.startsWith('rankcard_')) {
                 return handleProfileButtons(interaction);
-            }
-            // Handle embed-quick builder buttons
-            if (interaction.customId.startsWith('embed_setup_') || interaction.customId.startsWith('embed_preview') || interaction.customId.startsWith('embed_send_') || interaction.customId === 'embed_see_variables' || interaction.customId === 'embed_reset') {
-                return handleEmbedButtons(interaction);
-            }
-            // Handle components-quick builder buttons
-            if (interaction.customId.startsWith('components_setup_') || interaction.customId.startsWith('components_preview') || interaction.customId.startsWith('components_send_') || interaction.customId === 'components_see_variables' || interaction.customId === 'components_reset' || interaction.customId.startsWith('components_add_') || interaction.customId.startsWith('components_remove_')) {
-                return handleComponentsButtons(interaction);
             }
 
             // Handle music filter buttons — delegate to commands/music/filters.js
@@ -6127,20 +6119,6 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
                 return;
-            }
-
-            if (interaction.customId === 'embed_template') {
-                const embedCommand = client.commands.get('embed-quick');
-                if (embedCommand && embedCommand.handleSelectMenu) {
-                    await embedCommand.handleSelectMenu(interaction, lavalinkManager);
-                }
-            }
-
-            if (interaction.customId === 'component_template') {
-                const componentCommand = client.commands.get('components-quick');
-                if (componentCommand && componentCommand.handleSelectMenu) {
-                    await componentCommand.handleSelectMenu(interaction);
-                }
             }
         }
 
