@@ -1,96 +1,81 @@
+'use strict';
+
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ContainerBuilder, TextDisplayBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { buildSuccessResponse, buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
-// --- Shared control panel builder ---
+
+/**
+ * Compact, emoji-only control panel.
+ *
+ * The previous panel rendered a labelled "manual" with descriptions of
+ * every button — readable but verbose, and the labels duplicated the
+ * emoji glyphs that already convey meaning. This rebuild keeps a single
+ * informative header (legend grouped by purpose) and uses emoji-only
+ * buttons grouped by colour-coded rows so the surface stays small while
+ * remaining self-documenting.
+ *
+ * Row layout (each button is emoji-only, no .setLabel):
+ *   1. Channel:   Rename · User Limit · Bitrate · Invite · Region
+ *   2. Privacy:   Lock · Unlock · Hide · Unhide · Info
+ *   3. Members:   Kick · Block · Unblock · Permit
+ *   4. Co-owner:  Trust · Untrust · Claim · Transfer · Delete
+ */
 function buildControlPanel() {
-    const row1 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId('j2c_rename').setEmoji('<:Editalt:1473038138577256670>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_limit').setEmoji('<:User:1473038971398520977>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_bitrate').setEmoji('<:Volumeup:1473039290136002844>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_invite').setEmoji('<:Attach:1473037923979886694>').setStyle(ButtonStyle.Primary)
-        );
+    // Row 1 — Channel settings (Primary blue)
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('j2c_rename').setEmoji('<:Editalt:1473038138577256670>').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('j2c_limit').setEmoji('<:User:1473038971398520977>').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('j2c_bitrate').setEmoji('<:Volumeup:1473039290136002844>').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('j2c_invite').setEmoji('<:Attach:1473037923979886694>').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('j2c_region').setEmoji('<:rocket:1479780552276967465>').setStyle(ButtonStyle.Primary)
+    );
 
-    const row2 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId('j2c_lock').setEmoji('<:Lock:1473038513749491773>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_unlock').setEmoji('<:Unlock:1473038516639236269>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_hide').setEmoji('<:Eyeclosed:1473038425085972521>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_unhide').setEmoji('<:Eye:1473038435056095242>').setStyle(ButtonStyle.Secondary)
-        );
+    // Row 2 — Privacy + Info (Secondary grey)
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('j2c_lock').setEmoji('<:Lock:1473038513749491773>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('j2c_unlock').setEmoji('<:Unlock:1473038516639236269>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('j2c_hide').setEmoji('<:Eyeclosed:1473038425085972521>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('j2c_unhide').setEmoji('<:Eye:1473038435056095242>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('j2c_info').setEmoji('<:Document:1473039496995143731>').setStyle(ButtonStyle.Secondary)
+    );
 
-    const row3 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId('j2c_kick').setEmoji('<:dnd:1473370101427343403>').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId('j2c_block').setEmoji('<:Commentblock:1473370739351490794>').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId('j2c_unblock').setEmoji('<:Checkedbox:1473038547165384804>').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('j2c_permit').setEmoji('<:Userplus:1473038912212435086>').setStyle(ButtonStyle.Success)
-        );
+    // Row 3 — Member moderation (Danger / Success accents)
+    const row3 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('j2c_kick').setEmoji('<:dnd:1473370101427343403>').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('j2c_block').setEmoji('<:Commentblock:1473370739351490794>').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('j2c_unblock').setEmoji('<:Checkedbox:1473038547165384804>').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('j2c_permit').setEmoji('<:Userplus:1473038912212435086>').setStyle(ButtonStyle.Success)
+    );
 
-    const row4 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId('j2c_trust').setEmoji('<:trust:1479780674532671673>').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('j2c_untrust').setEmoji('<:untrust:1479780596971737149>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_region').setEmoji('<:rocket:1479780552276967465>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('j2c_info').setEmoji('<:Document:1473039496995143731>').setStyle(ButtonStyle.Secondary)
-        );
+    // Row 4 — Co-ownership + lifecycle (mixed)
+    const row4 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('j2c_trust').setEmoji('<:trust:1479780674532671673>').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('j2c_untrust').setEmoji('<:untrust:1479780596971737149>').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('j2c_claim').setEmoji('<:Crown:1506010837368963142>').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('j2c_transfer').setEmoji('<:transfer:1479780506718437396>').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('j2c_delete').setEmoji('<:Trash:1473038090074591293>').setStyle(ButtonStyle.Danger)
+    );
 
-    const row5 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId('j2c_claim').setEmoji('<:Crown:1506010837368963142>').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('j2c_transfer').setEmoji('<:transfer:1479780506718437396>').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('j2c_delete').setEmoji('<:Trash:1473038090074591293>').setStyle(ButtonStyle.Danger)
-        );
+    // Compact informative header — single block, four legend rows
+    const header = `## <:Volumeup:1473039290136002844>  Voice Channel Controls`;
+    const intro  = `-# Owner-only · Hover any button for its action`;
 
-    const headerText = `# <:Volumeup:1473039290136002844> Voice Channel Controls\n-# Create and manage your own private voice channels`;
+    const legend = [
+        `<:Settings:1473037894703779851> **Channel** — Rename · Limit · Bitrate · Invite · Region`,
+        `<:Key:1473038690606649375> **Privacy** — Lock · Unlock · Hide · Unhide · Info`,
+        `<:User:1473038971398520977> **Members** — Kick · Block · Unblock · Permit`,
+        `<:Crown:1506010837368963142> **Ownership** — Trust · Untrust · Claim · Transfer · Delete`
+    ].join('\n');
 
-    const startText = `### <:Chat:1473038936241864865> Getting Started\n` +
-        `**1.** Join the **<:Add:1473038100862337035> Join to Create** voice channel\n` +
-        `**2.** Your personal voice channel is created automatically\n` +
-        `**3.** Use the buttons below to customize it`;
-
-    const settingsText = `### <:Settings:1473037894703779851> Channel Settings\n` +
-        `<:Editalt:1473038138577256670> **Rename** — Change channel name\n` +
-        `<:User:1473038971398520977> **Limit** — Set max users (0 = unlimited)\n` +
-        `<:Volumeup:1473039290136002844> **Bitrate** — Audio quality (8-384 kbps)\n` +
-        `<:Attach:1473037923979886694> **Invite** — Get invite link`;
-
-    const privacyText = `### <:Key:1473038690606649375> Privacy & Access\n` +
-        `<:Lock:1473038513749491773> **Lock** / <:Unlock:1473038516639236269> **Unlock** — Allow or block new joins\n` +
-        `<:Eyeclosed:1473038425085972521> **Hide** / <:Eye:1473038435056095242> **Unhide** — Toggle visibility\n` +
-        `<:dnd:1473370101427343403> **Kick** — Remove a user from channel\n` +
-        `<:Commentblock:1473370739351490794> **Block** / **Unblock** — Ban user from channel\n` +
-        `<:Userplus:1473038912212435086> **Permit** — Allow specific users to bypass lock`;
-
-    const advancedText = `### <:trust:1479780674532671673> Advanced Controls\n` +
-        `<:trust:1479780674532671673> **Trust** / <:untrust:1479780596971737149> **Untrust** — Add or remove co-owners\n` +
-        `<:rocket:1479780552276967465> **Region** — Change voice server region\n` +
-        `<:Document:1473039496995143731> **Info** — View channel details & members`;
-
-    const ownershipText = `### <:Crown:1506010837368963142> Ownership\n` +
-        `<:Crown:1506010837368963142> **Claim** — Take ownership if owner left\n` +
-        `<:transfer:1479780506718437396> **Transfer** — Give channel to another user`;
-
-    const container = new ContainerBuilder()
+    return new ContainerBuilder()
         .setAccentColor(0xCAD7E6)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${header}\n${intro}`))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(startText))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(legend))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(settingsText))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(privacyText))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(advancedText))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(ownershipText))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addActionRowComponents(row1, row2, row3, row4, row5)
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Only the channel owner can use these controls\n${BRANDING}`));
-
-    return container;
+        .addActionRowComponents(row1, row2, row3, row4)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {

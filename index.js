@@ -3060,6 +3060,36 @@ client.on('interactionCreate', async (interaction) => {
                     // Collect ephemeral message content (used when button is ephemeral)
                     let ephemeralContent = [];
                     let responseEmbeds = [];
+                    let responseV2 = [];
+
+                    /**
+                     * Build a Components V2 container from an action config.
+                     * Mirrors the menu-maker implementation (around line ~5770)
+                     * so both button-maker and select-menu-maker render the
+                     * same way.
+                     */
+                    const buildActionV2Container = (action, replace) => {
+                        const accentHex = (action.color || '#5865F2').replace('#', '');
+                        const v2 = new ContainerBuilder().setAccentColor(parseInt(accentHex, 16) || 0x5865F2);
+                        const resolvedContent = replace(action.content || '');
+                        if (action.thumbnail) {
+                            const section = new SectionBuilder()
+                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent))
+                                .setThumbnailAccessory(new ThumbnailBuilder().setURL(action.thumbnail));
+                            v2.addSectionComponents(section);
+                        } else {
+                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent));
+                        }
+                        if (action.image) {
+                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+                            v2.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(action.image)));
+                        }
+                        if (action.footer) {
+                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${replace(action.footer)}`));
+                        }
+                        return v2;
+                    };
 
                     for (const action of btnData.actions) {
                         try {
@@ -3141,10 +3171,17 @@ client.on('interactionCreate', async (interaction) => {
                                             embed.addFields(action.embed.fields.map(f => ({ name: replacePlaceholders(f.name), value: replacePlaceholders(f.value), inline: f.inline })));
                                         }
                                         responseEmbeds.push(embed);
-                                    } else {
-                                        // Store plain text content to show in the ephemeral reply
+                                    } else if (action.mode === 'components' && action.content) {
+                                        // Components V2 ephemeral: reuse the shared builder
+                                        if (!responseV2) responseV2 = [];
+                                        responseV2.push(buildActionV2Container(action, replacePlaceholders));
+                                    } else if (action.message) {
                                         if (!ephemeralContent) ephemeralContent = [];
                                         ephemeralContent.push(replacePlaceholders(action.message));
+                                    } else {
+                                        responseMsg.push(`<:Cancel:1473037949187657818> No message content configured`);
+                                        errorCount++;
+                                        continue;
                                     }
                                     successCount++;
                                 } else {
@@ -3157,7 +3194,11 @@ client.on('interactionCreate', async (interaction) => {
                                         responseMsg.push(`<:Cancel:1473037949187657818> No permission to send messages in ${targetChannel}`);
                                         errorCount++;
                                     } else {
-                                        if (action.mode === 'embed' && action.embed) {
+                                        if (action.mode === 'components' && action.content) {
+                                            // Components V2 public send
+                                            const v2Container = buildActionV2Container(action, replacePlaceholders);
+                                            await targetChannel.send({ components: [v2Container], flags: MessageFlags.IsComponentsV2 });
+                                        } else if (action.mode === 'embed' && action.embed) {
                                             const embed = new EmbedBuilder();
                                             if (action.embed.title) embed.setTitle(replacePlaceholders(action.embed.title));
                                             if (action.embed.description) embed.setDescription(replacePlaceholders(action.embed.description));
@@ -3170,9 +3211,12 @@ client.on('interactionCreate', async (interaction) => {
                                                 embed.addFields(action.embed.fields.map(f => ({ name: replacePlaceholders(f.name), value: replacePlaceholders(f.value), inline: f.inline })));
                                             }
                                             await targetChannel.send({ embeds: [embed] });
+                                        } else if (action.message) {
+                                            await targetChannel.send(replacePlaceholders(action.message));
                                         } else {
-                                            const message = replacePlaceholders(action.message);
-                                            await targetChannel.send(message);
+                                            responseMsg.push(`<:Cancel:1473037949187657818> No message content configured`);
+                                            errorCount++;
+                                            continue;
                                         }
                                         responseMsg.push(`<:Checkedbox:1473038547165384804> Message sent to ${targetChannel}`);
                                         successCount++;
@@ -3360,11 +3404,32 @@ client.on('interactionCreate', async (interaction) => {
 
                     // If we have ephemeral content from send_message actions, show them directly
                     // instead of the generic "Actions Complete" summary
-                    if (isEphemeral && (ephemeralContent.length > 0 || responseEmbeds.length > 0) && errorCount === 0) {
+                    if (isEphemeral && (ephemeralContent.length > 0 || responseEmbeds.length > 0 || responseV2.length > 0) && errorCount === 0) {
                         // Check if there are ONLY send_message actions (no role/ticket/etc status to show)
                         const hasNonMessageActions = responseMsg.length > 0;
 
-                        if (!hasNonMessageActions && ephemeralContent.length > 0 && responseEmbeds.length === 0) {
+                        // Components V2 cannot be combined with embeds or content in the same
+                        // reply, so when V2 containers are present we send them first as the
+                        // primary reply and any text/embeds as a follow-up.
+                        if (responseV2.length > 0 && !hasNonMessageActions) {
+                            await interaction.editReply({
+                                components: responseV2,
+                                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                            });
+                            // Optional follow-ups for any plain content/embeds collected too
+                            if (ephemeralContent.length > 0) {
+                                await interaction.followUp({
+                                    content: ephemeralContent.join('\n'),
+                                    flags: MessageFlags.Ephemeral
+                                }).catch(() => {});
+                            }
+                            if (responseEmbeds.length > 0) {
+                                await interaction.followUp({
+                                    embeds: responseEmbeds.slice(0, 10),
+                                    flags: MessageFlags.Ephemeral
+                                }).catch(() => {});
+                            }
+                        } else if (!hasNonMessageActions && ephemeralContent.length > 0 && responseEmbeds.length === 0) {
                             // Pure text message(s) — show them cleanly as ephemeral
                             await interaction.editReply({
                                 content: ephemeralContent.join('\n'),
@@ -3397,6 +3462,13 @@ client.on('interactionCreate', async (interaction) => {
                             if (responseEmbeds.length > 0) replyPayload.embeds = responseEmbeds.slice(0, 10);
                             replyPayload.components = [];
                             await interaction.editReply(replyPayload);
+                            // V2 containers go as a follow-up since they can't share a payload
+                            if (responseV2.length > 0) {
+                                await interaction.followUp({
+                                    components: responseV2,
+                                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                                }).catch(() => {});
+                            }
                         }
                     } else {
                         // Build standard response with Components V2 summary
@@ -5655,6 +5727,35 @@ client.on('interactionCreate', async (interaction) => {
                     // Collect ephemeral message content (used when menu is ephemeral)
                     let ephemeralContent = [];
                     let responseEmbeds = [];
+                    let responseV2 = [];
+
+                    /**
+                     * Build a Components V2 container from an action config.
+                     * Mirrors the button-maker implementation so both paths
+                     * render identical V2 layouts.
+                     */
+                    const buildActionV2Container = (action, replace) => {
+                        const accentHex = (action.color || '#5865F2').replace('#', '');
+                        const v2 = new ContainerBuilder().setAccentColor(parseInt(accentHex, 16) || 0x5865F2);
+                        const resolvedContent = replace(action.content || '');
+                        if (action.thumbnail) {
+                            const section = new SectionBuilder()
+                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent))
+                                .setThumbnailAccessory(new ThumbnailBuilder().setURL(action.thumbnail));
+                            v2.addSectionComponents(section);
+                        } else {
+                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent));
+                        }
+                        if (action.image) {
+                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+                            v2.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(action.image)));
+                        }
+                        if (action.footer) {
+                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${replace(action.footer)}`));
+                        }
+                        return v2;
+                    };
 
                     const replacePlaceholders = (text) => {
                         if (!text) return text;
@@ -5752,7 +5853,10 @@ client.on('interactionCreate', async (interaction) => {
                                         } else if (action.message) {
                                             ephemeralContent.push(replacePlaceholders(action.message));
                                         } else if (action.mode === 'components' && action.content) {
-                                            ephemeralContent.push(replacePlaceholders(action.content));
+                                            // Components V2 ephemeral: build a real container instead
+                                            // of flattening to plain text — preserves headings,
+                                            // sections, thumbnail, image, and footer.
+                                            responseV2.push(buildActionV2Container(action, replacePlaceholders));
                                         } else {
                                             responseMsg.push(`<:Cancel:1473037949187657818> No message content configured`);
                                             errorCount++;
@@ -5767,25 +5871,7 @@ client.on('interactionCreate', async (interaction) => {
                                             errorCount++;
                                         } else {
                                             if (action.mode === 'components' && action.content) {
-                                                const accentHex = (action.color || '#5865F2').replace('#', '');
-                                                const v2Container = new ContainerBuilder().setAccentColor(parseInt(accentHex, 16));
-                                                const resolvedContent = replacePlaceholders(action.content);
-                                                if (action.thumbnail) {
-                                                    const section = new SectionBuilder()
-                                                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent))
-                                                        .setThumbnailAccessory(new ThumbnailBuilder().setURL(action.thumbnail));
-                                                    v2Container.addSectionComponents(section);
-                                                } else {
-                                                    v2Container.addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent));
-                                                }
-                                                if (action.image) {
-                                                    v2Container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-                                                    v2Container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(action.image)));
-                                                }
-                                                if (action.footer) {
-                                                    v2Container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-                                                    v2Container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${replacePlaceholders(action.footer)}`));
-                                                }
+                                                const v2Container = buildActionV2Container(action, replacePlaceholders);
                                                 await targetChannel.send({ components: [v2Container], flags: MessageFlags.IsComponentsV2 });
                                             } else if (action.mode === 'embed' && action.embed) {
                                                 const embed = new EmbedBuilder();
@@ -5962,10 +6048,30 @@ client.on('interactionCreate', async (interaction) => {
 
                     // If we have ephemeral content from send_message actions, show them directly
                     // instead of the generic "Selection Complete" summary
-                    if (isSelectEphemeral && (ephemeralContent.length > 0 || responseEmbeds.length > 0) && errorCount === 0) {
+                    if (isSelectEphemeral && (ephemeralContent.length > 0 || responseEmbeds.length > 0 || responseV2.length > 0) && errorCount === 0) {
                         const hasNonMessageActions = responseMsg.length > 0;
 
-                        if (!hasNonMessageActions && ephemeralContent.length > 0 && responseEmbeds.length === 0) {
+                        // Components V2 cannot share a payload with embeds or content,
+                        // so when V2 containers are present we send them as the primary
+                        // reply and any text/embeds as a follow-up.
+                        if (responseV2.length > 0 && !hasNonMessageActions) {
+                            await interaction.editReply({
+                                components: responseV2,
+                                flags: MessageFlags.IsComponentsV2
+                            });
+                            if (ephemeralContent.length > 0) {
+                                await interaction.followUp({
+                                    content: ephemeralContent.join('\n'),
+                                    flags: MessageFlags.Ephemeral
+                                }).catch(() => {});
+                            }
+                            if (responseEmbeds.length > 0) {
+                                await interaction.followUp({
+                                    embeds: responseEmbeds.slice(0, 10),
+                                    flags: MessageFlags.Ephemeral
+                                }).catch(() => {});
+                            }
+                        } else if (!hasNonMessageActions && ephemeralContent.length > 0 && responseEmbeds.length === 0) {
                             // Pure text message(s) — show cleanly as ephemeral
                             await interaction.editReply({
                                 content: ephemeralContent.join('\n'),
@@ -5995,6 +6101,12 @@ client.on('interactionCreate', async (interaction) => {
                             if (responseEmbeds.length > 0) replyPayload.embeds = responseEmbeds.slice(0, 10);
                             replyPayload.components = [];
                             await interaction.editReply(replyPayload);
+                            if (responseV2.length > 0) {
+                                await interaction.followUp({
+                                    components: responseV2,
+                                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                                }).catch(() => {});
+                            }
                         }
                     } else {
                         // Build standard response with Components V2 summary
