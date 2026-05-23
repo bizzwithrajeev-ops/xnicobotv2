@@ -40,7 +40,7 @@ const GLOBAL_PRIORITY = new Set([
     'welcomer', 'autorole', 'ticket-setup', 'ticket-add', 'ticket-remove', 'ticket-close', 'ticket-categories', 'giveaway', 'reactionroles', 'autoresponder',
     'autoreact', 'starboard-setup', 'poll', 'sticky-message', 'youtube-notify', 'social-notify',
     'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'automod', 'invite-setup',
-    'button-maker', 'select-menu-maker', 'embed-quick', 'translate', 'calculate',
+    'button-maker', 'select-menu-maker', 'message-builder', 'embed-quick', 'translate', 'calculate',
     'premium', 'customcmd', 'github', 'serverstats', 'suggestion',
     'balance', 'daily', 'weekly', 'shop', 'profile', 'pay', 'deposit', 'withdraw',
     'slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice',
