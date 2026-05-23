@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -37,7 +38,7 @@ function getPickaxeBonus(inventory) {
   return null;
 }
 
-async function handleMine(reply, userId) {
+async function handleMine(reply, userId, guildId) {
   const now = Date.now();
   const lastUsed = cooldowns.get(userId) || 0;
   const remaining = COOLDOWN - (now - lastUsed);
@@ -85,7 +86,7 @@ async function handleMine(reply, userId) {
   economyManager.checkAllAchievements(economy, userId);
   economyManager.saveEconomy(economy);
 
-  const oreLines = ores.map(o => `> ${o.emoji} **${o.name}** (+${formatNumber(o.value)} coins)`).join('\n');
+  const oreLines = ores.map(o => `> ${o.emoji} **${o.name}** (+${formatCoins(o.value, guildId)})`).join('\n');
   const pickaxeLine = pickaxe ? `\n-# ${pickaxe.emoji} Using **${pickaxe.name}** — +${pickaxe.bonus} extra ore(s)` : '';
   const boostLine = hasMiningBoost ? `\n-# 🚀 **Mining Boost** active!` : '';
 
@@ -95,9 +96,9 @@ async function handleMine(reply, userId) {
     '',
     oreLines,
     '',
-    `${EMOJIS.sketch} **Earned:** +${formatNumber(totalValue)} coins`,
+    `${EMOJIS.sketch} **Earned:** +${formatCoins(totalValue, guildId)}`,
     `💼 **Total mines:** ${formatNumber(userData.miningCount)}`,
-    `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
     `${pickaxeLine}${boostLine}`,
     `-# Cooldown: 30 minutes`,
   ].join('\n'));
@@ -116,11 +117,11 @@ module.exports = {
   usage: 'mine',
 
   async executePrefix(message) {
-    return handleMine(message.reply.bind(message), message.author.id);
+    return handleMine(message.reply.bind(message), message.author.id, message.guild?.id);
   },
 
   async execute(interaction) {
     await interaction.deferReply();
-    return handleMine(interaction.editReply.bind(interaction), interaction.user.id);
+    return handleMine(interaction.editReply.bind(interaction), interaction.user.id, interaction.guild?.id);
   },
 };

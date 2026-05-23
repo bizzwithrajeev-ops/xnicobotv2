@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, formatNumber, SeparatorSpacingSize, addSeparator } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -10,7 +11,7 @@ const { resolveUser } = require('../../utils/resolveUser');
 const COOLDOWN = 60 * 1000;
 const cooldowns = new Map();
 
-async function handleGift(reply, senderId, target, itemId, quantity) {
+async function handleGift(reply, senderId, target, itemId, quantity, guildId) {
   if (!target || target.id === senderId || target.bot) {
     const c = createContainer(0xED4245);
     addTextDisplay(c, `${EMOJIS.cancel} You must mention a valid user to gift an item to.`);
@@ -102,7 +103,7 @@ module.exports = {
     const target = await resolveUser(message, args);
     const itemId  = args[1]?.toLowerCase();
     const qty     = parseInt(args[2]) || 1;
-    return handleGift(message.reply.bind(message), message.author.id, target, itemId, qty);
+    return handleGift(message.reply.bind(message), message.author.id, target, itemId, qty, message.guild?.id);
   },
 
   async execute(interaction) {
@@ -110,6 +111,6 @@ module.exports = {
     const target = interaction.options.getUser('user');
     const itemId  = interaction.options.getString('item')?.toLowerCase();
     const qty     = interaction.options.getInteger('quantity') || 1;
-    return handleGift(interaction.editReply.bind(interaction), interaction.user.id, target, itemId, qty);
+    return handleGift(interaction.editReply.bind(interaction), interaction.user.id, target, itemId, qty, interaction.guild?.id);
   },
 };

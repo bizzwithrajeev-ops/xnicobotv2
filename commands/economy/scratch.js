@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -66,7 +67,7 @@ function calcPrize(card) {
   return { prize, wins };
 }
 
-async function handleScratch(reply, userId, count) {
+async function handleScratch(reply, userId, count, guildId) {
   const now = Date.now();
   const lastUsed = cooldowns.get(userId) || 0;
   const remaining = COOLDOWN - (now - lastUsed);
@@ -86,7 +87,7 @@ async function handleScratch(reply, userId, count) {
 
   if ((userData.coins || 0) < totalCost) {
     const c = createContainer(0xED4245);
-    addTextDisplay(c, `${EMOJIS.cancel} You need **${formatNumber(totalCost)} coins** to buy ${qty} ticket(s), but you only have **${formatNumber(userData.coins || 0)}**.`);
+    addTextDisplay(c, `${EMOJIS.cancel} You need **${formatCoins(totalCost, guildId)}** to buy ${qty} ticket(s), but you only have **${formatNumber(userData.coins || 0)}**.`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 
@@ -123,10 +124,10 @@ async function handleScratch(reply, userId, count) {
     '',
     ticketLines.join('\n\n'),
     '',
-    `🎫 **Cost:** -${formatNumber(totalCost)} coins`,
-    `${EMOJIS.sketch} **Prize:** +${formatNumber(totalPrize)} coins`,
+    `🎫 **Cost:** -${formatCoins(totalCost, guildId)}`,
+    `${EMOJIS.sketch} **Prize:** +${formatCoins(totalPrize, guildId)}`,
     `<:transfer:1479780506718437396> **Net:** ${netStr} coins`,
-    `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
   ].join('\n'));
   return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 }
@@ -145,13 +146,13 @@ module.exports = {
   async executePrefix(message, args) {
     if (await gamblingGuard(message)) return;
     const qty = parseInt(args[0]) || 1;
-    return handleScratch(message.reply.bind(message), message.author.id, qty);
+    return handleScratch(message.reply.bind(message), message.author.id, qty, message.guild?.id);
   },
 
   async execute(interaction) {
     if (await gamblingGuard(interaction)) return;
     await interaction.deferReply();
     const qty = interaction.options.getInteger('tickets') || 1;
-    return handleScratch(interaction.editReply.bind(interaction), interaction.user.id, qty);
+    return handleScratch(interaction.editReply.bind(interaction), interaction.user.id, qty, interaction.guild?.id);
   },
 };

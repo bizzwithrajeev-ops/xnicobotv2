@@ -1,6 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
@@ -29,7 +30,7 @@ const DENIALS = [
 const COOLDOWN = 45_000;
 const cooldowns = new Map();
 
-async function handleBeg(reply, userId) {
+async function handleBeg(reply, userId, guildId) {
   const now = Date.now();
 
   if (cooldowns.get(userId) > now) {
@@ -57,9 +58,9 @@ async function handleBeg(reply, userId) {
     addTextDisplay(container, [
       `# 🙏 Beg`,
       '',
-      `${giver.emoji} **${giver.name}** gave you **${formatNumber(amount)}** coins!`,
+      `${giver.emoji} **${giver.name}** gave you **${formatCoins(amount, guildId)}**!`,
       '',
-      `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
       '',
       `-# Beg again in 45 seconds`,
     ].join('\n'));
@@ -75,7 +76,7 @@ async function handleBeg(reply, userId) {
     '',
     `😔 ${denial}`,
     '',
-    `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
     '',
     `-# Better luck next time!`,
   ].join('\n'));
@@ -92,10 +93,10 @@ module.exports = {
   description: 'Beg for coins from strangers',
 
   async executePrefix(message) {
-    return handleBeg(message.reply.bind(message), message.author.id);
+    return handleBeg(message.reply.bind(message), message.author.id, message.guild?.id);
   },
 
   async execute(interaction) {
-    return handleBeg(interaction.reply.bind(interaction), interaction.user.id);
+    return handleBeg(interaction.reply.bind(interaction), interaction.user.id, interaction.guild?.id);
   }
 };

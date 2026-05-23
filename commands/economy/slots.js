@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
@@ -46,7 +47,7 @@ function getMultiplier(reelEmojis) {
   return 0;
 }
 
-async function handleSlots(reply, userId, args) {
+async function handleSlots(reply, userId, args, guildId) {
   const now = Date.now();
 
   if (cooldowns.get(userId) > now) {
@@ -89,7 +90,7 @@ async function handleSlots(reply, userId, args) {
 
   if (bet > MAX_BET) {
     const c = createContainer(0xED4245);
-    addTextDisplay(c, `<:Cancel:1473037949187657818> Maximum bet is **${formatNumber(MAX_BET)}** coins.`);
+    addTextDisplay(c, `<:Cancel:1473037949187657818> Maximum bet is **${formatCoins(MAX_BET, guildId)}**.`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
   if (bet > userData.coins) {
@@ -133,15 +134,15 @@ async function handleSlots(reply, userId, args) {
   const resultLines = [];
   if (won) {
     resultLines.push(
-      `<:Checkedbox:1473038547165384804> **${isJackpot ? '🌟 JACKPOT! ' : ''}Won ${formatNumber(winnings)} coins!** (${multiplier}x)`,
+      `<:Checkedbox:1473038547165384804> **${isJackpot ? '🌟 JACKPOT! ' : ''}Won ${formatCoins(winnings, guildId)}!** (${multiplier}x)`,
     );
   } else {
-    resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatNumber(bet)} coins**`);
+    resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`);
   }
 
   resultLines.push(
     '',
-    `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
+    `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
     '',
     `-# ${won ? 'Spin again for more wins!' : 'Better luck next spin!'}`,
   );
@@ -163,12 +164,12 @@ module.exports = {
 
   async executePrefix(message, args) {
     if (await gamblingGuard(message)) return;
-    return handleSlots(message.reply.bind(message), message.author.id, args);
+    return handleSlots(message.reply.bind(message), message.author.id, args, message.guild?.id);
   },
 
   async execute(interaction) {
     if (await gamblingGuard(interaction)) return;
     const amount = interaction.options?.getString('amount') || interaction.options?.getInteger('amount');
-    return handleSlots(interaction.reply.bind(interaction), interaction.user.id, amount ? [String(amount)] : []);
+    return handleSlots(interaction.reply.bind(interaction), interaction.user.id, amount ? [String(amount)] : [], interaction.guild?.id);
   }
 };

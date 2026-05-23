@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, formatNumber, MessageFlags } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { ITEMS } = require('../../utils/shopItems');
 const jsonStore = require('../../utils/jsonStore');
@@ -26,6 +27,7 @@ module.exports = {
   aliases: ['sellitem', 'sell-i'],
 
   async executePrefix(message, args) {
+        const guildId = message.guild?.id;
     if (await shopGuard(message)) return;
     const itemId = args[0]?.toLowerCase();
     const qty = Math.max(1, parseInt(args[1]) || 1);
@@ -100,9 +102,9 @@ module.exports = {
       '# 💸 Item Sold',
       '',
       `<:Checkedbox:1473038547165384804> Sold **${sellQty}× ${meta.emoji} ${meta.name}**`,
-      `<:Money:1473377877239140529> Earned: **${formatNumber(totalValue)}** coins (${formatNumber(meta.sellPrice)}/ea)`,
+      `<:Money:1473377877239140529> Earned: **${formatCoins(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,
       '',
-      `💼 Wallet: **${formatNumber(userData.coins)}** coins`,
+      `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
       `📦 Remaining: **${remaining}** ${meta.name}`,
     ].join('\n'));
 

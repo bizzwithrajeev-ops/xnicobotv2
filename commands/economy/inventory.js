@@ -1,6 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { ITEMS, itemDisplay, CATEGORIES } = require('../../utils/shopItems');
 const economyManager = require('../../utils/economyManager');
@@ -35,7 +36,7 @@ function groupItems(items) {
 
 /* ═══════════════════ BUILD PAGE ═══════════════════ */
 
-function buildInventoryPage(userId, page = 0) {
+function buildInventoryPage(userId, page = 0, guildId = null) {
   const inventory = load();
   const userItems = inventory[userId] || [];
   const economy = economyManager.loadEconomy();
@@ -56,7 +57,7 @@ function buildInventoryPage(userId, page = 0) {
   // Header
   const totalItems = userItems.length;
   const uniqueItems = grouped.length;
-  addTextDisplay(container, `# 🎒 Your Inventory\n<:Money:1473377877239140529> Wallet: **${formatNumber(userData.coins)}** coins  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
+  addTextDisplay(container, `# 🎒 Your Inventory\n<:Money:1473377877239140529> Wallet: **${formatCoins(userData.coins, guildId)}**  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   // Items list
@@ -141,7 +142,7 @@ module.exports = {
   aliases: ['inv', 'bag', 'items'],
 
   async executePrefix(message) {
-    const { components } = buildInventoryPage(message.author.id, 0);
+    const { components } = buildInventoryPage(message.author.id, 0, message.guild?.id);
     return message.reply({ components, flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -155,7 +156,7 @@ module.exports = {
       const page = parseInt(customId.replace('inv_page_', ''));
       if (isNaN(page)) { await interaction.deferUpdate(); return true; }
 
-      const { components } = buildInventoryPage(interaction.user.id, page);
+      const { components } = buildInventoryPage(interaction.user.id, page, interaction.guild?.id);
       await interaction.update({ components, flags: MessageFlags.IsComponentsV2 });
       return true;
     }
@@ -183,6 +184,7 @@ module.exports = {
         await interaction.deferReply({ flags: 1 << 15 });
     const fakeMessage = {
       author: interaction.user,
+      guild: interaction.guild,
       reply: (opts) => interaction.editReply(opts),
     };
     return module.exports.executePrefix(fakeMessage);

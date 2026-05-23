@@ -1,6 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
@@ -34,7 +35,7 @@ const FAIL_MESSAGES = [
 const COOLDOWN = 2 * 60 * 1000;
 const cooldowns = new Map();
 
-async function handleCrime(reply, userId) {
+async function handleCrime(reply, userId, guildId) {
   const now = Date.now();
 
   if (cooldowns.get(userId) > now) {
@@ -66,8 +67,8 @@ async function handleCrime(reply, userId) {
       `<:Checkedbox:1473038547165384804> **SUCCESS!**`,
       `> ${msg}`,
       '',
-      `<:Money:1473377877239140529> **Reward:** +${formatNumber(reward)} coins`,
-      `💼 **Balance:** ${formatNumber(userData.coins)} coins`,
+      `<:Money:1473377877239140529> **Reward:** +${formatCoins(reward, guildId)}`,
+      `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       `<:Invoice:1473039492217835550> **Crimes Committed:** ${userData.crimeCount}`,
       '',
       `-# Cooldown: 2 minutes`,
@@ -84,8 +85,8 @@ async function handleCrime(reply, userId) {
       `<:Cancel:1473037949187657818> **BUSTED!**`,
       `> ${msg}`,
       '',
-      `💸 **Fine:** -${formatNumber(fine)} coins`,
-      `💼 **Balance:** ${formatNumber(userData.coins)} coins`,
+      `💸 **Fine:** -${formatCoins(fine, guildId)}`,
+      `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       '',
       `-# Cooldown: 2 minutes`,
     ].join('\n');
@@ -110,10 +111,10 @@ module.exports = {
   description: 'Commit a crime for coins (risky)',
 
   async executePrefix(message) {
-    return handleCrime(message.reply.bind(message), message.author.id);
+    return handleCrime(message.reply.bind(message), message.author.id, message.guild?.id);
   },
 
   async execute(interaction) {
-    return handleCrime(interaction.reply.bind(interaction), interaction.user.id);
+    return handleCrime(interaction.reply.bind(interaction), interaction.user.id, interaction.guild?.id);
   }
 };

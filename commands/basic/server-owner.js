@@ -4,7 +4,7 @@ const { COLORS } = require('../../utils/responseBuilder');
 async function buildOwnerContainer(guild) {
     const owner = await guild.fetchOwner();
 
-    let content = `# <:wcrown:1386229254403919903> Server Owner\n\n`;
+    let content = `# <:Crown:1506010837368963142> Server Owner\n\n`;
     content += `**${owner.user.username}** (${owner})\n\n`;
     content += `### <:Bookopen:1473038576391557130> Details\n`;
     content += `> <:Fileuser:1473039570630348810> **ID:** \`${owner.id}\`\n`;

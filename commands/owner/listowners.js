@@ -18,7 +18,7 @@ module.exports = {
         }
 
         const mainOwner = await client.users.fetch(process.env.OWNER_ID);
-        let ownerList = `<:wcrown:1386229254403919903> **Main Owner:** ${mainOwner.username}\n\n`;
+        let ownerList = `<:Crown:1506010837368963142> **Main Owner:** ${mainOwner.username}\n\n`;
 
         if (owners.length > 0) {
             ownerList += `**Co-Owners:**\n`;

@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -10,7 +11,7 @@ const cooldowns = new Map();
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
-async function handleDice(reply, userId, args, opponent = null) {
+async function handleDice(reply, userId, args, opponent = null, guildId) {
     const now = Date.now();
 
     if (cooldowns.get(userId) > now) {
@@ -77,11 +78,11 @@ async function handleDice(reply, userId, args, opponent = null) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     if (tie) {
-        addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
     } else if (won) {
-        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatNumber(bet)} coins!**\n\n<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatCoins(bet, guildId)}!**\n\n<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
     } else {
-        addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatNumber(bet)} coins**\n\n<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatCoins(bet, guildId)}**\n\n<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
     }
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -108,7 +109,7 @@ module.exports = {
             (opts) => interaction.reply(opts),
             interaction.user.id,
             [amount],
-            opponent
+            opponent, interaction.guild?.id
         );
     },
 
@@ -119,7 +120,7 @@ module.exports = {
             (opts) => message.reply(opts),
             message.author.id,
             [args[0]],
-            opponent
+            opponent, message.guild?.id
         );
     }
 };

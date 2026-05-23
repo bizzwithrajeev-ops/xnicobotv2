@@ -34,7 +34,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Crown:1506010837368963142> Server Ownership & Trust Hierarchy\n\n` +
                 `**Server:** ${guild.name}\n\n` +
-                `<:wcrown:1386229254403919903> **Owner:** ${owner ? `${owner.user.username} (\`${owner.id}\`)` : 'Unknown'}\n` +
+                `<:Crown:1506010837368963142> **Owner:** ${owner ? `${owner.user.username} (\`${owner.id}\`)` : 'Unknown'}\n` +
                 `<:User:1473038971398520977> **Second Owner:** ${secondOwnerText}\n\n` +
                 `### Trust Hierarchy\n` +
                 `<:Crown:1506010837368963142> **Owner** → Full access\n` +

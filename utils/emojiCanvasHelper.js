@@ -100,16 +100,23 @@ function parseSegments(text) {
 /**
  * Draws a string with emojis on a canvas context.
  * Handles BOTH Discord custom emojis (<:name:id> / <a:name:id>) AND Unicode emojis.
- * Respects ctx.textAlign ('left', 'center', 'right') for proper positioning.
+ * Respects ctx.textAlign ('left', 'center', 'right') AND ctx.textBaseline
+ * ('alphabetic', 'middle', 'top', 'bottom') for proper positioning.
+ *
+ * Emoji size defaults to fontSize × 1.15 to match the visual cap-height
+ * of the rendered text (Twemoji's PNGs have built-in padding so 1:1
+ * sizing makes them look smaller than the surrounding glyphs).
+ *
  * @param {CanvasRenderingContext2D} ctx
  * @param {string} text
  * @param {number} x
  * @param {number} y
  * @param {number} fontSize
- * @param {number} [emojiSize=fontSize] - Size of emoji images
+ * @param {number} [emojiSize] - Size of emoji images. Defaults to ~1.15× fontSize.
  */
-async function drawTextWithEmoji(ctx, text, x, y, fontSize, emojiSize = fontSize) {
+async function drawTextWithEmoji(ctx, text, x, y, fontSize, emojiSize) {
   if (!text) return;
+  if (!emojiSize) emojiSize = Math.round(fontSize * 1.15);
 
   const segments = parseSegments(text);
   if (!segments.length) return;
@@ -154,6 +161,35 @@ async function drawTextWithEmoji(ctx, text, x, y, fontSize, emojiSize = fontSize
   if (align === 'center')                    currX = x - totalWidth / 2;
   else if (align === 'right' || align === 'end') currX = x - totalWidth;
 
+  // ── Compute emoji vertical offset based on textBaseline ──
+  // We want the emoji centered on the same visual line as the text.
+  // - alphabetic (default): text baseline sits at `y`; the cap-height
+  //   above is roughly fontSize × 0.75. Center the emoji on that.
+  // - middle: y is the vertical center of the line; emoji top = y - emojiSize/2.
+  // - top:    y is the line top; emoji top = y + (fontSize - emojiSize) / 2.
+  // - bottom: y is the line bottom; emoji top = y - emojiSize - (lineHeight - fontSize)/2.
+  const baseline = ctx.textBaseline || 'alphabetic';
+  let emojiYOffset;
+  switch (baseline) {
+    case 'middle':
+      emojiYOffset = -emojiSize / 2;
+      break;
+    case 'top':
+    case 'hanging':
+      emojiYOffset = (fontSize - emojiSize) / 2;
+      break;
+    case 'bottom':
+    case 'ideographic':
+      emojiYOffset = -emojiSize;
+      break;
+    case 'alphabetic':
+    default:
+      // Center the emoji on the text's visual midline, which sits
+      // about 0.35 × fontSize above the baseline for most fonts.
+      emojiYOffset = -emojiSize * 0.85;
+      break;
+  }
+
   // ── Second pass: draw everything left-to-right ──
   const savedAlign = ctx.textAlign;
   ctx.textAlign = 'left';
@@ -162,7 +198,7 @@ async function drawTextWithEmoji(ctx, text, x, y, fontSize, emojiSize = fontSize
     if (item.kind === 'text') {
       ctx.fillText(item.content, currX, y);
     } else {
-      ctx.drawImage(item.img, currX, y - fontSize, emojiSize, emojiSize);
+      ctx.drawImage(item.img, currX, y + emojiYOffset, emojiSize, emojiSize);
     }
     currX += item.width;
   }

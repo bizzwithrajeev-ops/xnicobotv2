@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
@@ -28,7 +29,7 @@ function spinWheel() {
     return OUTCOMES[0];
 }
 
-async function handleGamble(reply, userId, args) {
+async function handleGamble(reply, userId, args, guildId) {
     const now = Date.now();
 
     if (cooldowns.get(userId) > now) {
@@ -95,13 +96,13 @@ async function handleGamble(reply, userId, args) {
 
     const lines = [];
     if (profit > 0) {
-        lines.push(`<:Checkedbox:1473038547165384804> **Won ${formatNumber(profit)} coins!**`);
+        lines.push(`<:Checkedbox:1473038547165384804> **Won ${formatCoins(profit, guildId)}!**`);
     } else if (profit === 0) {
         lines.push(`🔄 **Break even — no coins lost.**`);
     } else {
-        lines.push(`<:Cancel:1473037949187657818> **Lost ${formatNumber(Math.abs(profit))} coins**`);
+        lines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(Math.abs(profit), guildId)}**`);
     }
-    lines.push('', `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
+    lines.push('', `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
 
     addTextDisplay(container, lines.join('\n'));
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -123,11 +124,11 @@ module.exports = {
         // Honour the per-guild "Gambling enabled" toggle from the dashboard.
         if (await gamblingGuard(interaction)) return;
         const amount = interaction.options.getString('amount');
-        await handleGamble((opts) => interaction.reply(opts), interaction.user.id, [amount]);
+        await handleGamble((opts) => interaction.reply(opts), interaction.user.id, [amount], interaction.guild?.id);
     },
 
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
-        await handleGamble((opts) => message.reply(opts), message.author.id, args);
+        await handleGamble((opts) => message.reply(opts), message.author.id, args, message.guild?.id);
     }
 };

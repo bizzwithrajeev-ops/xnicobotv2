@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, formatNumber } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -8,7 +9,7 @@ const { EMOJIS } = require('../../utils/economyEmojis');
 const MAX_LOAN = 50000;
 const INTEREST_RATE = 0.10;
 
-async function handleLoan(reply, userId, subcommand, amount) {
+async function handleLoan(reply, userId, subcommand, amount, guildId) {
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
 
@@ -24,7 +25,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
         '',
         `You have no outstanding loans.`,
         '',
-        `**Max loan:** ${formatNumber(MAX_LOAN)} coins  ·  **Interest:** ${INTEREST_RATE * 100}% per day`,
+        `**Max loan:** ${formatCoins(MAX_LOAN, guildId)}  ·  **Interest:** ${INTEREST_RATE * 100}% per day`,
         '',
         `**Commands:**`,
         `\`/loan take <amount>\` — Borrow coins`,
@@ -48,7 +49,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
         '',
         ...lines,
         '',
-        `${EMOJIS.invoice} **Total owed:** ${formatNumber(totalOwed)} coins`,
+        `${EMOJIS.invoice} **Total owed:** ${formatCoins(totalOwed, guildId)}`,
         `-# Interest compounds daily at ${INTEREST_RATE * 100}%`,
       ].join('\n'));
     }
@@ -68,7 +69,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
 
     if (!amount || amount < 100 || amount > MAX_LOAN) {
       const c = createContainer(0xED4245);
-      addTextDisplay(c, `${EMOJIS.cancel} Enter an amount between **100** and **${formatNumber(MAX_LOAN)}** coins.`);
+      addTextDisplay(c, `${EMOJIS.cancel} Enter an amount between **100** and **${formatCoins(MAX_LOAN, guildId)}**.`);
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -86,10 +87,10 @@ async function handleLoan(reply, userId, subcommand, amount) {
     addTextDisplay(c, [
       `# <:Invoice:1473039492217835550> Loan Approved!`,
       '',
-      `<:Money:1473377877239140529> **Borrowed:** +${formatNumber(amount)} coins`,
-      `📋 **After 1 day:** ${formatNumber(dayOwed)} coins owed (${INTEREST_RATE * 100}% daily interest)`,
+      `<:Money:1473377877239140529> **Borrowed:** +${formatCoins(amount, guildId)}`,
+      `📋 **After 1 day:** ${formatCoins(dayOwed, guildId)} owed (${INTEREST_RATE * 100}% daily interest)`,
       '',
-      `💳 **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `💳 **Wallet:** ${formatCoins(userData.coins, guildId)}`,
       `-# Use \`/loan repay\` to pay back your loan.`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -110,7 +111,7 @@ async function handleLoan(reply, userId, subcommand, amount) {
 
     if ((userData.coins || 0) < repayAmt) {
       const c = createContainer(0xED4245);
-      addTextDisplay(c, `${EMOJIS.cancel} You need **${formatNumber(repayAmt)}** coins but only have **${formatNumber(userData.coins || 0)}**.`);
+      addTextDisplay(c, `${EMOJIS.cancel} You need **${formatCoins(repayAmt, guildId)}** but only have **${formatNumber(userData.coins || 0)}**.`);
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -124,9 +125,9 @@ async function handleLoan(reply, userId, subcommand, amount) {
     addTextDisplay(c, [
       `# <:Checkedbox:1473038547165384804> Loan Repaid!`,
       '',
-      `💸 **Paid:** ${formatNumber(result.paid || repayAmt)} coins`,
-      result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatNumber(stillOwed)} coins`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `💸 **Paid:** ${formatCoins(result.paid || repayAmt, guildId)}`,
+      result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatCoins(stillOwed, guildId)}`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
@@ -164,7 +165,7 @@ module.exports = {
     const sub = args[0]?.toLowerCase() || 'status';
     const rawAmt = args[1];
     const amt = rawAmt === 'all' ? -1 : parseInt(rawAmt);
-    return handleLoan(message.reply.bind(message), message.author.id, sub, isNaN(amt) ? null : amt);
+    return handleLoan(message.reply.bind(message), message.author.id, sub, isNaN(amt) ? null : amt, message.guild?.id);
   },
 
   async execute(interaction) {
@@ -177,6 +178,6 @@ module.exports = {
       const raw = interaction.options.getString('amount');
       amt = raw === 'all' ? -1 : (parseInt(raw) || -1);
     }
-    return handleLoan(interaction.editReply.bind(interaction), interaction.user.id, sub, amt);
+    return handleLoan(interaction.editReply.bind(interaction), interaction.user.id, sub, amt, interaction.guild?.id);
   },
 };

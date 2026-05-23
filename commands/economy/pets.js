@@ -5,6 +5,7 @@ const {
   StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags,
 } = require('discord.js');
 const ph = require('../../utils/petHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 
 /* ═══════════════════════════════════════════════════════
    HELPERS

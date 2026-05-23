@@ -2658,14 +2658,24 @@ client.on('interactionCreate', async (interaction) => {
             // Route games buttons. All 8 games now live in commands/economy/
             // as bet-based commands, each handling its own button prefix.
             // Each entry: { prefix, command name }.
+            //
+            // Challenge prefixes (tttch_, c4ch_, rpsch_) and the RPS pick
+            // prefix (rps_) are routed to the same module that owns the
+            // game (tictactoe / connect4 / rps). Each module's
+            // handleButton dispatches internally between challenge and
+            // game-state buttons.
             const ECONOMY_GAME_BUTTONS = [
+                { prefix: 'tttch_',      cmd: 'tictactoe'  },
                 { prefix: 'ttt_',        cmd: 'tictactoe'  },
                 { prefix: 'hangman_',    cmd: 'hangman'    },
                 { prefix: 'numguess_',   cmd: 'numguess'   },
                 { prefix: 'memory_',     cmd: 'memory'     },
                 { prefix: 'g2048_',      cmd: '2048'       },
                 { prefix: 'battleship_', cmd: 'battleship' },
-                { prefix: 'c4_',         cmd: 'connect4'   }
+                { prefix: 'c4ch_',       cmd: 'connect4'   },
+                { prefix: 'c4_',         cmd: 'connect4'   },
+                { prefix: 'rpsch_',      cmd: 'rps'        },
+                { prefix: 'rps_',        cmd: 'rps'        }
             ];
             const ecoGame = ECONOMY_GAME_BUTTONS.find(g => interaction.customId.startsWith(g.prefix));
             if (ecoGame) {

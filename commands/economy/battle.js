@@ -1,6 +1,7 @@
 'use strict';
 
 const { ButtonBuilder, ActionRowBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
@@ -202,7 +203,7 @@ function buildBattleContainer(petA, petB, finalA, finalB, won, turnLog, rewards,
   return container;
 }
 
-async function handlePVE(reply, userId) {
+async function handlePVE(reply, userId, guildId) {
   const now = Date.now();
 
   if (cooldowns.get(userId) > now) {
@@ -277,7 +278,7 @@ async function handlePVE(reply, userId) {
   return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
-async function handlePVP(message, args) {
+async function handlePVP(message, args, guildId) {
   const target = await resolveUser(message, args);
   if (!target) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> **Usage:** `battle pvp @user`'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
   if (target.id === message.author.id) { var ec = createContainer(0xED4245); addTextDisplay(ec, '<:Cancel:1473037949187657818> You cannot battle yourself!'); return message.reply({ components: [ec], flags: MessageFlags.IsComponentsV2 }); }
@@ -419,11 +420,11 @@ module.exports = {
 
   async executePrefix(message, args) {
     var sub = args[0] ? args[0].toLowerCase() : null;
-    if (sub === 'pvp') return handlePVP(message, args.slice(1));
-    return handlePVE(message.reply.bind(message), message.author.id);
+    if (sub === 'pvp') return handlePVP(message, args.slice(1), message.guild?.id);
+    return handlePVE(message.reply.bind(message), message.author.id, message.guild?.id);
   },
 
   async execute(interaction) {
-    return handlePVE(interaction.reply.bind(interaction), interaction.user.id);
+    return handlePVE(interaction.reply.bind(interaction), interaction.user.id, interaction.guild?.id);
   }
 };

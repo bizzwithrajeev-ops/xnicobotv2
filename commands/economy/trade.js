@@ -1,4 +1,5 @@
 const { ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, MessageFlags } = require('../../utils/componentHelpers');
 const ph = require('../../utils/petHelpers');
 const { resolveUser } = require('../../utils/resolveUser');

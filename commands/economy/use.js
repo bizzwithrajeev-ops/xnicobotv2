@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 const { ITEMS, itemDisplay } = require('../../utils/shopItems');
@@ -26,7 +27,7 @@ function ensureEconomy(economy, userId) {
 /**
  * Apply an item's effect. Returns { success, title, result, extra? } or { error }.
  */
-function applyItem(itemId, userId, economy, pets, lottery, inventory) {
+function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
   const userData = ensureEconomy(economy, userId);
   ph.ensureUser(pets, userId);
   lottery.entries ||= {};
@@ -104,8 +105,8 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
       return {
         success: true,
         title: '<:Money:1473377877239140529> Coin Bag Opened',
-        result: `You found **${formatNumber(coins)} coins** inside the bag!`,
-        extra: `💼 New balance: **${formatNumber(userData.coins)}** coins`,
+        result: `You found **${formatCoins(coins, guildId)}** inside the bag!`,
+        extra: `💼 New balance: **${formatCoins(userData.coins, guildId)}**`,
       };
     }
 
@@ -224,8 +225,8 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
         return {
           success: true,
           title: '📦 Mystery Box Opened',
-          result: `<:Money:1473377877239140529> You found **${formatNumber(coins)} coins** inside!`,
-          extra: `💼 New balance: **${formatNumber(userData.coins)}** coins`,
+          result: `<:Money:1473377877239140529> You found **${formatCoins(coins, guildId)}** inside!`,
+          extra: `💼 New balance: **${formatCoins(userData.coins, guildId)}**`,
         };
       } else if (roll < 0.80) {
         const pet = {
@@ -276,8 +277,8 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory) {
         return {
           success: true,
           title: '💠 Crystal Box Opened',
-          result: `<:Money:1473377877239140529> You found **${formatNumber(coins)} coins** sparkling inside!`,
-          extra: `💼 New balance: **${formatNumber(userData.coins)}** coins`,
+          result: `<:Money:1473377877239140529> You found **${formatCoins(coins, guildId)}** sparkling inside!`,
+          extra: `💼 New balance: **${formatCoins(userData.coins, guildId)}**`,
         };
       } else if (roll < 0.75) {
         inventory[userId].push({ id: 'gem', boughtAt: Date.now() });
@@ -385,7 +386,7 @@ function buildUseResponse(effectResult) {
 
 /* ═══════════════════ CORE USE LOGIC ═══════════════════ */
 
-async function useItem(userId, itemId) {
+async function useItem(userId, itemId, guildId) {
   const inventory = loadInventory();
   const economy   = economyManager.loadEconomy();
   const pets      = ph.loadPets();
@@ -401,7 +402,7 @@ async function useItem(userId, itemId) {
     return { container: buildUseResponse({ error: `You don't own ${display}.` }) };
   }
 
-  const result = applyItem(itemId, userId, economy, pets, lottery, inventory);
+  const result = applyItem(itemId, userId, economy, pets, lottery, inventory, guildId);
 
   if (result.error) {
     return { container: buildUseResponse(result) };
@@ -447,7 +448,7 @@ module.exports = {
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const { container } = await useItem(message.author.id, itemId);
+    const { container } = await useItem(message.author.id, itemId, message.guild?.id);
     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -458,7 +459,7 @@ module.exports = {
       addTextDisplay(c, '<:Cancel:1473037949187657818> Specify an item to use.');
       return interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
-    const { container } = await useItem(interaction.user.id, itemId.toLowerCase());
+    const { container } = await useItem(interaction.user.id, itemId.toLowerCase(), interaction.guild?.id);
     return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -466,7 +467,7 @@ module.exports = {
    * Called by inventory quick-use select menu.
    */
   async executeUse(interaction, itemId) {
-    const { container } = await useItem(interaction.user.id, itemId);
+    const { container } = await useItem(interaction.user.id, itemId, interaction.guild?.id);
     await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
   },
 };

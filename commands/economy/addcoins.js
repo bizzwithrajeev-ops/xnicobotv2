@@ -1,6 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -18,6 +19,7 @@ module.exports = {
     category: 'economy',
 
     async executePrefix(message, args) {
+        const guildId = message.guild?.id;
         if (!OWNER_IDS.includes(message.author.id)) {
             const c = createContainer(0xED4245);
             addTextDisplay(c, '<:Cancel:1473037949187657818> This command is owner-only.');
@@ -56,9 +58,9 @@ module.exports = {
         addTextDisplay(container, [
             `# <:Money:1473377877239140529> Coins Added`,
             '',
-            `<:Checkedbox:1473038547165384804> **${formatNumber(amount)}** coins added to **${target.username}**`,
+            `<:Checkedbox:1473038547165384804> **${formatCoins(amount, guildId)}** added to **${target.username}**`,
             '',
-            `<:Money:1473377877239140529> **New Balance:** ${formatNumber(user.coins)} coins`,
+            `<:Money:1473377877239140529> **New Balance:** ${formatCoins(user.coins, guildId)}`,
         ].join('\n'));
 
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

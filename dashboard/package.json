@@ -9,11 +9,11 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "bcryptjs": "^3.0.2",
-    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "pg": "^8.13.0"
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "pg": "^8.21.0"
   }
 }

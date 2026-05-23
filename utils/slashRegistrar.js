@@ -30,18 +30,54 @@ const DISCORD_GLOBAL_LIMIT = 100;
 const DISCORD_GUILD_LIMIT  = 100;
 
 // Priority list — these go global so they're available everywhere instantly.
+// Discord caps globals at 100; the first 100 entries here win the global slots.
+// Order matters: keep the most-used moderation/security commands near the top.
 const GLOBAL_PRIORITY = new Set([
+    // ── Core info ──
     'help', 'botinfo', 'ping', 'userinfo', 'avatar', 'serverinfo',
-    'ban', 'kick', 'mute', 'unmute', 'timeout', 'untimeout', 'warn', 'clear', 'unban',
-    'antispam', 'antinuke', 'antiraid', 'antialt', 'config', 'logging', 'setprefix',
-    'lock', 'unlock', 'hide', 'unhide', 'addrole', 'removerole', 'slowmode',
+
+    // ── Moderation: punishment ──
+    'ban', 'unban', 'unbanall', 'banlist', 'hackban', 'softban',
+    'kick', 'mute', 'unmute', 'timeout', 'untimeout',
+    'warn', 'warnings', 'removewarn', 'clearwarnings', 'warnconfig',
+    'massban', 'masskick', 'massnick', 'massrole',
+    'cases', 'modhistory', 'reason',
+
+    // ── Moderation: cleanup & utility ──
+    'clear', 'nuke', 'slowmode', 'slowmode-all',
+    'setnick', 'nickreset',
+    'addrole', 'removerole',
+
+    // ── Channel lockdown ──
+    'lock', 'unlock', 'lockall', 'unlockall',
+    'lock-category', 'unlock-category',
+    'hide', 'unhide', 'hideall', 'unhideall',
+    'hide-category', 'unhide-category',
+
+    // ── Server security suite ──
+    'antinuke', 'antiraid', 'antialt', 'antispam', 'automod',
+    'anti', 'automod-manage', 'blacklistword', 'botblock',
+    'threatmode', 'superthreatmode',
+    'vanityguard', 'securitycheck', 'whitelist', 'unwhitelist', 'showwhitelist',
+    'ignore-channels', 'logging', 'logging-setup', 'audit',
+    'config', 'setprefix', 'quicksetup',
+
+    // ── Music ──
     'play', 'pause', 'resume', 'stop', 'skip', 'queue', 'nowplaying', 'volume',
-    'seek', 'loop', 'shuffle', 'autoplay', 'filters', 'lyrics', 'musicpanel',
-    'welcomer', 'autorole', 'ticket-setup', 'ticket-add', 'ticket-remove', 'ticket-close', 'ticket-categories', 'giveaway', 'reactionroles', 'autoresponder',
-    'autoreact', 'starboard-setup', 'poll', 'sticky-message', 'youtube-notify', 'social-notify',
-    'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'automod', 'invite-setup',
+    'seek', 'loop', 'shuffle', 'autoplay', 'filters', 'lyrics', 'musicpanel', 'my-music',
+    'playlist',
+
+    // ── Automation & engagement ──
+    'welcomer', 'autorole', 'ticket-setup', 'ticket-add', 'ticket-remove', 'ticket-close', 'ticket-categories',
+    'giveaway', 'reactionroles', 'autoresponder', 'autoreact', 'starboard-setup',
+    'poll', 'sticky-message', 'youtube-notify', 'social-notify',
+    'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'invite-setup',
+
+    // ── Builders & tools ──
     'button-maker', 'select-menu-maker', 'message-builder', 'translate', 'calculate',
     'premium', 'customcmd', 'github', 'serverstats', 'suggestion',
+
+    // ── Economy ──
     'balance', 'daily', 'weekly', 'shop', 'profile', 'pay', 'deposit', 'withdraw',
     'slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice',
     'blackjack', 'roulette', 'rps',
@@ -49,11 +85,17 @@ const GLOBAL_PRIORITY = new Set([
     'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'mines', 'farm', 'heist',
     'buy', 'sell', 'inventory', 'trade', 'craft', 'gift', 'loan', 'economy-leaderboard',
     'battle', 'pets',
+
+    // ── Leveling & social ──
     'rank', 'levels', 'leveling-setup', 'levelroles',
     'socialprofile', 'badges',
+
+    // ── Fun ──
     'trivia', 'wordle', 'akinator', 'scramble', 'mathgame', 'fasttype',
     'meme', 'joke', 'gif', 'fact', 'riddle', 'ship', 'rate', '8ball',
     'howgay', 'howlesbian', 'howstraight', 'howcute', 'howsmart', 'howsus', 'iq',
+
+    // ── Backup & owner ──
     'backup-create', 'backup-load', 'backup-list', 'server-backup-create',
     'botpanel', 'eval', 'shutdown',
 ]);

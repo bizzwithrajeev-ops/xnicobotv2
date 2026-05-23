@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -15,7 +16,7 @@ const SEED_TABLE = {
   pumpkin_seed: { name: 'Pumpkin', emoji: '🎃', yield: [600, 1500], growTime: HARVEST_WAIT * 4 },
 };
 
-async function handleFarm(reply, userId, subcommand, seedId) {
+async function handleFarm(reply, userId, subcommand, seedId, guildId) {
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
 
@@ -62,7 +63,7 @@ async function handleFarm(reply, userId, subcommand, seedId) {
       const info = SEED_TABLE[crop.seedId] || { name: crop.seedId, emoji: '🌾', yield: [50, 150] };
       const earned = Math.floor(Math.random() * (info.yield[1] - info.yield[0] + 1)) + info.yield[0];
       totalEarned += earned;
-      harvestLines.push(`> ${info.emoji} **${info.name}** — +${formatNumber(earned)} coins`);
+      harvestLines.push(`> ${info.emoji} **${info.name}** — +${formatCoins(earned, guildId)}`);
       delete userData.crops[slot];
     }
 
@@ -80,8 +81,8 @@ async function handleFarm(reply, userId, subcommand, seedId) {
       '',
       ...harvestLines,
       '',
-      `${EMOJIS.sketch} **Total Earned:** +${formatNumber(totalEarned)} coins`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `${EMOJIS.sketch} **Total Earned:** +${formatCoins(totalEarned, guildId)}`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
@@ -176,12 +177,12 @@ module.exports = {
   async executePrefix(message, args) {
     const sub = args[0]?.toLowerCase() || 'harvest';
     const seedId = args[1]?.toLowerCase();
-    return handleFarm(message.reply.bind(message), message.author.id, sub, seedId);
+    return handleFarm(message.reply.bind(message), message.author.id, sub, seedId, message.guild?.id);
   },
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
     const seed = sub === 'plant' ? interaction.options.getString('seed') : null;
-    return handleFarm(interaction.reply.bind(interaction), interaction.user.id, sub, seed);
+    return handleFarm(interaction.reply.bind(interaction), interaction.user.id, sub, seed, interaction.guild?.id);
   },
 };

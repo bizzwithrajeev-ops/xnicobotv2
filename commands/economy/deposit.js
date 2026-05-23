@@ -1,10 +1,11 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
-async function handleDeposit(reply, userId, args) {
+async function handleDeposit(reply, userId, args, guildId) {
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, userId);
 
@@ -25,8 +26,8 @@ async function handleDeposit(reply, userId, args) {
             '**Usage:** `deposit <amount | all>`',
             '',
             '**Your Balances:**',
-            `<:Money:1473377877239140529> Wallet: ${formatNumber(userData.coins)} coins`,
-            `<:Invoice:1473039492217835550> Bank: ${formatNumber(userData.bank)} coins`,
+            `<:Money:1473377877239140529> Wallet: ${formatCoins(userData.coins, guildId)}`,
+            `<:Invoice:1473039492217835550> Bank: ${formatCoins(userData.bank, guildId)}`,
             '',
             '**Examples:**',
             '`deposit 500`',
@@ -49,16 +50,16 @@ async function handleDeposit(reply, userId, args) {
     addTextDisplay(container, [
         '# <:Invoice:1473039492217835550> Deposit Successful',
         '',
-        `<:Checkedbox:1473038547165384804> Deposited **${formatNumber(amount)}** coins.`,
+        `<:Checkedbox:1473038547165384804> Deposited **${formatCoins(amount, guildId)}**.`,
     ].join('\n'));
 
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
         '**New Balances:**',
-        `<:Money:1473377877239140529> Wallet: ${formatNumber(userData.coins)} coins`,
-        `<:Invoice:1473039492217835550> Bank: ${formatNumber(userData.bank)} coins`,
-        `<:Invoice:1473039492217835550> **Total:** ${formatNumber(userData.coins + userData.bank)} coins`,
+        `<:Money:1473377877239140529> Wallet: ${formatCoins(userData.coins, guildId)}`,
+        `<:Invoice:1473039492217835550> Bank: ${formatCoins(userData.bank, guildId)}`,
+        `<:Invoice:1473039492217835550> **Total:** ${formatCoins(userData.coins + userData.bank, guildId)}`,
     ].join('\n'));
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -76,11 +77,11 @@ module.exports = {
     category: 'economy',
 
     async executePrefix(message, args) {
-        return handleDeposit(message.reply.bind(message), message.author.id, args);
+        return handleDeposit(message.reply.bind(message), message.author.id, args, message.guild?.id);
     },
 
     async execute(interaction) {
         const amountStr = interaction.options?.getString('amount') || interaction.options?.getInteger('amount');
-        return handleDeposit(interaction.reply.bind(interaction), interaction.user.id, amountStr ? [String(amountStr)] : []);
+        return handleDeposit(interaction.reply.bind(interaction), interaction.user.id, amountStr ? [String(amountStr)] : [], interaction.guild?.id);
     }
 };

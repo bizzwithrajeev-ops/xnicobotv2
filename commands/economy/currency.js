@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
-const { getCurrency, getCurrencyName, formatCoins } = require('../../utils/currencyHelper');
+const { getCurrency, getCurrencyName, formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { buildPermissionDenied, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 function loadSettings() {

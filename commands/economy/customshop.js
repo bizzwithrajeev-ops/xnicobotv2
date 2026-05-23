@@ -16,7 +16,7 @@ const {
 } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, getCurrency, getCurrencyName, formatCoinsShort } = require('../../utils/currencyHelper');
+const { getEconomySettings, getCurrency, getCurrencyName, formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
 
 const STORE = 'custom-shop';
 
@@ -397,6 +397,6 @@ module.exports = {
         if (interaction.customId !== 'cshop_buy_select') return false;
         const idx = parseInt(interaction.values[0]);
         if (isNaN(idx)) return false;
-        return processBuy(interaction.user.id, interaction.guild.id, interaction.guild, idx, (opts) => interaction.reply(opts));
+        return processBuy(interaction.user.id, interaction.guild.id, interaction.guild, idx, (opts) => interaction.reply(opts), interaction.guild?.id);
     }
 };

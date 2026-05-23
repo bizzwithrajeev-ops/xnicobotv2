@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const path = require('path');
 const { AttachmentBuilder } = require('discord.js');
 const economyManager = require('../../utils/economyManager');

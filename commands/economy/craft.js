@@ -1,12 +1,13 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { getAllRecipes, getRecipe } = require('../../utils/craftingRecipes');
 const { EMOJIS } = require('../../utils/economyEmojis');
 
-async function handleCraft(reply, userId, recipeId) {
+async function handleCraft(reply, userId, recipeId, guildId) {
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
   userData.oreInventory = userData.oreInventory || {};
@@ -107,11 +108,11 @@ module.exports = {
   usage: 'craft [list|<recipe_id>]',
 
   async executePrefix(message, args) {
-    return handleCraft(message.reply.bind(message), message.author.id, args[0]?.toLowerCase() || 'list');
+    return handleCraft(message.reply.bind(message), message.author.id, args[0]?.toLowerCase() || 'list', message.guild?.id);
   },
 
   async execute(interaction) {
     const recipe = interaction.options.getString('recipe') || 'list';
-    return handleCraft(interaction.reply.bind(interaction), interaction.user.id, recipe.toLowerCase());
+    return handleCraft(interaction.reply.bind(interaction), interaction.user.id, recipe.toLowerCase(), interaction.guild?.id);
   },
 };

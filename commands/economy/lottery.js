@@ -4,6 +4,7 @@ const {
     ActionRowBuilder,
 } = require('discord.js');
 const fs = require('fs');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const path = require('path');
 const {
     createContainer,
@@ -145,7 +146,7 @@ function buildUI(lottery, userId) {
             `*Fair draw · Server-wide · Transparent*\n`,
 
             `## <:Money:1473377877239140529> Jackpot`,
-            `**${formatNumber(lottery.jackpot)} coins**`,
+            `**${formatCoins(lottery.jackpot, guildId)}**`,
             `📈 Recent Growth: +${formatNumber(growth)}\n`,
 
             `## 🧾 Distribution`,
@@ -180,6 +181,7 @@ module.exports = {
     category: 'economy',
 
     async executePrefix(message) {
+        const guildId = message.guild?.id;
         if (await gamblingGuard(message)) return;
         const winners = await tryDraw();
         if (winners) {
@@ -188,7 +190,7 @@ module.exports = {
 
             winners.forEach((w, i) => {
                 text += `${medals[i]} <@${w.id}>\n`;
-                text += `> <:Money:1473377877239140529> ${formatNumber(w.reward)} coins\n\n`;
+                text += `> ${formatCoins(w.reward, guildId)}\n\n`;
             });
 
             const c = createContainer(0x57F287);

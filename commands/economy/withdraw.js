@@ -1,10 +1,11 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
-async function handleWithdraw(reply, userId, args) {
+async function handleWithdraw(reply, userId, args, guildId) {
     const economy = economyManager.loadEconomy();
     const { userData: user } = economyManager.getUser(economy, userId);
 
@@ -19,8 +20,8 @@ async function handleWithdraw(reply, userId, args) {
             `**Usage:** \`withdraw <amount | all>\``,
             '',
             `**Your Balances:**`,
-            `<:Money:1473377877239140529> Wallet: ${formatNumber(user.coins)} coins`,
-            `<:Invoice:1473039492217835550> Bank: ${formatNumber(user.bank)} coins`,
+            `<:Money:1473377877239140529> Wallet: ${formatCoins(user.coins, guildId)}`,
+            `<:Invoice:1473039492217835550> Bank: ${formatCoins(user.bank, guildId)}`,
             '',
             `**Examples:**`,
             `\`withdraw 500\``,
@@ -43,16 +44,16 @@ async function handleWithdraw(reply, userId, args) {
     addTextDisplay(container, [
         `# <:Invoice:1473039492217835550> Withdrawal Successful`,
         '',
-        `<:Checkedbox:1473038547165384804> Withdrew **${formatNumber(amount)}** coins from your bank.`,
+        `<:Checkedbox:1473038547165384804> Withdrew **${formatCoins(amount, guildId)}** from your bank.`,
     ].join('\n'));
 
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
         `**New Balances:**`,
-        `<:Money:1473377877239140529> Wallet: ${formatNumber(user.coins)} coins`,
-        `<:Invoice:1473039492217835550> Bank: ${formatNumber(user.bank)} coins`,
-        `<:Invoice:1473039492217835550> **Total:** ${formatNumber(user.coins + user.bank)} coins`,
+        `<:Money:1473377877239140529> Wallet: ${formatCoins(user.coins, guildId)}`,
+        `<:Invoice:1473039492217835550> Bank: ${formatCoins(user.bank, guildId)}`,
+        `<:Invoice:1473039492217835550> **Total:** ${formatCoins(user.coins + user.bank, guildId)}`,
     ].join('\n'));
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -70,11 +71,11 @@ module.exports = {
     category: 'economy',
 
     async executePrefix(message, args) {
-        return handleWithdraw(message.reply.bind(message), message.author.id, args);
+        return handleWithdraw(message.reply.bind(message), message.author.id, args, message.guild?.id);
     },
 
     async execute(interaction) {
         const amountStr = interaction.options?.getString('amount') || interaction.options?.getInteger('amount');
-        return handleWithdraw(interaction.reply.bind(interaction), interaction.user.id, amountStr ? [String(amountStr)] : []);
+        return handleWithdraw(interaction.reply.bind(interaction), interaction.user.id, amountStr ? [String(amountStr)] : [], interaction.guild?.id);
     }
 };

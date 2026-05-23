@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { ButtonBuilder, ActionRowBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
@@ -72,6 +73,7 @@ function loadPets() { return ph.loadPets(); }
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 async function runAdventure(message, biomeData) {
+  const guildId = message.guild?.id;
   const userId = message.author.id;
   const petsData = loadPets();
   const userData = petsData[userId];
@@ -146,14 +148,14 @@ async function runAdventure(message, biomeData) {
         const coins = rand(event.coinRange[0], event.coinRange[1]);
         totalCoins.value += coins;
         totalExp.value += 10;
-        stageText += `<:Money:1473377877239140529> Found **${formatNumber(coins)}** coins!`;
+        stageText += `<:Money:1473377877239140529> Found **${formatCoins(coins, guildId)}**!`;
         break;
       }
       case 'treasure': {
         const coins = rand(event.coinRange[0], event.coinRange[1]);
         totalCoins.value += coins;
         totalExp.value += 20;
-        stageText += `🎁 Treasure! **+${formatNumber(coins)}** coins!`;
+        stageText += `🎁 Treasure! **+${formatCoins(coins, guildId)}**!`;
         break;
       }
       case 'fight': {
@@ -195,7 +197,7 @@ async function runAdventure(message, biomeData) {
         const coins = rand(event.coinRange[0], event.coinRange[1]);
         totalCoins.value += coins;
         totalExp.value += 25;
-        stageText += `<:Star:1473038501766369300> **+${formatNumber(coins)}** coins!`;
+        stageText += `<:Star:1473038501766369300> **+${formatCoins(coins, guildId)}**!`;
         if (Math.random() < event.itemChance) {
           items.push(event.item);
           stageText += `\n📦 **Bonus item:** \`${event.item}\`!`;
@@ -275,7 +277,7 @@ async function runAdventure(message, biomeData) {
       economyManager.saveEconomy(economy);
 
       const c = createContainer(0xCAD7E6);
-      addTextDisplay(c, `# 🏃 Fled the Adventure\n\nYou escaped with **${formatNumber(partial)}** coins (50% of earned).\n\n-# Use \`adventure\` to try again!`);
+      addTextDisplay(c, `# 🏃 Fled the Adventure\n\nYou escaped with **${formatCoins(partial, guildId)}** (50% of earned).\n\n-# Use \`adventure\` to try again!`);
       await msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }
   });

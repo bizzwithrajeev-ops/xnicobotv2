@@ -19,7 +19,7 @@ async function buildServerInfoContainer(guild) {
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `**<:Fileuser:1473039570630348810> Server ID:** ${guild.id}\n` +
-                `**<:wcrown:1386229254403919903> Owner:** ${owner.user.username} (\`${owner.id}\`)\n` +
+                `**<:Crown:1506010837368963142> Owner:** ${owner.user.username} (\`${owner.id}\`)\n` +
                 `**<:Clock:1473039102113878056> Created:** <t:${Math.floor(guild.createdTimestamp / 1000)}:R>\n\n` +
                 `**<:User:1473038971398520977> Members:** ${guild.memberCount}\n` +
                 `**<:Chat:1473038936241864865> Channels:** Text: ${textChannels} | Voice: ${voiceChannels} | Categories: ${categories}\n` +

@@ -185,7 +185,7 @@ class ProfileCard {
             } else {
                 const img = await this.loadEmoji(part.content || '', part.type === 'custom', part.id, part.animated, part.name);
                 if (img) {
-                    ctx.drawImage(img, currentX, y - fontSize, emojiSize, emojiSize);
+                    ctx.drawImage(img, currentX, y - emojiSize * 0.85, emojiSize, emojiSize);
                     currentX += emojiSize + 2;
                 } else {
                     const fallback = part.type === 'custom' ? `:${part.name || 'emoji'}:` : (part.content || '');

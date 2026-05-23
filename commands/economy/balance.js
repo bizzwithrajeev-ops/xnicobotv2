@@ -1,11 +1,12 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { resolveUser } = require('../../utils/resolveUser');
 
-async function handleBalance(reply, targetUser) {
+async function handleBalance(reply, targetUser, guildId) {
     const economy = economyManager.loadEconomy();
     const { userData, changed } = economyManager.getUser(economy, targetUser.id);
     if (changed) economyManager.saveEconomy(economy);
@@ -20,14 +21,14 @@ async function handleBalance(reply, targetUser) {
         '',
         `### <:User:1473038971398520977> ${targetUser.username}`,
         '',
-        `> <:Money:1473377877239140529> **Wallet:** ${formatNumber(wallet)} coins`,
-        `> <:Invoice:1473039492217835550> **Bank:** ${formatNumber(bank)} coins`,
+        `> <:Money:1473377877239140529> **Wallet:** ${formatCoins(wallet, guildId)}`,
+        `> <:Invoice:1473039492217835550> **Bank:** ${formatCoins(bank, guildId)}`,
     ].join('\n'));
 
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
-        `> <:Sketch:1473038248493453352> **Total Worth:** ${formatNumber(total)} coins`,
+        `> <:Sketch:1473038248493453352> **Total Worth:** ${formatCoins(total, guildId)}`,
         '',
         `-# Use \`deposit\` and \`withdraw\` to manage your bank`,
     ].join('\n'));
@@ -48,11 +49,11 @@ module.exports = {
 
     async executePrefix(message, args) {
         const target = (await resolveUser(message, args)) || message.author;
-        return handleBalance(message.reply.bind(message), target);
+        return handleBalance(message.reply.bind(message), target, message.guild?.id);
     },
 
     async execute(interaction) {
         const target = interaction.options?.getUser('user') || interaction.user;
-        return handleBalance(interaction.reply.bind(interaction), target);
+        return handleBalance(interaction.reply.bind(interaction), target, interaction.guild?.id);
     }
 };

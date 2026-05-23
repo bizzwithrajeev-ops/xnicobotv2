@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { ITEMS, getItem, itemDisplay } = require('../../utils/shopItems');
 const jsonStore = require('../../utils/jsonStore');
@@ -26,6 +27,7 @@ module.exports = {
   aliases: ['purchase'],
 
   async executePrefix(message, args) {
+        const guildId = message.guild?.id;
     if (await shopGuard(message)) return;
     const itemId = args[0]?.toLowerCase();
     const qty = Math.max(1, parseInt(args[1]) || 1);
@@ -81,9 +83,9 @@ module.exports = {
       addTextDisplay(c, [
         '<:Cancel:1473037949187657818> **Not enough coins!**',
         '',
-        `<:Money:1473377877239140529> Cost: **${formatNumber(totalCost)}** coins`,
-        `💼 Wallet: **${formatNumber(userData.coins)}** coins`,
-        `📉 Short: **${formatNumber(deficit)}** coins`,
+        `<:Money:1473377877239140529> Cost: **${formatCoins(totalCost, guildId)}**`,
+        `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
+        `📉 Short: **${formatCoins(deficit, guildId)}**`,
       ].join('\n'));
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
@@ -106,9 +108,9 @@ module.exports = {
       '# 🛒 Purchase Successful',
       '',
       `<:Checkedbox:1473038547165384804> Bought **${qty}× ${item.emoji} ${item.name}**`,
-      `<:Money:1473377877239140529> Cost: **${formatNumber(totalCost)}** coins`,
+      `<:Money:1473377877239140529> Cost: **${formatCoins(totalCost, guildId)}**`,
       '',
-      `💼 Wallet: **${formatNumber(userData.coins)}** coins`,
+      `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
       `📦 Owned: **${newOwned}/${item.maxOwn}**`,
       '',
       `-# <:Lightbulbalt:1473038470787240009> \`use ${itemId}\` to use  ·  \`inventory\` to view all items`,

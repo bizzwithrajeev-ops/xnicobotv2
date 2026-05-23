@@ -27,7 +27,7 @@ const {
 } = require('discord.js');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
-const { formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
 const { deductBet, settle } = require('../../utils/betGameHelper');
 
 const games = new Map();

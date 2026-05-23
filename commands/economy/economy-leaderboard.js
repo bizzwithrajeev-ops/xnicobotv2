@@ -10,6 +10,7 @@ const {
     StringSelectMenuOptionBuilder,
 } = require('discord.js');
 const { generateLeaderboardCard } = require('../../utils/leaderboardCard');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 
 /* ══════════════════════════════════════════════════

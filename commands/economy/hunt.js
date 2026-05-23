@@ -1,6 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
@@ -15,7 +16,7 @@ const animals = [
   { name: 'Dragon', emoji: '🐉', rarity: 'legendary', baseHp: 300, baseAtk: 100, value: 1000, rate: 5 }
 ];
 
-async function handleHunt(reply, userId) {
+async function handleHunt(reply, userId, guildId) {
   const now = Date.now();
 
   if (cooldowns.has(userId) && cooldowns.get(userId) > now) {
@@ -86,7 +87,7 @@ async function handleHunt(reply, userId) {
       `# <:Cancel:1473037949187657818> Hunt — Escaped!`,
       '',
       `You encountered **${animal.emoji} ${animal.name}** but it got away.`,
-      `> Earned **${formatNumber(animal.value)}** coins as consolation.`,
+      `> Earned **${formatCoins(animal.value, guildId)}** as consolation.`,
       `> <:Fire:1473038604812161218> +5 XP`,
       '',
       `-# Try hunting again in 30 seconds`,
@@ -105,10 +106,10 @@ module.exports = {
   description: 'Hunt for wild animals — catch them as pets or earn coins',
 
   async executePrefix(message) {
-    return handleHunt(message.reply.bind(message), message.author.id);
+    return handleHunt(message.reply.bind(message), message.author.id, message.guild?.id);
   },
 
   async execute(interaction) {
-    return handleHunt(interaction.reply.bind(interaction), interaction.user.id);
+    return handleHunt(interaction.reply.bind(interaction), interaction.user.id, interaction.guild?.id);
   }
 };

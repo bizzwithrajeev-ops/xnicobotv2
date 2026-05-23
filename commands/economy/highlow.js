@@ -1,6 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
@@ -9,7 +10,7 @@ const COOLDOWN = 8_000;
 const cooldowns = new Map();
 const activeSessions = new Map();
 
-async function handleHighLow(reply, userId, args, message) {
+async function handleHighLow(reply, userId, args, message, guildId) {
     const now = Date.now();
 
     if (cooldowns.get(userId) > now) {
@@ -56,7 +57,7 @@ async function handleHighLow(reply, userId, args, message) {
         `## The number is: **${firstNumber}**`,
         '',
         `> Will the next number be **higher** or **lower**?`,
-        `> Bet: **${formatNumber(bet)}** coins`,
+        `> Bet: **${formatCoins(bet, guildId)}**`,
     ].join('\n'));
 
     const row = new ActionRowBuilder().addComponents(
@@ -78,7 +79,7 @@ async function handleHighLow(reply, userId, args, message) {
 }
 
 // Handle button interactions (called from interactionCreate)
-async function handleHighLowButton(interaction) {
+async function handleHighLowButton(interaction, guildId) {
     const customId = interaction.customId;
     if (!customId.startsWith('hl_')) return false;
 
@@ -123,7 +124,7 @@ async function handleHighLowButton(interaction) {
             `## ${firstNumber} → **${secondNumber}**`,
             '',
             `🤝 **Same number! Push — no coins lost.**`,
-            `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
+            `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
         ].join('\n'));
 
         return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -140,10 +141,10 @@ async function handleHighLowButton(interaction) {
         `> You chose: **${choice === 'jackpot' ? '🎯 Exact' : choice === 'higher' ? '⬆️ Higher' : '⬇️ Lower'}**`,
         '',
         won
-            ? `<:Checkedbox:1473038547165384804> **Won ${formatNumber(winAmount)} coins!** ${multiplier > 1 ? `(${multiplier}x)` : ''}`
-            : `<:Cancel:1473037949187657818> **Lost ${formatNumber(bet)} coins**`,
+            ? `<:Checkedbox:1473038547165384804> **Won ${formatCoins(winAmount, guildId)}!** ${multiplier > 1 ? `(${multiplier}x)` : ''}`
+            : `<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`,
         '',
-        `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
+        `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
     ].join('\n'));
 
     return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -166,11 +167,11 @@ module.exports = {
     async execute(interaction) {
         if (await gamblingGuard(interaction)) return;
         const amount = interaction.options.getString('amount');
-        await handleHighLow((opts) => interaction.reply(opts), interaction.user.id, [amount]);
+        await handleHighLow((opts) => interaction.reply(opts), interaction.user.id, [amount], interaction.guild?.id);
     },
 
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
-        await handleHighLow((opts) => message.reply(opts), message.author.id, args, message);
+        await handleHighLow((opts) => message.reply(opts), message.author.id, args, message, message.guild?.id);
     }
 };

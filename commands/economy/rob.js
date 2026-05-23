@@ -3,7 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings } = require('../../utils/currencyHelper');
+const { getEconomySettings, formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { robGuard } = require('../../utils/economyGuards');
 const { resolveUser } = require('../../utils/resolveUser');
 const COOLDOWN = 60 * 1000;
@@ -20,6 +20,7 @@ module.exports = {
     aliases: ['steal'],
 
     async executePrefix(message, args) {
+        const guildId = message.guild?.id;
         // Honour the per-guild "Rob enabled" toggle from the dashboard.
         if (await robGuard(message)) return;
         const cfg = getEconomySettings(message.guild?.id);
@@ -89,9 +90,9 @@ module.exports = {
             addTextDisplay(container, [
                 `# <:Money:1473377877239140529> Robbery Successful!`,
                 '',
-                `<:Checkedbox:1473038547165384804> You stole **${formatNumber(amount)}** coins from **${target.username}**!`,
+                `<:Checkedbox:1473038547165384804> You stole **${formatCoins(amount, guildId)}** from **${target.username}**!`,
                 '',
-                `<:Money:1473377877239140529> **Your Balance:** ${formatNumber(robber.coins)} coins`,
+                `<:Money:1473377877239140529> **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
                 '',
                 `-# Cooldown: 1 minute`,
             ].join('\n'));
@@ -109,8 +110,8 @@ module.exports = {
             '',
             `<:Cancel:1473037949187657818> You got caught!`,
             '',
-            `💸 **Fine:** ${formatNumber(fine)} coins`,
-            `<:Money:1473377877239140529> **Your Balance:** ${formatNumber(robber.coins)} coins`,
+            `💸 **Fine:** ${formatCoins(fine, guildId)}`,
+            `<:Money:1473377877239140529> **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
             '',
             `-# Cooldown: 1 minute`,
         ].join('\n'));

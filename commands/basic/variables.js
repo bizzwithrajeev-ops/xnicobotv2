@@ -17,7 +17,7 @@ const PAGES = [
 <:Bullhorn:1473038903157199093> **Channel**
 > \`{channelname}\` name · \`{channelid}\` ID · \`{channelmention}\` mention
 
-<:wcrown:1386229254403919903> **Role & Position**
+<:Crown:1506010837368963142> **Role & Position**
 > \`{roles}\` role list · \`{highestrole}\` highest role · \`{joinposition}\` join #
 
 -# Page 1/2 · Variables`,

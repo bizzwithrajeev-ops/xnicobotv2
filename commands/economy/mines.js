@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
@@ -116,13 +117,13 @@ function buildGameContainer(game, status = 'playing') {
     let statusText = '';
     
     if (status === 'playing') {
-        statusText = `**Revealed:** ${game.revealed.size}/${game.totalSafe} safe tiles\n**Multiplier:** ${multiplier}x\n**Potential:** ${formatNumber(potential)} coins`;
+        statusText = `**Revealed:** ${game.revealed.size}/${game.totalSafe} safe tiles\n**Multiplier:** ${multiplier}x\n**Potential:** ${formatCoins(potential, guildId)}`;
     } else if (status === 'won') {
         color = 0x57F287;
-        statusText = `<:Checkedbox:1473038547165384804> **Cashed out at ${multiplier}x!**\n**Won:** ${formatNumber(potential)} coins (+${formatNumber(potential - game.bet)})`;
+        statusText = `<:Checkedbox:1473038547165384804> **Cashed out at ${multiplier}x!**\n**Won:** ${formatCoins(potential, guildId)} (+${formatNumber(potential - game.bet)})`;
     } else if (status === 'lost') {
         color = 0xED4245;
-        statusText = `💣 **BOOM! Hit a mine!**\n**Lost:** ${formatNumber(game.bet)} coins`;
+        statusText = `💣 **BOOM! Hit a mine!**\n**Lost:** ${formatCoins(game.bet, guildId)}`;
     }
     
     const container = createContainer(color);
@@ -130,7 +131,7 @@ function buildGameContainer(game, status = 'playing') {
         `# 💣 Minesweeper`,
         '',
         `**Grid:** ${game.gridKey} • **Risk:** ${riskInfo.label} • **Mines:** ${mineCount}`,
-        `**Bet:** ${formatNumber(game.bet)} coins`,
+        `**Bet:** ${formatCoins(game.bet, guildId)}`,
         '',
         statusText,
     ].join('\n'));
@@ -139,7 +140,7 @@ function buildGameContainer(game, status = 'playing') {
 }
 
 // ═══ Command Handler ═══
-async function handleMines(reply, userId, args, interaction) {
+async function handleMines(reply, userId, args, interaction, guildId) {
     // Check if user already has an active game
     if (activeGames.has(userId)) {
         const c = createContainer(0xFEE75C);
@@ -197,7 +198,7 @@ function buildSetupContainer(userId) {
     addTextDisplay(container, [
         `# 💣 Minesweeper`,
         '',
-        `**Bet:** ${formatNumber(game.bet)} coins`,
+        `**Bet:** ${formatCoins(game.bet, guildId)}`,
         '',
         `Select your grid size and risk level below:`,
     ].join('\n'));
@@ -246,7 +247,7 @@ function buildSetupContainer(userId) {
 }
 
 // ═══ Interaction Handler (buttons + selects) ═══
-async function handleMinesInteraction(interaction) {
+async function handleMinesInteraction(interaction, guildId) {
     const customId = interaction.customId;
     if (!customId.startsWith('mines_')) return false;
     
@@ -382,7 +383,7 @@ async function revealTile(interaction, game, tileIdx) {
         
         const container = buildGameContainer(game, 'lost');
         addSeparator(container, SeparatorSpacingSize.Small);
-        addTextDisplay(container, `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`);
+        addTextDisplay(container, `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
         addSeparator(container, SeparatorSpacingSize.Small);
         const gridRows = buildGameGrid(game, true);
         for (const row of gridRows) container.addActionRowComponents(row);
@@ -426,7 +427,7 @@ async function cashOut(interaction, game) {
     
     const container = buildGameContainer(game, 'won');
     addSeparator(container, SeparatorSpacingSize.Small);
-    addTextDisplay(container, `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins\n-# Revealed ${game.revealed.size}/${game.totalSafe} safe tiles`);
+    addTextDisplay(container, `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}\n-# Revealed ${game.revealed.size}/${game.totalSafe} safe tiles`);
     addSeparator(container, SeparatorSpacingSize.Small);
     const gridRows = buildGameGrid(game);
     for (const row of gridRows) container.addActionRowComponents(row);
@@ -452,11 +453,11 @@ module.exports = {
     async execute(interaction) {
         if (await gamblingGuard(interaction)) return;
         const amount = interaction.options.getString('bet');
-        await handleMines((opts) => interaction.reply(opts), interaction.user.id, [amount], interaction);
+        await handleMines((opts) => interaction.reply(opts), interaction.user.id, [amount], interaction, interaction.guild?.id);
     },
     
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
-        await handleMines((opts) => message.reply(opts), message.author.id, args);
+        await handleMines((opts) => message.reply(opts), message.author.id, args, message.guild?.id);
     }
 };

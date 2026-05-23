@@ -1,13 +1,14 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
 const COOLDOWN = 5_000;
 const cooldowns = new Map();
 
-async function handleBetflip(reply, userId, args) {
+async function handleBetflip(reply, userId, args, guildId) {
     const now = Date.now();
 
     if (cooldowns.get(userId) > now) {
@@ -66,14 +67,14 @@ async function handleBetflip(reply, userId, args) {
 
     const resultLines = [];
     if (won) {
-        resultLines.push(`<:Checkedbox:1473038547165384804> **Won ${formatNumber(bet)} coins!**`);
+        resultLines.push(`<:Checkedbox:1473038547165384804> **Won ${formatCoins(bet, guildId)}!**`);
     } else {
-        resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatNumber(bet)} coins**`);
+        resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`);
     }
 
     resultLines.push(
         '',
-        `<:Money:1473377877239140529> **Balance:** ${formatNumber(userData.coins)} coins`,
+        `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
         '',
         `-# ${won ? 'Nice flip! Go again?' : 'Better luck next flip!'}`,
     );
@@ -102,7 +103,7 @@ module.exports = {
         await handleBetflip(
             (opts) => interaction.reply(opts),
             interaction.user.id,
-            [choice, amount]
+            [choice, amount], interaction.guild?.id
         );
     },
 
@@ -111,7 +112,7 @@ module.exports = {
         await handleBetflip(
             (opts) => message.reply(opts),
             message.author.id,
-            args
+            args, message.guild?.id
         );
     }
 };

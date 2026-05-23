@@ -1,6 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 
 const FISH = [
@@ -55,7 +56,7 @@ function rollFish(rodLevel) {
   return { type: 'fish', item: FISH[0] };
 }
 
-async function handleFish(reply, userId) {
+async function handleFish(reply, userId, guildId) {
   const now = Date.now();
 
   if (cooldowns.get(userId) > now) {
@@ -98,7 +99,7 @@ async function handleFish(reply, userId) {
   addSeparator(container, SeparatorSpacingSize.Small);
 
   addTextDisplay(container, [
-    `> <:Money:1473377877239140529> **+${formatNumber(value)}** coins`,
+    `> +${formatCoins(value, guildId)}`,
     `> <:transfer:1479780506718437396> **+${xpGain}** XP`,
     `> 🎣 Rod: **${RODS[rodLevel]}**`,
     `> <:Invoice:1473039492217835550> Total Fish: **${userData.fishCaught}**`,
@@ -119,10 +120,10 @@ module.exports = {
   description: 'Go fishing to earn coins',
 
   async executePrefix(message) {
-    return handleFish(message.reply.bind(message), message.author.id);
+    return handleFish(message.reply.bind(message), message.author.id, message.guild?.id);
   },
 
   async execute(interaction) {
-    return handleFish(interaction.reply.bind(interaction), interaction.user.id);
+    return handleFish(interaction.reply.bind(interaction), interaction.user.id, interaction.guild?.id);
   }
 };

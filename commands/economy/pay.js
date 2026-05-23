@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const {
     createContainer,
     addTextDisplay,
@@ -34,7 +35,7 @@ function createReply(ctx) {
    CORE BUSINESS LOGIC
 ======================================================= */
 
-async function handlePay(ctx, senderId, target, amount) {
+async function handlePay(ctx, senderId, target, amount, guildId) {
     const reply = createReply(ctx);
 
     /* ---------- VALIDATION ---------- */
@@ -89,7 +90,7 @@ async function handlePay(ctx, senderId, target, amount) {
         const container = createContainer();
         addTextDisplay(
             container,
-            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n<:Money:1473377877239140529> **Your Balance:** ${formatNumber(sender.coins)} coins`
+            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n<:Money:1473377877239140529> **Your Balance:** ${formatCoins(sender.coins, guildId)}`
         );
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -107,8 +108,8 @@ async function handlePay(ctx, senderId, target, amount) {
     addTextDisplay(
         container,
         `# 💸 Payment Successful\n\n` +
-        `You paid **${target.username}** <:Money:1473377877239140529> ${formatNumber(amount)} coins\n\n` +
-        `<:Money:1473377877239140529> **Your New Balance:** ${formatNumber(sender.coins)} coins`
+        `You paid **${target.username}** ${formatCoins(amount, guildId)}\n\n` +
+        `<:Money:1473377877239140529> **Your New Balance:** ${formatCoins(sender.coins, guildId)}`
     );
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -138,8 +139,7 @@ module.exports = {
             interaction,
             interaction.user.id,
             target,
-            amount
-        );
+            amount, interaction.guild?.id);
     },
 
     /* ---------- PREFIX ---------- */
@@ -151,7 +151,6 @@ module.exports = {
             message,
             message.author.id,
             target,
-            amount
-        );
+            amount, message.guild?.id);
     }
 };

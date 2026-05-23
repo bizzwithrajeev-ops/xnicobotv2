@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const jsonStore = require('../../utils/jsonStore');
@@ -40,7 +41,7 @@ function getPriceTrend(current, base) {
   return '➡️';
 }
 
-async function handleStocks(reply, userId, subcommand, ticker, amount) {
+async function handleStocks(reply, userId, subcommand, ticker, amount, guildId) {
   const prices = loadStockPrices();
 
   /* ── VIEW ── */
@@ -53,7 +54,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
       const price = prices[t] || info.basePrice;
       const trend = getPriceTrend(price, info.basePrice);
       const held = portfolio[t] || 0;
-      return `> ${trend} **${t}** ${info.emoji} ${info.name}\n> Price: **${formatNumber(price)} coins**${held ? `  ·  Held: ${held}` : ''}`;
+      return `> ${trend} **${t}** ${info.emoji} ${info.name}\n> Price: **${formatCoins(price, guildId)}**${held ? `  ·  Held: ${held}` : ''}`;
     });
 
     const portfolioValue = Object.entries(portfolio).reduce((sum, [t, qty]) => sum + (prices[t] || 0) * qty, 0);
@@ -61,7 +62,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
       .filter(([, qty]) => qty > 0)
       .map(([t, qty]) => {
         const val = (prices[t] || 0) * qty;
-        return `> ${STOCKS[t]?.emoji || '<:transfer:1479780506718437396>'} **${t}** × ${qty} = ${formatNumber(val)} coins`;
+        return `> ${STOCKS[t]?.emoji || '<:transfer:1479780506718437396>'} **${t}** × ${qty} = ${formatCoins(val, guildId)}`;
       });
 
     const c = createContainer(0xCAD7E6);
@@ -72,7 +73,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
       ...marketLines,
       '',
       portfolioLines.length > 0
-        ? [`**Your Portfolio** (${formatNumber(portfolioValue)} coins):`, ...portfolioLines].join('\n')
+        ? [`**Your Portfolio** (${formatCoins(portfolioValue, guildId)}):`, ...portfolioLines].join('\n')
         : `*You don't own any stocks. Use \`/stocks buy <ticker> <amount>\`.*`,
       '',
       `**Commands:** \`/stocks buy\` · \`/stocks sell\` · \`/stocks view\``,
@@ -115,8 +116,8 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
     addTextDisplay(c, [
       `# 📈 Stocks Purchased!`,
       '',
-      `${STOCKS[t].emoji} **${qty}x ${t}** (${STOCKS[t].name}) bought for **${formatNumber(cost)} coins**`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `${STOCKS[t].emoji} **${qty}x ${t}** (${STOCKS[t].name}) bought for **${formatCoins(cost, guildId)}**`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
       `📦 **You now hold:** ${userData.stockPortfolio[t]}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -146,8 +147,8 @@ async function handleStocks(reply, userId, subcommand, ticker, amount) {
     addTextDisplay(c, [
       `# 📉 Stocks Sold!`,
       '',
-      `${STOCKS[t].emoji} Sold **${sellQty}x ${t}** for **+${formatNumber(earned)} coins**`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatNumber(userData.coins)} coins`,
+      `${STOCKS[t].emoji} Sold **${sellQty}x ${t}** for **+${formatCoins(earned, guildId)}**`,
+      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
       `📦 **Remaining:** ${userData.stockPortfolio[t] || 0}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -177,13 +178,13 @@ module.exports = {
     const sub = args[0]?.toLowerCase() || 'view';
     const ticker = args[1]?.toUpperCase();
     const amount = parseInt(args[2]);
-    return handleStocks(message.reply.bind(message), message.author.id, sub, ticker, isNaN(amount) ? 1 : amount);
+    return handleStocks(message.reply.bind(message), message.author.id, sub, ticker, isNaN(amount) ? 1 : amount, message.guild?.id);
   },
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
     const ticker = sub !== 'view' ? interaction.options.getString('ticker') : null;
     const amount = sub !== 'view' ? (interaction.options.getInteger('amount') || 1) : 1;
-    return handleStocks(interaction.reply.bind(interaction), interaction.user.id, sub, ticker, amount);
+    return handleStocks(interaction.reply.bind(interaction), interaction.user.id, sub, ticker, amount, interaction.guild?.id);
   },
 };

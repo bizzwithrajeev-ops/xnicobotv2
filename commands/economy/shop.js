@@ -1,6 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { CATEGORIES, getItems } = require('../../utils/shopItems');
 const economyManager = require('../../utils/economyManager');
@@ -15,7 +16,7 @@ function loadInv() {
 
 /* ═══════════════════ BUILD PAGE ═══════════════════ */
 
-function buildShopPage(category, userId) {
+function buildShopPage(category, userId, guildId) {
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
   const inventory = loadInv();
@@ -26,7 +27,7 @@ function buildShopPage(category, userId) {
 
   const container = createContainer(cat.color);
 
-  addTextDisplay(container, `# 🛒 Economy Shop — ${cat.emoji} ${cat.label}\n<:Money:1473377877239140529> Your Wallet: **${formatNumber(userData.coins)}** coins`);
+  addTextDisplay(container, `# 🛒 Economy Shop — ${cat.emoji} ${cat.label}\n<:Money:1473377877239140529> Your Wallet: **${formatCoins(userData.coins, guildId)}**`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   if (items.length === 0) {
@@ -41,7 +42,7 @@ function buildShopPage(category, userId) {
       addTextDisplay(container, [
         `### ${item.emoji} ${item.name}${statusTag}`,
         `${item.description}`,
-        `-# <:Money:1473377877239140529> ${formatNumber(item.price)} coins  ·  📦 Owned: ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> \`${item.id}\``,
+        `-# ${formatCoins(item.price, guildId)}  ·  📦 Owned: ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> \`${item.id}\``,
       ].join('\n'));
     }
   }
@@ -95,7 +96,7 @@ module.exports = {
     if (await shopGuard(message)) return;
     const startCat = args[0]?.toLowerCase();
     const category = CATEGORIES[startCat] ? startCat : 'consumable';
-    const { container, row } = buildShopPage(category, message.author.id);
+    const { container, row } = buildShopPage(category, message.author.id, message.guild?.id);
     return message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -103,7 +104,7 @@ module.exports = {
     if (await shopGuard(interaction)) return;
     const startCat = interaction.options?.getString('category') || 'consumable';
     const category = CATEGORIES[startCat] ? startCat : 'consumable';
-    const { container, row } = buildShopPage(category, interaction.user.id);
+    const { container, row } = buildShopPage(category, interaction.user.id, interaction.guild?.id);
     return interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
   },
 
@@ -112,7 +113,7 @@ module.exports = {
   async handleStringSelect(interaction) {
     if (interaction.customId !== 'shop_cat_select') return false;
     const category = CATEGORIES[interaction.values[0]] ? interaction.values[0] : 'consumable';
-    const { container, row } = buildShopPage(category, interaction.user.id);
+    const { container, row } = buildShopPage(category, interaction.user.id, interaction.guild?.id);
     await interaction.update({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
     return true;
   },

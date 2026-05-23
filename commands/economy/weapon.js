@@ -1,4 +1,5 @@
 const { createContainer, addTextDisplay, formatNumber, MessageFlags } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 
@@ -41,6 +42,7 @@ module.exports = {
   aliases: ['weap'],
 
   async executePrefix(message, args) {
+        const guildId = message.guild?.id;
     const pets = ph.loadPets();
     const userId = message.author.id;
     const sub = args[0];
@@ -107,7 +109,7 @@ module.exports = {
       const economy = economyManager.loadEconomy();
       const { userData: wUser } = economyManager.getUser(economy, userId);
       if (wUser.coins < cost) {
-        const c = createContainer(0xED4245); addTextDisplay(c, `<:Cancel:1473037949187657818> You need **${formatNumber(cost)} coins** to upgrade.`);
+        const c = createContainer(0xED4245); addTextDisplay(c, `<:Cancel:1473037949187657818> You need **${formatCoins(cost, guildId)}** to upgrade.`);
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
 
@@ -122,7 +124,7 @@ module.exports = {
       addTextDisplay(container, `# 🗡️ Weapon Upgraded!\n\n` +
         `<:Star:1473038501766369300> Level: **${pet.weapon.level}/${MAX_WEAPON_LEVEL}**\n` +
         `⚔️ ATK: **${pet.weapon.baseAtk}**\n` +
-        `<:Money:1473377877239140529> Cost: ${formatNumber(cost)} coins`);
+        `<:Money:1473377877239140529> Cost: ${formatCoins(cost, guildId)}`);
 
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

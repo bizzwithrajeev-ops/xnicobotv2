@@ -1,6 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
+const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -47,6 +48,7 @@ function buildLobbyEmbed(target, leader, members, secondsLeft) {
 }
 
 async function runHeist(msg, target, leader, members, interaction) {
+  const guildId = interaction?.guild?.id;
   const allParticipants = [leader, ...members];
   const crewBonus = Math.min((allParticipants.length - 1) * 0.08, 0.32);
   const successRate = Math.min(target.baseSuccessRate + crewBonus, 0.90);
@@ -65,7 +67,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       userData.totalEarned = (userData.totalEarned || 0) + share;
       userData.heistCount = (userData.heistCount || 0) + 1;
       economyManager.checkAllAchievements(economy, p.id);
-      shareLines.push(`> ${p.username} → **+${formatNumber(share)} coins**`);
+      shareLines.push(`> ${p.username} → **+${formatCoins(share, guildId)}**`);
     }
 
     economyManager.saveEconomy(economy);
@@ -78,7 +80,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       '',
       `✅ *${flavor}*`,
       '',
-      `<:Money:1473377877239140529> **Total stolen:** ${formatNumber(totalReward)} coins`,
+      `<:Money:1473377877239140529> **Total stolen:** ${formatCoins(totalReward, guildId)}`,
       `👥 **Split between ${allParticipants.length} crew member(s):**`,
       ...shareLines,
       '',
@@ -94,7 +96,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       const { userData } = economyManager.getUser(economy, p.id);
       const fine = Math.floor((userData.coins || 0) * target.riskFine);
       userData.coins = Math.max(0, (userData.coins || 0) - fine);
-      fineLines.push(`> ${p.username} → **-${formatNumber(fine)} coins**`);
+      fineLines.push(`> ${p.username} → **-${formatCoins(fine, guildId)}**`);
     }
     economyManager.saveEconomy(economy);
 

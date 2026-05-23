@@ -17,7 +17,7 @@ const {
 const economyManager = require('../../utils/economyManager');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
-const { formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
 
 const WORDS = [
     'APPLE','BRAVE','CLOUD','DANCE','EAGLE','FLAME','GRACE','HEART','IVORY',

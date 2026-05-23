@@ -3,7 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, rollReward } = require('../../utils/currencyHelper');
+const { getEconomySettings, rollReward, formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 
 function buildCooldownBar(elapsed, total, length = 20) {
     const progress = Math.min(Math.floor((elapsed / total) * length), length);
@@ -63,17 +63,17 @@ async function handleDaily(reply, userId, guildId) {
 
     let rewardText = `# 🎁 Daily Reward Claimed!\n\n`;
     rewardText += `### <:Money:1473377877239140529> Reward Breakdown\n`;
-    rewardText += `> <:Money:1473377877239140529> **Base Reward:** ${formatNumber(baseReward)} coins\n`;
-    if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatNumber(streakBonus)} coins\n`;
-    if (bonusAmount > 0) rewardText += `> <:Crown:1506010837368963142> **Daily Bonus:** +${formatNumber(bonusAmount)} coins\n`;
+    rewardText += `> <:Money:1473377877239140529> **Base Reward:** ${formatCoins(baseReward, guildId)}\n`;
+    if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatCoins(streakBonus, guildId)}\n`;
+    if (bonusAmount > 0) rewardText += `> <:Crown:1506010837368963142> **Daily Bonus:** +${formatCoins(bonusAmount, guildId)}\n`;
 
     addTextDisplay(container, rewardText);
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
         `### <:transfer:1479780506718437396> Summary`,
-        `> <:Money:1473377877239140529> **Total Received:** ${formatNumber(totalReward)} coins`,
-        `> <:Money:1473377877239140529> **New Balance:** ${formatNumber(user.coins)} coins`,
+        `> <:Money:1473377877239140529> **Total Received:** ${formatCoins(totalReward, guildId)}`,
+        `> <:Money:1473377877239140529> **New Balance:** ${formatCoins(user.coins, guildId)}`,
         `> <:Fire:1473038604812161218> **Current Streak:** ${streak} day${streak !== 1 ? 's' : ''} ${streak >= 7 ? '<:Fire:1473038604812161218>' : streak >= 3 ? '<:Star:1473038501766369300>' : ''}`,
         '',
         `-# Come back tomorrow to keep your streak going!`,
