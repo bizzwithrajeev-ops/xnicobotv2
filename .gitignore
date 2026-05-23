@@ -35,6 +35,8 @@ datas/
 data/.slash-cache.json
 backups/
 dashboard/data/
+pg_full_dump.sql
+*.dump.sql
 temp_downloads/
 attached_assets/
 
