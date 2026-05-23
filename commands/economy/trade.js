@@ -93,7 +93,7 @@ module.exports = {
 
     collector.on('collect', async i => {
       if (i.user.id !== receiverId) {
-        await i.reply({ content: '<:Cancel:1473037949187657818> Only the trade recipient can respond.', ephemeral: true });
+        await i.reply({ content: '<:Cancel:1473037949187657818> Only the trade recipient can respond.', flags: MessageFlags.Ephemeral });
         return;
       }
       await i.deferUpdate();

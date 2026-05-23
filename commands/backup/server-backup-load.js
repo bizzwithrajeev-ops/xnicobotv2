@@ -165,7 +165,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
     const collector = statusMsg.createMessageComponentCollector({ time: CONTROL_TIMEOUT });
     collector.on('collect', async (i) => {
         if (i.user.id !== uid) {
-            return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', ephemeral: true });
+            return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
         }
 
         const action = i.customId.split(':')[1];
@@ -191,7 +191,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
                     `Status: **${job.stopped ? 'Stopping' : (job.paused ? 'Paused' : 'Running')}**\n` +
                     `Stage: **${job.stage}**\n` +
                     `Progress: **${job.current}/${job.total} (${Math.round(job.percent)}%)**`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
@@ -303,7 +303,7 @@ module.exports = {
 
         const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
         collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', ephemeral: true });
+            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
             collector.stop('handled');
 
             if (i.customId.split(':')[1] !== 'confirm') {
@@ -361,7 +361,7 @@ module.exports = {
         const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', ephemeral: true });
+            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
             collector.stop('handled');
 
             if (i.customId.split(':')[1] !== 'confirm') {

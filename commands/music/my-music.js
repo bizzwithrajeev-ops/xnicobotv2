@@ -148,7 +148,7 @@ function createFavoritesButtons(page, totalPages, hasFavorites) {
             new ButtonBuilder()
                 .setCustomId('mymusic_back')
                 .setLabel('Back')
-                .setEmoji('⬅️')
+                .setEmoji('<:Caretleft:1473038204125409330>')
                 .setStyle(ButtonStyle.Secondary)
         ));
     } else {
@@ -156,7 +156,7 @@ function createFavoritesButtons(page, totalPages, hasFavorites) {
             new ButtonBuilder()
                 .setCustomId('mymusic_back')
                 .setLabel('Back')
-                .setEmoji('⬅️')
+                .setEmoji('<:Caretleft:1473038204125409330>')
                 .setStyle(ButtonStyle.Secondary)
         ));
     }
@@ -208,7 +208,7 @@ function createSpotifyButtons(playlists) {
         new ButtonBuilder()
             .setCustomId('mymusic_back')
             .setLabel('Back')
-            .setEmoji('⬅️')
+            .setEmoji('<:Caretleft:1473038204125409330>')
             .setStyle(ButtonStyle.Secondary)
     ));
 

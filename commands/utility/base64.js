@@ -41,7 +41,7 @@ module.exports = {
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const container = buildErrorResponse('Invalid Input', 'Invalid Base64 input for decoding.');
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     },
 

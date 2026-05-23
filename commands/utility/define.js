@@ -53,7 +53,7 @@ module.exports = {
 
         if (!data) {
             const container = buildErrorResponse('Word Not Found', `Could not find the definition for "${word}".`);
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         const container = buildDefinitionContainer(data);

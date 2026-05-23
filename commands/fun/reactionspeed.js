@@ -47,7 +47,7 @@ module.exports = {
         }
 
         if (interaction.user.id !== game.playerId) {
-            await interaction.reply({ content: 'This is not your game!', ephemeral: true });
+            await interaction.reply({ content: 'This is not your game!', flags: MessageFlags.Ephemeral });
             return true;
         }
 

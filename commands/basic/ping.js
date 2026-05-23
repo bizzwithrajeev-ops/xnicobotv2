@@ -68,7 +68,7 @@ module.exports = {
         } catch (error) {
             const content = '<:Cancel:1473037949187657818> An error occurred.';
             if (interaction.deferred || interaction.replied) await interaction.editReply({ content }).catch(() => {});
-            else await interaction.reply({ content, ephemeral: true }).catch(() => {});
+            else await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
     },
 

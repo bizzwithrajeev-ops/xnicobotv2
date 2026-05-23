@@ -187,7 +187,7 @@ module.exports = {
         collector.on('collect', async (i) => {
             // Deny non-invoker
             if (i.user.id !== uid) {
-                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use these controls.', ephemeral: true });
+                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use these controls.', flags: MessageFlags.Ephemeral });
             }
 
             try {
@@ -334,7 +334,7 @@ module.exports = {
             } catch (err) {
                 console.error('Webhook list interaction error:', err);
                 if (!i.replied && !i.deferred) {
-                    await i.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', ephemeral: true }).catch(() => {});
+                    await i.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 }
             }
         });
@@ -354,7 +354,7 @@ module.exports = {
         const whId = parts[2];
 
         if (interaction.user.id !== uid) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This modal is not for you.', ephemeral: true });
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> This modal is not for you.', flags: MessageFlags.Ephemeral });
         }
 
         const guild = interaction.guild;

@@ -48,7 +48,7 @@ module.exports = {
             const container = buildChannelStatsContainer(channel, stats);
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch channel statistics!', ephemeral: true });
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch channel statistics!', flags: MessageFlags.Ephemeral });
         }
     },
 

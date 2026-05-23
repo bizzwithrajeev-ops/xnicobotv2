@@ -88,7 +88,7 @@ module.exports = {
             const timeMs = parseTime(timeStr);
             if (!timeMs) {
                 const container = buildErrorResponse('Invalid Time', 'Use format: 10s, 10m, 1h, 1d');
-                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             const reminders = loadReminders();
@@ -121,7 +121,7 @@ module.exports = {
 
             if (reminders.length === 0) {
                 const container = buildErrorResponse('No Reminders', 'You have no active reminders.');
-                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             let content = `# <:Document:1473039496995143731> Your Reminders\n\n`;
@@ -134,7 +134,7 @@ module.exports = {
                 .setAccentColor(COLORS.INFO)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
         } else if (subcommand === 'delete') {
             const id = interaction.options.getInteger('id');
@@ -143,7 +143,7 @@ module.exports = {
 
             if (index === -1) {
                 const container = buildErrorResponse('Not Found', 'Reminder not found or you don\'t own it.');
-                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             reminders.splice(index, 1);

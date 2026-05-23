@@ -163,7 +163,7 @@ module.exports = {
         try {
             user = await interaction.client.users.fetch(userId);
         } catch {
-            return interaction.reply({ content: 'Could not fetch that user.', ephemeral: true });
+            return interaction.reply({ content: 'Could not fetch that user.', flags: MessageFlags.Ephemeral });
         }
 
         let member = null;

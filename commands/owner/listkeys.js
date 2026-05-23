@@ -132,7 +132,7 @@ module.exports = {
         if (customId.startsWith('listkeys_pg_')) return true;
 
         if (!isOwner(interaction.user.id)) {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the bot owner can use this.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the bot owner can use this.', flags: MessageFlags.Ephemeral }).catch(() => {});
             return true;
         }
 

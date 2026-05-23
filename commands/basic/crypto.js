@@ -52,7 +52,7 @@ module.exports = {
         const data = await getCryptoData(coin);
 
         if (!data) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Cryptocurrency not found!', ephemeral: true });
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> Cryptocurrency not found!', flags: MessageFlags.Ephemeral });
         }
 
         const container = buildCryptoContainer(coin, data);

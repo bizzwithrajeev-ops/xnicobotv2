@@ -1153,7 +1153,7 @@ module.exports = {
                 style: style,
                 emoji: emoji || null,
                 url: url || null,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
                 actions: []
             };
 

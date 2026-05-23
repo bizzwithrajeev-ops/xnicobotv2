@@ -109,7 +109,7 @@ module.exports = {
 
     collector.on('collect', async i => {
       if (i.user.id !== userId) {
-        await i.reply({ content: '<:Cancel:1473037949187657818> This doesn\'t belong to you.', ephemeral: true });
+        await i.reply({ content: '<:Cancel:1473037949187657818> This doesn\'t belong to you.', flags: MessageFlags.Ephemeral });
         return;
       }
       await i.deferUpdate();

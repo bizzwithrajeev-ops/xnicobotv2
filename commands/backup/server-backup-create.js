@@ -181,7 +181,7 @@ module.exports = {
         const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', ephemeral: true });
+            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
 
             const parts = i.customId.split(':');
             const action = parts[1];

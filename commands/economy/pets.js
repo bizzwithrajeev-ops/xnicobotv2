@@ -337,7 +337,7 @@ module.exports = {
     if (interaction.user.id !== uid) {
       await interaction.reply({
         content: '<:Cancel:1473037949187657818> This menu belongs to someone else.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return true;
     }
@@ -371,7 +371,7 @@ module.exports = {
       const petId = parts[3];
       const pet = user.animals.find(p => p.id === petId);
       if (!pet) {
-        await interaction.reply({ content: '<:Cancel:1473037949187657818> Pet no longer exists.', ephemeral: true });
+        await interaction.reply({ content: '<:Cancel:1473037949187657818> Pet no longer exists.', flags: MessageFlags.Ephemeral });
         return true;
       }
       user.activeBattlePet = petId;
@@ -394,7 +394,7 @@ module.exports = {
       const pet = user.animals.find(p => p.id === petId);
       const wpDef = ph.WEAPONS[weaponId];
       if (!pet || !wpDef) {
-        await interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid selection.', ephemeral: true });
+        await interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid selection.', flags: MessageFlags.Ephemeral });
         return true;
       }
       pet.weapon = { id: weaponId, name: wpDef.name, baseAtk: wpDef.baseAtk, level: 1, rarity: pet.rarity };

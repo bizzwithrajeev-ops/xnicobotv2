@@ -152,7 +152,7 @@ module.exports = {
         const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', ephemeral: true });
+            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
             const parts = i.customId.split(':');
             const action = parts[1];
 
@@ -211,7 +211,7 @@ module.exports = {
                 return i.update({ components: [ctr], flags: MessageFlags.IsComponentsV2 });
             } catch (err) {
                 console.error('database-list collector error:', err);
-                if (!i.replied && !i.deferred) i.reply({ content: 'An error occurred.', ephemeral: true }).catch(() => {});
+                if (!i.replied && !i.deferred) i.reply({ content: 'An error occurred.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         });
 

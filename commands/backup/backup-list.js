@@ -163,7 +163,7 @@ module.exports = {
         const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use these controls.', ephemeral: true });
+            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use these controls.', flags: MessageFlags.Ephemeral });
 
             const parts = i.customId.split(':');
             const action = parts[1];
@@ -220,7 +220,7 @@ module.exports = {
 
             } catch (err) {
                 console.error('Backup list interaction error:', err);
-                if (!i.replied && !i.deferred) await i.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', ephemeral: true }).catch(() => {});
+                if (!i.replied && !i.deferred) await i.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         });
 

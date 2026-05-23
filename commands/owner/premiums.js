@@ -274,7 +274,7 @@ module.exports = {
         if (customId.startsWith('premiums_pg_')) return true; // Ignore page label clicks
 
         if (!isOwner(interaction.user.id)) {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the bot owner can use this.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the bot owner can use this.', flags: MessageFlags.Ephemeral }).catch(() => {});
             return true;
         }
 
@@ -299,7 +299,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('[Premiums] Button error:', error);
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', flags: MessageFlags.Ephemeral }).catch(() => {});
         }
 
         return true;

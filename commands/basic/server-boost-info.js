@@ -96,7 +96,7 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content }).catch(() => {});
             } else {
-                await interaction.reply({ content, ephemeral: true }).catch(() => {});
+                await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     },

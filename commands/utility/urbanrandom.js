@@ -35,7 +35,7 @@ module.exports = {
         const data = await getRandomDefinition();
 
         if (!data) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch a random definition!', ephemeral: true });
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch a random definition!', flags: MessageFlags.Ephemeral });
         }
 
         const container = buildUrbanContainer(data);

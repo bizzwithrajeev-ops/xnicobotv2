@@ -89,7 +89,7 @@ module.exports = {
 
         collector.on('collect', async (i) => {
             if (i.user.id !== uid) {
-                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can confirm or cancel.', ephemeral: true });
+                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can confirm or cancel.', flags: MessageFlags.Ephemeral });
             }
 
             const action = i.customId.split(':')[1];

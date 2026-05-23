@@ -127,7 +127,7 @@ async function runAdventure(message, biomeData) {
 
   collector.on('collect', async i => {
     if (i.user.id !== userId) {
-      await i.reply({ content: '<:Cancel:1473037949187657818> This adventure belongs to someone else.', ephemeral: true });
+      await i.reply({ content: '<:Cancel:1473037949187657818> This adventure belongs to someone else.', flags: MessageFlags.Ephemeral });
       return;
     }
 

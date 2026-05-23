@@ -48,7 +48,7 @@ module.exports = {
         
         if (calc.error) {
             const container = buildErrorResponse('Calculation Error', calc.error);
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         const container = buildCalculatorContainer(calc.expression, calc.result);

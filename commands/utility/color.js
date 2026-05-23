@@ -82,7 +82,7 @@ module.exports = {
                 'Invalid Hex Color',
                 'Please use format: `#FF5733` or `FF5733`'
             );
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         const container = buildColorContainer(hex);

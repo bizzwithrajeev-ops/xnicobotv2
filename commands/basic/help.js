@@ -63,12 +63,27 @@ function getCommandsByCategory(client) {
 function buildHomeContent(client, user) {
     const uniqueCommands = new Set(client.commands.values());
     const total = uniqueCommands.size;
+    const guilds = client.guilds?.cache?.size ?? 0;
+    const prefix = process.env.PREFIX || '-';
 
-    let content = `## <:xnico:1486755083390550036>  Welcome to xNico — Help Center\n\n`;
-    content += `**Total Commands:** ${total}\n`;
-    content += `**Requested by:** ${user}`;
+    const lines = [
+        `## <:xnico:1486755083390550036>  xNico — Help Center`,
+        `-# All-in-one Discord toolkit · Music · Moderation · Economy · Levels · Tickets · AI`,
+        ``,
+        `<:Bookopen:1473038576391557130> **Getting Started**`,
+        `> Pick a category from the dropdown below to view its commands.`,
+        `> Both **slash** (\`/command\`) and **prefix** (\`${prefix}command\`) work everywhere.`,
+        ``,
+        `<:Inforect:1473038624172937287> **Quick Stats**`,
+        `> <:Bullhorn:1473038903157199093> **${total}** commands  ·  <:Folder:1473039340425973972> **${guilds}** servers`,
+        ``,
+        `<:Settings:1473037894703779851> **Need help?**`,
+        `> Tap the **More options** menu for support, invite, vote, and search.`,
+        ``,
+        `-# Requested by ${user}`
+    ];
 
-    return content;
+    return lines.join('\n');
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -378,7 +393,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
         .setDescription('Display bot commands and features')
-        .setDMPermission(true)
+        
         .addStringOption(option =>
             option.setName('category')
                 .setDescription('Jump to a specific category')

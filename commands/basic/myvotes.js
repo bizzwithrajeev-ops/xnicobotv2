@@ -146,7 +146,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('myvotes')
         .setDescription('Check your vote stats, streak, and manage vote reminders')
-        .setDMPermission(true),
+        ,
 
     async execute(interaction) {
         try {

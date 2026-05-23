@@ -546,7 +546,7 @@ module.exports = {
 
         // Check permissions
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> You need **Manage Messages** permission.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> You need **Manage Messages** permission.', flags: MessageFlags.Ephemeral }).catch(() => {});
             return true;
         }
 
@@ -574,7 +574,7 @@ module.exports = {
             const page = parseInt(parts[3]) || 0;
             const entry = history[entryIdx - 1];
             if (!entry) {
-                await interaction.reply({ content: '<:Cancel:1473037949187657818> That history entry no longer exists.', ephemeral: true }).catch(() => {});
+                await interaction.reply({ content: '<:Cancel:1473037949187657818> That history entry no longer exists.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 return true;
             }
             const container = this._buildHistoryDetailPage(entry, entryIdx, page);

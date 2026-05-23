@@ -190,20 +190,25 @@ function buildYouTubeEmbed(video, isLive = false) {
 
 /**
  * Check if a YouTube video is a livestream by checking page metadata.
- * Returns true if the video is currently live.
+ * Returns true only when the stream is currently live (active broadcast),
+ * NOT for past broadcasts or upcoming-but-not-started ones.
  *
- * Note: We only flag genuinely *live-now* streams. Past broadcasts
- * (`isLiveContent: true` once a stream ends) used to wrongly trip
- * the check and re-fire the live message every poll.
+ * Reliable signals:
+ *   - "isLiveNow":true      — stream is broadcasting right now
+ *   - "hlsManifestUrl":      — live HLS manifest only present for active broadcasts
+ *   - "liveBroadcastDetails": with isLiveNow=true (same thing, alternate JSON path)
+ *
+ * Past broadcast pages contain "isLiveContent":true but lack
+ * isLiveNow/hlsManifestUrl, so we no longer false-positive on those.
+ *
+ * Upcoming streams have "isUpcoming":true and a startTimestamp; we
+ * don't notify those — they'll fire when the broadcast actually starts.
  */
 async function checkIfLive(videoId) {
     try {
         const html = await fetchUrl(`https://www.youtube.com/watch?v=${videoId}`);
-        // Currently live: hlsManifestUrl present + isLiveBroadcast=true,
-        // or "isLiveNow":true. Past broadcast pages still contain
-        // "isLiveContent":true so we don't rely on that one alone.
         if (html.includes('"isLiveNow":true')) return true;
-        if (html.includes('"isLive":true') && html.includes('"isLiveBroadcast":true')) return true;
+        if (html.includes('"hlsManifestUrl"')) return true;
         return false;
     } catch {
         return false;
@@ -351,16 +356,29 @@ async function pollYouTube(client, log) {
                     }
 
                     const messageText = formatMessage(messageTemplate, video);
-                    // Build ping text — handle @everyone specially
+                    // Build ping text. Accepts:
+                    //   - "everyone" or "@everyone" → @everyone ping
+                    //   - "here" or "@here"         → @here ping
+                    //   - role ID                   → role mention
+                    //   - "<@&id>"                  → role mention (legacy)
                     let pingRole = '';
                     const allowedMentions = { parse: [] };
-                    if (ytConfig.pingRole) {
-                        if (ytConfig.pingRole === 'everyone') {
+                    const rawPing = ytConfig.pingRole;
+                    if (rawPing) {
+                        const lc = String(rawPing).toLowerCase();
+                        if (lc === 'everyone' || lc === '@everyone') {
                             pingRole = '@everyone ';
                             allowedMentions.parse.push('everyone');
+                        } else if (lc === 'here' || lc === '@here') {
+                            pingRole = '@here ';
+                            allowedMentions.parse.push('everyone');
                         } else {
-                            pingRole = `<@&${ytConfig.pingRole}> `;
-                            allowedMentions.roles = [ytConfig.pingRole];
+                            const idMatch = String(rawPing).match(/(\d{17,20})/);
+                            const roleId = idMatch ? idMatch[1] : null;
+                            if (roleId) {
+                                pingRole = `<@&${roleId}> `;
+                                allowedMentions.roles = [roleId];
+                            }
                         }
                     }
 

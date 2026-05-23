@@ -135,7 +135,7 @@ async function startHeist(interaction, targetId) {
   if (activeHeists.has(leaderId)) {
     const c = createContainer(0xED4245);
     addTextDisplay(c, `${EMOJIS.cancel} You already have an active heist in progress!`);
-    return interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+    return interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 
   const idx = targetId !== null ? targetId : Math.floor(Math.random() * TARGETS.length);
@@ -188,7 +188,7 @@ async function startHeist(interaction, targetId) {
       if (!heist) return btn.deferUpdate();
 
       if (joiner.id === leaderId || heist.members.find(m => m.id === joiner.id)) {
-        return btn.reply({ content: 'You are already in this heist!', ephemeral: true });
+        return btn.reply({ content: 'You are already in this heist!', flags: MessageFlags.Ephemeral });
       }
       heist.members.push(joiner);
       await btn.update({
@@ -198,7 +198,7 @@ async function startHeist(interaction, targetId) {
 
     } else if (btn.customId === `heist_start_${leaderId}`) {
       if (btn.user.id !== leaderId) {
-        return btn.reply({ content: 'Only the leader can launch early!', ephemeral: true });
+        return btn.reply({ content: 'Only the leader can launch early!', flags: MessageFlags.Ephemeral });
       }
       clearInterval(ticker);
       collector.stop('early_launch');

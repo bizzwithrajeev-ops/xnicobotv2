@@ -113,7 +113,7 @@ module.exports = {
 
         collector.on('collect', async (i) => {
             if (i.user.id !== uid) {
-                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command user can interact with this.', ephemeral: true });
+                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command user can interact with this.', flags: MessageFlags.Ephemeral });
             }
 
             const action = i.customId.split(':')[1];
@@ -232,7 +232,7 @@ module.exports = {
         const collector = reply.createMessageComponentCollector({ time: 30_000 });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command user can interact with this.', ephemeral: true });
+            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command user can interact with this.', flags: MessageFlags.Ephemeral });
             collector.stop('handled');
 
             if (i.customId.includes('rmcancel')) {

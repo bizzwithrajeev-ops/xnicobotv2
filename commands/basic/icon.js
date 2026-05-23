@@ -44,7 +44,7 @@ module.exports = {
         try {
             const result = buildIconResponse(interaction.guild);
             if (result.error) {
-                return interaction.reply({ content: result.error, ephemeral: true });
+                return interaction.reply({ content: result.error, flags: MessageFlags.Ephemeral });
             }
             await interaction.reply({ components: [result.container, result.row], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
@@ -53,7 +53,7 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content }).catch(() => {});
             } else {
-                await interaction.reply({ content, ephemeral: true }).catch(() => {});
+                await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     },

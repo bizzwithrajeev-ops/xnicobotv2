@@ -54,7 +54,7 @@ module.exports = {
             await interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Vote command error:', error);
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', ephemeral: true });
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', flags: MessageFlags.Ephemeral });
         }
     },
 

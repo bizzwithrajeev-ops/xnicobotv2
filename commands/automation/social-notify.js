@@ -4,6 +4,25 @@ const path = require('path');
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
 
+/**
+ * Format a stored pingRole value into a Discord-renderable mention.
+ * Accepts:
+ *   - "everyone" / "@everyone"  → "@everyone"
+ *   - "here"     / "@here"      → "@here"
+ *   - role ID                   → "<@&id>"
+ *   - "<@&id>" (legacy)         → as-is
+ *   - null / empty              → "" (caller decides what to show)
+ */
+function formatPingRole(raw) {
+    if (!raw) return '';
+    const s = String(raw);
+    const lc = s.toLowerCase();
+    if (lc === 'everyone' || lc === '@everyone') return '@everyone';
+    if (lc === 'here' || lc === '@here') return '@here';
+    const m = s.match(/(\d{17,20})/);
+    return m ? `<@&${m[1]}>` : s;
+}
+
 function loadConfig() {
     try {
         if (!jsonStore.has('social-notify')) { jsonStore.write('social-notify', {}); return {}; }
@@ -156,7 +175,7 @@ function buildYouTubePanel(guildConfig) {
     // ── Rich settings display ──
     const statusEmoji = ytConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = ytConfig.notifyChannel ? `<#${ytConfig.notifyChannel}>` : '`Not Set`';
-    const roleText = ytConfig.pingRole ? `<@&${ytConfig.pingRole}>` : '`None`';
+    const roleText = ytConfig.pingRole ? formatPingRole(ytConfig.pingRole) : '`None`';
     const liveText = ytConfig.liveEnabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled';
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -280,7 +299,7 @@ function buildPlatformPanel(guildConfig, platform) {
 
     const statusEmoji = pConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = pConfig.notifyChannel ? `<#${pConfig.notifyChannel}>` : '`Not Set`';
-    const roleText = pConfig.pingRole ? `<@&${pConfig.pingRole}>` : '`None`';
+    const roleText = pConfig.pingRole ? formatPingRole(pConfig.pingRole) : '`None`';
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `${statusEmoji} **Status:** ${pConfig.enabled ? 'Enabled' : 'Disabled'}\n` +
@@ -544,9 +563,9 @@ async function handleInteraction(interaction) {
             modal.addComponents(new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('role_id')
-                    .setLabel('Role ID (leave empty to disable)')
+                    .setLabel('Role ID, role mention, or @everyone')
                     .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('123456789012345678 or @everyone')
+                    .setPlaceholder('123456789012345678 · @everyone · @here')
                     .setRequired(false)
                     .setValue(pConfig.pingRole || '')
             ));
@@ -593,7 +612,18 @@ async function handleInteraction(interaction) {
             let testMsg = (pConfig.message || `${info.emoji} Test notification from ${info.name}!`);
             for (const [k, v] of Object.entries(testVars)) testMsg = testMsg.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
 
-            const pingRole = pConfig.pingRole ? `<@&${pConfig.pingRole}> ` : '';
+            const pingMention = formatPingRole(pConfig.pingRole);
+            const pingRole = pingMention ? `${pingMention} ` : '';
+            const allowedMentions = { parse: [] };
+            if (pConfig.pingRole) {
+                const lc = String(pConfig.pingRole).toLowerCase();
+                if (lc === 'everyone' || lc === '@everyone' || lc === 'here' || lc === '@here') {
+                    allowedMentions.parse.push('everyone');
+                } else {
+                    const m = String(pConfig.pingRole).match(/(\d{17,20})/);
+                    if (m) allowedMentions.roles = [m[1]];
+                }
+            }
 
             try {
                 if (isYouTube) {
@@ -605,9 +635,9 @@ async function handleInteraction(interaction) {
                         .setImage('https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg')
                         .setTimestamp()
                         .setFooter({ text: 'YouTube • Test Notification' });
-                    await channel.send({ content: `${pingRole}${testMsg}\n\n-# 🧪 This is a test notification`, embeds: [embed] });
+                    await channel.send({ content: `${pingRole}${testMsg}\n\n-# 🧪 This is a test notification`, embeds: [embed], allowedMentions });
                 } else {
-                    await channel.send({ content: `${pingRole}${testMsg}\n\n-# 🧪 This is a test notification` });
+                    await channel.send({ content: `${pingRole}${testMsg}\n\n-# 🧪 This is a test notification`, allowedMentions });
                 }
                 await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Test notification sent to <#${channel.id}>!`, flags: MessageFlags.Ephemeral });
             } catch (error) {
@@ -686,11 +716,44 @@ async function handleInteraction(interaction) {
     const roleModalMatch = id.match(/^social_role_modal_(\w+)$/);
     if (roleModalMatch && interaction.isModalSubmit()) {
         const platform = roleModalMatch[1];
-        const roleId = interaction.fields.getTextInputValue('role_id').trim();
-        gc[platform].pingRole = roleId || null;
+        const raw = interaction.fields.getTextInputValue('role_id').trim();
+
+        // Normalise the input. Accepts:
+        //   "@everyone" / "everyone"  → stored as "everyone"
+        //   "@here" / "here"          → stored as "here"
+        //   "<@&123…>" / "123…"       → stored as the bare role ID
+        //   ""                         → null (disabled)
+        let stored = null;
+        let displayRole = '';
+        if (raw) {
+            const lc = raw.toLowerCase();
+            if (lc === '@everyone' || lc === 'everyone') {
+                stored = 'everyone';
+                displayRole = '@everyone';
+            } else if (lc === '@here' || lc === 'here') {
+                stored = 'here';
+                displayRole = '@here';
+            } else {
+                const m = raw.match(/^<@&(\d{17,20})>$/) || raw.match(/^(\d{17,20})$/);
+                if (m) {
+                    stored = m[1];
+                    displayRole = `<@&${m[1]}>`;
+                } else {
+                    await interaction.reply({
+                        content: '<:Cancel:1473037949187657818> Invalid role. Use a role ID, role mention, `@everyone`, or `@here`.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                    return true;
+                }
+            }
+        }
+
+        gc[platform].pingRole = stored;
         saveConfig(config);
         await interaction.reply({
-            content: roleId ? `<:Checkedbox:1473038547165384804> Ping role set to <@&${roleId}>!` : '<:Checkedbox:1473038547165384804> Ping role disabled!',
+            content: stored
+                ? `<:Checkedbox:1473038547165384804> Ping target set to ${displayRole}.`
+                : '<:Checkedbox:1473038547165384804> Ping role disabled.',
             flags: MessageFlags.Ephemeral
         });
         try {

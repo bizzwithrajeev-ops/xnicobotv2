@@ -327,7 +327,7 @@ async function handlePVP(message, args, guildId) {
     if (i.user.id !== target.id) {
       await i.reply({
         content: '<:Cancel:1473037949187657818> Only **' + target.username + '** can respond to this battle.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }

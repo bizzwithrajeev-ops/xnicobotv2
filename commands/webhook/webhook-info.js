@@ -122,7 +122,7 @@ module.exports = {
 
         collector.on('collect', async (i) => {
             if (i.user.id !== uid) {
-                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use these controls.', ephemeral: true });
+                return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use these controls.', flags: MessageFlags.Ephemeral });
             }
 
             const parts = i.customId.split(':');
@@ -244,7 +244,7 @@ module.exports = {
             } catch (err) {
                 console.error('Webhook info interaction error:', err);
                 if (!i.replied && !i.deferred) {
-                    await i.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', ephemeral: true }).catch(() => {});
+                    await i.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 }
             }
         });
