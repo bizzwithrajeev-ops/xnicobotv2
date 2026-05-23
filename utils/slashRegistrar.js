@@ -37,7 +37,7 @@ const GLOBAL_PRIORITY = new Set([
     'lock', 'unlock', 'hide', 'unhide', 'addrole', 'removerole', 'slowmode',
     'play', 'pause', 'resume', 'stop', 'skip', 'queue', 'nowplaying', 'volume',
     'seek', 'loop', 'shuffle', 'autoplay', 'filters', 'lyrics', 'musicpanel',
-    'welcomer', 'autorole', 'ticket-setup', 'giveaway', 'reactionroles', 'autoresponder',
+    'welcomer', 'autorole', 'ticket-setup', 'ticket-add', 'ticket-remove', 'ticket-close', 'ticket-categories', 'giveaway', 'reactionroles', 'autoresponder',
     'autoreact', 'starboard-setup', 'poll', 'sticky-message', 'youtube-notify', 'social-notify',
     'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'automod', 'invite-setup',
     'button-maker', 'select-menu-maker', 'embed-quick', 'translate', 'calculate',
