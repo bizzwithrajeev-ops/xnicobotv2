@@ -6290,6 +6290,19 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isChannelSelectMenu()) {
+            // Quick-setup log channel picker
+            if (interaction.customId === 'quicksetup_logchannel') {
+                const quicksetupCmd = client.commands.get('quicksetup');
+                if (quicksetupCmd && quicksetupCmd.handleInteraction) {
+                    try {
+                        const handled = await quicksetupCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Quick Setup Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Feedback system channel selects
             if (interaction.customId === 'fb_select_channel' || interaction.customId === 'fb_select_logs') {
                 const feedbackCmd = client.commands.get('feedback');
@@ -6999,56 +7012,106 @@ client.on('messageCreate', async (message) => {
 
     const guildId = message.guild?.id;
 
-    // ═══════ Screenshot Verification — auto-watch submission channel ═══════
-    // When a member posts an image in the configured submission channel,
-    // forward it to the review queue (status=pending) and DM the user
-    // a confirmation. Pre-validates anti-spam (1 pending per user) and
-    // cooldowns inside submitScreenshot. Best-effort — never throws to
-    // the messageCreate pipeline.
+    // ═══════ Screenshot Verification — submission channel handler ═══════
+    // Three responsibilities in this block:
+    //   1. Auto-detect screenshots posted in the submission channel and
+    //      forward them to the review pipeline (manager.submitScreenshot).
+    //   2. Keep the submission channel clean — delete any non-screenshot
+    //      message from non-staff so the channel stays "screenshots only".
+    //   3. Re-float the user panel to the bottom after each successful
+    //      submission so members always see the panel + task picker.
+    //
+    // Best-effort throughout — never throws into messageCreate's pipeline.
     if (guildId) {
         try {
             const sshotCfg = jsonStore.peekGuild('screenshot-verify', guildId);
-            if (sshotCfg?.enabled
-                && sshotCfg.channelId === message.channel.id
-                && message.attachments.size > 0) {
 
-                const attachment = message.attachments.find(a => a.contentType?.startsWith('image/'));
-                if (attachment) {
-                    const sshotCmd = client.commands.get('screenshot-verify');
+            // Support BOTH legacy `channelId` and the new `submissionChannelId`
+            // so this block keeps working across the v1 → v2 schema migration.
+            const submissionChId = sshotCfg?.submissionChannelId || sshotCfg?.channelId;
+
+            if (sshotCfg?.enabled && submissionChId === message.channel.id) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+
+                // Staff bypass — admins and reviewers can post freely
+                const memberPerms = message.member?.permissions;
+                const isStaff = !!memberPerms && (
+                    memberPerms.has(PermissionFlagsBits.ManageGuild) ||
+                    memberPerms.has(PermissionFlagsBits.ManageRoles) ||
+                    memberPerms.has(PermissionFlagsBits.Administrator)
+                );
+
+                // Find the first attached image. Discord sets `contentType`
+                // for most uploads but mobile clients occasionally drop it,
+                // so we also accept by file extension.
+                const IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i;
+                const imageAttachment = message.attachments.find(a =>
+                    (a.contentType && a.contentType.startsWith('image/'))
+                    || IMAGE_EXT.test(a.name || '')
+                );
+
+                if (imageAttachment) {
+                    // ── Path A: a screenshot was posted ────────────────
                     if (sshotCmd?.submitScreenshot) {
-                        // Tag the source so the queue can link back to it
-                        attachment.sourceMessageId = message.id;
-                        attachment.sourceChannelId = message.channel.id;
+                        imageAttachment.sourceMessageId = message.id;
+                        imageAttachment.sourceChannelId = message.channel.id;
 
                         const note = (message.content || '').trim().slice(0, 500) || null;
+
+                        // Pre-selected task (if user picked one via the panel)
+                        const session = sshotCmd.getUserSession?.(guildId, message.author.id) || null;
+
                         const result = await sshotCmd.submitScreenshot({
                             client,
                             guild: message.guild,
                             user:  message.author,
-                            attachment,
-                            note
+                            attachment: imageAttachment,
+                            note,
+                            taskId: session?.taskId || null
                         }).catch(err => {
                             log.error(`Screenshot Verify Auto-Submit: ${err.message}`, err);
                             return { ok: false, error: 'Internal error.' };
                         });
 
-                        // Audit-style ephemeral feedback in-channel (deleted shortly)
-                        const ack = result.ok
-                            ? `<:Checkedbox:1473038547165384804> <@${message.author.id}> your screenshot \`${result.submission.id}\` has been queued for review.`
-                            : `<:Cancel:1473037949187657818> <@${message.author.id}> ${result.error}`;
+                        if (session && result?.ok) sshotCmd.clearUserSession?.(guildId, message.author.id);
+
+                        // Acknowledgement (auto-deleted) — tells the user what happened
+                        let ack;
+                        if (!result?.ok) {
+                            ack = `<:Cancel:1473037949187657818> <@${message.author.id}> ${result?.error || 'Could not submit your screenshot.'}`;
+                        } else if (result.decision === 'auto-approved') {
+                            ack = `<:Checkedbox:1473038547165384804> <@${message.author.id}> verified automatically · \`${result.submission.id}\``;
+                        } else if (result.decision === 'auto-rejected') {
+                            ack = `<:Cancel:1473037949187657818> <@${message.author.id}> ${result.ai?.reasoning || 'auto-rejected'} · \`${result.submission.id}\``;
+                        } else {
+                            ack = `<:Lightning:1473038797540298792> <@${message.author.id}> queued for staff review · \`${result.submission.id}\``;
+                        }
                         message.channel.send({
                             content: ack,
                             allowedMentions: { users: [message.author.id] }
-                        }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 8000)).catch(() => {});
+                        }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 10_000)).catch(() => {});
 
-                        // Auto-delete the source message if configured (keeps the
-                        // submission channel clean and prevents reposting the
-                        // same image to bypass cooldown)
-                        if (result.ok && sshotCfg.autoDelete) {
+                        // Auto-delete source message (keeps the channel clean)
+                        if (result?.ok && (sshotCfg.autoDelete !== false)) {
                             message.delete().catch(() => {});
                         }
-                        return; // Stop further processing — this message is consumed
+
+                        // Re-float the user panel so it's always at the bottom
+                        if (sshotCmd?.refloatUserPanel) {
+                            sshotCmd.refloatUserPanel(message.guild, message.channel).catch(() => {});
+                        }
+                        return; // consumed
                     }
+                } else if (!isStaff) {
+                    // ── Path B: non-staff member posted chatter / non-image ──
+                    // Submission channel is "screenshots only". Delete the
+                    // message and post a short tip that auto-deletes.
+                    message.delete().catch(() => {});
+                    message.channel.send({
+                        content: `<:Infotriangle:1473038460456800459> <@${message.author.id}> this channel is for verification screenshots only. Post a screenshot or use \`/screenshot-verify submit\`.`,
+                        allowedMentions: { users: [message.author.id] }
+                    }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 8000)).catch(() => {});
+                    return; // consumed
                 }
             }
         } catch (e) {

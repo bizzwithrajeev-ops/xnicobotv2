@@ -84,6 +84,48 @@ function clearUserSession(guildId, userId) {
     userSubmitSessions.delete(`${guildId}:${userId}`);
 }
 
+/**
+ * Sticky-panel tracker. Maps guildId → {channelId, messageId, refloating}.
+ * After each successful submission we delete the previous panel message
+ * and re-send a fresh copy at the bottom of the channel so the panel
+ * is always visible. The `refloating` flag prevents concurrent re-sends
+ * from racing each other.
+ */
+const stickyPanels = new Map();
+
+function recordStickyPanel(guildId, channelId, messageId) {
+    stickyPanels.set(guildId, { channelId, messageId, refloating: false });
+}
+
+async function refloatUserPanel(guild, channel) {
+    const tracked = stickyPanels.get(guild.id);
+    if (!tracked || tracked.channelId !== channel.id) return;
+    if (tracked.refloating) return;
+    tracked.refloating = true;
+    try {
+        const cfg = mgr.getGuildConfig(guild.id);
+        if (!cfg.enabled) return;
+
+        // Delete the previous panel message (best-effort)
+        if (tracked.messageId) {
+            try {
+                const old = await channel.messages.fetch(tracked.messageId);
+                await old.delete().catch(() => {});
+            } catch { /* gone already */ }
+        }
+
+        // Send a fresh panel
+        const sent = await channel.send({
+            components: [buildUserPanel(cfg)],
+            flags: MessageFlags.IsComponentsV2
+        }).catch(() => null);
+        if (sent) recordStickyPanel(guild.id, channel.id, sent.id);
+    } finally {
+        const t = stickyPanels.get(guild.id);
+        if (t) t.refloating = false;
+    }
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    PERMISSION GUARDS
    ═══════════════════════════════════════════════════════════════════ */
@@ -189,6 +231,9 @@ module.exports = {
     submitScreenshot: mgr.submitScreenshot,
     getGuildConfig:   mgr.getGuildConfig,
     countByStatus:    mgr.countByStatus,
+    getUserSession:   (guildId, userId) => getUserSession(guildId, userId),
+    clearUserSession: (guildId, userId) => clearUserSession(guildId, userId),
+    refloatUserPanel: (guild, channel) => refloatUserPanel(guild, channel),
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
@@ -751,6 +796,16 @@ async function handleSendUserPanel(interaction) {
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
     }
+
+    // Delete any previously-tracked panel before sending the new one
+    const tracked = stickyPanels.get(interaction.guild.id);
+    if (tracked?.channelId === ch.id && tracked.messageId) {
+        try {
+            const old = await ch.messages.fetch(tracked.messageId);
+            await old.delete().catch(() => {});
+        } catch {}
+    }
+
     const sent = await ch.send({
         components: [buildUserPanel(cfg)],
         flags: MessageFlags.IsComponentsV2
@@ -761,8 +816,13 @@ async function handleSendUserPanel(interaction) {
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
     }
+    recordStickyPanel(interaction.guild.id, ch.id, sent.id);
+
     return interaction.reply({
-        components: [buildSuccessResponse('User Panel Sent', `Sent to <#${cfg.submissionChannelId}>.`)],
+        components: [buildSuccessResponse(
+            'User Panel Sent',
+            `Sent to <#${cfg.submissionChannelId}>. The panel will auto-refloat after each submission so it stays at the bottom of the channel.`
+        )],
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
     });
 }
