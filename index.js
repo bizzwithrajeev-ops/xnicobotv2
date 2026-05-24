@@ -14,7 +14,7 @@ const premiumManager = require('./utils/premiumManager');
 const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleAutomodSelectMenus, handleStickyButtons, handleVerificationButtons, handleAntiNukeButtons, handleProfileButtons, handleModalSubmit, replacePlaceholders } = require('./utils/interactionHandlers');
 const { preloadGuildInvites, refreshGuildInvite, handleMemberJoin, handleMemberLeave, isTrackingEnabled } = require('./utils/inviteManager');
 const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate, logAntinukeTrigger, logAntiraidAction, logAntialtDetection, logVanityGuard, logThreatMode, logWhitelistChange, logSecurityConfigChange } = require('./utils/logger');
-const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CModals } = require('./utils/join2createHandler');
+const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CSelects, handleJ2CModals } = require('./utils/join2createHandler');
 const { updateMusicPanel, buildIdlePanel, buildVoiceStatus, buildWaitingStatus, updateVoiceChannelStatus, EMOJIS: MUSIC_EMOJIS } = require('./utils/musicPanel');
 const log = require('./utils/logger-styled');
 const { connectDatabase, models, getGuildConfig: getGuildConfigDb } = require('./utils/database');
@@ -1677,6 +1677,20 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // Handle join2create-setup admin modals (interface create/edit)
+        if (interaction.customId.startsWith('j2cset_modal_')) {
+            const j2cCmd = client.commands.get('join2create-setup');
+            if (j2cCmd?.handleModalSubmit) {
+                try {
+                    const handled = await j2cCmd.handleModalSubmit(interaction);
+                    if (handled) return;
+                } catch (error) {
+                    log.error(`J2C Setup Modal: ${error.message}`, error);
+                }
+            }
+            return;
+        }
+
         // Handle botpanel modals
         if ((interaction.customId.startsWith('botpanel_') && interaction.customId.includes('_modal')) || interaction.customId.startsWith('activity_add_modal_') || interaction.customId === 'custom_add_modal') {
             try {
@@ -2860,6 +2874,22 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
 
+            // Handle join2create-setup admin dashboard buttons (must come BEFORE j2c_*)
+            if (interaction.customId.startsWith('j2cset_')) {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup Button: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error!', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
+                    }
+                }
+                return;
+            }
             // Handle join2create interactive buttons
             if (interaction.customId.startsWith('j2c_')) {
                 try {
@@ -5129,6 +5159,19 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Join-to-Create admin dashboard interface picker
+            if (interaction.customId === 'j2cset_pick') {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup String Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Screenshot Verification string selects
             if (interaction.customId.startsWith('sshot_')) {
                 const sshotCmd = client.commands.get('screenshot-verify');
@@ -5352,7 +5395,7 @@ client.on('interactionCreate', async (interaction) => {
                         return interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid badge style!', flags: MessageFlags.Ephemeral });
                     }
 
-                    const badgeEmojis = { Default: '🏅', Compact: '📦', Detailed: '📋', Hidden: '🚫' };
+                    const badgeEmojis = { Default: '🏅', Compact: '<:Box:1473039115581915256>', Detailed: '📋', Hidden: '🚫' };
                     await updateUserData(interaction.user.id, { 'profile.profileCard.badgeStyle': selectedBadge });
 
                     await interaction.update({
@@ -6290,6 +6333,19 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isChannelSelectMenu()) {
+            // J2C admin trigger channel picker
+            if (interaction.customId.startsWith('j2cset_chan_')) {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Quick-setup log channel picker
             if (interaction.customId === 'quicksetup_logchannel') {
                 const quicksetupCmd = client.commands.get('quicksetup');
@@ -6476,6 +6532,19 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isRoleSelectMenu()) {
+            // J2C allowed-roles picker (premium-only feature)
+            if (interaction.customId.startsWith('j2cset_roles_select_')) {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup Role Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Anti-Nuke role select menus
             if (interaction.customId.startsWith('antinuke_select_')) {
                 const antinukeCmd = client.commands.get('antinuke');
@@ -6564,6 +6633,24 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             }
+        }
+        return;
+    }
+
+    // ───────── User Select Menus ─────────
+    if (interaction.isUserSelectMenu && interaction.isUserSelectMenu()) {
+        // J2C member-target actions (kick / block / unblock / permit / trust / untrust / transfer)
+        if (interaction.customId.startsWith('j2c_select_')) {
+            try {
+                const handled = await handleJ2CSelects(interaction);
+                if (handled) return;
+            } catch (error) {
+                log.error(`J2C User Select: ${error.message}`, error);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error!', flags: MessageFlags.Ephemeral }).catch(() => { });
+                }
+            }
+            return;
         }
         return;
     }
