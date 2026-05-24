@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -17,11 +17,11 @@ async function handleBalance(reply, targetUser, guildId) {
 
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-        '# <:Money:1473377877239140529> Balance',
+        `# ${coinIcon(guildId)} Balance`,
         '',
         `### <:User:1473038971398520977> ${targetUser.username}`,
         '',
-        `> <:Money:1473377877239140529> **Wallet:** ${formatCoins(wallet, guildId)}`,
+        `> ${coinIcon(guildId)} **Wallet:** ${formatCoins(wallet, guildId)}`,
         `> <:Invoice:1473039492217835550> **Bank:** ${formatCoins(bank, guildId)}`,
     ].join('\n'));
 

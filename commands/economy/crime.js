@@ -1,7 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
@@ -67,7 +67,7 @@ async function handleCrime(reply, userId, guildId) {
       `<:Checkedbox:1473038547165384804> **SUCCESS!**`,
       `> ${msg}`,
       '',
-      `<:Money:1473377877239140529> **Reward:** +${formatCoins(reward, guildId)}`,
+      `${coinIcon(guildId)} **Reward:** +${formatCoins(reward, guildId)}`,
       `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       `<:Invoice:1473039492217835550> **Crimes Committed:** ${userData.crimeCount}`,
       '',

@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -80,7 +80,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       '',
       `✅ *${flavor}*`,
       '',
-      `<:Money:1473377877239140529> **Total stolen:** ${formatCoins(totalReward, guildId)}`,
+      `${coinIcon(guildId)} **Total stolen:** ${formatCoins(totalReward, guildId)}`,
       `👥 **Split between ${allParticipants.length} crew member(s):**`,
       ...shareLines,
       '',

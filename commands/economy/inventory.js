@@ -1,7 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { ITEMS, itemDisplay, CATEGORIES } = require('../../utils/shopItems');
 const economyManager = require('../../utils/economyManager');
@@ -57,7 +57,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
   // Header
   const totalItems = userItems.length;
   const uniqueItems = grouped.length;
-  addTextDisplay(container, `# 🎒 Your Inventory\n<:Money:1473377877239140529> Wallet: **${formatCoins(userData.coins, guildId)}**  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
+  addTextDisplay(container, `# 🎒 Your Inventory\n${coinIcon(guildId)} Wallet: **${formatCoins(userData.coins, guildId)}**  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   // Items list

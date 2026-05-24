@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
@@ -97,7 +97,7 @@ function buildGameGrid(game, reveal = false) {
         const cashoutRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`mines_${game.userId}_cashout`)
-                .setLabel(`<:Money:1473377877239140529> Cash Out (${calculateMultiplier(game.revealed.size, game.totalSafe, game.risk)}x = ${formatNumber(Math.floor(game.bet * calculateMultiplier(game.revealed.size, game.totalSafe, game.risk)))})`)
+                .setLabel(`${coinIcon(game.guildId)} Cash Out (${calculateMultiplier(game.revealed.size, game.totalSafe, game.risk)}x = ${formatNumber(Math.floor(game.bet * calculateMultiplier(game.revealed.size, game.totalSafe, game.risk)))})`)
                 .setStyle(ButtonStyle.Primary)
         );
         rows.push(cashoutRow);
@@ -383,7 +383,7 @@ async function revealTile(interaction, game, tileIdx) {
         
         const container = buildGameContainer(game, 'lost');
         addSeparator(container, SeparatorSpacingSize.Small);
-        addTextDisplay(container, `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
+        addTextDisplay(container, `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`);
         addSeparator(container, SeparatorSpacingSize.Small);
         const gridRows = buildGameGrid(game, true);
         for (const row of gridRows) container.addActionRowComponents(row);
@@ -427,7 +427,7 @@ async function cashOut(interaction, game) {
     
     const container = buildGameContainer(game, 'won');
     addSeparator(container, SeparatorSpacingSize.Small);
-    addTextDisplay(container, `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}\n-# Revealed ${game.revealed.size}/${game.totalSafe} safe tiles`);
+    addTextDisplay(container, `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}\n-# Revealed ${game.revealed.size}/${game.totalSafe} safe tiles`);
     addSeparator(container, SeparatorSpacingSize.Small);
     const gridRows = buildGameGrid(game);
     for (const row of gridRows) container.addActionRowComponents(row);

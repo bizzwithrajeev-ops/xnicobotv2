@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { ITEMS, getItem, itemDisplay } = require('../../utils/shopItems');
 const jsonStore = require('../../utils/jsonStore');
@@ -83,7 +83,7 @@ module.exports = {
       addTextDisplay(c, [
         '<:Cancel:1473037949187657818> **Not enough coins!**',
         '',
-        `<:Money:1473377877239140529> Cost: **${formatCoins(totalCost, guildId)}**`,
+        `${coinIcon(guildId)} Cost: **${formatCoins(totalCost, guildId)}**`,
         `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
         `📉 Short: **${formatCoins(deficit, guildId)}**`,
       ].join('\n'));
@@ -108,7 +108,7 @@ module.exports = {
       '# 🛒 Purchase Successful',
       '',
       `<:Checkedbox:1473038547165384804> Bought **${qty}× ${item.emoji} ${item.name}**`,
-      `<:Money:1473377877239140529> Cost: **${formatCoins(totalCost, guildId)}**`,
+      `${coinIcon(guildId)} Cost: **${formatCoins(totalCost, guildId)}**`,
       '',
       `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
       `📦 Owned: **${newOwned}/${item.maxOwn}**`,

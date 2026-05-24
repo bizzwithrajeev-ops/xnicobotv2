@@ -3,7 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { getEconomySettings, formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { robGuard } = require('../../utils/economyGuards');
 const { resolveUser } = require('../../utils/resolveUser');
 const COOLDOWN = 60 * 1000;
@@ -30,7 +30,7 @@ module.exports = {
         if (!target) {
             const container = createContainer(0xCAD7E6);
             addTextDisplay(container, [
-                `# <:Money:1473377877239140529> Rob Command`,
+                `# ${coinIcon(guildId)} Rob Command`,
                 '',
                 `**Usage:** \`rob @user\``,
                 '',
@@ -88,11 +88,11 @@ module.exports = {
 
             const container = createContainer(0xCAD7E6);
             addTextDisplay(container, [
-                `# <:Money:1473377877239140529> Robbery Successful!`,
+                `# ${coinIcon(guildId)} Robbery Successful!`,
                 '',
                 `<:Checkedbox:1473038547165384804> You stole **${formatCoins(amount, guildId)}** from **${target.username}**!`,
                 '',
-                `<:Money:1473377877239140529> **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
+                `${coinIcon(guildId)} **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
                 '',
                 `-# Cooldown: 1 minute`,
             ].join('\n'));
@@ -106,12 +106,12 @@ module.exports = {
 
         const container = createContainer(0xED4245);
         addTextDisplay(container, [
-            `# <:Money:1473377877239140529> Robbery Failed!`,
+            `# ${coinIcon(guildId)} Robbery Failed!`,
             '',
             `<:Cancel:1473037949187657818> You got caught!`,
             '',
             `💸 **Fine:** ${formatCoins(fine, guildId)}`,
-            `<:Money:1473377877239140529> **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
+            `${coinIcon(guildId)} **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
             '',
             `-# Cooldown: 1 minute`,
         ].join('\n'));

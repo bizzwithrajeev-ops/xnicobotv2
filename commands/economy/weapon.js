@@ -1,5 +1,5 @@
 const { createContainer, addTextDisplay, formatNumber, MessageFlags } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 
@@ -124,7 +124,7 @@ module.exports = {
       addTextDisplay(container, `# 🗡️ Weapon Upgraded!\n\n` +
         `<:Star:1473038501766369300> Level: **${pet.weapon.level}/${MAX_WEAPON_LEVEL}**\n` +
         `⚔️ ATK: **${pet.weapon.baseAtk}**\n` +
-        `<:Money:1473377877239140529> Cost: ${formatCoins(cost, guildId)}`);
+        `${coinIcon(guildId)} Cost: ${formatCoins(cost, guildId)}`);
 
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

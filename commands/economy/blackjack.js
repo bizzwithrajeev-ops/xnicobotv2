@@ -31,7 +31,7 @@ const {
 const economyManager = require('../../utils/economyManager');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
-const { formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
+const { formatCoinsShort, formatCoins , coinIcon } = require('../../utils/currencyHelper');
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -88,7 +88,7 @@ function buildContainer(game, hideDealer = true, resultText = null, payout = 0) 
     if (resultText) {
         content += `\n\n${resultText}`;
         if (payout > game.bet) {
-            content += `\n\n<:Money:1473377877239140529> **Payout:** +${formatCoinsShort(payout - game.bet, game.guildId)} profit (received ${formatCoinsShort(payout, game.guildId)})`;
+            content += `\n\n${coinIcon(guildId)} **Payout:** +${formatCoinsShort(payout - game.bet, game.guildId)} profit (received ${formatCoinsShort(payout, game.guildId)})`;
         } else if (payout === game.bet) {
             content += `\n\n🤝 **Refund:** ${formatCoinsShort(game.bet, game.guildId)} returned`;
         } else {

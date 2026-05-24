@@ -1,7 +1,7 @@
 'use strict';
 
 const fs = require('fs');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const path = require('path');
 const { AttachmentBuilder } = require('discord.js');
 const economyManager = require('../../utils/economyManager');
@@ -26,6 +26,7 @@ module.exports = {
 
   async executePrefix(message, args) {
     const target = (await resolveUser(message, args)) || message.author;
+    const guildId = message.guild?.id;
     const economy = economyManager.loadEconomy();
     const { userData, changed } = economyManager.getUser(economy, target.id);
     if (changed) economyManager.saveEconomy(economy);
@@ -87,7 +88,7 @@ module.exports = {
       addTextDisplay(container, [
         `# <:Sketch:1473038248493453352> ${target.username}'s Economy Profile`,
         ``,
-        `> <:Money:1473377877239140529> **Wallet:** ${economyManager.formatNumber(wallet)}`,
+        `> ${coinIcon(guildId)} **Wallet:** ${economyManager.formatNumber(wallet)}`,
         `> <:Invoice:1473039492217835550> **Bank:** ${economyManager.formatNumber(bank)}`,
         `> <:Sketch:1473038248493453352> **Total:** ${economyManager.formatNumber(total)}`,
         ``,

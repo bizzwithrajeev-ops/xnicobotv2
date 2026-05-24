@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const {
     createContainer,
     addTextDisplay,
@@ -90,7 +90,7 @@ async function handlePay(ctx, senderId, target, amount, guildId) {
         const container = createContainer();
         addTextDisplay(
             container,
-            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n<:Money:1473377877239140529> **Your Balance:** ${formatCoins(sender.coins, guildId)}`
+            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n${coinIcon(guildId)} **Your Balance:** ${formatCoins(sender.coins, guildId)}`
         );
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -109,7 +109,7 @@ async function handlePay(ctx, senderId, target, amount, guildId) {
         container,
         `# 💸 Payment Successful\n\n` +
         `You paid **${target.username}** ${formatCoins(amount, guildId)}\n\n` +
-        `<:Money:1473377877239140529> **Your New Balance:** ${formatCoins(sender.coins, guildId)}`
+        `${coinIcon(guildId)} **Your New Balance:** ${formatCoins(sender.coins, guildId)}`
     );
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
