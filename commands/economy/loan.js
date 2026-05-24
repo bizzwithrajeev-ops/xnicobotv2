@@ -125,7 +125,7 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
     addTextDisplay(c, [
       `# <:Checkedbox:1473038547165384804> Loan Repaid!`,
       '',
-      `💸 **Paid:** ${formatCoins(result.paid || repayAmt, guildId)}`,
+      `${coinIcon(guildId)} **Paid:** ${formatCoins(result.paid || repayAmt, guildId)}`,
       result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatCoins(stillOwed, guildId)}`,
       `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
     ].join('\n'));

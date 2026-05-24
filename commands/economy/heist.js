@@ -108,7 +108,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       '',
       `❌ *${flavor}*`,
       '',
-      `💸 **Fines paid:**`,
+      `${coinIcon(guildId)} **Fines paid:**`,
       ...fineLines,
       '',
       `-# Cooldown: 5 minutes`,

@@ -107,7 +107,7 @@ async function handlePay(ctx, senderId, target, amount, guildId) {
     const container = createContainer();
     addTextDisplay(
         container,
-        `# 💸 Payment Successful\n\n` +
+        `# ${coinIcon(guildId)} Payment Successful\n\n` +
         `You paid **${target.username}** ${formatCoins(amount, guildId)}\n\n` +
         `${coinIcon(guildId)} **Your New Balance:** ${formatCoins(sender.coins, guildId)}`
     );

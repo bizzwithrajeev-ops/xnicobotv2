@@ -110,7 +110,7 @@ module.exports = {
             '',
             `<:Cancel:1473037949187657818> You got caught!`,
             '',
-            `💸 **Fine:** ${formatCoins(fine, guildId)}`,
+            `${coinIcon(guildId)} **Fine:** ${formatCoins(fine, guildId)}`,
             `${coinIcon(guildId)} **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
             '',
             `-# Cooldown: 1 minute`,

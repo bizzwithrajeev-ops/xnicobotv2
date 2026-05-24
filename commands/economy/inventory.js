@@ -68,7 +68,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
       continue;
     }
     const catMeta = CATEGORIES[meta.category];
-    const sellVal = meta.sellPrice ? ` ·  💸 Sell: ${formatNumber(meta.sellPrice)}/ea` : '';
+    const sellVal = meta.sellPrice ? ` ·  ${coinIcon(guildId)} Sell: ${formatNumber(meta.sellPrice)}/ea` : '';
     addTextDisplay(container, [
       `### ${meta.emoji} ${meta.name}  ×${entry.count}`,
       `-# ${catMeta?.emoji || '📦'} ${catMeta?.label || 'Other'}${sellVal}  ·  \`use ${entry.id}\``,

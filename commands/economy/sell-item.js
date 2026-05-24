@@ -99,7 +99,7 @@ module.exports = {
     const remaining = inventory[userId].filter(i => i.id === itemId).length;
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-      '# 💸 Item Sold',
+      `# ${coinIcon(guildId)} Item Sold`,
       '',
       `<:Checkedbox:1473038547165384804> Sold **${sellQty}× ${meta.emoji} ${meta.name}**`,
       `${coinIcon(guildId)} Earned: **${formatCoins(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,

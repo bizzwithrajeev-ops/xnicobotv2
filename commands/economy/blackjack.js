@@ -92,7 +92,7 @@ function buildContainer(game, hideDealer = true, resultText = null, payout = 0) 
         } else if (payout === game.bet) {
             content += `\n\n🤝 **Refund:** ${formatCoinsShort(game.bet, game.guildId)} returned`;
         } else {
-            content += `\n\n💸 **Lost:** ${formatCoinsShort(game.bet, game.guildId)}`;
+            content += `\n\n${coinIcon(game.guildId)} **Lost:** ${formatCoinsShort(game.bet, game.guildId)}`;
         }
         if (payout > game.bet) accent = 0x57F287;       // win
         else if (payout === game.bet) accent = 0xFEE75C;// push

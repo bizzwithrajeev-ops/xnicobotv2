@@ -85,7 +85,7 @@ async function handleCrime(reply, userId, guildId) {
       `<:Cancel:1473037949187657818> **BUSTED!**`,
       `> ${msg}`,
       '',
-      `💸 **Fine:** -${formatCoins(fine, guildId)}`,
+      `${coinIcon(guildId)} **Fine:** -${formatCoins(fine, guildId)}`,
       `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       '',
       `-# Cooldown: 2 minutes`,
