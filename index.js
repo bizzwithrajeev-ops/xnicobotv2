@@ -1596,6 +1596,22 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // Screenshot Verification modals
+        if (interaction.customId.startsWith('sshot_modal_')) {
+            const sshotCmd = client.commands.get('screenshot-verify');
+            if (sshotCmd && sshotCmd.handleModalSubmit) {
+                try {
+                    await sshotCmd.handleModalSubmit(interaction);
+                } catch (error) {
+                    log.error(`Screenshot Verify Modal: ${error.message}`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing your submission!', flags: MessageFlags.Ephemeral }).catch(() => { });
+                    }
+                }
+            }
+            return;
+        }
+
         // Handle quicksetup log channel modal
         if (interaction.customId.startsWith('quicksetup_modal_')) {
             const quicksetupCmd = client.commands.get('quicksetup');
@@ -2907,6 +2923,20 @@ client.on('interactionCreate', async (interaction) => {
                         await appCmd.handleInteraction(interaction);
                     } catch (error) {
                         log.error(`Application Button: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            if (interaction.customId.startsWith('sshot_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify Button: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
                     }
                 }
                 return;
@@ -5018,7 +5048,7 @@ client.on('interactionCreate', async (interaction) => {
 
                         const newState = !wasEnabled;
                         let content = `# <:Fire:1473038604812161218> Leveling System\n\n`;
-                        content += `**Status:** ${newState ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
+                        content += `**Status:** ${newState ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
                         content += `### <:Document:1473039496995143731> Available Commands\n`;
                         content += `> \`-toggleleveling on\` — Enable leveling system\n`;
                         content += `> \`-toggleleveling off\` — Disable leveling system\n`;
@@ -5099,6 +5129,21 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Screenshot Verification string selects
+            if (interaction.customId.startsWith('sshot_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify String Select: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
+                    }
+                }
+                return;
+            }
             // Route custom shop buy select menu
             if (interaction.customId === 'cshop_buy_select') {
                 const cshopCmd = client.commands.get('customshop');
@@ -6371,6 +6416,17 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
+            if (interaction.customId.startsWith('sshot_select_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             if (interaction.customId.startsWith('social_')) {
                 const socialCmd = client.commands.get('social-notify');
                 if (socialCmd && socialCmd.handleInteraction) {
@@ -6458,6 +6514,17 @@ client.on('interactionCreate', async (interaction) => {
                         await appCmd.handleInteraction(interaction);
                     } catch (error) {
                         log.error(`Application Role Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            if (interaction.customId.startsWith('sshot_select_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify Role Select: ${error.message}`, error);
                     }
                 }
                 return;
@@ -6931,6 +6998,63 @@ client.on('messageCreate', async (message) => {
     } catch (e) { }
 
     const guildId = message.guild?.id;
+
+    // ═══════ Screenshot Verification — auto-watch submission channel ═══════
+    // When a member posts an image in the configured submission channel,
+    // forward it to the review queue (status=pending) and DM the user
+    // a confirmation. Pre-validates anti-spam (1 pending per user) and
+    // cooldowns inside submitScreenshot. Best-effort — never throws to
+    // the messageCreate pipeline.
+    if (guildId) {
+        try {
+            const sshotCfg = jsonStore.peekGuild('screenshot-verify', guildId);
+            if (sshotCfg?.enabled
+                && sshotCfg.channelId === message.channel.id
+                && message.attachments.size > 0) {
+
+                const attachment = message.attachments.find(a => a.contentType?.startsWith('image/'));
+                if (attachment) {
+                    const sshotCmd = client.commands.get('screenshot-verify');
+                    if (sshotCmd?.submitScreenshot) {
+                        // Tag the source so the queue can link back to it
+                        attachment.sourceMessageId = message.id;
+                        attachment.sourceChannelId = message.channel.id;
+
+                        const note = (message.content || '').trim().slice(0, 500) || null;
+                        const result = await sshotCmd.submitScreenshot({
+                            client,
+                            guild: message.guild,
+                            user:  message.author,
+                            attachment,
+                            note
+                        }).catch(err => {
+                            log.error(`Screenshot Verify Auto-Submit: ${err.message}`, err);
+                            return { ok: false, error: 'Internal error.' };
+                        });
+
+                        // Audit-style ephemeral feedback in-channel (deleted shortly)
+                        const ack = result.ok
+                            ? `<:Checkedbox:1473038547165384804> <@${message.author.id}> your screenshot \`${result.submission.id}\` has been queued for review.`
+                            : `<:Cancel:1473037949187657818> <@${message.author.id}> ${result.error}`;
+                        message.channel.send({
+                            content: ack,
+                            allowedMentions: { users: [message.author.id] }
+                        }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 8000)).catch(() => {});
+
+                        // Auto-delete the source message if configured (keeps the
+                        // submission channel clean and prevents reposting the
+                        // same image to bypass cooldown)
+                        if (result.ok && sshotCfg.autoDelete) {
+                            message.delete().catch(() => {});
+                        }
+                        return; // Stop further processing — this message is consumed
+                    }
+                }
+            }
+        } catch (e) {
+            log.error(`Screenshot Verify watcher: ${e.message}`, e);
+        }
+    }
 
     // ═══════ AI Chat — responds in configured channel (skip if message is a prefix command) ═══════
     try {
