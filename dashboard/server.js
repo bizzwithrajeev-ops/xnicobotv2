@@ -83,6 +83,12 @@ const MODULE_TO_STORE = {
     'vote-config': 'vote-config',
     confessions: 'confessions',
     serverstats: 'serverstats',
+    // Newer systems exposed by recent commits — keep these in sync with
+    // the bot's store names so dashboard-driven writes invalidate the
+    // right cache via storeSync.
+    'screenshot-verify':             'screenshot-verify',
+    'screenshot-verify-submissions': 'screenshot-verify-submissions',
+    'custom-shop':                   'custom-shop',
     // Dashboard exposes "logging" with friendly field names (modLog,
     // messageLog, ...) but the bot reads the 'logs' store with shorter
     // keys (moderation, message, ...). The translation lives in the
@@ -1104,22 +1110,109 @@ app.get('/api/guild/:guildId/backups', authMiddleware, (req, res) => {
 });
 
 // ── Voice J2C CRUD ───────────────────────────────────────────────────────────
+// ── Voice J2C CRUD ───────────────────────────────────────────────────────────
+//
+// The J2C system was upgraded to a v2 multi-interface schema. The
+// dashboard previously exposed only the legacy v1 flat fields
+// (`triggerChannelId`, `activeChannels`), which meant a dashboard PUT
+// would clobber the new `interfaces` map on save. These endpoints now
+// surface the v2 shape directly and pass through `interfaces` as-is.
 app.get('/api/guild/:guildId/voice-config', authMiddleware, (req, res) => {
     const data = readBotStore('join2create') || {};
-    const cfg = data[req.params.guildId] || {};
+    const raw = data[req.params.guildId] || {};
+
+    // Lazy-migrate legacy v1 → v2 for the read view so dashboards
+    // never see the old shape. The bot-side mgr.getGuildConfig does
+    // the same migration on read; we just mirror it here.
+    let cfg;
+    try {
+        const j2cMgr = require('../utils/join2createManager');
+        cfg = j2cMgr.migrateGuildConfig(raw, req.params.guildId);
+    } catch {
+        cfg = raw;
+    }
+
+    let tier = 'free';
+    try {
+        const j2cMgr = require('../utils/join2createManager');
+        tier = j2cMgr.getGuildTier(req.params.guildId, req.user?.discordId || null);
+    } catch {}
+
+    const interfaces = Object.values(cfg.interfaces || {}).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const activeChannelCount = Object.keys(cfg.activeChannels || {}).length;
+
     res.json({
-        enabled: cfg.enabled || false,
-        triggerChannelId: cfg.triggerChannelId || null,
-        activeChannels: Object.keys(cfg.activeChannels || {}).length
+        schemaVersion: cfg.schemaVersion || 2,
+        tier,
+        interfaces,
+        activeChannelCount,
+        // Legacy mirrors for older dashboard widgets that still read these.
+        enabled: interfaces.some(i => i.enabled !== false),
+        triggerChannelId: interfaces[0]?.triggerChannelId || null,
+        activeChannels: activeChannelCount
     });
 });
 app.put('/api/guild/:guildId/voice-config', authMiddleware, (req, res) => {
     const gid = req.params.guildId;
     const body = req.body || {};
     const data = readBotStore('join2create') || {};
-    if (!data[gid]) data[gid] = { enabled: false, triggerChannelId: null, activeChannels: {} };
-    if (typeof body.enabled === 'boolean') data[gid].enabled = body.enabled;
-    if (body.triggerChannelId !== undefined) data[gid].triggerChannelId = body.triggerChannelId || null;
+
+    // Pull-through migrate before any mutation so we never accidentally
+    // overwrite a v2 doc with a v1-shaped patch.
+    let cfg;
+    try {
+        const j2cMgr = require('../utils/join2createManager');
+        cfg = j2cMgr.migrateGuildConfig(data[gid] || {}, gid);
+    } catch {
+        cfg = data[gid] || { schemaVersion: 2, interfaces: {}, activeChannels: {}, analytics: {} };
+    }
+    cfg.schemaVersion = 2;
+    if (!cfg.interfaces)     cfg.interfaces     = {};
+    if (!cfg.activeChannels) cfg.activeChannels = {};
+
+    // Accept a partial update of one interface at a time. Body shape:
+    //   { interfaceId: 'i_xxx', patch: { name, triggerChannelId, ... } }
+    if (typeof body.interfaceId === 'string' && body.patch && typeof body.patch === 'object') {
+        const iface = cfg.interfaces[body.interfaceId];
+        if (!iface) {
+            return res.status(404).json({ error: 'Interface not found.' });
+        }
+        const allowed = ['name', 'slug', 'emoji', 'triggerChannelId', 'categoryId', 'interfaceChannelId', 'controlPanelMessageId', 'maxUsers', 'bitrate', 'namingTemplate', 'allowedRoles', 'deniedRoles', 'visibility', 'autoDelete', 'enabled'];
+        for (const key of allowed) {
+            if (body.patch[key] !== undefined) iface[key] = body.patch[key];
+        }
+        iface.updatedAt = Date.now();
+        cfg.interfaces[body.interfaceId] = iface;
+    }
+
+    // Legacy compatibility — older dashboards send a flat triggerChannelId
+    // and `enabled` toggle. Translate them onto the first interface (or
+    // create one if none exists yet) so existing UI widgets keep working.
+    if (typeof body.enabled === 'boolean' || body.triggerChannelId !== undefined) {
+        const list = Object.values(cfg.interfaces);
+        let iface = list[0];
+        if (!iface) {
+            const id = 'i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            iface = {
+                id, name: 'Default Room', slug: 'default',
+                emoji: '<:Volumeup:1473039290136002844>',
+                triggerChannelId: null, categoryId: null,
+                interfaceChannelId: null, controlPanelMessageId: null,
+                maxUsers: 0, bitrate: 96,
+                namingTemplate: "{user}'s Channel",
+                allowedRoles: [], deniedRoles: [],
+                visibility: 'public', autoDelete: true,
+                enabled: true,
+                createdAt: Date.now(), updatedAt: Date.now()
+            };
+            cfg.interfaces[id] = iface;
+        }
+        if (typeof body.enabled === 'boolean') iface.enabled = body.enabled;
+        if (body.triggerChannelId !== undefined) iface.triggerChannelId = body.triggerChannelId || null;
+        iface.updatedAt = Date.now();
+    }
+
+    data[gid] = cfg;
     writeBotStore('join2create', data);
     res.json({ success: true });
 });
@@ -1259,6 +1352,124 @@ app.put('/api/guild/:guildId/feedback-config', authMiddleware, (req, res) => {
     if (body.channelId !== undefined) cfg.channelId = body.channelId || null;
     if (body.logsChannelId !== undefined) cfg.logsChannelId = body.logsChannelId || null;
     writeBotStore('feedback', data);
+    res.json({ success: true });
+});
+
+// ── Screenshot Verify CRUD ───────────────────────────────────────────────────
+//
+// Surfaces the per-guild config (mode, channels, tasks, behavior) and
+// the queue stats. The full editor (creating tasks / actions) lives
+// in-bot via `/screenshot-verify panel` because the action engine can
+// chain role grants / DMs / channel announcements that the dashboard
+// can't easily mirror without a Discord REST round-trip per click.
+app.get('/api/guild/:guildId/screenshot-verify-config', authMiddleware, (req, res) => {
+    const gid = req.params.guildId;
+    const cfgAll  = readBotStore('screenshot-verify') || {};
+    const subsAll = readBotStore('screenshot-verify-submissions') || {};
+    const cfg = cfgAll[gid] || {};
+    const guildSubs = subsAll[gid] || {};
+
+    let pending = 0, approved = 0, rejected = 0;
+    for (const s of Object.values(guildSubs)) {
+        if (s.status === 'pending')       pending++;
+        else if (s.status === 'approved') approved++;
+        else if (s.status === 'rejected') rejected++;
+    }
+
+    res.json({
+        enabled:             cfg.enabled === true,
+        mode:                cfg.mode || 'hybrid',
+        confidenceThreshold: cfg.confidenceThreshold || 75,
+        cooldown:            cfg.cooldown || 0,
+        autoDelete:          cfg.autoDelete !== false,
+        hideAfterVerify:     cfg.hideAfterVerify !== false,
+        color:               cfg.color || 0x5865F2,
+        submissionChannelId: cfg.submissionChannelId || null,
+        reviewChannelId:     cfg.reviewChannelId || null,
+        logChannelId:        cfg.logChannelId || null,
+        approveMessage:      cfg.approveMessage || '',
+        rejectMessage:       cfg.rejectMessage || '',
+        tasks:               Array.isArray(cfg.tasks) ? cfg.tasks : [],
+        stats: { pending, approved, rejected, total: pending + approved + rejected }
+    });
+});
+app.put('/api/guild/:guildId/screenshot-verify-config', authMiddleware, (req, res) => {
+    const gid  = req.params.guildId;
+    const body = req.body || {};
+    const all = readBotStore('screenshot-verify') || {};
+    if (!all[gid]) {
+        all[gid] = {
+            enabled: false, submissionChannelId: null, reviewChannelId: null, logChannelId: null,
+            mode: 'hybrid', confidenceThreshold: 75, cooldown: 0,
+            autoDelete: true, hideAfterVerify: true, color: 0x5865F2,
+            approveMessage: 'Your screenshot was approved.',
+            rejectMessage:  'Your screenshot did not pass verification. You may try again.',
+            tasks: []
+        };
+    }
+    const cfg = all[gid];
+
+    // Whitelist of mutable top-level keys (we never let dashboard edit
+    // `tasks` here — that goes through the in-bot panel because each
+    // task may carry actions that spawn role grants / DMs).
+    if (typeof body.enabled === 'boolean') cfg.enabled = body.enabled;
+    if (['auto', 'review', 'hybrid'].includes(body.mode)) cfg.mode = body.mode;
+    if (typeof body.confidenceThreshold === 'number' && body.confidenceThreshold >= 50 && body.confidenceThreshold <= 100) {
+        cfg.confidenceThreshold = Math.round(body.confidenceThreshold);
+    }
+    if (typeof body.cooldown === 'number' && body.cooldown >= 0) cfg.cooldown = Math.floor(body.cooldown);
+    if (typeof body.autoDelete === 'boolean')      cfg.autoDelete = body.autoDelete;
+    if (typeof body.hideAfterVerify === 'boolean') cfg.hideAfterVerify = body.hideAfterVerify;
+    if (typeof body.color === 'number' && body.color >= 0 && body.color <= 0xFFFFFF) cfg.color = body.color;
+    if (body.submissionChannelId !== undefined) cfg.submissionChannelId = body.submissionChannelId || null;
+    if (body.reviewChannelId !== undefined)     cfg.reviewChannelId     = body.reviewChannelId || null;
+    if (body.logChannelId !== undefined)        cfg.logChannelId        = body.logChannelId || null;
+    if (typeof body.approveMessage === 'string') cfg.approveMessage = body.approveMessage.slice(0, 500);
+    if (typeof body.rejectMessage === 'string')  cfg.rejectMessage  = body.rejectMessage.slice(0, 500);
+
+    writeBotStore('screenshot-verify', all);
+    res.json({ success: true });
+});
+
+// ── Custom Shop CRUD ─────────────────────────────────────────────────────────
+//
+// Admins can list / add / remove custom-shop items via dashboard. Each
+// item carries an `action` (give_role / remove_role / send_dm /
+// add_coins / custom_reply) plus its `actionData`.
+app.get('/api/guild/:guildId/custom-shop-config', authMiddleware, (req, res) => {
+    const gid = req.params.guildId;
+    const all = readBotStore('custom-shop') || {};
+    const cfg = all[gid] || { items: [] };
+    res.json({
+        items: Array.isArray(cfg.items) ? cfg.items : []
+    });
+});
+app.put('/api/guild/:guildId/custom-shop-config', authMiddleware, (req, res) => {
+    const gid  = req.params.guildId;
+    const body = req.body || {};
+    const all = readBotStore('custom-shop') || {};
+    if (!all[gid]) all[gid] = { items: [] };
+
+    const VALID_ACTIONS = new Set(['give_role', 'remove_role', 'send_dm', 'add_coins', 'custom_reply']);
+
+    if (Array.isArray(body.items)) {
+        // Sanitize + clamp every item before persisting. This is a
+        // user-controlled write so we cannot trust the shape blindly.
+        all[gid].items = body.items.slice(0, 50).map(item => {
+            const action = VALID_ACTIONS.has(item?.action) ? item.action : 'custom_reply';
+            return {
+                name:        String(item?.name || 'Item').slice(0, 50),
+                price:       Math.max(1, Math.min(1_000_000_000, parseInt(item?.price, 10) || 1)),
+                action,
+                actionData:  String(item?.actionData ?? '').slice(0, 1500),
+                description: String(item?.description ?? '').slice(0, 200),
+                createdBy:   item?.createdBy || req.user?.discordId || 'dashboard',
+                createdAt:   item?.createdAt || Date.now()
+            };
+        });
+    }
+
+    writeBotStore('custom-shop', all);
     res.json({ success: true });
 });
 
