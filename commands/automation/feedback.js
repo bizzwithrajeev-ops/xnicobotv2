@@ -270,6 +270,12 @@ function buildModal() {
 
 /* ─── Interaction handler (buttons + modals) ─── */
 async function handleInteraction(interaction) {
+    // Re-validate premium on every component press — the system is
+    // premium-gated at the command level, but stray panel buttons
+    // / modals route by customId prefix and need their own check.
+    const { requirePremium } = require('../../utils/interactionGuards');
+    if (await requirePremium(interaction, { commandName: '/feedback' })) return true;
+
     const { customId, guildId } = interaction;
 
     /* ── Button: open modal ── */

@@ -34,7 +34,7 @@ function buildSuperThreatPanel(guildConfig, guildName) {
     const headerText = `# <:Toggleoff:1473038582813032590> Super Threat Mode\n-# Maximum lockdown for **${guildName}**`;
 
     const statusText = isActive
-        ? `<:dnd:1473370101427343403> **SUPER THREAT MODE ACTIVE**\nZero tolerance — all protections at maximum, action: \`ban\``
+        ? `<:dnd:1485248263857639424> **SUPER THREAT MODE ACTIVE**\nZero tolerance — all protections at maximum, action: \`ban\``
         : `${THEME.EMOJIS.SUCCESS} **Super Threat Mode Inactive**\nNormal protection limits are active`;
 
     const descText = `### <:Infotriangle:1473038460456800459> What Super Threat Mode Does\n` +
@@ -61,7 +61,7 @@ function buildSuperThreatPanel(guildConfig, guildName) {
                 .setCustomId('superthreat_toggle')
                 .setLabel(isActive ? 'Disable Super Threat Mode' : 'Enable Super Threat Mode')
                 .setStyle(isActive ? ButtonStyle.Success : ButtonStyle.Danger)
-                .setEmoji(isActive ? '<:online:1473369837245042762>' : '<:Toggleoff:1473038582813032590>')
+                .setEmoji(isActive ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>')
         );
 
     const container = new ContainerBuilder()
@@ -134,6 +134,10 @@ module.exports = {
 
     async handleInteraction(interaction) {
         if (interaction.customId !== 'superthreat_toggle') return;
+        // Re-validate server premium — the dispatcher only fires at
+        // command entry, not on later panel button presses.
+        const { requirePremium } = require('../../utils/interactionGuards');
+        if (await requirePremium(interaction, { commandName: '/superthreatmode' })) return true;
         if (await checkAndExpire(interaction, 'config')) return true;
         if (!trust.isServerOwner(interaction.guild, interaction.user.id)) {
             return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the **server owner** can use this panel.', flags: MessageFlags.Ephemeral });

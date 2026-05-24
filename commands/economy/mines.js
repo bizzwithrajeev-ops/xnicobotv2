@@ -56,25 +56,25 @@ const RISKS = {
     low: {
         mines: { '3x3': 1, '4x4': 3,  '5x4': 4  },
         baseMultiplier: 1.2,
-        label: '<:Toggleon:1473038585501581312> Low',
+        label: '✧ Low',
         color: 0x57F287
     },
     medium: {
         mines: { '3x3': 2, '4x4': 5,  '5x4': 7  },
         baseMultiplier: 1.5,
-        label: '<:idle:1473370085719863366> Medium',
+        label: '✦ Medium',
         color: 0xFEE75C
     },
     hard: {
         mines: { '3x3': 3, '4x4': 7,  '5x4': 10 },
         baseMultiplier: 2.0,
-        label: '<:Fire:1473038604812161218> Hard',
+        label: '𖤍 Hard',
         color: 0xF97316
     },
     extreme: {
         mines: { '3x3': 5, '4x4': 10, '5x4': 15 },
         baseMultiplier: 3.5,
-        label: '<:Toggleoff:1473038582813032590> Extreme',
+        label: '𖤐 Extreme',
         color: 0xED4245
     },
 };
@@ -437,45 +437,63 @@ async function startGame(interaction, game) {
 }
 
 async function revealTile(interaction, game, tileIdx) {
-    if (game.revealed.has(tileIdx)) return interaction.deferUpdate();
+    // Anti-double-click + race-with-end guard. The previous
+    // implementation only checked `revealed.has(tileIdx)`, which
+    // means two near-simultaneous clicks both saw an empty set,
+    // both called `interaction.update`, and the second threw
+    // `InteractionAlreadyReplied` (logged but visible to the user).
+    if (game.ended) return interaction.deferUpdate().catch(() => {});
+    if (game.revealed.has(tileIdx)) return interaction.deferUpdate().catch(() => {});
 
-    const isMine = game.board[tileIdx];
+    // Mark as in-flight so a parallel click on a different tile
+    // bails out before mutating shared state.
+    if (game._processing) return interaction.deferUpdate().catch(() => {});
+    game._processing = true;
+    try {
+        const isMine = game.board[tileIdx];
 
-    if (isMine) {
-        game.ended = true;
+        if (isMine) {
+            game.ended = true;
+            game.revealed.add(tileIdx);
+            clearTimeout(game.expireTimer);
+            activeGames.delete(game.userId);
+
+            const economyManager = require('../../utils/economyManager');
+            const economy = economyManager.loadEconomy();
+            const { userData } = economyManager.getUser(economy, game.userId);
+            userData.totalLost = (userData.totalLost || 0) + game.bet;
+            economyManager.addXP(economy, game.userId, 2);
+            economyManager.saveEconomy(economy);
+
+            const container = buildGameContainer(game, 'lost');
+            addSeparator(container, SeparatorSpacingSize.Small);
+            addTextDisplay(container, `${coinIcon(game.guildId)} **Balance:** ${formatCoins(userData.coins, game.guildId)}`);
+            addSeparator(container, SeparatorSpacingSize.Small);
+            for (const row of buildGameGrid(game, true)) container.addActionRowComponents(row);
+
+            return await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+
         game.revealed.add(tileIdx);
-        clearTimeout(game.expireTimer);
-        activeGames.delete(game.userId);
 
-        const economyManager = require('../../utils/economyManager');
-        const economy = economyManager.loadEconomy();
-        const { userData } = economyManager.getUser(economy, game.userId);
-        userData.totalLost = (userData.totalLost || 0) + game.bet;
-        economyManager.addXP(economy, game.userId, 2);
-        economyManager.saveEconomy(economy);
+        // Auto-cashout when every safe tile has been revealed
+        if (game.revealed.size >= game.totalSafe) return await cashOut(interaction, game);
 
-        const container = buildGameContainer(game, 'lost');
+        const container = buildGameContainer(game, 'playing');
         addSeparator(container, SeparatorSpacingSize.Small);
-        addTextDisplay(container, `${coinIcon(game.guildId)} **Balance:** ${formatCoins(userData.coins, game.guildId)}`);
-        addSeparator(container, SeparatorSpacingSize.Small);
-        for (const row of buildGameGrid(game, true)) container.addActionRowComponents(row);
+        for (const row of buildGameGrid(game)) container.addActionRowComponents(row);
 
-        return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        return await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } finally {
+        game._processing = false;
     }
-
-    game.revealed.add(tileIdx);
-
-    // Auto-cashout when every safe tile has been revealed
-    if (game.revealed.size >= game.totalSafe) return cashOut(interaction, game);
-
-    const container = buildGameContainer(game, 'playing');
-    addSeparator(container, SeparatorSpacingSize.Small);
-    for (const row of buildGameGrid(game)) container.addActionRowComponents(row);
-
-    return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function cashOut(interaction, game) {
+    // Race guard: if another click is already settling the game,
+    // swallow this one instead of double-paying out.
+    if (game.ended || game._cashedOut) return interaction.deferUpdate().catch(() => {});
+    game._cashedOut = true;
     game.ended = true;
     clearTimeout(game.expireTimer);
     activeGames.delete(game.userId);
