@@ -1,7 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
@@ -20,7 +20,7 @@ async function handleWithdraw(reply, userId, args, guildId) {
             `**Usage:** \`withdraw <amount | all>\``,
             '',
             `**Your Balances:**`,
-            `<:Money:1473377877239140529> Wallet: ${formatCoins(user.coins, guildId)}`,
+            `${coinIcon(guildId)} Wallet: ${formatCoins(user.coins, guildId)}`,
             `<:Invoice:1473039492217835550> Bank: ${formatCoins(user.bank, guildId)}`,
             '',
             `**Examples:**`,
@@ -51,7 +51,7 @@ async function handleWithdraw(reply, userId, args, guildId) {
 
     addTextDisplay(container, [
         `**New Balances:**`,
-        `<:Money:1473377877239140529> Wallet: ${formatCoins(user.coins, guildId)}`,
+        `${coinIcon(guildId)} Wallet: ${formatCoins(user.coins, guildId)}`,
         `<:Invoice:1473039492217835550> Bank: ${formatCoins(user.bank, guildId)}`,
         `<:Invoice:1473039492217835550> **Total:** ${formatCoins(user.coins + user.bank, guildId)}`,
     ].join('\n'));

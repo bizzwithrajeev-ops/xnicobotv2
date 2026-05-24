@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
@@ -22,7 +22,7 @@ async function handleBetflip(reply, userId, args, guildId) {
     if (!choice || !['h', 't', 'heads', 'tails'].includes(choice)) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# <:Money:1473377877239140529> Coinflip`,
+            `# ${coinIcon(guildId)} Coinflip`,
             '',
             `**Usage:** \`coinflip <heads/tails> <amount>\``,
             '',
@@ -57,7 +57,7 @@ async function handleBetflip(reply, userId, args, guildId) {
     const container = createContainer(won ? 0xCAD7E6 : 0xED4245);
 
     addTextDisplay(container, [
-        `# <:Money:1473377877239140529> Coinflip`,
+        `# ${coinIcon(guildId)} Coinflip`,
         '',
         `## ${coinEmoji} ${result.toUpperCase()}`,
         `> Your pick: **${normalizedChoice.toUpperCase()}**`,
@@ -74,7 +74,7 @@ async function handleBetflip(reply, userId, args, guildId) {
 
     resultLines.push(
         '',
-        `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
+        `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
         '',
         `-# ${won ? 'Nice flip! Go again?' : 'Better luck next flip!'}`,
     );

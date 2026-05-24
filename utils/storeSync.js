@@ -231,6 +231,20 @@ const HANDLERS = {
         // /confess and confession-setup read jsonStore on demand
     },
 
+    'screenshot-verify'() {
+        // utils/screenshotVerifyManager reads jsonStore on demand —
+        // no in-memory cache to invalidate. Listed explicitly so a
+        // dashboard write doesn't fall off the HANDLERS table.
+    },
+
+    'screenshot-verify-submissions'() {
+        // submission queue is read on demand by the manager + watcher
+    },
+
+    'custom-shop'() {
+        // commands/economy/customshop reads jsonStore directly each call
+    },
+
     'vanity-protect'() {
         // antinuke vanity protection reads through jsonStore on demand
     },

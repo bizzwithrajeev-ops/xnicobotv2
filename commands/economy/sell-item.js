@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, formatNumber, MessageFlags } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { ITEMS } = require('../../utils/shopItems');
 const jsonStore = require('../../utils/jsonStore');
@@ -99,10 +99,10 @@ module.exports = {
     const remaining = inventory[userId].filter(i => i.id === itemId).length;
     const container = createContainer(0xCAD7E6);
     addTextDisplay(container, [
-      '# 💸 Item Sold',
+      `# ${coinIcon(guildId)} Item Sold`,
       '',
       `<:Checkedbox:1473038547165384804> Sold **${sellQty}× ${meta.emoji} ${meta.name}**`,
-      `<:Money:1473377877239140529> Earned: **${formatCoins(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,
+      `${coinIcon(guildId)} Earned: **${formatCoins(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,
       '',
       `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
       `📦 Remaining: **${remaining}** ${meta.name}`,

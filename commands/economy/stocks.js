@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const jsonStore = require('../../utils/jsonStore');
@@ -117,7 +117,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount, guildId) 
       `# 📈 Stocks Purchased!`,
       '',
       `${STOCKS[t].emoji} **${qty}x ${t}** (${STOCKS[t].name}) bought for **${formatCoins(cost, guildId)}**`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+      `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
       `📦 **You now hold:** ${userData.stockPortfolio[t]}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -148,7 +148,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount, guildId) 
       `# 📉 Stocks Sold!`,
       '',
       `${STOCKS[t].emoji} Sold **${sellQty}x ${t}** for **+${formatCoins(earned, guildId)}**`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+      `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
       `📦 **Remaining:** ${userData.stockPortfolio[t] || 0}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });

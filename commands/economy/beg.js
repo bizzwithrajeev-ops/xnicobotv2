@@ -1,7 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
@@ -60,7 +60,7 @@ async function handleBeg(reply, userId, guildId) {
       '',
       `${giver.emoji} **${giver.name}** gave you **${formatCoins(amount, guildId)}**!`,
       '',
-      `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
+      `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
       '',
       `-# Beg again in 45 seconds`,
     ].join('\n'));
@@ -76,7 +76,7 @@ async function handleBeg(reply, userId, guildId) {
     '',
     `😔 ${denial}`,
     '',
-    `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`,
+    `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
     '',
     `-# Better luck next time!`,
   ].join('\n'));

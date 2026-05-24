@@ -4,7 +4,7 @@ const {
     ActionRowBuilder,
 } = require('discord.js');
 const fs = require('fs');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const path = require('path');
 const {
     createContainer,
@@ -117,7 +117,7 @@ async function tryDraw() {
 
 /* ===================== UI ===================== */
 
-function buildUI(lottery, userId) {
+function buildUI(lottery, userId, guildId) {
     const totalTickets = Object.values(lottery.entries).reduce((a, b) => a + b, 0);
     const userTickets = lottery.entries[userId] || 0;
     const chance = totalTickets ? ((userTickets / totalTickets) * 100).toFixed(2) : '0.00';
@@ -145,7 +145,7 @@ function buildUI(lottery, userId) {
             `# 🎟️ Server Lottery`,
             `*Fair draw · Server-wide · Transparent*\n`,
 
-            `## <:Money:1473377877239140529> Jackpot`,
+            `## ${coinIcon(guildId)} Jackpot`,
             `**${formatCoins(lottery.jackpot, guildId)}**`,
             `📈 Recent Growth: +${formatNumber(growth)}\n`,
 
@@ -216,7 +216,7 @@ module.exports = {
         );
 
         const msg = await message.reply({
-            components: [buildUI(lottery, message.author.id), row],
+            components: [buildUI(lottery, message.author.id, message.guild?.id), row],
             flags: MessageFlags.IsComponentsV2
         });
 
@@ -228,7 +228,7 @@ module.exports = {
             }
 
             await msg.edit({
-                components: [buildUI(lot, message.author.id), row],
+                components: [buildUI(lot, message.author.id, message.guild?.id), row],
                 flags: MessageFlags.IsComponentsV2
             }).catch(() => clearInterval(interval));
         }, REFRESH_RATE);
@@ -264,7 +264,7 @@ module.exports = {
             }
 
             await msg.edit({
-                components: [buildUI(lottery, i.user.id), row],
+                components: [buildUI(lottery, i.user.id, i.guild?.id), row],
                 flags: MessageFlags.IsComponentsV2
             }).catch(() => {});
         });

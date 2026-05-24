@@ -10,7 +10,7 @@ const {
     StringSelectMenuOptionBuilder,
 } = require('discord.js');
 const { generateLeaderboardCard } = require('../../utils/leaderboardCard');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 
 /* ══════════════════════════════════════════════════
@@ -46,14 +46,14 @@ function fmtNum(n) {
     return n.toLocaleString();
 }
 
-function statLine(e, sortBy) {
-    if (sortBy === 'total')        return `<:Money:1473377877239140529> ${fmtNum(e.coins)} wallet  ·  <:Invoice:1473039492217835550> ${fmtNum(e.bank)} bank`;
-    if (sortBy === 'coins')        return `<:Invoice:1473039492217835550> ${fmtNum(e.bank)} bank  ·  <:Money:1473377877239140529> ${fmtNum(e.total)} net`;
-    if (sortBy === 'bank')         return `<:Money:1473377877239140529> ${fmtNum(e.coins)} wallet  ·  <:Money:1473377877239140529> ${fmtNum(e.total)} net`;
-    if (sortBy === 'workCount')    return `<:Money:1473377877239140529> ${fmtNum(e.total)} net worth`;
-    if (sortBy === 'totalGambled') return `<:Money:1473377877239140529> ${fmtNum(e.total)} net worth`;
-    if (sortBy === 'miningCount')  return `<:Money:1473377877239140529> ${fmtNum(e.total)} net worth`;
-    return `<:Money:1473377877239140529> ${fmtNum(e.total)} net worth`;
+function statLine(e, sortBy, guildId) {
+    if (sortBy === 'total')        return `${coinIcon(guildId)} ${fmtNum(e.coins)} wallet  ·  <:Invoice:1473039492217835550> ${fmtNum(e.bank)} bank`;
+    if (sortBy === 'coins')        return `<:Invoice:1473039492217835550> ${fmtNum(e.bank)} bank  ·  ${coinIcon(guildId)} ${fmtNum(e.total)} net`;
+    if (sortBy === 'bank')         return `${coinIcon(guildId)} ${fmtNum(e.coins)} wallet  ·  ${coinIcon(guildId)} ${fmtNum(e.total)} net`;
+    if (sortBy === 'workCount')    return `${coinIcon(guildId)} ${fmtNum(e.total)} net worth`;
+    if (sortBy === 'totalGambled') return `${coinIcon(guildId)} ${fmtNum(e.total)} net worth`;
+    if (sortBy === 'miningCount')  return `${coinIcon(guildId)} ${fmtNum(e.total)} net worth`;
+    return `${coinIcon(guildId)} ${fmtNum(e.total)} net worth`;
 }
 
 /* ══════════════════════════════════════════════════
@@ -101,7 +101,7 @@ async function buildResponse(client, guild, scope, sortBy, page, requesterId) {
                 isRequester:  e.userId === requesterId,
                 primaryValue: getMetric(e, sortBy),
                 primaryLabel: mode.unit,
-                statLine:     statLine(e, sortBy),
+                statLine:     statLine(e, sortBy, guild?.id),
             };
         })
     );
@@ -118,7 +118,7 @@ async function buildResponse(client, guild, scope, sortBy, page, requesterId) {
         requester = {
             rank:         rRank,
             primaryValue: getMetric(rEntry, sortBy),
-            statLine:     statLine(rEntry, sortBy),
+            statLine:     statLine(rEntry, sortBy, guild?.id),
             gapText:      above && gap > 0 ? `${fmtNum(gap)} behind rank #${rRank - 1}` : null,
         };
     }

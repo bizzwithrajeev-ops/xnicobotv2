@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
@@ -102,7 +102,7 @@ async function handleGamble(reply, userId, args, guildId) {
     } else {
         lines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(Math.abs(profit), guildId)}**`);
     }
-    lines.push('', `<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
+    lines.push('', `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`);
 
     addTextDisplay(container, lines.join('\n'));
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

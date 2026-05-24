@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { ButtonBuilder, ActionRowBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
@@ -148,7 +148,7 @@ async function runAdventure(message, biomeData) {
         const coins = rand(event.coinRange[0], event.coinRange[1]);
         totalCoins.value += coins;
         totalExp.value += 10;
-        stageText += `<:Money:1473377877239140529> Found **${formatCoins(coins, guildId)}**!`;
+        stageText += `${coinIcon(guildId)} Found **${formatCoins(coins, guildId)}**!`;
         break;
       }
       case 'treasure': {
@@ -241,8 +241,8 @@ async function runAdventure(message, biomeData) {
       addSeparator(resultContainer, SeparatorSpacingSize.Small);
 
       const summaryLines = [
-        '### <:Money:1473377877239140529> Rewards',
-        `> <:Money:1473377877239140529> **Coins:** +${formatNumber(totalCoins.value)}`,
+        `### ${coinIcon(guildId)} Rewards`,
+        `> ${coinIcon(guildId)} **Coins:** +${formatNumber(totalCoins.value)}`,
         `> <:transfer:1479780506718437396> **XP:** +${totalExp.value}`,
       ];
       if (items.length > 0 && !failed) {

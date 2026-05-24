@@ -1,7 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { CATEGORIES, getItems } = require('../../utils/shopItems');
 const economyManager = require('../../utils/economyManager');
@@ -9,67 +9,195 @@ const { shopGuard } = require('../../utils/economyGuards');
 
 const jsonStore = require('../../utils/jsonStore');
 
+/* ─────────────────────────────────────────────
+   CUSTOM SHOP TAB
+   ───────────────────────────────────────────── */
+const CUSTOM_CATEGORY_ID    = 'custom';
+const CUSTOM_CATEGORY_LABEL = 'Custom Shop';
+const CUSTOM_CATEGORY_EMOJI = '<:Settings:1473037894703779851>';
+const CUSTOM_CATEGORY_COLOR = 0xFBBF24;
+
+const ACTION_LABELS = {
+  give_role:    { emoji: '<:Userplus:1473038912212435086>', label: 'Grants role' },
+  remove_role:  { emoji: '<:Trash:1473038090074591293>',     label: 'Removes role' },
+  send_dm:      { emoji: '<:Envelope:1473038885364695113>',  label: 'Sends DM' },
+  add_coins:    { emoji: '<:Money:1473377877239140529>',     label: 'Bonus coins' },
+  custom_reply: { emoji: '<:Chat:1473038936241864865>',      label: 'Custom reply' }
+};
+
+/* ─────────────────────────────────────────────
+   STORAGE HELPERS
+   ───────────────────────────────────────────── */
 function loadInv() {
   if (!jsonStore.has('inventory')) return {};
   try { return jsonStore.read('inventory'); } catch { return {}; }
 }
 
-/* ═══════════════════ BUILD PAGE ═══════════════════ */
+function loadCustomShop(guildId) {
+  if (!guildId || !jsonStore.has('custom-shop')) return { items: [] };
+  try {
+    const all = jsonStore.read('custom-shop') || {};
+    return all[guildId] || { items: [] };
+  } catch { return { items: [] }; }
+}
 
+/* ─────────────────────────────────────────────
+   FORMATTING UTILITIES
+   ───────────────────────────────────────────── */
+
+/**
+ * Affordability badge that doesn't shout — uses a small colored dot
+ * for at-a-glance scanning, plus the MAX badge when applicable.
+ */
+function affordBadge(canAfford, atMax) {
+  if (atMax) return '` MAX `';
+  if (!canAfford) return '`<:Cancel:1473037949187657818>`';
+  return '`<:Checkedbox:1473038547165384804>`';
+}
+
+/* ─────────────────────────────────────────────
+   PAGE BUILDER (professional layout)
+   ─────────────────────────────────────────────
+ *  ┌─────────────────────────────────────────┐
+ *  │ # 🛒 Economy Shop                       │
+ *  │ -# Browsing **{Category}** · {wallet}   │
+ *  ├─────────────────────────────────────────┤
+ *  │ ### {emoji} {Item Name}        ` MAX `  │
+ *  │ {short description}                     │
+ *  │ -# {coin} {price}  ·  Owned X/Y  ·  ID  │
+ *  │  (separator)                            │
+ *  │ ### {next item} …                       │
+ *  ├─────────────────────────────────────────┤
+ *  │ -# How to use · Buy/Use/Sell hints      │
+ *  └─────────────────────────────────────────┘
+ *  └ ActionRow: Category select menu         ┘
+ */
 function buildShopPage(category, userId, guildId) {
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
   const inventory = loadInv();
   const userInv = inventory[userId] || [];
 
-  const cat = CATEGORIES[category];
-  const items = getItems(category);
+  const isCustom = category === CUSTOM_CATEGORY_ID;
+  const customShop = isCustom ? loadCustomShop(guildId) : null;
+  const cat = isCustom
+    ? { label: CUSTOM_CATEGORY_LABEL, emoji: CUSTOM_CATEGORY_EMOJI, color: CUSTOM_CATEGORY_COLOR }
+    : CATEGORIES[category];
 
+  const items   = isCustom ? (customShop.items || []) : getItems(category);
+  const wallet  = userData.coins;
+  const icon    = coinIcon(guildId);
   const container = createContainer(cat.color);
 
-  addTextDisplay(container, `# 🛒 Economy Shop — ${cat.emoji} ${cat.label}\n<:Money:1473377877239140529> Your Wallet: **${formatCoins(userData.coins, guildId)}**`);
+  // ── Header card ──────────────────────────────────────────────
+  addTextDisplay(container, [
+    `# <:Cart:1473038854620143626> Economy Shop`,
+    `-# Browsing **${cat.emoji} ${cat.label}**  ·  ${icon} Your Wallet: **${formatCoins(wallet, guildId)}**`
+  ].join('\n'));
+
   addSeparator(container, SeparatorSpacingSize.Small);
 
+  // ── Items section ────────────────────────────────────────────
   if (items.length === 0) {
-    addTextDisplay(container, '*No items in this category.*');
-  } else {
-    for (const item of items) {
-      const owned = userInv.filter(i => i.id === item.id).length;
-      const affordable = userData.coins >= item.price;
-      const atMax = owned >= item.maxOwn;
-      const statusTag = atMax ? ' `MAX`' : !affordable ? ' `💸`' : '';
-
+    if (isCustom) {
       addTextDisplay(container, [
-        `### ${item.emoji} ${item.name}${statusTag}`,
-        `${item.description}`,
-        `-# ${formatCoins(item.price, guildId)}  ·  📦 Owned: ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> \`${item.id}\``,
+        `### <:Infotriangle:1473038460456800459> No custom items yet`,
+        `-# This server hasn't configured a Custom Shop. Admins can add items with`,
+        `-# \`/customshop add <name> <price> <action> <data>\` — pick from grant role, remove role,`,
+        `-# DM the buyer, give bonus coins, or send a custom message.`
       ].join('\n'));
+    } else {
+      addTextDisplay(container, `### <:Infotriangle:1473038460456800459> No items in this category`);
     }
+  } else if (isCustom) {
+    // Custom-shop items rendered as full cards with action label badges.
+    items.forEach((item, i) => {
+      const affordable = wallet >= item.price;
+      const action = ACTION_LABELS[item.action] || { emoji: '<:Star:1473038501766369300>', label: item.action };
+      const card = [
+        `### ${action.emoji} ${item.name} ${affordBadge(affordable, false)}`,
+        item.description ? `> ${item.description}` : `> *${action.label}*`,
+        `-# ${icon} **${formatCoins(item.price, guildId)}**  ·  ${action.emoji} ${action.label}  ·  Index \`#${i + 1}\``
+      ].join('\n');
+      addTextDisplay(container, card);
+      if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);
+    });
+  } else {
+    // Built-in items — fixed layout: title row, description row, meta row.
+    items.forEach((item, i) => {
+      const owned = userInv.filter(x => x.id === item.id).length;
+      const affordable = wallet >= item.price;
+      const atMax = owned >= item.maxOwn;
+
+      const card = [
+        `### ${item.emoji} ${item.name} ${affordBadge(affordable, atMax)}`,
+        `> ${item.description}`,
+        `-# ${icon} **${formatCoins(item.price, guildId)}**  ·  📦 Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
+      ].join('\n');
+      addTextDisplay(container, card);
+      if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);
+    });
   }
 
   addSeparator(container, SeparatorSpacingSize.Small);
-  addTextDisplay(container, `-# <:Lightbulbalt:1473038470787240009> **Buy:** \`buy <id> [amount]\`  ·  **Use:** \`use <id>\`  ·  **Sell:** \`sell-item <id> [amount]\``);
 
-  // Category select menu — supports unlimited categories without ActionRow overflow
+  // ── Footer help ──────────────────────────────────────────────
+  if (isCustom) {
+    addTextDisplay(container,
+      `-# <:Lightbulbalt:1473038470787240009> **Buy:** \`/customshop buy <name>\`  ·  **Admins:** \`/customshop add\` to add more items`
+    );
+  } else {
+    addTextDisplay(container,
+      `-# <:Lightbulbalt:1473038470787240009> **Buy:** \`buy <id> [amount]\`  ·  **Use:** \`use <id>\`  ·  **Sell:** \`sell-item <id> [amount]\``
+    );
+  }
+
+  // ── Category dropdown ────────────────────────────────────────
+  // Always include Custom Shop tab if a guild has one; users browsing
+  // it directly via slash arg also get the option auto-selected.
+  const customShopProbe = isCustom ? customShop : loadCustomShop(guildId);
+  const hasCustomItems = (customShopProbe?.items || []).length > 0;
+  const showCustomTab = hasCustomItems || isCustom;
+
+  const opts = Object.entries(CATEGORIES).map(([catId, catData]) =>
+    new StringSelectMenuOptionBuilder()
+      .setLabel(catData.label)
+      .setValue(catId)
+      .setEmoji(catData.emoji)
+      .setDefault(catId === category)
+  );
+
+  if (showCustomTab) {
+    opts.push(
+      new StringSelectMenuOptionBuilder()
+        .setLabel(CUSTOM_CATEGORY_LABEL)
+        .setDescription(hasCustomItems
+          ? `Server-specific items (${customShopProbe.items.length})`
+          : 'Configure with /customshop add')
+        .setValue(CUSTOM_CATEGORY_ID)
+        .setEmoji(CUSTOM_CATEGORY_EMOJI)
+        .setDefault(isCustom)
+    );
+  }
+
   const selectRow = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('shop_cat_select')
-      .setPlaceholder(`📂 Category: ${cat.label}`)
-      .addOptions(
-        Object.entries(CATEGORIES).map(([catId, catData]) =>
-          new StringSelectMenuOptionBuilder()
-            .setLabel(catData.label)
-            .setValue(catId)
-            .setEmoji(catData.emoji)
-            .setDefault(catId === category)
-        )
-      )
+      .setPlaceholder(`Category: ${cat.label}`)
+      .addOptions(opts)
   );
 
   return { container, row: selectRow };
 }
 
-/* ═══════════════════ COMMAND ═══════════════════ */
+function resolveCategory(input) {
+  if (!input) return 'consumable';
+  const lower = String(input).toLowerCase();
+  if (lower === CUSTOM_CATEGORY_ID) return CUSTOM_CATEGORY_ID;
+  return CATEGORIES[lower] ? lower : 'consumable';
+}
+
+/* ═════════════════════════ COMMAND ═════════════════════════ */
 
 module.exports = {
   data: new (require('discord.js').SlashCommandBuilder)()
@@ -84,35 +212,31 @@ module.exports = {
         { name: 'Seeds', value: 'seeds' },
         { name: 'Mining Gear', value: 'mining' },
         { name: 'Materials', value: 'materials' },
+        { name: 'Custom Shop', value: 'custom' },
       )),
   prefix: 'shop',
-  description: 'Browse the economy shop — buy items, boosts, and loot boxes',
+  description: 'Browse the economy shop — buy items, boosts, loot boxes, and the server\'s custom shop',
   usage: 'shop [category]',
   aliases: ['store', 'market'],
   category: 'economy',
 
   async executePrefix(message, args) {
-    // Honour the per-guild "Shop enabled" toggle from the dashboard.
     if (await shopGuard(message)) return;
-    const startCat = args[0]?.toLowerCase();
-    const category = CATEGORIES[startCat] ? startCat : 'consumable';
+    const category = resolveCategory(args[0]);
     const { container, row } = buildShopPage(category, message.author.id, message.guild?.id);
     return message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
   },
 
   async execute(interaction) {
     if (await shopGuard(interaction)) return;
-    const startCat = interaction.options?.getString('category') || 'consumable';
-    const category = CATEGORIES[startCat] ? startCat : 'consumable';
+    const category = resolveCategory(interaction.options?.getString('category'));
     const { container, row } = buildShopPage(category, interaction.user.id, interaction.guild?.id);
     return interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
   },
 
-  /* ═══════════════════ SELECT HANDLER ═══════════════════ */
-
   async handleStringSelect(interaction) {
     if (interaction.customId !== 'shop_cat_select') return false;
-    const category = CATEGORIES[interaction.values[0]] ? interaction.values[0] : 'consumable';
+    const category = resolveCategory(interaction.values[0]);
     const { container, row } = buildShopPage(category, interaction.user.id, interaction.guild?.id);
     await interaction.update({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
     return true;

@@ -1,280 +1,587 @@
-const { ChannelType, PermissionFlagsBits, ActionRowBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { buildSuccessResponse, buildErrorResponse, BRANDING } = require('./responseBuilder');
+'use strict';
 
-const jsonStore = require('./jsonStore');
-const log = require('./logger-styled');
-const getConfig = () => jsonStore.has('join2create') ? jsonStore.read('join2create') : {};
-const saveConfig = c => jsonStore.write('join2create', c);
+/**
+ * Join-to-Create Runtime Handler
+ * ───────────────────────────────────────────────────────────────────
+ * - Voice state listener (creates / cleans up temp VCs)
+ * - Button + select + modal routing for the owner control panel
+ * - Per-guild lock + per-user cooldown to stop duplicate-channel races
+ * - Premium-aware interface lookup (multi-interface for premium guilds,
+ *   single interface for free guilds — enforced at config time, not
+ *   runtime, so the runtime path stays fast)
+ *
+ * The handler keeps backward compatibility with v1 storage by going
+ * through `join2createManager` which migrates legacy configs on every
+ * read.
+ */
+
+const {
+    ChannelType, PermissionFlagsBits,
+    ActionRowBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags,
+    ModalBuilder, TextInputBuilder, TextInputStyle,
+    SeparatorBuilder, SeparatorSpacingSize,
+    UserSelectMenuBuilder
+} = require('discord.js');
+
+const { buildSuccessResponse, buildErrorResponse, buildPremiumGate, BRANDING } = require('./responseBuilder');
+const trustManager = require('./trustManager');
+const log          = require('./logger-styled');
+const mgr          = require('./join2createManager');
 
 const CV2_EPH = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-const ok = (t, d) => ({ components: [buildSuccessResponse(t, d)], flags: CV2_EPH });
+const ok  = (t, d) => ({ components: [buildSuccessResponse(t, d)], flags: CV2_EPH });
 const err = (t, d) => ({ components: [buildErrorResponse(t, d)], flags: CV2_EPH });
+const gate = (cmd) => ({ components: [buildPremiumGate(cmd)],   flags: CV2_EPH });
 
-const OWNER_PERMS = { ViewChannel: true, Connect: true, ManageChannels: true, MoveMembers: true, MuteMembers: true, DeafenMembers: true };
-const MEMBER_PERMS = { ViewChannel: true, Connect: true, ManageChannels: false, MoveMembers: false, MuteMembers: false, DeafenMembers: false };
+const OWNER_PERMS  = {
+    ViewChannel: true, Connect: true, Speak: true,
+    ManageChannels: true, MoveMembers: true, MuteMembers: true, DeafenMembers: true
+};
+const TRUSTED_PERMS = { ViewChannel: true, Connect: true, Speak: true, MoveMembers: true, MuteMembers: true };
+const MEMBER_PERMS = {
+    ViewChannel: true, Connect: true, Speak: true,
+    ManageChannels: false, MoveMembers: false, MuteMembers: false, DeafenMembers: false
+};
 
-// Modal definitions — { customId, title, fieldId, label, placeholder }
-function showModal(interaction, id, title, fieldId, label, placeholder, maxLen) {
-    const modal = new ModalBuilder().setCustomId(id).setTitle(title);
-    const input = new TextInputBuilder().setCustomId(fieldId).setLabel(label)
-        .setStyle(TextInputStyle.Short).setPlaceholder(placeholder).setRequired(true);
-    if (maxLen) input.setMaxLength(maxLen);
-    modal.addComponents(new ActionRowBuilder().addComponents(input));
-    return interaction.showModal(modal);
-}
+/* ═══════════════════════════════════════════════════════════════════
+   PERMISSION GUARD
+   ═══════════════════════════════════════════════════════════════════ */
 
-// Resolve user from modal input
-async function resolveUser(interaction, guild) {
-    const id = interaction.fields.getTextInputValue('user_id').replace(/[<@!>]/g, '');
-    const member = await guild.members.fetch(id).catch(() => null);
-    if (!member) await interaction.reply(err('User Not Found', 'Could not find that user. Make sure the ID is correct.'));
-    return member;
-}
+/**
+ * Returns the active-channel record the interaction's user has rights
+ * over, with the actual Discord channel attached, or `null` if they
+ * don't own / co-own / aren't staff for any active channel they could
+ * be acting on.
+ *
+ * Resolution order:
+ *   1. If the user is in a temp VC and owns it → that channel.
+ *   2. If the user is in a temp VC and is trusted on it → that channel.
+ *   3. If the user is staff (`hasVcModAccess`) and is in a temp VC →
+ *      that channel (admin override).
+ *   4. If the user is in NO temp VC but owns one elsewhere → that one.
+ */
+function resolveActionable(interaction) {
+    const guildId = interaction.guild.id;
+    const guild   = interaction.guild;
+    const member  = interaction.member;
+    const uid     = member?.id;
 
-// --- Voice state handler ---
-async function handleVoiceStateUpdate(oldState, newState) {
-    const config = getConfig();
-    const gc = config[newState.guild.id];
-    if (!gc?.enabled) return;
-    if (!gc.activeChannels) gc.activeChannels = {};
+    // 1. Voice channel the user is currently in
+    const inVc = member?.voice?.channel || null;
 
-    if (newState.channel?.id === gc.triggerChannelId) {
-        const uid = newState.member.id;
-        if (gc.activeChannels[uid]) {
-            const ch = newState.guild.channels.cache.get(gc.activeChannels[uid]);
-            if (ch) { await newState.member.voice.setChannel(ch); return; }
-        }
-        try {
-            const guild = newState.guild;
-            let cat = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === 'Temporary Channels');
-            if (!cat) cat = await guild.channels.create({ name: 'Temporary Channels', type: ChannelType.GuildCategory, position: 0 });
+    if (inVc) {
+        const ownerId = mgr.findOwnerByChannel(guildId, inVc.id);
+        if (ownerId) {
+            const cfg = mgr.getGuildConfig(guildId);
+            const entry = cfg.activeChannels[ownerId];
+            const trusted = (entry?.trustedUsers || []).includes(uid);
+            const isStaff = trustManager.hasVcModAccess(guild, uid, member.roles.cache.map(r => r.id));
 
-            const vc = await guild.channels.create({
-                name: `${newState.member.user.username}'s Channel`, type: ChannelType.GuildVoice,
-                parent: cat.id, userLimit: 0, bitrate: Math.min(guild.premiumTier >= 1 ? 128000 : 96000, 96000),
-                permissionOverwrites: [
-                    { id: guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
-                    { id: uid, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MoveMembers, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers] }
-                ]
-            });
-            gc.activeChannels[uid] = vc.id;
-            saveConfig(config);
-            await newState.member.voice.setChannel(vc);
-        } catch (e) { log.error('Error creating temp channel:', e); }
-    }
-
-    // Cleanup empty channels
-    if (oldState.channel && gc.activeChannels) {
-        for (const [oid, cid] of Object.entries(gc.activeChannels)) {
-            const ch = oldState.guild.channels.cache.get(cid);
-            if (!ch) { delete gc.activeChannels[oid]; saveConfig(config); continue; }
-            if (ch.members.size === 0) {
-                try { await ch.delete(); } catch {}
-                delete gc.activeChannels[oid]; saveConfig(config);
+            if (ownerId === uid || trusted || isStaff) {
+                return {
+                    ownerId,
+                    channel: inVc,
+                    entry,
+                    role: ownerId === uid ? 'owner' : (trusted ? 'trusted' : 'staff')
+                };
             }
         }
-        const cat = oldState.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === 'Temporary Channels');
-        if (cat?.children.cache.size === 0) try { await cat.delete(); } catch {}
+    }
+
+    // 2. Fall back to any channel the user owns
+    const owned = mgr.getActiveChannel(guildId, uid);
+    if (owned) {
+        const ch = guild.channels.cache.get(owned.channelId);
+        if (ch) return { ownerId: uid, channel: ch, entry: owned, role: 'owner' };
+    }
+
+    return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   VOICE STATE HANDLER
+   ═══════════════════════════════════════════════════════════════════ */
+
+async function handleVoiceStateUpdate(oldState, newState) {
+    const guild = newState.guild || oldState.guild;
+    if (!guild) return;
+    const guildId = guild.id;
+
+    // Fast path — read once. If no interfaces or no relevant channel changes, bail.
+    const cfg = mgr.getGuildConfig(guildId);
+    if (!cfg.interfaces || Object.keys(cfg.interfaces).length === 0) return;
+
+    /* ── Spawn path: user joined a trigger channel ──────────────── */
+    if (newState.channelId && newState.channelId !== oldState.channelId) {
+        const iface = mgr.findInterfaceByTrigger(guildId, newState.channelId);
+        if (iface) {
+            const member = newState.member;
+            const uid    = member.id;
+
+            // Per-user cooldown — silently ignore rapid re-triggers.
+            if (mgr.isOnCooldown(guildId, uid)) return;
+            mgr.markCooldown(guildId, uid);
+
+            // If the user already owns one (e.g. joined trigger after
+            // disconnecting from their channel), move them to it.
+            const existing = mgr.getActiveChannel(guildId, uid);
+            if (existing) {
+                const ch = guild.channels.cache.get(existing.channelId);
+                if (ch) {
+                    await member.voice.setChannel(ch).catch(() => {});
+                    return;
+                }
+                // Stale record — drop and continue creating a fresh one.
+                mgr.dropActiveChannel(guildId, uid);
+            }
+
+            // Role gate
+            if (iface.allowedRoles?.length) {
+                const allowed = iface.allowedRoles.some(r => member.roles.cache.has(r));
+                if (!allowed) {
+                    await member.voice.setChannel(null).catch(() => {});
+                    return;
+                }
+            }
+            if (iface.deniedRoles?.length) {
+                const denied = iface.deniedRoles.some(r => member.roles.cache.has(r));
+                if (denied) {
+                    await member.voice.setChannel(null).catch(() => {});
+                    return;
+                }
+            }
+
+            // Lock the guild's create branch so two simultaneous trigger
+            // events can't race the activeChannels read.
+            await mgr.withGuildLock(guildId, async () => {
+                // Re-check inside the lock — someone else may have
+                // assigned us a channel in the meantime.
+                const current = mgr.getActiveChannel(guildId, uid);
+                if (current && guild.channels.cache.get(current.channelId)) {
+                    await member.voice.setChannel(current.channelId).catch(() => {});
+                    return;
+                }
+
+                try {
+                    let parentCategoryId = iface.categoryId;
+                    if (parentCategoryId && !guild.channels.cache.get(parentCategoryId)) parentCategoryId = null;
+                    if (!parentCategoryId) {
+                        const trigger = guild.channels.cache.get(iface.triggerChannelId);
+                        parentCategoryId = trigger?.parentId || null;
+                    }
+
+                    const activeCount = Object.values(mgr.getGuildConfig(guildId).activeChannels)
+                        .filter(e => e.interfaceId === iface.id).length;
+
+                    const channelName = mgr.applyNamingTemplate(iface.namingTemplate, {
+                        user:  member.user,
+                        iface,
+                        guild,
+                        activeCount: activeCount + 1
+                    });
+
+                    const maxBitrate = guild.premiumTier >= 3 ? 384 : guild.premiumTier >= 2 ? 256 : guild.premiumTier >= 1 ? 128 : 96;
+                    const bitrate = Math.min(iface.bitrate || mgr.DEFAULT_BITRATE_KBPS, maxBitrate);
+
+                    const overwrites = [
+                        { id: guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] },
+                        {
+                            id: uid,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.Connect,
+                                PermissionFlagsBits.Speak,
+                                PermissionFlagsBits.ManageChannels,
+                                PermissionFlagsBits.MoveMembers,
+                                PermissionFlagsBits.MuteMembers,
+                                PermissionFlagsBits.DeafenMembers
+                            ]
+                        }
+                    ];
+                    if (iface.visibility === 'private') {
+                        overwrites[0].deny = [PermissionFlagsBits.Connect];
+                    }
+
+                    const vc = await guild.channels.create({
+                        name:    channelName,
+                        type:    ChannelType.GuildVoice,
+                        parent:  parentCategoryId || undefined,
+                        userLimit: iface.maxUsers || 0,
+                        bitrate: bitrate * 1000,
+                        permissionOverwrites: overwrites
+                    });
+
+                    mgr.recordActiveChannel(guildId, uid, vc.id, iface.id);
+                    await member.voice.setChannel(vc).catch(() => {});
+                } catch (e) {
+                    log.error(`[J2C] Channel create failed for ${uid} in ${guildId}: ${e.message}`);
+                }
+            });
+            return;
+        }
+    }
+
+    /* ── Cleanup path: user left a temp VC and it's now empty ──── */
+    if (oldState.channelId && oldState.channelId !== newState.channelId) {
+        const ch = oldState.guild?.channels?.cache?.get(oldState.channelId);
+        if (!ch) return;
+
+        const ownerId = mgr.findOwnerByChannel(guildId, ch.id);
+        if (!ownerId) return;
+
+        const human = ch.members.filter(m => !m.user.bot);
+        if (human.size === 0) {
+            const cfg = mgr.getGuildConfig(guildId);
+            const iface = cfg.interfaces[cfg.activeChannels[ownerId]?.interfaceId];
+            if (iface?.autoDelete !== false) {
+                try { await ch.delete('J2C: empty temp channel'); } catch {}
+                mgr.dropActiveChannel(guildId, ownerId);
+            }
+        }
     }
 }
 
-// --- Button handler ---
+/* ═══════════════════════════════════════════════════════════════════
+   UI HELPERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+function userSelectPanel(customId, title, hint) {
+    return {
+        components: [
+            new ContainerBuilder()
+                .setAccentColor(0x5865F2)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:User:1473038971398520977> ${title}\n-# ${hint}`))
+                .addActionRowComponents(new ActionRowBuilder().addComponents(
+                    new UserSelectMenuBuilder().setCustomId(customId).setPlaceholder('Pick a member…').setMinValues(1).setMaxValues(1)
+                ))
+        ],
+        flags: CV2_EPH
+    };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BUTTON HANDLER
+   ═══════════════════════════════════════════════════════════════════ */
+
 async function handleJ2CButtons(interaction) {
     const action = interaction.customId.replace('j2c_', '');
-    const config = getConfig();
-    const gc = config[interaction.guild.id];
-    if (!gc?.enabled) return interaction.reply(err('System Disabled', 'Join-to-create is not enabled in this server.'));
 
-    const uid = interaction.user.id;
+    // The "claim" action uniquely operates on a channel the user is
+    // standing in, even when they don't own one. Handle it separately.
+    if (action === 'claim') return handleClaim(interaction);
+
+    const ctx = resolveActionable(interaction);
+    if (!ctx) {
+        return interaction.reply(err(
+            'No Active Channel',
+            'You must be in a temporary voice channel you own (or have permission to manage) to use these controls.'
+        ));
+    }
+    const { channel, ownerId, entry, role } = ctx;
     const guild = interaction.guild;
-    const chId = gc.activeChannels[uid];
-    const channel = chId ? guild.channels.cache.get(chId) : null;
 
-    if (!chId && action !== 'claim') return interaction.reply(err('No Channel', 'You don\'t have a temporary voice channel. Join the trigger channel to create one.'));
-    if (!channel && action !== 'claim') return interaction.reply(err('Channel Gone', 'Your voice channel no longer exists.'));
-
-    // Modal-based actions
-    const modals = {
-        rename:  ['j2c_rename_modal', 'Rename Voice Channel', 'channel_name', 'New Channel Name', 'Enter new channel name', 100],
-        limit:   ['j2c_limit_modal', 'Set User Limit', 'user_limit', 'User Limit (0 for unlimited)', '0-99', 2],
-        bitrate: ['j2c_bitrate_modal', 'Set Bitrate', 'bitrate', 'Bitrate (kbps)', '8-384', 3],
-        transfer:['j2c_transfer_modal', 'Transfer Ownership', 'user_id', 'User ID or @mention', 'Enter user ID'],
-        kick:    ['j2c_kick_modal', 'Kick User from Channel', 'user_id', 'User ID to kick', 'Enter user ID or @mention'],
-        block:   ['j2c_block_modal', 'Block User from Channel', 'user_id', 'User ID to block', 'Enter user ID or @mention'],
-        unblock: ['j2c_unblock_modal', 'Unblock User from Channel', 'user_id', 'User ID to unblock', 'Enter user ID or @mention'],
-        permit:  ['j2c_permit_modal', 'Permit User to Join', 'user_id', 'User ID to permit (bypass lock)', 'Enter user ID or @mention'],
-        trust:   ['j2c_trust_modal', 'Trust User (Co-Owner)', 'user_id', 'User ID to trust', 'Enter user ID — they can manage the channel'],
-        untrust: ['j2c_untrust_modal', 'Untrust User', 'user_id', 'User ID to untrust', 'Enter user ID to remove co-owner'],
-        region:  ['j2c_region_modal', 'Set Voice Region', 'region', 'Region (auto, us-west, eu-west, etc.)', 'auto, us-west, eu-west, singapore']
+    // Modal-driven actions that take free-form text
+    const modalSpecs = {
+        rename:  ['j2c_rename_modal',  'Rename Voice Channel', 'channel_name', 'New Channel Name', 'Enter new channel name', 100],
+        limit:   ['j2c_limit_modal',   'Set User Limit',       'user_limit',   'User Limit (0 for unlimited)', '0-99', 2],
+        bitrate: ['j2c_bitrate_modal', 'Set Bitrate',          'bitrate',      'Bitrate (kbps)', '8-384', 3],
+        region:  ['j2c_region_modal',  'Set Voice Region',     'region',       'Region', 'auto, us-west, eu-west, singapore, japan…', 32]
     };
-    if (modals[action]) return showModal(interaction, ...modals[action]);
+    if (modalSpecs[action]) {
+        const [id, title, fieldId, label, placeholder, maxLen] = modalSpecs[action];
+        const modal = new ModalBuilder().setCustomId(id).setTitle(title);
+        const input = new TextInputBuilder().setCustomId(fieldId).setLabel(label).setStyle(TextInputStyle.Short).setPlaceholder(placeholder).setRequired(true);
+        if (maxLen) input.setMaxLength(maxLen);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return interaction.showModal(modal);
+    }
 
-    // Permission toggle actions
+    // User-target actions now use a UserSelectMenu instead of a typed-ID
+    // modal — much faster and impossible to fat-finger.
+    const userPickerSpecs = {
+        kick:     ['j2c_select_kick',     'Kick a Member',                 'They will be disconnected from your channel.'],
+        block:    ['j2c_select_block',    'Block a Member',                'They cannot rejoin until you unblock them.'],
+        unblock:  ['j2c_select_unblock',  'Unblock a Member',              'They regain access to your channel.'],
+        permit:   ['j2c_select_permit',   'Permit a Member',               'They can join even if the channel is locked.'],
+        trust:    ['j2c_select_trust',    'Trust a Member as Co-Owner',    'They gain channel-management rights.'],
+        untrust:  ['j2c_select_untrust',  'Untrust a Member',              'Removes their co-owner permissions.'],
+        transfer: ['j2c_select_transfer', 'Transfer Ownership',            'They become the new owner of this channel.']
+    };
+    if (userPickerSpecs[action]) {
+        const [customId, title, hint] = userPickerSpecs[action];
+        return interaction.reply(userSelectPanel(customId, title, hint));
+    }
+
+    // Permission toggles
     const toggles = {
-        lock:   [{ Connect: false }, 'Channel Locked', '<:Lock:1473038513749491773> Your channel is now **locked**.'],
-        unlock: [{ Connect: true }, 'Channel Unlocked', '<:Unlock:1473038516639236269> Your channel is now **unlocked**.'],
-        hide:   [{ ViewChannel: false }, 'Channel Hidden', '<:Eyeclosed:1473038425085972521> Your channel is now **hidden**.'],
-        unhide: [{ ViewChannel: true }, 'Channel Visible', '<:Eye:1473038435056095242> Your channel is now **visible**.']
+        lock:   [{ Connect: false }, 'Channel Locked',   '<:Lock:1473038513749491773> Your channel is now **locked**.'],
+        unlock: [{ Connect: null  }, 'Channel Unlocked', '<:Unlock:1473038516639236269> Your channel is now **unlocked**.'],
+        hide:   [{ ViewChannel: false }, 'Channel Hidden',  '<:Eyeclosed:1473038425085972521> Your channel is now **hidden**.'],
+        unhide: [{ ViewChannel: null  }, 'Channel Visible', '<:Eye:1473038435056095242> Your channel is now **visible**.']
     };
     if (toggles[action]) {
         const [perms, title, desc] = toggles[action];
-        try { await channel.permissionOverwrites.edit(guild.id, perms); return interaction.reply(ok(title, desc)); }
-        catch { return interaction.reply(err(`${action} Failed`, 'Failed to update channel. Check bot permissions.')); }
-    }
-
-    if (action === 'claim') {
-        if (!interaction.member.voice.channel) return interaction.reply(err('Not in Channel', 'You must be in a temporary voice channel to claim it.'));
-        const ch = interaction.member.voice.channel;
-        const ownerId = Object.keys(gc.activeChannels).find(k => gc.activeChannels[k] === ch.id);
-        if (!ownerId) return interaction.reply(err('Invalid Channel', 'This is not a temporary voice channel.'));
-        const owner = await guild.members.fetch(ownerId).catch(() => null);
-        if (owner && ch.members.has(ownerId)) return interaction.reply(err('Owner Present', 'The channel owner is still in the channel.'));
-        gc.activeChannels[uid] = ch.id; delete gc.activeChannels[ownerId]; saveConfig(config);
-        await ch.permissionOverwrites.edit(uid, OWNER_PERMS);
-        return interaction.reply(ok('Channel Claimed', '<:Crown:1506010837368963142> You are now the **owner** of this channel.'));
+        try {
+            await channel.permissionOverwrites.edit(guild.id, perms);
+            return interaction.reply(ok(title, desc));
+        } catch {
+            return interaction.reply(err(`${action} Failed`, 'Failed to update channel. Check bot permissions.'));
+        }
     }
 
     if (action === 'delete') {
-        try {
-            await interaction.reply(ok('Channel Deleted', '<:Trash:1473038090074591293> Your voice channel is being deleted.'));
-            delete gc.activeChannels[uid]; saveConfig(config); await channel.delete();
-        } catch { await interaction.reply(err('Delete Failed', 'Failed to delete channel.')).catch(() => {}); }
+        if (role !== 'owner' && role !== 'staff') {
+            return interaction.reply(err('Permission Denied', 'Only the owner or server staff can delete this channel.'));
+        }
+        await interaction.reply(ok('Channel Deleted', '<:Trash:1473038090074591293> Your voice channel is being deleted.'));
+        try { await channel.delete('J2C: owner-requested delete'); } catch {}
+        mgr.dropActiveChannel(guild.id, ownerId);
         return;
     }
 
     if (action === 'invite') {
         try {
             const inv = await channel.createInvite({ maxAge: 3600, maxUses: 10, unique: true });
-            const container = new ContainerBuilder().setAccentColor(0x5865F2)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Attach:1473037923979886694> Voice Channel Invite`))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Channel:** ${channel.name}\n**Link:** ${inv.url}\n**Expires:** <t:${Math.floor(Date.now() / 1000) + 3600}:R>\n**Max Uses:** \`10\`\n\n-# Share this link to invite others`))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-            return interaction.reply({ components: [container], flags: CV2_EPH });
-        } catch { return interaction.reply(err('Invite Failed', 'Failed to create invite. Check bot permissions.')); }
+            return interaction.reply({
+                components: [new ContainerBuilder()
+                    .setAccentColor(0x5865F2)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Attach:1473037923979886694> Voice Channel Invite`))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `**Channel:** ${channel.name}\n**Link:** ${inv.url}\n**Expires:** <t:${Math.floor(Date.now() / 1000) + 3600}:R>\n**Max Uses:** \`10\`\n\n-# Share this link to invite others`
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING))],
+                flags: CV2_EPH
+            });
+        } catch {
+            return interaction.reply(err('Invite Failed', 'Failed to create invite. Check bot permissions.'));
+        }
     }
 
     if (action === 'info') {
-        const mc = channel.members.size, ul = channel.userLimit || 'Unlimited', br = Math.round(channel.bitrate / 1000);
-        const locked = !channel.permissionsFor(guild.id)?.has('Connect'), hidden = !channel.permissionsFor(guild.id)?.has('ViewChannel');
-        const on = '<:Toggleon:1473038585501581312>', off = '<:Toggleoff:1473038582813032590>';
-        const members = channel.members.map(m => m.user.username).slice(0, 10).join(', ') || 'Empty';
+        const mc = channel.members.size;
+        const ul = channel.userLimit || 'Unlimited';
+        const br = Math.round(channel.bitrate / 1000);
+        const everyone = channel.permissionsFor(guild.id);
+        const locked   = !everyone?.has(PermissionFlagsBits.Connect);
+        const hidden   = !everyone?.has(PermissionFlagsBits.ViewChannel);
+        const on  = '<:Toggleon:1473038585501581312>';
+        const off = '<:Toggleoff:1473038582813032590>';
+        const memberLine = channel.members.map(m => m.user.username).slice(0, 10).join(', ') || 'Empty';
+        const trusted = entry?.trustedUsers?.length
+            ? entry.trustedUsers.map(id => `<@${id}>`).join(', ')
+            : '*None*';
 
-        const container = new ContainerBuilder().setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Document:1473039496995143731> Channel Information`))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Volumeup:1473039290136002844> ${channel.name}\n**Members:** \`${mc}${ul !== 'Unlimited' ? `/${ul}` : ''}\` · **Bitrate:** \`${br} kbps\` · **Region:** \`${channel.rtcRegion || 'Auto'}\``))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${locked ? on : off} **Locked** · ${hidden ? on : off} **Hidden** · **Created:** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>`))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Members:** ${members}${mc > 10 ? ` +${mc - 10} more` : ''}`))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-        return interaction.reply({ components: [container], flags: CV2_EPH });
+        return interaction.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Document:1473039496995143731> Channel Information`))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `### <:Volumeup:1473039290136002844> ${channel.name}\n` +
+                    `**Owner:** <@${ownerId}>\n` +
+                    `**Members:** \`${mc}${ul !== 'Unlimited' ? `/${ul}` : ''}\` · **Bitrate:** \`${br} kbps\` · **Region:** \`${channel.rtcRegion || 'Auto'}\`\n` +
+                    `${locked ? on : off} **Locked** · ${hidden ? on : off} **Hidden** · **Created:** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>\n\n` +
+                    `**Currently in channel:** ${memberLine}${mc > 10 ? ` +${mc - 10} more` : ''}\n` +
+                    `**Trusted co-owners:** ${trusted}`
+                ))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING))],
+            flags: CV2_EPH
+        });
     }
+
+    return interaction.reply(err('Unknown Action', `No handler for \`${action}\`.`));
 }
 
-// --- Modal handler ---
+async function handleClaim(interaction) {
+    const guild  = interaction.guild;
+    const member = interaction.member;
+    const inVc   = member?.voice?.channel;
+    if (!inVc) return interaction.reply(err('Not in a Channel', 'You must be in a temp voice channel to claim it.'));
+
+    const ownerId = mgr.findOwnerByChannel(guild.id, inVc.id);
+    if (!ownerId) return interaction.reply(err('Not a Temp Channel', 'This is not a Join-to-Create channel.'));
+    if (ownerId === member.id) return interaction.reply(err('Already Owner', 'You already own this channel.'));
+
+    if (inVc.members.has(ownerId)) {
+        return interaction.reply(err('Owner Present', 'The current owner is still in the channel — you can only claim when they leave.'));
+    }
+
+    const result = mgr.transferOwnership(guild.id, ownerId, member.id);
+    if (!result.ok) return interaction.reply(err('Claim Failed', result.error || 'Could not claim the channel.'));
+
+    try {
+        await inVc.permissionOverwrites.edit(member.id, OWNER_PERMS);
+        await inVc.permissionOverwrites.edit(ownerId, MEMBER_PERMS);
+    } catch (e) {
+        log.error(`[J2C] Claim overwrite failed: ${e.message}`);
+    }
+    return interaction.reply(ok('Channel Claimed', '<:Crown:1506010837368963142> You are now the **owner** of this channel.'));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   USER-SELECT HANDLER
+   ═══════════════════════════════════════════════════════════════════ */
+
+async function handleJ2CSelects(interaction) {
+    const id = interaction.customId;
+    if (!id.startsWith('j2c_select_')) return false;
+
+    const action = id.replace('j2c_select_', '');
+    const ctx = resolveActionable(interaction);
+    if (!ctx) {
+        await interaction.update(err('No Active Channel', 'Your temporary voice channel is gone — pick from a panel inside the channel you own.'));
+        return true;
+    }
+    const { channel, ownerId, role } = ctx;
+    const guild  = interaction.guild;
+    const target = interaction.guild.members.cache.get(interaction.values[0])
+        || await interaction.guild.members.fetch(interaction.values[0]).catch(() => null);
+
+    if (!target) {
+        await interaction.update(err('User Not Found', 'Could not resolve that member.'));
+        return true;
+    }
+    if (target.id === interaction.user.id) {
+        await interaction.update(err('Invalid Target', 'You cannot pick yourself.'));
+        return true;
+    }
+    if (target.user.bot) {
+        await interaction.update(err('Invalid Target', 'You cannot run member actions on bots.'));
+        return true;
+    }
+
+    try {
+        if (action === 'kick') {
+            if (!channel.members.has(target.id)) {
+                await interaction.update(err('Not in Channel', `**${target.user.username}** is not in your channel.`));
+                return true;
+            }
+            await target.voice.disconnect('J2C: kicked by owner');
+            await interaction.update(ok('Kicked', `<:dnd:1485248263857639424> Kicked **${target.user.username}**.`));
+            return true;
+        }
+
+        if (action === 'block') {
+            await channel.permissionOverwrites.edit(target.id, { Connect: false, ViewChannel: false });
+            if (channel.members.has(target.id)) await target.voice.disconnect('J2C: blocked').catch(() => {});
+            await interaction.update(ok('Blocked', `<:Commentblock:1473370739351490794> Blocked **${target.user.username}**.`));
+            return true;
+        }
+
+        if (action === 'unblock') {
+            await channel.permissionOverwrites.delete(target.id).catch(() => {});
+            await interaction.update(ok('Unblocked', `<:Checkedbox:1473038547165384804> Unblocked **${target.user.username}**.`));
+            return true;
+        }
+
+        if (action === 'permit') {
+            await channel.permissionOverwrites.edit(target.id, { Connect: true, ViewChannel: true });
+            await interaction.update(ok('Permitted', `<:Userplus:1473038912212435086> **${target.user.username}** can now bypass the lock.`));
+            return true;
+        }
+
+        if (action === 'trust') {
+            await channel.permissionOverwrites.edit(target.id, TRUSTED_PERMS);
+            mgr.addTrustedUser(guild.id, ownerId, target.id);
+            await interaction.update(ok('Trusted', `<:trust:1479780674532671673> **${target.user.username}** is now a co-owner.`));
+            return true;
+        }
+
+        if (action === 'untrust') {
+            await channel.permissionOverwrites.edit(target.id, MEMBER_PERMS);
+            mgr.removeTrustedUser(guild.id, ownerId, target.id);
+            await interaction.update(ok('Untrusted', `<:untrust:1479780596971737149> Removed co-owner status from **${target.user.username}**.`));
+            return true;
+        }
+
+        if (action === 'transfer') {
+            if (role !== 'owner' && role !== 'staff') {
+                await interaction.update(err('Permission Denied', 'Only the owner or server staff can transfer ownership.'));
+                return true;
+            }
+            if (!channel.members.has(target.id)) {
+                await interaction.update(err('Not in Channel', `**${target.user.username}** must be in the channel to receive ownership.`));
+                return true;
+            }
+            const r = mgr.transferOwnership(guild.id, ownerId, target.id);
+            if (!r.ok) {
+                await interaction.update(err('Transfer Failed', r.error || 'Could not transfer ownership.'));
+                return true;
+            }
+            await channel.permissionOverwrites.edit(ownerId, MEMBER_PERMS);
+            await channel.permissionOverwrites.edit(target.id, OWNER_PERMS);
+            await interaction.update(ok('Transferred', `<:transfer:1479780506718437396> Ownership transferred to **${target.user.username}**.`));
+            return true;
+        }
+    } catch (e) {
+        log.error(`[J2C] Select action ${action} failed: ${e.message}`);
+        await interaction.update(err('Action Failed', e.message || 'Unknown error.')).catch(() => {});
+        return true;
+    }
+
+    return false;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL HANDLER
+   ═══════════════════════════════════════════════════════════════════ */
+
 async function handleJ2CModals(interaction) {
     const action = interaction.customId.replace('j2c_', '').replace('_modal', '');
-    const config = getConfig();
-    const gc = config[interaction.guild.id];
-    if (!gc?.enabled) return interaction.reply(err('System Disabled', 'Join-to-create is not enabled in this server.'));
-
-    const chId = gc.activeChannels[interaction.user.id];
-    if (!chId) return interaction.reply(err('No Channel', 'You don\'t have an active temporary voice channel.'));
-    const guild = interaction.guild, channel = guild.channels.cache.get(chId);
-    if (!channel) return interaction.reply(err('Channel Gone', 'Your voice channel no longer exists.'));
+    const ctx = resolveActionable(interaction);
+    if (!ctx) return interaction.reply(err('No Active Channel', 'Your temporary voice channel is gone.'));
+    const { channel } = ctx;
+    const guild = interaction.guild;
 
     if (action === 'rename') {
-        const name = interaction.fields.getTextInputValue('channel_name');
-        await channel.setName(name);
+        const name = interaction.fields.getTextInputValue('channel_name').slice(0, 100);
+        await channel.setName(name).catch(() => {});
         return interaction.reply(ok('Renamed', `<:Editalt:1473038138577256670> Channel renamed to **${name}**.`));
     }
 
     if (action === 'limit') {
-        const n = parseInt(interaction.fields.getTextInputValue('user_limit'));
-        if (isNaN(n) || n < 0 || n > 99) return interaction.reply(err('Invalid Limit', 'Must be **0–99**. Use `0` for unlimited.'));
+        const n = mgr.clampInt(interaction.fields.getTextInputValue('user_limit'), 0, 99, NaN);
+        if (Number.isNaN(n)) return interaction.reply(err('Invalid Limit', 'Must be **0–99**. Use `0` for unlimited.'));
         await channel.setUserLimit(n);
         return interaction.reply(ok('Limit Set', `<:User:1473038971398520977> User limit set to **${n === 0 ? 'Unlimited' : n}**.`));
     }
 
     if (action === 'bitrate') {
-        const n = parseInt(interaction.fields.getTextInputValue('bitrate'));
-        if (isNaN(n) || n < 8 || n > 384) return interaction.reply(err('Invalid Bitrate', 'Must be **8–384** kbps.'));
+        const n = mgr.clampInt(interaction.fields.getTextInputValue('bitrate'), 8, 384, NaN);
+        if (Number.isNaN(n)) return interaction.reply(err('Invalid Bitrate', 'Must be **8–384** kbps.'));
         const max = guild.premiumTier >= 3 ? 384 : guild.premiumTier >= 2 ? 256 : guild.premiumTier >= 1 ? 128 : 96;
         const final = Math.min(n, max);
         await channel.setBitrate(final * 1000);
         return interaction.reply(ok('Bitrate Set', `<:Volumeup:1473039290136002844> Bitrate set to **${final} kbps**.`));
     }
 
-    if (action === 'transfer') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        if (!channel.members.has(target.id)) return interaction.reply(err('Not in Channel', 'That user must be in the channel.'));
-        gc.activeChannels[target.id] = chId; delete gc.activeChannels[interaction.user.id]; saveConfig(config);
-        await channel.permissionOverwrites.edit(interaction.user.id, MEMBER_PERMS);
-        await channel.permissionOverwrites.edit(target.id, OWNER_PERMS);
-        return interaction.reply(ok('Transferred', `<:transfer:1479780506718437396> Ownership transferred to ${target}.`));
-    }
-
-    if (action === 'kick') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        if (target.id === interaction.user.id) return interaction.reply(err('Invalid', 'You cannot kick yourself.'));
-        if (!channel.members.has(target.id)) return interaction.reply(err('Not in Channel', 'That user is not in your channel.'));
-        try { await target.voice.disconnect(); return interaction.reply(ok('Kicked', `<:dnd:1473370101427343403> Kicked **${target.user.username}**.`)); }
-        catch { return interaction.reply(err('Failed', 'Failed to kick the user.')); }
-    }
-
-    if (action === 'block') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        if (target.id === interaction.user.id) return interaction.reply(err('Invalid', 'You cannot block yourself.'));
-        try {
-            await channel.permissionOverwrites.edit(target.id, { Connect: false, ViewChannel: false });
-            if (channel.members.has(target.id)) await target.voice.disconnect();
-            return interaction.reply(ok('Blocked', `<:Commentblock:1473370739351490794> Blocked **${target.user.username}**.`));
-        } catch { return interaction.reply(err('Failed', 'Failed to block the user.')); }
-    }
-
-    if (action === 'unblock') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        try { await channel.permissionOverwrites.delete(target.id); return interaction.reply(ok('Unblocked', `<:Checkedbox:1473038547165384804> Unblocked **${target.user.username}**.`)); }
-        catch { return interaction.reply(err('Failed', 'Failed to unblock the user.')); }
-    }
-
-    if (action === 'permit') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        try { await channel.permissionOverwrites.edit(target.id, { Connect: true, ViewChannel: true }); return interaction.reply(ok('Permitted', `<:Userplus:1473038912212435086> Permitted **${target.user.username}** (bypasses lock).`)); }
-        catch { return interaction.reply(err('Failed', 'Failed to permit the user.')); }
-    }
-
-    if (action === 'trust') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        if (target.id === interaction.user.id) return interaction.reply(err('Invalid', 'You are already the owner.'));
-        try { await channel.permissionOverwrites.edit(target.id, OWNER_PERMS); return interaction.reply(ok('Trusted', `<:trust:1479780674532671673> Trusted **${target.user.username}** as co-owner.`)); }
-        catch { return interaction.reply(err('Failed', 'Failed to trust the user.')); }
-    }
-
-    if (action === 'untrust') {
-        const target = await resolveUser(interaction, guild);
-        if (!target) return;
-        try { await channel.permissionOverwrites.edit(target.id, MEMBER_PERMS); return interaction.reply(ok('Untrusted', `<:untrust:1479780596971737149> Removed trust from **${target.user.username}**.`)); }
-        catch { return interaction.reply(err('Failed', 'Failed to untrust the user.')); }
-    }
-
     if (action === 'region') {
         const input = interaction.fields.getTextInputValue('region').toLowerCase().trim();
-        const valid = ['auto','us-west','us-east','us-central','us-south','eu-west','eu-central','singapore','brazil','hongkong','russia','japan','southafrica','sydney','india'];
-        if (!valid.includes(input)) return interaction.reply(err('Invalid Region', `Valid: \`${valid.join('`, `')}\``));
-        try { await channel.setRTCRegion(input === 'auto' ? null : input); return interaction.reply(ok('Region Set', `<:rocket:1479780552276967465> Region set to **${input === 'auto' ? 'Automatic' : input}**.`)); }
-        catch { return interaction.reply(err('Failed', 'Failed to change voice region.')); }
+        const valid = ['auto', 'us-west', 'us-east', 'us-central', 'us-south', 'eu-west', 'eu-central', 'singapore', 'brazil', 'hongkong', 'russia', 'japan', 'southafrica', 'sydney', 'india'];
+        if (!valid.includes(input)) {
+            return interaction.reply(err('Invalid Region', `Valid: \`${valid.join('`, `')}\``));
+        }
+        try {
+            await channel.setRTCRegion(input === 'auto' ? null : input);
+            return interaction.reply(ok('Region Set', `<:rocket:1479780552276967465> Region set to **${input === 'auto' ? 'Automatic' : input}**.`));
+        } catch {
+            return interaction.reply(err('Region Failed', 'Failed to change voice region.'));
+        }
     }
+
+    return interaction.reply(err('Unknown Action', `No handler for \`${action}\`.`));
 }
 
-module.exports = { handleVoiceStateUpdate, handleJ2CButtons, handleJ2CModals };
+/* ═══════════════════════════════════════════════════════════════════
+   EXPORTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+module.exports = {
+    handleVoiceStateUpdate,
+    handleJ2CButtons,
+    handleJ2CSelects,
+    handleJ2CModals
+};

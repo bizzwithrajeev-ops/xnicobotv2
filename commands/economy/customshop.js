@@ -395,6 +395,15 @@ module.exports = {
 
     async handleSelectMenu(interaction) {
         if (interaction.customId !== 'cshop_buy_select') return false;
+
+        // Re-validate premium on every panel interaction. The dispatcher
+        // only enforces `premiumOnly` at COMMAND ENTRY, not on stray
+        // component interactions, so without this check anyone could
+        // press the "Buy" dropdown on an old panel after the server's
+        // premium expired.
+        const { requirePremium } = require('../../utils/interactionGuards');
+        if (await requirePremium(interaction, { commandName: '/customshop buy' })) return true;
+
         const idx = parseInt(interaction.values[0]);
         if (isNaN(idx)) return false;
         return processBuy(interaction.user.id, interaction.guild.id, interaction.guild, idx, (opts) => interaction.reply(opts), interaction.guild?.id);

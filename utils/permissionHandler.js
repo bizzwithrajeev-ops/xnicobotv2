@@ -211,6 +211,7 @@ const COMMAND_PERMISSIONS = {
     'welcomer':         [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageWebhooks],
     'leave-setup':      [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageWebhooks],
     'verification-setup':[PermissionFlagsBits.ManageRoles, PermissionFlagsBits.ManageChannels],
+    'screenshot-verify':[PermissionFlagsBits.ManageRoles, PermissionFlagsBits.ManageChannels],
     'reactionroles':    [PermissionFlagsBits.ManageRoles, PermissionFlagsBits.AddReactions],
     'roletemplate':     [PermissionFlagsBits.ManageRoles],
     'automod':          [PermissionFlagsBits.ManageMessages, PermissionFlagsBits.ManageGuild],

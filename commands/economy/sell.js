@@ -4,7 +4,7 @@ const {
     ButtonStyle,
 } = require('discord.js');
 const { createContainer, addTextDisplay, formatNumber, MessageFlags } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 
@@ -91,11 +91,11 @@ module.exports = {
 
     /* ---------- CONFIRM UI ---------- */
     const container = createContainer();
-    addTextDisplay(container, `# <:Money:1473377877239140529> Confirm Pet Sale\n\n` +
+    addTextDisplay(container, `# ${coinIcon(guildId)} Confirm Pet Sale\n\n` +
       `🐾 Type: **${type.toUpperCase()}**\n` +
       `📦 Pets to sell: **${sellable.length}**\n` +
       `🐶 Pets remaining: **${remaining}**\n\n` +
-      `<:Money:1473377877239140529> You will receive: **${formatCoins(totalCoins, guildId)}**`);
+      `${coinIcon(guildId)} You will receive: **${formatCoins(totalCoins, guildId)}**`);
 
     const sessId = `sell_${Date.now()}_${userId}`;
     const row = new ActionRowBuilder().addComponents(
@@ -155,7 +155,7 @@ module.exports = {
         addTextDisplay(c, `# <:Checkedbox:1473038547165384804> Pets Sold\n\n` +
           `📦 Sold: **${sellable.length} pets**\n` +
           `🐶 Remaining: **${freshPets[userId].animals.length}**\n` +
-          `<:Money:1473377877239140529> Earned: **${formatCoins(totalCoins, guildId)}**`);
+          `${coinIcon(guildId)} Earned: **${formatCoins(totalCoins, guildId)}**`);
 
         return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       }

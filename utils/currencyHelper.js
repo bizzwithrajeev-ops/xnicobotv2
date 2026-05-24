@@ -120,6 +120,24 @@ function getCurrencyName(guildId) {
     return getEconomySettings(guildId).currencyName;
 }
 
+/**
+ * Always returns the live currency symbol for a guild.
+ *
+ * Use this in place of any hardcoded `<:Money:…>` emoji so that when
+ * an admin runs `/currency set <:Sketch:…> gems`, every economy
+ * command (balance / shop / games / pay / rob / leaderboard / etc.)
+ * picks up the new icon immediately. Without this helper, files that
+ * baked the default `<:Money:…>` emoji into their own strings ignored
+ * the per-guild override and kept showing the default.
+ *
+ * Falls back to the default currency emoji when no guildId is provided
+ * (e.g. owner-only or non-guild contexts).
+ */
+function coinIcon(guildId) {
+    if (!guildId) return DEFAULTS.currency;
+    return getEconomySettings(guildId).currency || DEFAULTS.currency;
+}
+
 function formatCoins(amount, guildId) {
     const cfg = getEconomySettings(guildId);
     const formatted = Number(amount || 0).toLocaleString();
@@ -137,6 +155,7 @@ module.exports = {
     DEFAULTS,
     getCurrency,
     getCurrencyName,
+    coinIcon,
     formatCoins,
     formatCoinsShort,
     getGuildSettings,

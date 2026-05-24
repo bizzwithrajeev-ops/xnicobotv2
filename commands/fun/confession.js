@@ -202,6 +202,11 @@ module.exports = {
     // ── Button Handler ───────────────────────────────────────────────────
 
     async handleButton(interaction) {
+        // Re-validate premium on every component press — the dispatcher
+        // doesn't see component interactions routed by customId prefix.
+        const { requirePremium } = require('../../utils/interactionGuards');
+        if (await requirePremium(interaction, { commandName: '/confess' })) return true;
+
         const id = interaction.customId;
 
         // Submit new confession
@@ -269,6 +274,9 @@ module.exports = {
     // ── Modal Handler ────────────────────────────────────────────────────
 
     async handleModal(interaction) {
+        const { requirePremium } = require('../../utils/interactionGuards');
+        if (await requirePremium(interaction, { commandName: '/confess' })) return true;
+
         const id = interaction.customId;
 
         if (id === 'confess_modal_new') {

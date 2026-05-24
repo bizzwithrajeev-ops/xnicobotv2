@@ -1006,6 +1006,16 @@ module.exports = {
     async handleMessage(message) {
         if (!message.guild || message.author.bot) return false;
 
+        // Server premium re-validation — if premium expired, stop the
+        // message-listener flow. The user's plain message would still
+        // be deleted to honour the channel's "no chatter" contract,
+        // but no suggestion gets created.
+        const premiumManager = require('../../utils/premiumManager');
+        if (!premiumManager.hasPremiumAccess(message.author.id, message.guildId)) {
+            await message.delete().catch(() => null);
+            return true;
+        }
+
         const { guildData } = getGuildData(message.guildId);
         if (!guildData.channelId || message.channel.id !== guildData.channelId) return false;
 
@@ -1052,6 +1062,13 @@ module.exports = {
 
     // ── Interaction router ────────────────────────────────────────────────────
     async handleInteraction(interaction) {
+        // Re-validate premium on every component press — the system is
+        // premium-gated at the command level, but stray panel buttons
+        // / modals / selects route by customId prefix and need their
+        // own check.
+        const { requirePremium } = require('../../utils/interactionGuards');
+        if (await requirePremium(interaction, { commandName: '/suggestion' })) return true;
+
         const { customId } = interaction;
 
         // Pre-submit confirmation buttons

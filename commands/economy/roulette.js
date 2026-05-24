@@ -39,7 +39,7 @@ const {
 const economyManager = require('../../utils/economyManager');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
-const { formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
+const { formatCoinsShort, formatCoins , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 
 // European single-zero roulette wheel.
@@ -189,7 +189,7 @@ async function handleRoulette(reply, userId, guildId, args) {
         addTextDisplay(c, [
             `<:Checkedbox:1473038547165384804> **You won ${formatCoinsShort(payoutGross - bet, guildId)} profit!**`,
             ``,
-            `<:Money:1473377877239140529> **Payout:** ${formatCoinsShort(payoutGross, guildId)}`,
+            `${coinIcon(guildId)} **Payout:** ${formatCoinsShort(payoutGross, guildId)}`,
             `💼 **Balance:** ${formatCoinsShort(userData.coins, guildId)}`,
         ].join('\n'));
     } else {

@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -78,11 +78,11 @@ async function handleDice(reply, userId, args, opponent = null, guildId) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     if (tie) {
-        addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
+        addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`);
     } else if (won) {
-        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatCoins(bet, guildId)}!**\n\n<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
+        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatCoins(bet, guildId)}!**\n\n${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`);
     } else {
-        addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatCoins(bet, guildId)}**\n\n<:Money:1473377877239140529> **Balance:** ${formatCoins(userData.coins, guildId)}`);
+        addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatCoins(bet, guildId)}**\n\n${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`);
     }
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

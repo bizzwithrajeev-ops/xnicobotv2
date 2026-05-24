@@ -14,7 +14,7 @@ const premiumManager = require('./utils/premiumManager');
 const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleAutomodSelectMenus, handleStickyButtons, handleVerificationButtons, handleAntiNukeButtons, handleProfileButtons, handleModalSubmit, replacePlaceholders } = require('./utils/interactionHandlers');
 const { preloadGuildInvites, refreshGuildInvite, handleMemberJoin, handleMemberLeave, isTrackingEnabled } = require('./utils/inviteManager');
 const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate, logAntinukeTrigger, logAntiraidAction, logAntialtDetection, logVanityGuard, logThreatMode, logWhitelistChange, logSecurityConfigChange } = require('./utils/logger');
-const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CModals } = require('./utils/join2createHandler');
+const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CSelects, handleJ2CModals } = require('./utils/join2createHandler');
 const { updateMusicPanel, buildIdlePanel, buildVoiceStatus, buildWaitingStatus, updateVoiceChannelStatus, EMOJIS: MUSIC_EMOJIS } = require('./utils/musicPanel');
 const log = require('./utils/logger-styled');
 const { connectDatabase, models, getGuildConfig: getGuildConfigDb } = require('./utils/database');
@@ -1596,6 +1596,22 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // Screenshot Verification modals
+        if (interaction.customId.startsWith('sshot_modal_')) {
+            const sshotCmd = client.commands.get('screenshot-verify');
+            if (sshotCmd && sshotCmd.handleModalSubmit) {
+                try {
+                    await sshotCmd.handleModalSubmit(interaction);
+                } catch (error) {
+                    log.error(`Screenshot Verify Modal: ${error.message}`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing your submission!', flags: MessageFlags.Ephemeral }).catch(() => { });
+                    }
+                }
+            }
+            return;
+        }
+
         // Handle quicksetup log channel modal
         if (interaction.customId.startsWith('quicksetup_modal_')) {
             const quicksetupCmd = client.commands.get('quicksetup');
@@ -1656,6 +1672,20 @@ client.on('interactionCreate', async (interaction) => {
                     await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error!', flags: MessageFlags.Ephemeral }).catch(() => { });
                 } else if (interaction.deferred && !interaction.replied) {
                     await interaction.editReply({ content: '<:Cancel:1473037949187657818> There was an error!' }).catch(() => { });
+                }
+            }
+            return;
+        }
+
+        // Handle join2create-setup admin modals (interface create/edit)
+        if (interaction.customId.startsWith('j2cset_modal_')) {
+            const j2cCmd = client.commands.get('join2create-setup');
+            if (j2cCmd?.handleModalSubmit) {
+                try {
+                    const handled = await j2cCmd.handleModalSubmit(interaction);
+                    if (handled) return;
+                } catch (error) {
+                    log.error(`J2C Setup Modal: ${error.message}`, error);
                 }
             }
             return;
@@ -2844,6 +2874,22 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
 
+            // Handle join2create-setup admin dashboard buttons (must come BEFORE j2c_*)
+            if (interaction.customId.startsWith('j2cset_')) {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup Button: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error!', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
+                    }
+                }
+                return;
+            }
             // Handle join2create interactive buttons
             if (interaction.customId.startsWith('j2c_')) {
                 try {
@@ -2907,6 +2953,20 @@ client.on('interactionCreate', async (interaction) => {
                         await appCmd.handleInteraction(interaction);
                     } catch (error) {
                         log.error(`Application Button: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            if (interaction.customId.startsWith('sshot_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify Button: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
                     }
                 }
                 return;
@@ -5018,7 +5078,7 @@ client.on('interactionCreate', async (interaction) => {
 
                         const newState = !wasEnabled;
                         let content = `# <:Fire:1473038604812161218> Leveling System\n\n`;
-                        content += `**Status:** ${newState ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
+                        content += `**Status:** ${newState ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
                         content += `### <:Document:1473039496995143731> Available Commands\n`;
                         content += `> \`-toggleleveling on\` — Enable leveling system\n`;
                         content += `> \`-toggleleveling off\` — Disable leveling system\n`;
@@ -5099,6 +5159,34 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Join-to-Create admin dashboard interface picker
+            if (interaction.customId === 'j2cset_pick') {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup String Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Screenshot Verification string selects
+            if (interaction.customId.startsWith('sshot_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify String Select: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
+                    }
+                }
+                return;
+            }
             // Route custom shop buy select menu
             if (interaction.customId === 'cshop_buy_select') {
                 const cshopCmd = client.commands.get('customshop');
@@ -5307,7 +5395,7 @@ client.on('interactionCreate', async (interaction) => {
                         return interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid badge style!', flags: MessageFlags.Ephemeral });
                     }
 
-                    const badgeEmojis = { Default: '🏅', Compact: '📦', Detailed: '📋', Hidden: '🚫' };
+                    const badgeEmojis = { Default: '🏅', Compact: '<:Box:1473039115581915256>', Detailed: '📋', Hidden: '🚫' };
                     await updateUserData(interaction.user.id, { 'profile.profileCard.badgeStyle': selectedBadge });
 
                     await interaction.update({
@@ -6245,6 +6333,32 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isChannelSelectMenu()) {
+            // J2C admin trigger channel picker
+            if (interaction.customId.startsWith('j2cset_chan_')) {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Quick-setup log channel picker
+            if (interaction.customId === 'quicksetup_logchannel') {
+                const quicksetupCmd = client.commands.get('quicksetup');
+                if (quicksetupCmd && quicksetupCmd.handleInteraction) {
+                    try {
+                        const handled = await quicksetupCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Quick Setup Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Feedback system channel selects
             if (interaction.customId === 'fb_select_channel' || interaction.customId === 'fb_select_logs') {
                 const feedbackCmd = client.commands.get('feedback');
@@ -6371,6 +6485,17 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
+            if (interaction.customId.startsWith('sshot_select_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             if (interaction.customId.startsWith('social_')) {
                 const socialCmd = client.commands.get('social-notify');
                 if (socialCmd && socialCmd.handleInteraction) {
@@ -6407,6 +6532,19 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isRoleSelectMenu()) {
+            // J2C allowed-roles picker (premium-only feature)
+            if (interaction.customId.startsWith('j2cset_roles_select_')) {
+                const j2cCmd = client.commands.get('join2create-setup');
+                if (j2cCmd?.handleInteraction) {
+                    try {
+                        const handled = await j2cCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`J2C Setup Role Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Anti-Nuke role select menus
             if (interaction.customId.startsWith('antinuke_select_')) {
                 const antinukeCmd = client.commands.get('antinuke');
@@ -6462,6 +6600,17 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
+            if (interaction.customId.startsWith('sshot_select_')) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+                if (sshotCmd && sshotCmd.handleInteraction) {
+                    try {
+                        await sshotCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Screenshot Verify Role Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             if (interaction.customId.startsWith('ignorech_')) {
                 const ignoreCmd = client.commands.get('ignore-channels');
                 if (ignoreCmd && ignoreCmd.handleInteraction) {
@@ -6484,6 +6633,24 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             }
+        }
+        return;
+    }
+
+    // ───────── User Select Menus ─────────
+    if (interaction.isUserSelectMenu && interaction.isUserSelectMenu()) {
+        // J2C member-target actions (kick / block / unblock / permit / trust / untrust / transfer)
+        if (interaction.customId.startsWith('j2c_select_')) {
+            try {
+                const handled = await handleJ2CSelects(interaction);
+                if (handled) return;
+            } catch (error) {
+                log.error(`J2C User Select: ${error.message}`, error);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error!', flags: MessageFlags.Ephemeral }).catch(() => { });
+                }
+            }
+            return;
         }
         return;
     }
@@ -6931,6 +7098,113 @@ client.on('messageCreate', async (message) => {
     } catch (e) { }
 
     const guildId = message.guild?.id;
+
+    // ═══════ Screenshot Verification — submission channel handler ═══════
+    // Three responsibilities in this block:
+    //   1. Auto-detect screenshots posted in the submission channel and
+    //      forward them to the review pipeline (manager.submitScreenshot).
+    //   2. Keep the submission channel clean — delete any non-screenshot
+    //      message from non-staff so the channel stays "screenshots only".
+    //   3. Re-float the user panel to the bottom after each successful
+    //      submission so members always see the panel + task picker.
+    //
+    // Best-effort throughout — never throws into messageCreate's pipeline.
+    if (guildId) {
+        try {
+            const sshotCfg = jsonStore.peekGuild('screenshot-verify', guildId);
+
+            // Support BOTH legacy `channelId` and the new `submissionChannelId`
+            // so this block keeps working across the v1 → v2 schema migration.
+            const submissionChId = sshotCfg?.submissionChannelId || sshotCfg?.channelId;
+
+            if (sshotCfg?.enabled && submissionChId === message.channel.id) {
+                const sshotCmd = client.commands.get('screenshot-verify');
+
+                // Staff bypass — admins and reviewers can post freely
+                const memberPerms = message.member?.permissions;
+                const isStaff = !!memberPerms && (
+                    memberPerms.has(PermissionFlagsBits.ManageGuild) ||
+                    memberPerms.has(PermissionFlagsBits.ManageRoles) ||
+                    memberPerms.has(PermissionFlagsBits.Administrator)
+                );
+
+                // Find the first attached image. Discord sets `contentType`
+                // for most uploads but mobile clients occasionally drop it,
+                // so we also accept by file extension.
+                const IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i;
+                const imageAttachment = message.attachments.find(a =>
+                    (a.contentType && a.contentType.startsWith('image/'))
+                    || IMAGE_EXT.test(a.name || '')
+                );
+
+                if (imageAttachment) {
+                    // ── Path A: a screenshot was posted ────────────────
+                    if (sshotCmd?.submitScreenshot) {
+                        imageAttachment.sourceMessageId = message.id;
+                        imageAttachment.sourceChannelId = message.channel.id;
+
+                        const note = (message.content || '').trim().slice(0, 500) || null;
+
+                        // Pre-selected task (if user picked one via the panel)
+                        const session = sshotCmd.getUserSession?.(guildId, message.author.id) || null;
+
+                        const result = await sshotCmd.submitScreenshot({
+                            client,
+                            guild: message.guild,
+                            user:  message.author,
+                            attachment: imageAttachment,
+                            note,
+                            taskId: session?.taskId || null
+                        }).catch(err => {
+                            log.error(`Screenshot Verify Auto-Submit: ${err.message}`, err);
+                            return { ok: false, error: 'Internal error.' };
+                        });
+
+                        if (session && result?.ok) sshotCmd.clearUserSession?.(guildId, message.author.id);
+
+                        // Acknowledgement (auto-deleted) — tells the user what happened
+                        let ack;
+                        if (!result?.ok) {
+                            ack = `<:Cancel:1473037949187657818> <@${message.author.id}> ${result?.error || 'Could not submit your screenshot.'}`;
+                        } else if (result.decision === 'auto-approved') {
+                            ack = `<:Checkedbox:1473038547165384804> <@${message.author.id}> verified automatically · \`${result.submission.id}\``;
+                        } else if (result.decision === 'auto-rejected') {
+                            ack = `<:Cancel:1473037949187657818> <@${message.author.id}> ${result.ai?.reasoning || 'auto-rejected'} · \`${result.submission.id}\``;
+                        } else {
+                            ack = `<:Lightning:1473038797540298792> <@${message.author.id}> queued for staff review · \`${result.submission.id}\``;
+                        }
+                        message.channel.send({
+                            content: ack,
+                            allowedMentions: { users: [message.author.id] }
+                        }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 10_000)).catch(() => {});
+
+                        // Auto-delete source message (keeps the channel clean)
+                        if (result?.ok && (sshotCfg.autoDelete !== false)) {
+                            message.delete().catch(() => {});
+                        }
+
+                        // Re-float the user panel so it's always at the bottom
+                        if (sshotCmd?.refloatUserPanel) {
+                            sshotCmd.refloatUserPanel(message.guild, message.channel).catch(() => {});
+                        }
+                        return; // consumed
+                    }
+                } else if (!isStaff) {
+                    // ── Path B: non-staff member posted chatter / non-image ──
+                    // Submission channel is "screenshots only". Delete the
+                    // message and post a short tip that auto-deletes.
+                    message.delete().catch(() => {});
+                    message.channel.send({
+                        content: `<:Infotriangle:1473038460456800459> <@${message.author.id}> this channel is for verification screenshots only. Post a screenshot or use \`/screenshot-verify submit\`.`,
+                        allowedMentions: { users: [message.author.id] }
+                    }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 8000)).catch(() => {});
+                    return; // consumed
+                }
+            }
+        } catch (e) {
+            log.error(`Screenshot Verify watcher: ${e.message}`, e);
+        }
+    }
 
     // ═══════ AI Chat — responds in configured channel (skip if message is a prefix command) ═══════
     try {

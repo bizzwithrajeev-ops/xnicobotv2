@@ -127,7 +127,7 @@ async function handleScratch(reply, userId, count, guildId) {
     `🎫 **Cost:** -${formatCoins(totalCost, guildId)}`,
     `${EMOJIS.sketch} **Prize:** +${formatCoins(totalPrize, guildId)}`,
     `<:transfer:1479780506718437396> **Net:** ${netStr} coins`,
-    `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+    `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
   ].join('\n'));
   return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 }

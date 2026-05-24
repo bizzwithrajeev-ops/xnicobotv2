@@ -27,7 +27,7 @@ const {
 } = require('discord.js');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
-const { formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
+const { formatCoinsShort, formatCoins , coinIcon } = require('../../utils/currencyHelper');
 const { deductBet, settle } = require('../../utils/betGameHelper');
 
 const games = new Map();
@@ -133,7 +133,7 @@ function buildContainer(game, payoutInfo = null) {
     let header;
     if (game.status === 'won')      header = `### 🏆 You hit 2048!`;
     else if (game.status === 'lost') header = `### 💀 No more moves!`;
-    else if (game.status === 'cashed') header = `### <:Money:1473377877239140529> Cashed out at tile ${top}!`;
+    else if (game.status === 'cashed') header = `### ${coinIcon(game.guildId)} Cashed out at tile ${top}!`;
     else                              header = `Slide tiles. Highest tile: **${top}**  ·  Current payout: **${mult}×**`;
 
     let content = `# <:Gamepad:1473039216429498409> 2048\n\n**Bet:** ${formatCoinsShort(game.bet, game.guildId)}  •  **Score:** ${game.score}\n\n${header}\n\`\`\`\n${board}\n\`\`\``;

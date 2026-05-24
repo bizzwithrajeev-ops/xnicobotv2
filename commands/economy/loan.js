@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, formatNumber } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -87,7 +87,7 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
     addTextDisplay(c, [
       `# <:Invoice:1473039492217835550> Loan Approved!`,
       '',
-      `<:Money:1473377877239140529> **Borrowed:** +${formatCoins(amount, guildId)}`,
+      `${coinIcon(guildId)} **Borrowed:** +${formatCoins(amount, guildId)}`,
       `📋 **After 1 day:** ${formatCoins(dayOwed, guildId)} owed (${INTEREST_RATE * 100}% daily interest)`,
       '',
       `💳 **Wallet:** ${formatCoins(userData.coins, guildId)}`,
@@ -125,9 +125,9 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
     addTextDisplay(c, [
       `# <:Checkedbox:1473038547165384804> Loan Repaid!`,
       '',
-      `💸 **Paid:** ${formatCoins(result.paid || repayAmt, guildId)}`,
+      `${coinIcon(guildId)} **Paid:** ${formatCoins(result.paid || repayAmt, guildId)}`,
       result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatCoins(stillOwed, guildId)}`,
-      `<:Money:1473377877239140529> **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+      `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
