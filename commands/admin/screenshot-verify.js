@@ -440,6 +440,8 @@ module.exports = {
         if (id === 'sshot_pending')       return showPendingList(interaction, true);
         if (id === 'sshot_messages')      return openMessagesModal(interaction);
         if (id === 'sshot_settings')      return openSettingsModal(interaction);
+        if (id === 'sshot_apply_privacy') return handleApplyPrivacy(interaction);
+        if (id === 'sshot_toggle_hide')   return handleToggleHide(interaction);
         if (id === 'sshot_reset')         return openResetConfirm(interaction);
         if (id === 'sshot_reset_confirm') return handleResetConfirm(interaction);
         if (id === 'sshot_reset_cancel') {
@@ -469,6 +471,13 @@ module.exports = {
                     flags: MessageFlags.IsComponentsV2
                 });
                 refreshSetupPanel(interaction.client, interaction.guild);
+
+                // When submission channel is (re)assigned and system is
+                // already enabled, auto-apply privacy so the new channel
+                // inherits the same lockdown without an extra click.
+                if (map[id] === 'submissionChannelId' && updated.enabled) {
+                    mgr.applyChannelPrivacy(interaction.guild, updated).catch(() => {});
+                }
                 return;
             }
             // Action role selects
@@ -773,6 +782,117 @@ async function handleToggle(interaction) {
         components: [buildSetupPanel(interaction.guild, updated)],
         flags: MessageFlags.IsComponentsV2
     });
+
+    // When the system flips to enabled, auto-apply the channel-privacy
+    // permission overwrites in the background. Best-effort — failures
+    // are surfaced via the audit log if a log channel is configured.
+    if (updated.enabled) {
+        mgr.applyChannelPrivacy(interaction.guild, updated)
+            .then((res) => {
+                if (!res.ok && res.error) {
+                    mgr.logAudit(interaction.guild, updated,
+                        `<:Infotriangle:1473038460456800459> Could not auto-apply privacy: ${res.error}`).catch(() => {});
+                }
+            })
+            .catch(() => {});
+    }
+}
+
+/**
+ * One-click privacy lockdown for the submission channel:
+ *   - @everyone  : ViewChannel + SendMessages + AttachFiles, but
+ *                  ReadMessageHistory + AddReactions + EmbedLinks DENIED.
+ *   - Verified roles : ViewChannel DENIED so once the user is verified
+ *                      Discord hides the channel from them automatically.
+ *   - Bot : full overwrite for moderation.
+ */
+async function handleApplyPrivacy(interaction) {
+    const cfg = mgr.getGuildConfig(interaction.guild.id);
+    if (!cfg.submissionChannelId) {
+        return interaction.reply({
+            components: [buildErrorResponse('No Channel', 'Set the submission channel first.')],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+    }
+
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const result = await mgr.applyChannelPrivacy(interaction.guild, cfg);
+
+    if (!result.ok) {
+        return interaction.editReply({
+            components: [buildErrorResponse(
+                'Privacy Not Applied',
+                result.error || 'Unknown error — check that I have **Manage Channels** on the submission channel.'
+            )],
+            flags: MessageFlags.IsComponentsV2
+        });
+    }
+
+    const details = {
+        '@everyone':      'View + Send + Attach allowed · History/Reactions/Embeds denied',
+        'Verified Roles': result.verifiedRoleLocks.length
+            ? result.verifiedRoleLocks.map(r => `<@&${r}>`).join(', ') + ' · channel hidden'
+            : 'None — add a `Grant Role` action on a task to enable hide-after-verify'
+    };
+    if (result.warnings.length) details['Warnings'] = result.warnings.map(w => `• ${w}`).join('\n');
+
+    return interaction.editReply({
+        components: [buildSuccessResponse(
+            'Privacy Applied',
+            `Submission channel <#${cfg.submissionChannelId}> is now locked down. Members can post screenshots but can't read each other's submissions, and verified members lose access to the channel.`,
+            details
+        )],
+        flags: MessageFlags.IsComponentsV2
+    });
+}
+
+/**
+ * Toggle the `hideAfterVerify` config flag and immediately re-apply
+ * channel privacy so the verified-role overwrite is added or removed
+ * to match. When the flag is OFF, we explicitly clear the verified
+ * role overwrites so verified members regain visibility.
+ */
+async function handleToggleHide(interaction) {
+    const guildId = interaction.guild.id;
+    const cfg = mgr.getGuildConfig(guildId);
+    const next = cfg.hideAfterVerify === false ? true : false;
+    const updated = mgr.setGuildConfig(guildId, { hideAfterVerify: next });
+
+    // If we're turning hide OFF and there are verified-role overwrites
+    // already on the channel, strip the ViewChannel:false overrides so
+    // the channel becomes visible again to verified members.
+    if (next === false && updated.submissionChannelId) {
+        try {
+            const ch = interaction.guild.channels.cache.get(updated.submissionChannelId);
+            if (ch?.permissionOverwrites) {
+                const verifiedRoleIds = new Set();
+                for (const task of (updated.tasks || [])) {
+                    for (const action of (task.actions || [])) {
+                        if (action.type === 'add_role' && action.roleId) verifiedRoleIds.add(action.roleId);
+                    }
+                }
+                for (const roleId of verifiedRoleIds) {
+                    const role = interaction.guild.roles.cache.get(roleId);
+                    if (role) {
+                        await ch.permissionOverwrites.edit(role, { ViewChannel: null }, {
+                            reason: 'Screenshot Verify: Hide-After-Verify disabled'
+                        }).catch(() => {});
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    await interaction.update({
+        components: [buildSetupPanel(interaction.guild, updated)],
+        flags: MessageFlags.IsComponentsV2
+    });
+
+    // Re-apply privacy with the new flag so everything is in sync
+    if (updated.submissionChannelId && updated.enabled) {
+        mgr.applyChannelPrivacy(interaction.guild, updated).catch(() => {});
+    }
 }
 
 async function handleSendUserPanel(interaction) {
@@ -1220,6 +1340,15 @@ async function handleActionRoleSelect(interaction) {
             flags: MessageFlags.IsComponentsV2
         });
         refreshSetupPanel(interaction.client, interaction.guild);
+
+        // Adding a `Grant Role` action means a new "verified role" exists.
+        // Auto re-apply privacy so the role gets ViewChannel: deny on the
+        // submission channel without the admin having to click another
+        // button. Only fire when the system is enabled and a submission
+        // channel is set; otherwise nothing to lock yet.
+        if (pending.kind === 'add_role' && cfg.enabled && cfg.submissionChannelId) {
+            mgr.applyChannelPrivacy(interaction.guild, cfg).catch(() => {});
+        }
     } catch (e) {
         await interaction.update({
             components: [buildErrorResponse('Could Not Add Action', e.message || 'Unknown error.')],

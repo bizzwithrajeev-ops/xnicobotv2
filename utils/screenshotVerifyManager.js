@@ -72,6 +72,12 @@ function defaultGuildConfig() {
         confidenceThreshold: DEFAULT_CONFIDENCE,
         cooldown: 0,
         autoDelete: true,
+        // When true, verified users (anyone who has the task's add_role
+        // role) automatically lose `ViewChannel` on the submission
+        // channel — they can't see it once they're done. Achieved via
+        // a permission overwrite on the verified role, set up via
+        // `applyChannelPrivacy()`.
+        hideAfterVerify: true,
         color: 0x5865F2,
         rejectMessage: 'Your screenshot did not pass verification. You may try again.',
         approveMessage: 'Your screenshot was approved.',
@@ -364,6 +370,131 @@ async function runTaskActions(client, guild, member, task, submission) {
         results.push({ action, ok: r.ok, message: r.message });
     }
     return results;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHANNEL PRIVACY
+   ═══════════════════════════════════════════════════════════════════
+ *
+ * Lock down the submission channel so it works as a "drop your
+ * screenshot and disappear" gate:
+ *
+ *   - `@everyone`
+ *       ViewChannel        : ALLOW   (so unverified members can find it)
+ *       SendMessages       : ALLOW   (so they can post screenshots)
+ *       AttachFiles        : ALLOW   (so they can upload images)
+ *       ReadMessageHistory : DENY    (privacy: can't read other people's submissions)
+ *       AddReactions       : DENY
+ *       EmbedLinks         : DENY
+ *       UseExternalEmojis  : DENY
+ *
+ *   - **Every "verified" role** referenced by an `add_role` action on
+ *     any task gets `ViewChannel: DENY` so once a user is verified
+ *     Discord automatically hides the channel from them.
+ *
+ *   - Bot's own member: every relevant manage permission allowed.
+ *
+ * Returns a result summary so the admin panel can show what happened.
+ */
+
+const { PermissionFlagsBits } = require('discord.js');
+
+async function applyChannelPrivacy(guild, cfg) {
+    const result = {
+        ok: false,
+        channelLocked: false,
+        verifiedRoleLocks: [],
+        warnings: [],
+        error: null
+    };
+
+    if (!cfg?.submissionChannelId) {
+        result.error = 'No submission channel set.';
+        return result;
+    }
+
+    const channel = guild.channels.cache.get(cfg.submissionChannelId)
+        || await guild.channels.fetch(cfg.submissionChannelId).catch(() => null);
+    if (!channel?.permissionOverwrites) {
+        result.error = 'Submission channel not found or not a guild text channel.';
+        return result;
+    }
+
+    // Verify bot can manage permissions on this channel.
+    const me = guild.members.me;
+    if (!me) {
+        result.error = 'Bot member not loaded.';
+        return result;
+    }
+    const myPerms = channel.permissionsFor(me);
+    if (!myPerms?.has(PermissionFlagsBits.ManageChannels)
+        && !myPerms?.has(PermissionFlagsBits.ManageRoles)) {
+        result.error = 'I need **Manage Channels** or **Manage Roles** on this channel to apply privacy.';
+        return result;
+    }
+
+    // ── @everyone overwrite ──────────────────────────────────────
+    try {
+        await channel.permissionOverwrites.edit(guild.roles.everyone, {
+            ViewChannel:       true,
+            SendMessages:      true,
+            AttachFiles:       true,
+            ReadMessageHistory: false,
+            AddReactions:      false,
+            EmbedLinks:        false,
+            UseExternalEmojis: false
+        }, { reason: 'Screenshot Verify: lock submission channel' });
+        result.channelLocked = true;
+    } catch (e) {
+        result.error = `Failed to lock @everyone overwrite: ${e.message || e}`;
+        return result;
+    }
+
+    // ── Bot overwrite — make sure we keep all the moderation perms ─
+    try {
+        await channel.permissionOverwrites.edit(me.id, {
+            ViewChannel:       true,
+            SendMessages:      true,
+            ManageMessages:    true,
+            ReadMessageHistory: true,
+            AttachFiles:       true,
+            EmbedLinks:        true,
+            ManageChannels:    true
+        }, { reason: 'Screenshot Verify: bot overrides' });
+    } catch (e) {
+        result.warnings.push(`Could not set bot overrides: ${e.message || e}`);
+    }
+
+    // ── Hide from verified roles ─────────────────────────────────
+    if (cfg.hideAfterVerify) {
+        const verifiedRoleIds = new Set();
+        for (const task of (cfg.tasks || [])) {
+            for (const action of (task.actions || [])) {
+                if (action.type === 'add_role' && action.roleId) {
+                    verifiedRoleIds.add(action.roleId);
+                }
+            }
+        }
+
+        for (const roleId of verifiedRoleIds) {
+            const role = guild.roles.cache.get(roleId);
+            if (!role) {
+                result.warnings.push(`Verified role ${roleId} not found — skipped.`);
+                continue;
+            }
+            try {
+                await channel.permissionOverwrites.edit(role, {
+                    ViewChannel: false
+                }, { reason: 'Screenshot Verify: hide channel from verified members' });
+                result.verifiedRoleLocks.push(roleId);
+            } catch (e) {
+                result.warnings.push(`Could not hide channel from <@&${roleId}>: ${e.message || e}`);
+            }
+        }
+    }
+
+    result.ok = true;
+    return result;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -712,6 +843,7 @@ module.exports = {
 
     // Helpers
     runTaskActions, runAction, applyPlaceholders,
+    applyChannelPrivacy,
     logAudit, dmUser,
     validateAttachment
 };

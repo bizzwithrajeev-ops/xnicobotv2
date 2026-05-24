@@ -99,7 +99,8 @@ function buildSetupPanel(guild, cfg) {
 
     content += `### <:Settings:1473037894703779851> Behavior\n`;
     content += `> <:Alarm:1473039068546732214> **Cooldown:** \`${formatDuration(cfg.cooldown)}\`\n`;
-    content += `> <:Editalt:1473038138577256670> **Auto-delete Source:** \`${cfg.autoDelete ? 'On' : 'Off'}\`\n\n`;
+    content += `> <:Editalt:1473038138577256670> **Auto-delete Source:** \`${cfg.autoDelete ? 'On' : 'Off'}\`\n`;
+    content += `> <:Lock:1473038513749491773> **Hide From Verified:** \`${cfg.hideAfterVerify === false ? 'Off' : 'On'}\`\n\n`;
 
     content += `### <:Invoice:1473039492217835550> Statistics\n`;
     content += `> <:Lightning:1473038797540298792> Pending: \`${counts.pending}\` · `;
@@ -168,6 +169,17 @@ function buildSetupPanel(guild, cfg) {
             .setLabel('Approve/Reject DM')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('<:Chat:1473038936241864865>'),
+        new ButtonBuilder()
+            .setCustomId('sshot_apply_privacy')
+            .setLabel('Apply Privacy')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('<:Lock:1473038513749491773>')
+            .setDisabled(!cfg.submissionChannelId),
+        new ButtonBuilder()
+            .setCustomId('sshot_toggle_hide')
+            .setLabel(cfg.hideAfterVerify === false ? 'Show After Verify' : 'Hide After Verify')
+            .setStyle(cfg.hideAfterVerify === false ? ButtonStyle.Secondary : ButtonStyle.Success)
+            .setEmoji(cfg.hideAfterVerify === false ? '<:Unlock:1473038516639236269>' : '<:Lock:1473038513749491773>'),
         new ButtonBuilder()
             .setCustomId('sshot_reset')
             .setLabel('Reset')
