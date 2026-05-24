@@ -71,7 +71,7 @@ async function buildShardStatus(client) {
             content += `### <:Document:1473039496995143731> All Shards\n`;
             for (const shard of results) {
                 const shardHealth = shard.ping < 100 ? '<:online:1485248286653943900>' :
-                    shard.ping < 200 ? '<:idle:1455550955679387745>' : '<:dnd:1473370101427343403>';
+                    shard.ping < 200 ? '<:idle:1485248283768262676>' : '<:dnd:1485248263857639424>';
                 content += `> ${shardHealth} **Shard ${shard.id}** — ${shard.guilds} guilds, ${shard.members.toLocaleString()} members, ${shard.ping}ms, ${formatBytes(shard.memory)}\n`;
             }
             content += '\n';

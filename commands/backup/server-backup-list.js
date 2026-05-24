@@ -41,7 +41,7 @@ function buildList(backups, page, uid) {
             const banInfo = (b.stats.bans || 0) > 0 ? ` · <:banhammer:1473367388597780592> ${b.stats.bans} bans` : '';
             const cfgInfo = (b.stats.botConfigs || 0) > 0 ? ` · <:bots:1473368718120849500> ${b.stats.botConfigs} configs` : '';
             ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `**📦 \`${b.id}\`** — ${b.serverName}\n` +
+                `**<:Box:1473039115581915256> \`${b.id}\`** — ${b.serverName}\n` +
                 `> <:Clock:1473039102113878056> ${fmtDate(b.createdAt)}\n` +
                 `> <:User:1473038971398520977> ${b.stats.roles} roles · <:Folderopen:1473039552783323348> ${b.stats.categories} cats · <:Edit:1473037903625191580> ${b.stats.channels} ch${banInfo}${cfgInfo}\n` +
                 `> <:Chat:1473038936241864865> ${msgInfo}`
@@ -75,7 +75,7 @@ function buildDetail(b, idx, uid) {
     const off = '<:Cancel:1473037949187657818>';
 
     const lines = [
-        `# 📦 Backup Detail\n`,
+        `# <:Box:1473039115581915256> Backup Detail\n`,
         `**ID:** \`${b.id}\``,
         `**Server:** ${b.serverName}`,
         `**Created:** ${fmtDate(b.createdAt)}\n`,

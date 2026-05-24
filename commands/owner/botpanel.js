@@ -134,10 +134,10 @@ function buildBotPanel(client) {
     const currentActivity = presence?.activities?.[0];
     
     const statusEmojis = {
-        online: '<:online:1473369837245042762>',
-        idle: '<:Star:1473038501766369300>',
-        dnd: '<:dnd:1473370101427343403>',
-        invisible: '⚫'
+        online: '<:online:1485248286653943900>',
+        idle: '<:idle:1485248283768262676>',
+        dnd: '<:dnd:1485248263857639424>',
+        invisible: '<:offline:1485248289690616041>'
     };
 
     const activityTypes = {
@@ -216,17 +216,17 @@ function buildBotPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_status_idle')
             .setLabel('Idle')
-            .setEmoji('<:Star:1473038501766369300>')
+            .setEmoji('<:idle:1485248283768262676>')
             .setStyle(currentStatus === 'idle' ? ButtonStyle.Success : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_status_dnd')
             .setLabel('DND')
-            .setEmoji('<:dnd:1473370101427343403>')
+            .setEmoji('<:dnd:1485248263857639424>')
             .setStyle(currentStatus === 'dnd' ? ButtonStyle.Success : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_status_invisible')
             .setLabel('Invisible')
-            .setEmoji('⚫')
+            .setEmoji('<:offline:1485248289690616041>')
             .setStyle(currentStatus === 'invisible' ? ButtonStyle.Success : ButtonStyle.Secondary)
     );
 

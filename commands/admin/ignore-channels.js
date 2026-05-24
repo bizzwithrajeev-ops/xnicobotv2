@@ -89,7 +89,7 @@ function buildMainPanel(guildConfig, guild) {
     let headerContent = `# <:Commentblock:1473370739351490794> Ignore Channels System\n`;
     headerContent += `-# Disable bot commands in specific channels or categories\n\n`;
     headerContent += `### Current Status\n`;
-    headerContent += `> **System:** ${guildConfig.enabled ? '<:online:1473369837245042762> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
+    headerContent += `> **System:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     headerContent += `> **Ignored Channels:** ${channelCount}\n`;
     headerContent += `> **Ignored Categories:** ${categoryCount}\n`;
     headerContent += `> **Bypass Roles:** ${bypassCount}\n`;
@@ -106,7 +106,7 @@ function buildMainPanel(guildConfig, guild) {
             .setCustomId('ignorech_toggle_system')
             .setLabel(guildConfig.enabled ? 'Disable System' : 'Enable System')
             .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:online:1473369837245042762>'),
+            .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId('ignorech_view_channels')
             .setLabel('View Channels')

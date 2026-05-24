@@ -26,7 +26,7 @@ module.exports = {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('delete_category_select')
-            .setPlaceholder('<:Folderopen:1473039552783323348> Select a category to delete')
+            .setPlaceholder(' Select a category to delete')
             .addOptions(categories.map(cat => ({
                 label: cat.name.slice(0, 100),
                 description: `${cat.children.cache.size} channels`,

@@ -23,7 +23,7 @@ function buildCategorySelectContainer(guild, customId, title, emoji, description
 
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId(customId)
-        .setPlaceholder('<:Folderopen:1473039552783323348> Select a category')
+        .setPlaceholder('Select a category')
         .addOptions(categories.map(cat => ({
             label: cat.name.slice(0, 100),
             description: `${cat.children.cache.size} channels`,
@@ -141,7 +141,7 @@ module.exports = {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('hide_category_select')
-            .setPlaceholder('<:Folderopen:1473039552783323348> Select a category to hide')
+            .setPlaceholder('Select a category to hide')
             .addOptions(categories.map(cat => ({
                 label: cat.name.slice(0, 100),
                 description: `${cat.children.cache.size} channels`,

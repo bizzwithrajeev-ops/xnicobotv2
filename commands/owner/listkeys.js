@@ -18,10 +18,10 @@ function buildKeysPage(keys, filter, page) {
         const num = start + i + 1;
         const isExpired = premiumManager.isKeyExpired(keyData);
         const statusIcon = keyData.redeemed
-            ? '<:dnd:1473370101427343403> Redeemed'
+            ? '<:dnd:1485248263857639424> Redeemed'
             : isExpired
                 ? '<:Alarm:1473039068546732214> Expired'
-                : '<:online:1473369837245042762> Active';
+                : '<:online:1485248286653943900> Active';
         const typeLabel = keyData.type === 'server' ? ' \`[Server]\`' : ' \`[User]\`';
 
         content += `**${num}.** \`${keyData.key}\`${typeLabel}\n`;

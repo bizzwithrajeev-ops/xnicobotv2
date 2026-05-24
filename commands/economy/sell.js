@@ -93,7 +93,7 @@ module.exports = {
     const container = createContainer();
     addTextDisplay(container, `# ${coinIcon(guildId)} Confirm Pet Sale\n\n` +
       `🐾 Type: **${type.toUpperCase()}**\n` +
-      `📦 Pets to sell: **${sellable.length}**\n` +
+      `<:Box:1473039115581915256> Pets to sell: **${sellable.length}**\n` +
       `🐶 Pets remaining: **${remaining}**\n\n` +
       `${coinIcon(guildId)} You will receive: **${formatCoins(totalCoins, guildId)}**`);
 
@@ -153,7 +153,7 @@ module.exports = {
 
         const c = createContainer();
         addTextDisplay(c, `# <:Checkedbox:1473038547165384804> Pets Sold\n\n` +
-          `📦 Sold: **${sellable.length} pets**\n` +
+          `<:Box:1473039115581915256> Sold: **${sellable.length} pets**\n` +
           `🐶 Remaining: **${freshPets[userId].animals.length}**\n` +
           `${coinIcon(guildId)} Earned: **${formatCoins(totalCoins, guildId)}**`);
 

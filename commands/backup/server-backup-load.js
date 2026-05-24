@@ -22,7 +22,7 @@ function buildRestoreSuccessCard(r) {
     const ok = new ContainerBuilder().setAccentColor(0xCAD7E6);
     ok.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Checkedbox:1473038547165384804> Server Restored\n\n` +
-        `**📦 Backup:** \`${r.backupId}\`\n**<:Bookopen:1473038576391557130> From:** ${r.originalServerName}\n`
+        `**<:Box:1473039115581915256> Backup:** \`${r.backupId}\`\n**<:Bookopen:1473038576391557130> From:** ${r.originalServerName}\n`
     ));
     ok.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     ok.addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -96,7 +96,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
         statusChannel = await guild.channels.create({
             name: '━restore-status',
             type: ChannelType.GuildText,
-            topic: `📦 Backup restore in progress • Backup: ${backupId} • Started by: <@${uid}>`,
+            topic: `<:Box:1473039115581915256> Backup restore in progress • Backup: ${backupId} • Started by: <@${uid}>`,
             permissionOverwrites: [
                 {
                     id: guild.id, // @everyone
@@ -136,7 +136,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
     const headerCard = new ContainerBuilder().setAccentColor(0xCAD7E6);
     headerCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Lightning:1473038797540298792> Server Restore — Live Status\n\n` +
-        `**📦 Backup:** \`${backupId}\`\n` +
+        `**<:Box:1473039115581915256> Backup:** \`${backupId}\`\n` +
         `**👤 Requested by:** <@${uid}>\n` +
         `**⏰ Started:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
         `-# This channel was auto-created for restore tracking. It will be renamed when complete.`
@@ -343,7 +343,7 @@ module.exports = {
         // Lookup backup details
         let bk = null;
         try { const all = await listServerBackups(uid); bk = all.find(b => b.id === backupId); } catch {}
-        const info = bk ? `**📦** \`${bk.id}\`\n**<:Bookopen:1473038576391557130>** ${bk.serverName}\n**<:Clock:1473039102113878056>** <t:${Math.floor(bk.createdAt / 1000)}:f>` : `**📦** \`${backupId}\``;
+        const info = bk ? `**<:Box:1473039115581915256>** \`${bk.id}\`\n**<:Bookopen:1473038576391557130>** ${bk.serverName}\n**<:Clock:1473039102113878056>** <t:${Math.floor(bk.createdAt / 1000)}:f>` : `**<:Box:1473039115581915256>** \`${backupId}\``;
 
         const warn = new ContainerBuilder().setAccentColor(0xED4245);
         warn.addTextDisplayComponents(new TextDisplayBuilder().setContent(

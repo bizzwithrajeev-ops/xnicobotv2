@@ -73,7 +73,7 @@ function buildListView(webhooks, guild, page, uid) {
         ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId(`wh:select:${uid}`)
-                .setPlaceholder('<:Search:1473038053219106847> Select a webhook for details & actions')
+                .setPlaceholder('Select a webhook for details & actions')
                 .addOptions(opts.slice(0, 25))
         ));
     }

@@ -74,7 +74,7 @@ function buildThreatPanel(guildConfig, guildName) {
                 .setCustomId('threat_toggle')
                 .setLabel(isActive ? 'Disable Threat Mode' : 'Enable Threat Mode')
                 .setStyle(isActive ? ButtonStyle.Success : ButtonStyle.Danger)
-                .setEmoji(isActive ? '<:online:1473369837245042762>' : '<:Infotriangle:1473038460456800459>')
+                .setEmoji(isActive ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>')
                 .setDisabled(superActive)
         );
 

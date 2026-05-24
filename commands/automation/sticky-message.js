@@ -64,7 +64,7 @@ function errorContainer(text) {
 }
 
 function buildStickyHelpText(guildConfig) {
-    const status = guildConfig.enabled ? '<:online:1485248286653943900> **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+    const status = guildConfig.enabled ? '<:Toggleon:1473038585501581312> d**' : '<:Toggleoff:1473038582813032590> **Disabled**';
     const count = Object.keys(guildConfig.messages || {}).length;
 
     return `## <:Pin:1473038806612447500> Sticky Message System\n\n` +
@@ -120,7 +120,7 @@ function buildPanelButtons(guildConfig) {
                 .setCustomId('sticky_type_container')
                 .setLabel('Container')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('📦'),
+                .setEmoji('<:Box:1473039115581915256>'),
             new ButtonBuilder()
                 .setCustomId('sticky_type_content')
                 .setLabel('Content Only')
@@ -319,12 +319,12 @@ module.exports = {
         }
 
         let text = `## <:Pin:1473038806612447500> Active Sticky Messages\n\n`;
-        text += `**Status:** ${guildConfig.enabled ? '<:online:1485248286653943900> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
+        text += `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
 
         for (const [channelId, data] of list) {
             const ch = interaction.guild.channels.cache.get(channelId);
             const name = ch ? `<#${channelId}>` : `Unknown (\`${channelId}\`)`;
-            const typeIcon = data.displayType === 'embed' ? '<:Bookopen:1473038576391557130>' : data.displayType === 'container' ? '📦' : '<:Edit:1473037903625191580>';
+            const typeIcon = data.displayType === 'embed' ? '<:Bookopen:1473038576391557130>' : data.displayType === 'container' ? '<:Box:1473039115581915256>' : '<:Edit:1473037903625191580>';
             const preview = data.content?.substring(0, 60) || 'No content';
             text += `${typeIcon} **${name}**\n-# ${preview}${data.content?.length > 60 ? '...' : ''}\n\n`;
         }

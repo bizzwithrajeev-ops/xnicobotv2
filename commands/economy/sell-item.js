@@ -105,7 +105,7 @@ module.exports = {
       `${coinIcon(guildId)} Earned: **${formatCoins(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,
       '',
       `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
-      `📦 Remaining: **${remaining}** ${meta.name}`,
+      `<:Box:1473039115581915256> Remaining: **${remaining}** ${meta.name}`,
     ].join('\n'));
 
     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -1026,7 +1026,7 @@ async function createAdventureCard({ scene, stages, currentStage, pet, rewards, 
       ctx.fillText(`+${rewards.exp} XP`, 180, resY + 48);
       if (rewards.item) {
         ctx.fillStyle = COLORS.cyan;
-        await drawTextWithEmoji(ctx, `📦 ${rewards.item}`, 280, resY + 48, 13);
+        await drawTextWithEmoji(ctx, `<:Box:1473039115581915256> ${rewards.item}`, 280, resY + 48, 13);
       }
     }
   }

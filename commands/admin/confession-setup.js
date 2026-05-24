@@ -30,7 +30,7 @@ function buildSetupPanel(guild, cfg) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Settings:1473037894703779851> Configuration\n` +
-            `**Status:** ${enabled ? '<:online:1485248286653943900> Active' : '<:offline:1455550933508333662> Not configured'}\n` +
+            `**Status:** ${enabled ? '<:Toggleon:1473038585501581312> Active' : '<:Toggleoff:1473038582813032590> Not configured'}\n` +
             `**Channel:** ${channelText}\n` +
             `**Total Confessions:** \`${count}\`\n\n` +
             `### <:Document:1473039496995143731> How It Works\n` +

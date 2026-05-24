@@ -45,7 +45,7 @@ module.exports = {
                 return message.reply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Not Found\n\nNo entry **${name}** (type: \`${type}\`).`))], flags: MessageFlags.IsComponentsV2 });
             }
 
-            const emoji = TYPE_EMOJI[result.type] || '📦';
+            const emoji = TYPE_EMOJI[result.type] || '<:Box:1473039115581915256>';
             let dataPreview;
 
             if (type === 'embed' && typeof result.data === 'object') {

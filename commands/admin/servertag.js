@@ -474,7 +474,7 @@ module.exports = {
                 content += `### Current Reward Settings\n`;
                 content += `> **Coin Reward:** ${guildConfig.coinReward || 0} coins\n`;
                 content += `> **XP Reward:** ${guildConfig.xpReward || 0} XP\n`;
-                content += `> **DM Notify:** ${guildConfig.dmNotify !== false ? '<:online:1473369837245042762> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
+                content += `> **DM Notify:** ${guildConfig.dmNotify !== false ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
                 content += `> **Notify Channel:** ${guildConfig.notifyChannel ? `<#${guildConfig.notifyChannel}>` : 'None'}\n\n`;
                 content += `### Configure\n`;
                 content += `> \`servertag reward <coins> [xp]\` — Set coin & XP rewards\n`;

@@ -111,7 +111,7 @@ module.exports = {
       `${coinIcon(guildId)} Cost: **${formatCoins(totalCost, guildId)}**`,
       '',
       `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
-      `📦 Owned: **${newOwned}/${item.maxOwn}**`,
+      `<:Box:1473039115581915256> Owned: **${newOwned}/${item.maxOwn}**`,
       '',
       `-# <:Lightbulbalt:1473038470787240009> \`use ${itemId}\` to use  ·  \`inventory\` to view all items`,
     ].join('\n'));

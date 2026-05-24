@@ -25,8 +25,8 @@ module.exports = {
 
             // Keys section
             content += `### <:Key:1473038690606649375> Keys\n`;
-            content += `<:online:1473369837245042762> **Active:** ${stats.keys.active}\n`;
-            content += `<:dnd:1473370101427343403> **Redeemed:** ${stats.keys.redeemed}\n`;
+            content += `<:online:1485248286653943900> **Active:** ${stats.keys.active}\n`;
+            content += `<:Cloudcheck:1473039563499765892> **Redeemed:** ${stats.keys.redeemed}\n`;
             content += `<:Alarm:1473039068546732214> **Expired:** ${stats.keys.expired}\n`;
             content += `<:Invoice:1473039492217835550> **Total Created:** ${stats.keys.total}\n\n`;
 

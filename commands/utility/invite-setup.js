@@ -61,7 +61,7 @@ function buildMainPanel(guildConfig, guild) {
     content += `Track member invites, reward top inviters, and monitor server growth with comprehensive analytics.\n\n`;
     
     content += `### <:Bookopen:1473038576391557130> Current Configuration\n`;
-    content += `**Status:** ${enabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n`;
+    content += `**Status:** ${enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     content += `**Log Channel:** ${logChannel ? `<#${logChannel.id}>` : '*Not configured*'}\n`;
     content += `**Reward Roles:** ${rewards.length} configured\n\n`;
     
@@ -79,7 +79,7 @@ function buildMainPanel(guildConfig, guild) {
     }
     
     content += `\n### <:Chat:1473038936241864865> How to Use\n`;
-    content += `**1.** Click **Enable Tracking** to start tracking invites\n`;
+    content += `**1.** Click  Tracking** to start tracking invites\n`;
     content += `**2.** Set a **Log Channel** to receive join notifications\n`;
     content += `**3.** Add **Rewards** to give roles at invite milestones\n\n`;
     

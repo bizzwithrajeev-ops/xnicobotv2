@@ -156,7 +156,7 @@ module.exports = {
                         .setContent(
                             `# <:Settings:1473037894703779851> Join Greet Status\n\n` +
                             `**Channel:** ${vc || 'Deleted Channel'}\n` +
-                            `**Enabled:** ${guildConfig.enabled ? 'Yes' : 'No'}\n` +
+                            `d:** ${guildConfig.enabled ? 'Yes' : 'No'}\n` +
                             `**Bot Connected:** ${connected ? 'Yes' : 'No'}\n\n` +
                             (!connected && guildConfig.enabled ? `-# Bot is not connected. Use \`-join-greet join\` to reconnect.` : '')
                         )

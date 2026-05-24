@@ -102,11 +102,11 @@ function buildAntiNukePanel(guildConfig) {
     let statusLine;
     if (threatActive) {
         const mode = guildConfig.superThreatMode ? 'Super Threat' : 'Threat';
-        statusLine = `<:dnd:1473370101427343403> **${mode} Mode Override** — Limits are locked`;
+        statusLine = `<:Settingsadjust:1473038223625294048> **${mode} Mode Override** — Limits are locked`;
     } else if (isActive) {
-        statusLine = `<:online:1473369837245042762> **System Armed** — \`${enabledCount}/8\` protections active`;
+        statusLine = `<:Shield:1473038669831995494> **System Armed** — \`${enabledCount}/8\` protections active`;
     } else {
-        statusLine = `<:dnd:1473370101427343403> **System Offline** — Your server is unprotected`;
+        statusLine = `<:Infotriangle:1473038460456800459> **System Offline** — Your server is unprotected`;
     }
 
     let grid = '';

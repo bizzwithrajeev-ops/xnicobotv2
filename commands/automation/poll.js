@@ -152,7 +152,7 @@ async function createPoll(context, isInteraction, question, options, duration) {
                 .setCustomId('poll_end')
                 .setLabel('End Poll')
                 .setStyle(ButtonStyle.Danger)
-                .setEmoji('<:dnd:1473370101427343403>')
+                .setEmoji('<:dnd:1485248263857639424>')
         );
     
     rows.push(controlRow);

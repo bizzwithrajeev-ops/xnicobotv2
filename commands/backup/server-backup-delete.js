@@ -39,7 +39,7 @@ module.exports = {
         try {
             const result = await deleteServerBackup(interaction.user.id, backupId);
             if (result.success) {
-                return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**📦** \`${result.backupId}\` has been permanently removed.`))], flags: MessageFlags.IsComponentsV2 });
+                return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` has been permanently removed.`))], flags: MessageFlags.IsComponentsV2 });
             }
             return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Delete Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
@@ -65,7 +65,7 @@ module.exports = {
         const bk = backups.find(b => b.id === backupId);
 
         const sid = `${uid}_${Date.now().toString(36)}`;
-        const info = bk ? `**📦** \`${bk.id}\`\n**<:Bookopen:1473038576391557130>** ${bk.serverName}\n**<:Clock:1473039102113878056>** <t:${Math.floor(bk.createdAt / 1000)}:f>` : `**📦** \`${backupId}\``;
+        const info = bk ? `**<:Box:1473039115581915256>** \`${bk.id}\`\n**<:Bookopen:1473038576391557130>** ${bk.serverName}\n**<:Clock:1473039102113878056>** <t:${Math.floor(bk.createdAt / 1000)}:f>` : `**<:Box:1473039115581915256>** \`${backupId}\``;
 
         const ctr = new ContainerBuilder().setAccentColor(0xED4245)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Infotriangle:1473038460456800459> Confirm Delete\n\n${info}\n\n> This is permanent and cannot be undone.`))
@@ -85,7 +85,7 @@ module.exports = {
                 try {
                     const result = await deleteServerBackup(uid, backupId);
                     if (result.success) {
-                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**📦** \`${result.backupId}\` removed.`))], flags: MessageFlags.IsComponentsV2 });
+                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` removed.`))], flags: MessageFlags.IsComponentsV2 });
                     }
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
                 } catch (err) {

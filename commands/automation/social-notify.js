@@ -40,9 +40,9 @@ function getDefaultGuildConfig() {
     return {
         youtube: {
             enabled: false, channels: [], notifyChannel: null, pingRole: null,
-            message: '<:dnd:1473370101427343403> **{channel}** just uploaded a new video!\n\n**{title}**\n{url}',
+            message: '<:YoutubeLive:1507444089292066907> **{channel}** just uploaded a new video!\n\n**{title}**\n{url}',
             liveEnabled: true,
-            liveMessage: '🔴 **{channel}** is now **LIVE** on YouTube!\n\n**{title}**\n{url}'
+            liveMessage: '<:YoutubeLive:1507444089292066907> **{channel}** is now **LIVE** on YouTube!\n\n**{title}**\n{url}'
         },
         twitch: { enabled: false, streamers: [], notifyChannel: null, pingRole: null, message: '🟣 **{streamer}** is now live on Twitch!\n\n**{title}**\nPlaying: {game}\n{url}' },
         instagram: { enabled: false, accounts: [], notifyChannel: null, pingRole: null, message: '📸 **{account}** posted something new on Instagram!\n{url}' },
@@ -53,7 +53,7 @@ function getDefaultGuildConfig() {
 }
 
 const PLATFORM_INFO = {
-    youtube:   { emoji: '<:dnd:1473370101427343403>',             name: 'YouTube',    color: '#FF0000', itemKey: 'channels',  itemLabel: 'Channels',  placeholder: '@MrBeast or UCX6OQ3DkcsbYNE6H8uQQuVA' },
+    youtube:   { emoji: '<:YoutubeLive:1507444089292066907>',             name: 'YouTube',    color: '#FF0000', itemKey: 'channels',  itemLabel: 'Channels',  placeholder: '@MrBeast or UCX6OQ3DkcsbYNE6H8uQQuVA' },
     twitch:    { emoji: '🟣',                                      name: 'Twitch',     color: '#9146FF', itemKey: 'streamers', itemLabel: 'Streamers', placeholder: 'ninja' },
     instagram: { emoji: '📸',                                      name: 'Instagram',  color: '#E1306C', itemKey: 'accounts',  itemLabel: 'Accounts',  placeholder: 'instagram_username' },
     facebook:  { emoji: '📘',                                      name: 'Facebook',   color: '#1877F2', itemKey: 'pages',     itemLabel: 'Pages',     placeholder: 'page_name_or_id' },
@@ -76,7 +76,7 @@ function ensureArray(pConfig, platform) {
 
 function ensureYouTubeExtras(ytConfig) {
     if (ytConfig.liveEnabled === undefined) ytConfig.liveEnabled = true;
-    if (!ytConfig.liveMessage) ytConfig.liveMessage = '🔴 **{channel}** is now **LIVE** on YouTube!\n\n**{title}**\n{url}';
+    if (!ytConfig.liveMessage) ytConfig.liveMessage = '<:YoutubeLive:1507444089292066907> **{channel}** is now **LIVE** on YouTube!\n\n**{title}**\n{url}';
 }
 
 // ─── Panel Builders ──────────────────────────────────────
@@ -155,7 +155,7 @@ function buildYouTubePanel(guildConfig) {
 
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-            '# <:dnd:1473370101427343403> YouTube Notifications\n' +
+            '# <:YoutubeLive:1507444089292066907> YouTube Notifications\n' +
             '-# Get notified when YouTubers upload videos or go live'
         )
     );
@@ -182,7 +182,7 @@ function buildYouTubePanel(guildConfig) {
         `${statusEmoji} **Status:** ${ytConfig.enabled ? 'Enabled' : 'Disabled'}\n` +
         `<:Bullhorn:1473038903157199093> **Channel:** ${channelText}\n` +
         `<:Notificationon:1473038417691676784> **Ping Role:** ${roleText}\n` +
-        `🔴 **Live Alerts:** ${liveText}`
+        `<:YoutubeLive:1507444089292066907> **Live Alerts:** ${liveText}`
     ));
 
     // ── Tracked channels list ──
@@ -207,7 +207,7 @@ function buildYouTubePanel(guildConfig) {
             .setCustomId('social_toggle_youtube')
             .setLabel(ytConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(ytConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(ytConfig.enabled ? '<:dnd:1473370101427343403>' : '<:Toggleon:1473038585501581312>'),
+            .setEmoji(ytConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId('social_add_youtube')
             .setLabel('Add Channel')
@@ -246,7 +246,7 @@ function buildYouTubePanel(guildConfig) {
             .setCustomId('social_ytlive_toggle')
             .setLabel(ytConfig.liveEnabled ? 'Disable Live Alerts' : 'Enable Live Alerts')
             .setStyle(ytConfig.liveEnabled ? ButtonStyle.Secondary : ButtonStyle.Success)
-            .setEmoji('🔴'),
+            .setEmoji('<:YoutubeLive:1507444089292066907>'),
         new ButtonBuilder()
             .setCustomId('social_ytlive_message')
             .setLabel('Live Message')
@@ -256,7 +256,7 @@ function buildYouTubePanel(guildConfig) {
             .setCustomId('social_test_youtube')
             .setLabel('Send Test')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🧪')
+            .setEmoji('<:Cursor:1473038064564834544>')
     ));
 
     // ── Row 4: Back ──
@@ -327,7 +327,7 @@ function buildPlatformPanel(guildConfig, platform) {
             .setCustomId(`social_toggle_${platform}`)
             .setLabel(pConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(pConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(pConfig.enabled ? '<:dnd:1473370101427343403>' : '<:Toggleon:1473038585501581312>'),
+            .setEmoji(pConfig.enabled ? '<:dnd:1485248263857639424>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId(`social_add_${platform}`)
             .setLabel(`Add ${info.itemLabel.slice(0, -1)}`)
@@ -366,7 +366,7 @@ function buildPlatformPanel(guildConfig, platform) {
             .setCustomId(`social_test_${platform}`)
             .setLabel('Send Test')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🧪'),
+            .setEmoji('<:Cursor:1473038064564834544>'),
         new ButtonBuilder()
             .setCustomId('social_back')
             .setLabel('Back to Hub')
@@ -393,12 +393,12 @@ const HELP_TEXT = `# 📡 Social Media Notifications — Guide
 ## Supported Platforms
 | Platform | Content | API Key |
 |----------|---------|---------|
-| <:dnd:1473370101427343403> YouTube | Videos & Livestreams | No (RSS) |
+| 🔴 YouTube | Videos & Livestreams | No (RSS) |
 | 🟣 Twitch | Live Streams | Yes |
 | 📸 Instagram | Posts & Stories | Yes |
 | 📘 Facebook | Page Updates | Yes |
 | 🐦 Twitter/X | Tweets | Yes |
-| <:Music:1473039311057190972> TikTok | Videos | No |
+| 🎼 TikTok | Videos | No |
 
 ## Message Variables
 \`{channel}\` \`{title}\` \`{url}\` \`{videoId}\` — YouTube
@@ -451,7 +451,7 @@ async function handleInteraction(interaction) {
     }
 
     if (id === 'social_test_all') {
-        await interaction.reply({ content: '🧪 Testing all configured platforms… This feature requires API keys to be configured via `/apikeys`.', flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: '<:Cursor:1473038064564834544> Testing all configured platforms… This feature requires API keys to be configured via `/apikeys`.', flags: MessageFlags.Ephemeral });
         return true;
     }
 
@@ -473,7 +473,7 @@ async function handleInteraction(interaction) {
                 .setCustomId('live_message')
                 .setLabel('Notification message for livestreams')
                 .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('🔴 {channel} is LIVE! {title}\n{url}')
+                .setPlaceholder('<:YoutubeLive:1507444089292066907> {channel} is LIVE! {title}\n{url}')
                 .setValue(gc.youtube.liveMessage || '')
                 .setRequired(true)
                 .setMaxLength(1000)

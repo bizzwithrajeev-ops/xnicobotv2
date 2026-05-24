@@ -55,7 +55,7 @@ function buildMainPanel(config, guild) {
     content += `Reward active members with XP, levels, and role rewards!\n\n`;
     
     content += `### <:Bookopen:1473038576391557130> Current Configuration\n`;
-    content += `**Status:** ${enabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n`;
+    content += `**Status:** ${enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     const announceCh = levelingConfig.announcementChannel || levelingConfig.announcements?.customChannelId;
     content += `**Announcement Channel:** ${announceCh ? `<#${announceCh}>` : '*Uses message channel*'}\n\n`;
     

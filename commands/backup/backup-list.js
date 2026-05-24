@@ -32,7 +32,7 @@ function buildList(backups, guild, page, uid) {
     const slice = backups.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE);
 
     const section = new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 📦 Config Backups (${backups.length})`))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Box:1473039115581915256> Config Backups (${backups.length})`))
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: guild.iconURL({ dynamic: true }) || 'https://cdn.discordapp.com/embed/avatars/0.png' } }));
 
     const lines = slice.map((b, i) => {
@@ -59,7 +59,7 @@ function buildList(backups, guild, page, uid) {
     ctr.addActionRowComponents(nav);
 
     if (slice.length) {
-        const opts = slice.map(b => ({ label: b.name.slice(0, 100), value: b.name, description: `<:Bookopen:1473038576391557130> ${fmtDate(b.date)} • ${b.configCount} files`, emoji: '📦' }));
+        const opts = slice.map(b => ({ label: b.name.slice(0, 100), value: b.name, description: `<:Bookopen:1473038576391557130> ${fmtDate(b.date)} • ${b.configCount} files`, emoji: '<:Box:1473039115581915256>' }));
         ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder().setCustomId(`bkp:sel:${uid}`).setPlaceholder('<:Search:1473038053219106847> Select a backup for details').addOptions(opts.slice(0, 25))
         ));
@@ -72,7 +72,7 @@ function buildList(backups, guild, page, uid) {
 function buildDetail(backup, guild, uid) {
     const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 📦 Backup Details\n\n` +
+            `# <:Box:1473039115581915256> Backup Details\n\n` +
             `**<:Edit:1473037903625191580> Name:** \`${backup.name}\`\n` +
             `**<:Bookopen:1473038576391557130> Date:** ${fmtDate(backup.date)}\n` +
             `**<:Folderopen:1473039552783323348> Configs:** ${backup.configCount} files\n` +
@@ -211,7 +211,7 @@ module.exports = {
                     const { createBackup } = require('../../utils/backupManager');
                     const result = createBackup(guild.id);
                     if (result.success) {
-                        const c = okCtr(`Backup Created\n\n**📦** \`${result.backupName}\`\n**<:Folderopen:1473039552783323348>** ${result.configCount} configs saved`);
+                        const c = okCtr(`Backup Created\n\n**<:Box:1473039115581915256>** \`${result.backupName}\`\n**<:Folderopen:1473039552783323348>** ${result.configCount} configs saved`);
                         c.addActionRowComponents(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`bkp:back:${uid}`).setEmoji('<:History:1473037847568318605>').setLabel('Back to List').setStyle(ButtonStyle.Secondary)));
                         return i.update({ components: [c], flags: MessageFlags.IsComponentsV2 });
                     }

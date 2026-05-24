@@ -889,7 +889,7 @@ module.exports = {
                     `### <:Lightbulbalt:1473038470787240009> Example: Role Selector\n` +
                     `\`\`\`\n` +
                     `/select-menu-maker create id:colors placeholder:Pick your color role\n` +
-                    `/select-menu-maker add-option menu-id:colors label:Red value:red emoji:<:dnd:1473370101427343403>\n` +
+                    `/select-menu-maker add-option menu-id:colors label:Red value:red emoji:<:dnd:1485248263857639424>\n` +
                     `/select-menu-maker add-option menu-id:colors label:Blue value:blue emoji:🔵\n` +
                     `/select-menu-maker edit-actions menu-id:colors option-value:red\n` +
                     `/select-menu-maker send menu-id:colors\n` +

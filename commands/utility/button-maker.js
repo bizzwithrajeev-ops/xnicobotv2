@@ -299,7 +299,7 @@ module.exports = {
 
         saveButtonsConfig(config);
 
-        const styleEmoji = { primary: '🔵', secondary: '⚪', success: '<:online:1473369837245042762>', danger: '<:dnd:1473370101427343403>', link: '<:Attach:1473037923979886694>' }[style];
+        const styleEmoji = { primary: '🔵', secondary: '⚪', success: '🟢', danger: '🔴', link: '🔗' }[style];
 
         const container = new ContainerBuilder()
             .setAccentColor(0xCAD7E6)
@@ -646,7 +646,7 @@ module.exports = {
         content += `### <:Document:1473039496995143731> Your Buttons\n`;
 
         for (const [id, data] of Object.entries(guildButtons)) {
-            const styleEmoji = { primary: '🔵', secondary: '⚪', success: '<:online:1473369837245042762>', danger: '<:dnd:1473370101427343403>', link: '<:Attach:1473037923979886694>' }[data.style] || '🔵';
+            const styleEmoji = { primary: '🔵', secondary: '⚪', success: '🟢', danger: '🔴', link: '🔗' }[data.style] || '🔵';
             const actionCount = data.actions?.length || 0;
 
             content += `\n${styleEmoji} **\`${id}\`** - ${data.label}\n`;
@@ -751,7 +751,7 @@ module.exports = {
                 });
             }
             btnData.style = newStyle;
-            const styleEmoji = { primary: '🔵', secondary: '⚪', success: '<:online:1473369837245042762>', danger: '<:dnd:1473370101427343403>', link: '<:Attach:1473037923979886694>' }[newStyle];
+         const styleEmoji = { primary: '🔵', secondary: '⚪', success: '🟢', danger: '🔴', link: '🔗' }[newStyle];
             changes.push(`**Style:** ${styleEmoji} ${newStyle}`);
         }
 
@@ -895,7 +895,7 @@ module.exports = {
         
         let content = `# <:Settings:1473037894703779851> Button Action Editor\n\n`;
         content += `**Button:** ${styleEmoji} ${btnData.label} (\`${buttonId}\`)\n`;
-        content += `**Response:** ${isEphemeral ? '<:online:1473369837245042762> Private (ephemeral)' : '<:dnd:1473370101427343403> Public (visible to all)'}\n\n`;
+        content += `**Response:** ${isEphemeral ? '<:Eyeclosed:1473038425085972521> Private (ephemeral)' : '<:Eye:1473038435056095242> Public (visible to all)'}\n\n`;
         content += `### <:Document:1473039496995143731> Actions (${btnData.actions?.length || 0})\n`;
 
         if (!btnData.actions || btnData.actions.length === 0) {
@@ -1237,7 +1237,7 @@ module.exports = {
 
             let content = `# <:Document:1473039496995143731> Your Buttons\n\n`;
             for (const [id, data] of Object.entries(guildButtons)) {
-                const styleEmoji = { primary: '🔵', secondary: '⚪', success: '<:online:1473369837245042762>', danger: '<:dnd:1473370101427343403>', link: '<:Attach:1473037923979886694>' }[data.style] || '🔵';
+                const styleEmoji = { primary: '🔵', secondary: '⚪', success: '🟢', danger: '🔴', link: '🔗' }[data.style] || '🔵';
                 content += `${styleEmoji} **\`${id}\`** - ${data.label} (${data.actions?.length || 0} actions)\n`;
             }
 

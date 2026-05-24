@@ -223,7 +223,7 @@ function createSpotifyButtons(playlists) {
         rows.push(new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('mymusic_spotify_select')
-                .setPlaceholder('<:Music:1473039311057190972> Select a playlist to play...')
+                .setPlaceholder('Select a playlist to play...')
                 .addOptions(options)
         ));
     }

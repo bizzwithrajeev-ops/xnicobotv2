@@ -112,8 +112,8 @@ function buildTemplatePanel(session) {
 
     const selectedCount = session.selected.length;
     const statusText = selectedCount === 0
-        ? '<:idle:1473370085719863366> **No templates selected** — Pick templates below'
-        : `<:online:1473369837245042762> **${selectedCount} template${selectedCount !== 1 ? 's' : ''} selected** — Ready to deploy`;
+        ? '<:Folderblock:1473039508545994996> **No templates selected** — Pick templates below'
+        : `<:Cloudcheck:1473039563499765892> **${selectedCount} template${selectedCount !== 1 ? 's' : ''} selected** — Ready to deploy`;
 
     let templatesText = '### <:Document:1473039496995143731> Available Templates\n';
     for (const [key, tmpl] of Object.entries(TEMPLATES)) {
@@ -242,8 +242,8 @@ function buildResultPanel(results) {
     const failCount = results.filter(r => !r.success).length;
 
     let statusText = successCount === results.length
-        ? `<:online:1473369837245042762> **All ${successCount} templates deployed successfully!**`
-        : `<:dnd:1473370101427343403> **${successCount} deployed, ${failCount} failed**`;
+        ? `<:Cloudcheck:1473039563499765892> **All ${successCount} templates deployed successfully!**`
+        : `<:Infotriangle:1473038460456800459> **${successCount} deployed, ${failCount} failed**`;
 
     let detailsText = '### <:Document:1473039496995143731> Deployment Results\n';
     for (const result of results) {

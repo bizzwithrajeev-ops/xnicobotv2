@@ -79,9 +79,9 @@ module.exports = {
             content += `**Language:** ${langEntry.label} (\`${currentLang}\`)\n`;
             content += `**Voice:** ${currentGender}\n\n`;
             content += `### 🔌 TTS Providers\n`;
-            content += `${providers.googleCloud ? '<:online:1473369837245042762>' : '<:dnd:1473370101427343403>'} **Google Cloud TTS** — ${providers.googleCloud ? 'Active (Neural2 — natural voice)' : 'Not configured'}\n`;
-            content += `${providers.azure ? '<:online:1473369837245042762>' : '<:dnd:1473370101427343403>'} **Azure Speech** — ${providers.azure ? 'Active (Neural — natural voice)' : 'Not configured'}\n`;
-            content += `${providers.googleTranslate ? '<:online:1473369837245042762>' : '<:dnd:1473370101427343403>'} **Google Translate** — Always available (basic voice)\n\n`;
+            content += `${providers.googleCloud ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Google Cloud TTS** — ${providers.googleCloud ? 'Active (Neural2 — natural voice)' : 'Not configured'}\n`;
+            content += `${providers.azure ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Azure Speech** — ${providers.azure ? 'Active (Neural — natural voice)' : 'Not configured'}\n`;
+            content += `${providers.googleTranslate ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Google Translate** — Always available (basic voice)\n\n`;
 
             if (providers.googleCloud) {
                 const gv = GOOGLE_VOICES[ttsCode];

@@ -73,13 +73,13 @@ module.exports = {
                         `# <:Userplus:1473038912212435086> Leave Message System\n\n` +
                         `Send automatic goodbye messages when members leave your server.\n\n` +
                         `### <:Bookopen:1473038576391557130> Current Configuration\n` +
-                        `**Status:** ${guildConfig.leaveEnabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n` +
+                        `**Status:** ${guildConfig.leaveEnabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
                         `**Channel:** ${guildConfig.leaveChannelId ? `<#${guildConfig.leaveChannelId}>` : '*Not set (will use welcome channel)*'}\n` +
                         `**Message:** \`${previewMsg}\`\n\n` +
                         `### <:Chat:1473038936241864865> How to Use\n` +
                         `**1.** Click **Set Channel** to choose where leave messages appear\n` +
                         `**2.** Click **Set Message** to customize your goodbye message\n` +
-                        `**3.** Click **Enable** to activate leave messages\n` +
+                        `**3.** Click ** to activate leave messages\n` +
                         `**4.** Use **Preview** to see how messages will look\n\n` +
                         `### <:Edit:1473037903625191580> Available Variables\n` +
                         `\`{user}\` - Member mention | \`{username}\` - Username\n` +

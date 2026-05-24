@@ -146,16 +146,16 @@ function buildAutomodPanel(guildConfig) {
         .addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('automod_configure_filter')
-                .setPlaceholder('<:Settings:1473037894703779851> Select a filter to configure limits & action')
+                .setPlaceholder('Select a filter  to configure limits & action')
                 .setMinValues(1)
                 .setMaxValues(1)
                 .setOptions([
-                    { label: 'Bad Words', description: 'Configure word list & action', value: 'badwords', emoji: { name: '💬' } },
-                    { label: 'Anti-Spam', description: 'Set message limit, time window & action', value: 'spam', emoji: { name: '🔄' } },
-                    { label: 'Link Filter', description: 'Configure whitelist & action', value: 'links', emoji: { name: '🔗' } },
-                    { label: 'Invite Blocker', description: 'Configure action', value: 'invites', emoji: { name: '✉' } },
-                    { label: 'Mass Mentions', description: 'Set mention limit & action', value: 'mentions', emoji: { name: '📢' } },
-                    { label: 'Caps Lock', description: 'Set percentage, min length & action', value: 'caps', emoji: { name: '🔠' } }
+                    { label: 'Bad Words', description: 'Configure word list & action', value: 'badwords', emoji: { name: '<:Settingsadjust:1473038223625294048>' } },
+                    { label: 'Anti-Spam', description: 'Set message limit, time window & action', value: 'spam', emoji: { name: '<:Settingsadjust:1473038223625294048>' } },
+                    { label: 'Link Filter', description: 'Configure whitelist & action', value: 'links', emoji: { name: '<:Settingsadjust:1473038223625294048>' } },
+                    { label: 'Invite Blocker', description: 'Configure action', value: 'invites', emoji: { name: '<:Settingsadjust:1473038223625294048>' } },
+                    { label: 'Mass Mentions', description: 'Set mention limit & action', value: 'mentions', emoji: { name: '<:Settingsadjust:1473038223625294048>' } },
+                    { label: 'Caps Lock', description: 'Set percentage, min length & action', value: 'caps', emoji: { name: '<:Settingsadjust:1473038223625294048>' } }
                 ])
         );
 

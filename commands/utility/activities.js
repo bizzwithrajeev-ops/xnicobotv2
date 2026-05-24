@@ -4,7 +4,7 @@ const activities = {
     youtube: { id: '880218394199220334', name: '🎥 YouTube Together' },
     poker: { id: '755827207812677713', name: '🃏 Poker Night' },
     chess: { id: '832012774040141894', name: '♟️ Chess in the Park' },
-    checkers: { id: '832013003968348200', name: '<:dnd:1473370101427343403> Checkers in the Park' },
+    checkers: { id: '832013003968348200', name: '<:dnd:1485248263857639424> Checkers in the Park' },
     betrayal: { id: '773336526917861400', name: '🗡️ Betrayal.io' },
     fishing: { id: '814288819477020702', name: '🎣 Fishington.io' },
     letter: { id: '879863686565621790', name: '✍️ Letter League' },
@@ -60,7 +60,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <:Gamepad:1473039216429498409> Discord Activities\n\n**Usage:** \`activities <name>\`\n\n**Available Activities:**\n🎥 \`youtube\` - YouTube Together\n🃏 \`poker\` - Poker Night\n♟️ \`chess\` - Chess in the Park\n<:dnd:1473370101427343403> \`checkers\` - Checkers in the Park\n🗡️ \`betrayal\` - Betrayal.io\n🎣 \`fishing\` - Fishington.io\n✍️ \`letter\` - Letter League\n<:Edit:1473037903625191580> \`words\` - Word Snacks\n<:Caretright:1473038207221502106> \`doodle\` - Doodle Crew\n🪄 \`spellcast\` - SpellCast\n<:Bookopen:1473038576391557130> \`awkword\` - Awkword\n⛳ \`puttparty\` - Putt Party\n🖌️ \`sketchheads\` - Sketch Heads\n🏎️ \`blazing\` - Blazing 8s\n🎲 \`land\` - Land-io\n⚽ \`bobble\` - Bobble League\n\n**Note:** You must be in a voice channel!\n\n**Example:** \`activities youtube\``)
+                        .setContent(`# <:Gamepad:1473039216429498409> Discord Activities\n\n**Usage:** \`activities <name>\`\n\n**Available Activities:**\n🎥 \`youtube\` - YouTube Together\n🃏 \`poker\` - Poker Night\n♟️ \`chess\` - Chess in the Park\n<:dnd:1485248263857639424> \`checkers\` - Checkers in the Park\n🗡️ \`betrayal\` - Betrayal.io\n🎣 \`fishing\` - Fishington.io\n✍️ \`letter\` - Letter League\n<:Edit:1473037903625191580> \`words\` - Word Snacks\n<:Caretright:1473038207221502106> \`doodle\` - Doodle Crew\n🪄 \`spellcast\` - SpellCast\n<:Bookopen:1473038576391557130> \`awkword\` - Awkword\n⛳ \`puttparty\` - Putt Party\n🖌️ \`sketchheads\` - Sketch Heads\n🏎️ \`blazing\` - Blazing 8s\n🎲 \`land\` - Land-io\n⚽ \`bobble\` - Bobble League\n\n**Note:** You must be in a voice channel!\n\n**Example:** \`activities youtube\``)
                 );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }

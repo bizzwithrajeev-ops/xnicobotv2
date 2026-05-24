@@ -51,8 +51,8 @@ function loadCustomShop(guildId) {
  */
 function affordBadge(canAfford, atMax) {
   if (atMax) return '` MAX `';
-  if (!canAfford) return '`<:Cancel:1473037949187657818>`';
-  return '`<:Checkedbox:1473038547165384804>`';
+  if (!canAfford) return '<:Cancel:1473037949187657818>';
+  return '<:Checkedbox:1473038547165384804>';
 }
 
 /* ─────────────────────────────────────────────
@@ -91,7 +91,7 @@ function buildShopPage(category, userId, guildId) {
 
   // ── Header card ──────────────────────────────────────────────
   addTextDisplay(container, [
-    `# <:Cart:1473038854620143626> Economy Shop`,
+    `# <:Shoppingcart:1473039092198412371> Economy Shop`,
     `-# Browsing **${cat.emoji} ${cat.label}**  ·  ${icon} Your Wallet: **${formatCoins(wallet, guildId)}**`
   ].join('\n'));
 
@@ -132,7 +132,7 @@ function buildShopPage(category, userId, guildId) {
       const card = [
         `### ${item.emoji} ${item.name} ${affordBadge(affordable, atMax)}`,
         `> ${item.description}`,
-        `-# ${icon} **${formatCoins(item.price, guildId)}**  ·  📦 Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
+        `-# ${icon} **${formatCoins(item.price, guildId)}**  ·  <:Box:1473039115581915256> Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
       ].join('\n');
       addTextDisplay(container, card);
       if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);

@@ -89,7 +89,7 @@ function buildMainPanel(guild, guildConfig) {
     content += `-# Manage server applications — create forms, review responses\n\n`;
 
     content += `### <:Settings:1473037894703779851> Status\n`;
-    content += `> ${guildConfig.enabled ? '<:online:1473369837245042762> **Active**' : '<:Toggleoff:1473038582813032590> **Disabled**'}`;
+    content += `> ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> **Active**' : '<:Toggleoff:1473038582813032590> **Disabled**'}`;
     content += ` — \`${qCount}\` questions configured\n\n`;
 
     content += `### <:Bookopen:1473038576391557130> Questions\n`;

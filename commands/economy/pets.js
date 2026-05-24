@@ -44,7 +44,7 @@ function viewOverview(user, uid) {
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
   }
 
-  lines.push(`📦 **Total:** ${animals.length} pets`, '');
+  lines.push(`<:Box:1473039115581915256> **Total:** ${animals.length} pets`, '');
 
   const breakdown = ph.RARITY_ORDER
     .filter(r => byR[r]?.length)
@@ -91,7 +91,7 @@ function viewRarity(user, uid, rarity) {
   const color = rarity === 'all' ? 0x7c3aed : (ph.RARITY_COLOR[rarity] || 0x7c3aed);
 
   const lines = [
-    `# ${rarity === 'all' ? '📦' : (ph.RARITY_EMOJI[rarity] || '📦')} ${label} Pets`,
+    `# ${rarity === 'all' ? '<:Box:1473039115581915256>' : (ph.RARITY_EMOJI[rarity] || '<:Box:1473039115581915256>')} ${label} Pets`,
     '',
   ];
 

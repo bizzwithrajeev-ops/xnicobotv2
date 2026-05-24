@@ -51,7 +51,7 @@ function buildColorContainer(hex) {
     content += `> **RGB:** \`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})\`\n`;
     content += `> **HSL:** \`hsl(${hsl.h}°, ${hsl.s}%, ${hsl.l}%)\`\n\n`;
     content += `### Components\n`;
-    content += `> <:dnd:1473370101427343403> Red: **${rgb.r}** | <:online:1473369837245042762> Green: **${rgb.g}** | 🔵 Blue: **${rgb.b}**`;
+    content += `> 🔴 Red: **${rgb.r}** | 🟢 Green: **${rgb.g}** | 🔵 Blue: **${rgb.b}**`;
 
     return new ContainerBuilder()
         .setAccentColor(colorInt)

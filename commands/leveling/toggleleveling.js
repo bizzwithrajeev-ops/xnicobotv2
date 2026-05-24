@@ -43,7 +43,7 @@ module.exports = {
             await updateGuildConfig(message.guild.id, { 'leveling.enabled': true }).catch(() => {});
 
             const container = buildSuccessResponse('Leveling System Enabled', 'Users will now gain XP when chatting in this server.', {
-                'Status': '<:online:1485248286653943900> Active',
+                'Status': '<:Toggleon:1473038585501581312> Active',
                 'XP Gain': 'All eligible channels'
             });
             container.setAccentColor(0x57F287);
@@ -66,7 +66,7 @@ module.exports = {
                 .setAccentColor(0xED4245)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <:Microphoneoff:1473039278438219984> Leveling System Disabled\n\nUsers will no longer gain XP in this server.\n\n> **Status:** <:offline:1485248289690616041> Inactive`)
+                        .setContent(`# <:Microphoneoff:1473039278438219984> Leveling System Disabled\n\nUsers will no longer gain XP in this server.\n\n> **Status:** <:Toggleoff:1473038582813032590> Inactive`)
                 );
             return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -119,7 +119,7 @@ module.exports = {
                 await updateGuildConfig(message.guild.id, { 'leveling.enabled': true }).catch(() => {});
 
                 const container = buildSuccessResponse('Leveling System Enabled', 'Users will now gain XP when chatting in this server.', {
-                    'Status': '<:online:1485248286653943900> Active'
+                    'Status': '<:Toggleon:1473038585501581312> Active'
                 });
                 container.setAccentColor(0x57F287);
                 return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -157,7 +157,7 @@ module.exports = {
             const disabledChannels = guildToggle?.disabledChannels || [];
 
             let content = `# <:Settings:1473037894703779851> Leveling Toggle Status\n\n`;
-            content += `**System Status:** ${isEnabled ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
+            content += `**System Status:** ${isEnabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
 
             if (disabledChannels.length === 0) {
                 content += `### Disabled Channels\nNo channels are disabled — XP is active in all channels.`;
@@ -200,7 +200,7 @@ module.exports = {
 
         const newState = !isEnabled;
         let content = `# <:Fire:1473038604812161218> Leveling System\n\n`;
-        content += `**Status:** ${newState ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
+        content += `**Status:** ${newState ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
         content += `### <:Document:1473039496995143731> Available Commands\n`;
         content += `> \`-toggleleveling on\` — Enable leveling system\n`;
         content += `> \`-toggleleveling off\` — Disable leveling system\n`;

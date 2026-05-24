@@ -36,7 +36,7 @@ module.exports = {
         try {
             const result = loadBackup(interaction.guild.id, name);
             if (result.success) {
-                return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Restored\n\n**📦** \`${result.backupName}\`\n**<:Folderopen:1473039552783323348>** ${result.restoredCount} configs restored`))], flags: MessageFlags.IsComponentsV2 });
+                return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Restored\n\n**<:Box:1473039115581915256>** \`${result.backupName}\`\n**<:Folderopen:1473039552783323348>** ${result.restoredCount} configs restored`))], flags: MessageFlags.IsComponentsV2 });
             }
             return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Restore Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
@@ -92,7 +92,7 @@ module.exports = {
                 try {
                     const result = loadBackup(message.guild.id, name);
                     if (result.success) {
-                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Restored\n\n**📦** \`${result.backupName}\`\n**<:Folderopen:1473039552783323348>** ${result.restoredCount} configs updated\n\n> All systems have been refreshed with backup data.`))], flags: MessageFlags.IsComponentsV2 });
+                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Restored\n\n**<:Box:1473039115581915256>** \`${result.backupName}\`\n**<:Folderopen:1473039552783323348>** ${result.restoredCount} configs updated\n\n> All systems have been refreshed with backup data.`))], flags: MessageFlags.IsComponentsV2 });
                     }
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Restore Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
                 } catch (err) {
