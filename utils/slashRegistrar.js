@@ -61,6 +61,8 @@ const GLOBAL_PRIORITY = new Set([
     'vanityguard', 'securitycheck', 'whitelist', 'unwhitelist', 'showwhitelist',
     'ignore-channels', 'logging', 'logging-setup', 'audit',
     'config', 'setprefix', 'quicksetup',
+    // Newly-added admin systems — must be global so they appear in every server.
+    'screenshot-verify', 'join2create-setup',
 
     // ── Music ──
     'play', 'pause', 'resume', 'stop', 'skip', 'queue', 'nowplaying', 'volume',

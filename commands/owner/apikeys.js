@@ -228,7 +228,7 @@ function buildPlatformPanel(config, platform) {
             .setCustomId(`apikeys_toggle_${platform}`)
             .setLabel(pConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(pConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(pConfig.enabled ? '<:dnd:1473370101427343403>' : '<:online:1473369837245042762>')
+            .setEmoji(pConfig.enabled ? '<:offline:1485248289690616041>' : '<:online:1485248286653943900>')
     );
     
     if (platform !== 'tiktok') {

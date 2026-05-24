@@ -46,7 +46,7 @@ function buildStatusPanel(guildConfig, guild) {
     const isActive = hasHumans || hasBots;
 
     let content = `# <:Bookopen:1473038576391557130> Autorole Status\n\n`;
-    content += `**Status:** ${isActive ? '<:online:1485248286653943900> Enabled' : '<:offline:1485248289690616041> Disabled'}\n\n`;
+    content += `**Status:** ${isActive ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
 
     if (hasHumans) {
         const humanRoles = guildConfig.humans.map(id => {

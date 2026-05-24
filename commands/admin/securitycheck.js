@@ -171,8 +171,8 @@ module.exports = {
             else if (percentage >= 80) { grade = 'A'; gradeColor = 0x57F287; gradeEmoji = '<:online:1473369837245042762>'; }
             else if (percentage >= 70) { grade = 'B'; gradeColor = 0xFEE75C; gradeEmoji = '<:idle:1473370064718827715>'; }
             else if (percentage >= 60) { grade = 'C'; gradeColor = 0xE67E22; gradeEmoji = '<:idle:1473370064718827715>'; }
-            else if (percentage >= 40) { grade = 'D'; gradeColor = 0xED4245; gradeEmoji = '<:dnd:1473370101427343403>'; }
-            else { grade = 'F'; gradeColor = 0xED4245; gradeEmoji = '<:dnd:1473370101427343403>'; }
+            else if (percentage >= 40) { grade = 'D'; gradeColor = 0xED4245; gradeEmoji = '<:dnd:1485248263857639424>'; }
+            else { grade = 'F'; gradeColor = 0xED4245; gradeEmoji = '<:dnd:1485248263857639424>'; }
 
             // ── Build progress bar ──
             const filled = Math.round(percentage / 10);

@@ -45,7 +45,7 @@ function isAuthorised(guild, userId, guildConfig) {
 function buildPanel(guildConfig, guildName) {
     const statusEmoji = guildConfig.enabled
         ? '<:Toggleoff:1473038582813032590>'
-        : '<:online:1473369837245042762>';
+        : '<:Toggleon:1473038585501581312>';
     const statusText = guildConfig.enabled
         ? '**EMERGENCY MODE ACTIVE** — Server is locked down'
         : '**Inactive** — Server is operating normally';

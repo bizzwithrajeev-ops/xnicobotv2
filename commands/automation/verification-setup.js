@@ -542,7 +542,7 @@ module.exports = {
                         `# <:Shield:1473038669831995494> Verification System Status\n\n` +
                         `Protect your server from bots with captcha verification.\n\n` +
                         `### <:Invoice:1473039492217835550> Current Configuration\n` +
-                        `**Status:** <:online:1473369837245042762> Enabled\n` +
+                        `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
                         `**Verification Channel:** ${channel ? `${channel}` : '*<:Infotriangle:1473038460456800459> Channel not found*'}\n` +
                         `**Verified Role:** ${role ? `${role}` : '*<:Infotriangle:1473038460456800459> Role not found*'}\n` +
                         `**Captcha Type:** ${captchaTypeDisplay}\n` +
@@ -648,7 +648,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Shield:1473038669831995494> Verification Status\n\n` +
-                        `**Status:** <:online:1473369837245042762> Enabled\n` +
+                        `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
                         `**Channel:** ${channel || '*Not found*'}\n` +
                         `**Role:** ${role || '*Not found*'}\n` +
                         `**Captcha:** ${captchaTypeDisplay}\n\n` +

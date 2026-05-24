@@ -76,7 +76,7 @@ function buildPanelMessage(supportRole, categories, panelConfig, guild) {
     const panel = buildTicketPanel(supportRole, categories, panelConfig, guild);
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId('ticket_category_select')
-        .setPlaceholder('🎫 Select a ticket category to get help')
+        .setPlaceholder('Select a ticket category to get help')
         .addOptions(
             categories.map(cat => ({
                 label: cat.label.replace(/^[^\s]+\s/, ''),

@@ -55,7 +55,7 @@ function buildMainPanel(guildConfig, guild) {
     let header = `# <:Commentblock:1473370739351490794> Bot Block System\n`;
     header += `-# Auto-delete all bot messages in specific channels\n\n`;
     header += `### Current Status\n`;
-    header += `> **System:** ${guildConfig.enabled ? '<:online:1473369837245042762> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
+    header += `> **System:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     header += `> **Blocked Channels:** ${channelCount}\n`;
     header += `> **Scope:** All bots (including xNico)`;
 
@@ -68,7 +68,7 @@ function buildMainPanel(guildConfig, guild) {
             .setCustomId('botblock_toggle')
             .setLabel(guildConfig.enabled ? 'Disable System' : 'Enable System')
             .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:online:1473369837245042762>'),
+            .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId('botblock_view')
             .setLabel('View Channels')

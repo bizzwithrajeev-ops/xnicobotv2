@@ -3,7 +3,7 @@
 const CATEGORIES = {
   consumable: { label: 'Consumables', emoji: '🧪', color: 0x22c55e },
   boost:      { label: 'Boosts',      emoji: '⚡', color: 0xfbbf24 },
-  loot:       { label: 'Loot Boxes',  emoji: '📦', color: 0x8b5cf6 },
+  loot:       { label: 'Loot Boxes',  emoji: '<:Box:1473039115581915256>', color: 0x8b5cf6 },
   special:    { label: 'Special',     emoji: '<:Star:1473038501766369300>', color: 0xec4899 },
   seeds:      { label: 'Seeds',       emoji: '🌱', color: 0x16a34a },
   mining:     { label: 'Mining Gear', emoji: '⛏', color: 0x78716c },
@@ -174,7 +174,7 @@ const ITEMS = {
 
   mystery_box: {
     name: 'Mystery Box',
-    emoji: '📦',
+    emoji: '<:Box:1473039115581915256>',
     price: 20000,
     sellPrice: 10000,
     description: 'Random reward: coins (50%) · Rare pet (30%) · Weapon Box (20%)',

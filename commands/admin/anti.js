@@ -69,7 +69,7 @@ function buildAntiPanel(guildConfig, guildName) {
         .addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('anti_select_category')
-                .setPlaceholder('<:Bookmark:1473038643492028517> Select a protection to configure')
+                .setPlaceholder('Select a protection to configure')
                 .setDisabled(threatActive)
                 .addOptions(
                     Object.entries(CATEGORIES).map(([value, cat]) => ({

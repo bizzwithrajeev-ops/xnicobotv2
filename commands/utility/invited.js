@@ -86,7 +86,7 @@ module.exports = {
                         `**Invited By:** ${inviterInfo}\n\n` +
                         `**Invite Link:** ${inviteLink ? `[\`${inviteCode}\`](${inviteLink})` : '`Unknown`'}\n\n` +
                         `**Joined At:** ${joinedTimestamp}\n\n` +
-                        `**Status:** ${hasLeft ? '<:dnd:1473370101427343403> Left the server' : '<:online:1473369837245042762> Currently in server'}`
+                        `**Status:** ${hasLeft ? '<:Userblock:1473038868184826149> Left the server' : '<:Userplus:1473038912212435086> Currently in server'}`
                     )
                 );
 
@@ -156,7 +156,7 @@ module.exports = {
                         `**Invited By:** ${inviterInfo}\n\n` +
                         `**Invite Link:** ${inviteLink ? `[\`${inviteCode}\`](${inviteLink})` : '`Unknown`'}\n\n` +
                         `**Joined At:** ${joinedTimestamp}\n\n` +
-                        `**Status:** ${hasLeft ? '<:dnd:1473370101427343403> Left the server' : '<:online:1473369837245042762> Currently in server'}`
+                        `**Status:** ${hasLeft ? '<:Userblock:1473038868184826149> Left the server' : '<:Userplus:1473038912212435086> Currently in server'}`
                     )
                 );
 

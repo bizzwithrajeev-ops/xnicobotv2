@@ -45,7 +45,7 @@ function buildList(entries, page, filterType, guildId, uid) {
     } else {
         let lines = '';
         for (const e of slice) {
-            const emoji = TYPE_EMOJI[e.type] || '📦';
+            const emoji = TYPE_EMOJI[e.type] || '<:Box:1473039115581915256>';
             const ts = e.createdAt ? ` · <t:${Math.floor(e.createdAt / 1000)}:R>` : '';
             lines += `${emoji} **${e.name}** \`${e.type}\`${ts}\n`;
         }
@@ -84,7 +84,7 @@ function buildList(entries, page, filterType, guildId, uid) {
 
 function buildDetail(entry, idx, uid) {
     const sid = `${uid}_${Date.now().toString(36)}`;
-    const emoji = TYPE_EMOJI[entry.type] || '📦';
+    const emoji = TYPE_EMOJI[entry.type] || '<:Box:1473039115581915256>';
     let dataPreview;
 
     if (entry.type === 'embed' && typeof entry.data === 'object') {

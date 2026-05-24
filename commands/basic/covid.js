@@ -25,7 +25,7 @@ function buildCovidContainer(data, country) {
             `> <:Invoice:1473039492217835550> Total: **${formatNum(data.cases)}**\n` +
             `> 📈 Today: **+${formatNum(data.todayCases)}**\n` +
             `> <:Checkedbox:1473038547165384804> Recovered: **${formatNum(data.recovered)}**\n` +
-            `> <:dnd:1473370101427343403> Active: **${formatNum(data.active)}**\n` +
+            `> <:dnd:1485248263857639424> Active: **${formatNum(data.active)}**\n` +
             `> <:Infotriangle:1473038460456800459> Critical: **${formatNum(data.critical)}**\n\n` +
             `**Deaths**\n` +
             `> 💀 Total: **${formatNum(data.deaths)}**\n` +

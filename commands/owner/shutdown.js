@@ -48,7 +48,7 @@ module.exports = {
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:dnd:1473370101427343403> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`)
+                    .setContent(`# <:dnd:1485248263857639424> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`)
             );
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -74,7 +74,7 @@ module.exports = {
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
-                    .setContent(`# <:dnd:1473370101427343403> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`)
+                    .setContent(`# <:dnd:1485248263857639424> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`)
             );
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

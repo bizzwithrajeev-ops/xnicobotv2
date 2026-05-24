@@ -135,7 +135,7 @@ async function updateTicketPanel(client, guildId, guildConfig) {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('ticket_category_select')
-            .setPlaceholder('🎫 Select a ticket category')
+            .setPlaceholder('Select a ticket category')
             .addOptions(
                 guildConfig.categories.map(cat => ({
                     label: cat.label,

@@ -48,7 +48,7 @@ function getDefaultConfig() {
 }
 
 function buildAntiraidPanel(guildConfig) {
-    const statusEmoji = guildConfig.enabled ? '<:online:1473369837245042762>' : '<:Toggleoff:1473038582813032590>';
+    const statusEmoji = guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const logChannel = guildConfig.logChannel ? `<#${guildConfig.logChannel}>` : '*Not configured*';
     const bypassRole = guildConfig.bypassRoleId ? `<@&${guildConfig.bypassRoleId}>` : '*None*';
 

@@ -57,7 +57,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
   // Header
   const totalItems = userItems.length;
   const uniqueItems = grouped.length;
-  addTextDisplay(container, `# 🎒 Your Inventory\n${coinIcon(guildId)} Wallet: **${formatCoins(userData.coins, guildId)}**  ·  📦 ${totalItems} items (${uniqueItems} unique)`);
+  addTextDisplay(container, `# 🎒 Your Inventory\n${coinIcon(guildId)} Wallet: **${formatCoins(userData.coins, guildId)}**  ·  <:Box:1473039115581915256> ${totalItems} items (${uniqueItems} unique)`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   // Items list
@@ -71,7 +71,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
     const sellVal = meta.sellPrice ? ` ·  ${coinIcon(guildId)} Sell: ${formatNumber(meta.sellPrice)}/ea` : '';
     addTextDisplay(container, [
       `### ${meta.emoji} ${meta.name}  ×${entry.count}`,
-      `-# ${catMeta?.emoji || '📦'} ${catMeta?.label || 'Other'}${sellVal}  ·  \`use ${entry.id}\``,
+      `-# ${catMeta?.emoji || '<:Box:1473039115581915256>'} ${catMeta?.label || 'Other'}${sellVal}  ·  \`use ${entry.id}\``,
     ].join('\n'));
   }
 
@@ -88,7 +88,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
       return {
         label: `${meta?.name || entry.id} (×${entry.count})`,
         value: entry.id,
-        emoji: meta?.emoji?.startsWith('<') ? undefined : { name: meta?.emoji || '📦' },
+        emoji: meta?.emoji?.startsWith('<') ? undefined : { name: meta?.emoji || '<:Box:1473039115581915256>' },
         description: meta?.description?.slice(0, 100) || 'Use this item',
       };
     });

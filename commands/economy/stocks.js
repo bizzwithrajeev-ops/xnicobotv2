@@ -118,7 +118,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount, guildId) 
       '',
       `${STOCKS[t].emoji} **${qty}x ${t}** (${STOCKS[t].name}) bought for **${formatCoins(cost, guildId)}**`,
       `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
-      `📦 **You now hold:** ${userData.stockPortfolio[t]}x ${t}`,
+      `<:Box:1473039115581915256> **You now hold:** ${userData.stockPortfolio[t]}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
@@ -149,7 +149,7 @@ async function handleStocks(reply, userId, subcommand, ticker, amount, guildId) 
       '',
       `${STOCKS[t].emoji} Sold **${sellQty}x ${t}** for **+${formatCoins(earned, guildId)}**`,
       `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
-      `📦 **Remaining:** ${userData.stockPortfolio[t] || 0}x ${t}`,
+      `<:Box:1473039115581915256> **Remaining:** ${userData.stockPortfolio[t] || 0}x ${t}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }

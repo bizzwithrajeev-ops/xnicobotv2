@@ -200,7 +200,7 @@ async function runAdventure(message, biomeData) {
         stageText += `<:Star:1473038501766369300> **+${formatCoins(coins, guildId)}**!`;
         if (Math.random() < event.itemChance) {
           items.push(event.item);
-          stageText += `\n📦 **Bonus item:** \`${event.item}\`!`;
+          stageText += `\n<:Box:1473039115581915256> **Bonus item:** \`${event.item}\`!`;
         }
         break;
       }
@@ -246,7 +246,7 @@ async function runAdventure(message, biomeData) {
         `> <:transfer:1479780506718437396> **XP:** +${totalExp.value}`,
       ];
       if (items.length > 0 && !failed) {
-        summaryLines.push(`> 📦 **Items:** ${items.join(', ')}`);
+        summaryLines.push(`> <:Box:1473039115581915256> **Items:** ${items.join(', ')}`);
       }
       if (failed) {
         summaryLines.push('', '-# You salvaged 30% of earned coins. Try again with a stronger pet!');

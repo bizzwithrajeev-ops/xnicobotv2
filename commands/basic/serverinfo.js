@@ -36,7 +36,7 @@ const E = {
     lightning: '<:Lightningalt:1473038679906844824>',
     bots:      '<:bots:1473368718120849500>',
     online:    '<:online:1485248286653943900>',
-    offline:   '<:offline:1455550933508333662>',
+    offline:   '<:offline:1485248289690616041>',
     copy:      '<:Copy:1473039575302803629>',
     clock:     '<:Clock:1473039102113878056>',
     fire:      '<:Fire:1473038604812161218>',
@@ -114,7 +114,7 @@ async function buildServerInfo(guild) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `### ${E.user} Members · ${guild.memberCount.toLocaleString()}\n` +
         `${E.userPlus} **Humans:** ${humans.toLocaleString()}  ·  ${E.bots} **Bots:** ${counts.bots.toLocaleString()}\n` +
-        `${E.online} **${counts.online.toLocaleString()}**  ·  <:idle:1473370064718827715> **${counts.idle.toLocaleString()}**  ·  <:dnd:1473370101427343403> **${counts.dnd.toLocaleString()}**  ·  ${E.offline} **${counts.offline.toLocaleString()}**`
+        `${E.online} **${counts.online.toLocaleString()}**  ·  <:idle:1473370064718827715> **${counts.idle.toLocaleString()}**  ·  <:dnd:1485248263857639424> **${counts.dnd.toLocaleString()}**  ·  ${E.offline} **${counts.offline.toLocaleString()}**`
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));

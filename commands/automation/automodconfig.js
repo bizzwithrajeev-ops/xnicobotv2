@@ -32,7 +32,7 @@ const MODULES = [
     { key: 'caps', label: 'Caps Lock', emoji: '<:Bookcheck:1473039580218523822>', desc: 'Block excessive CAPS' },
     { key: 'profanity', label: 'Profanity', emoji: '<:Commentblock:1473370739351490794>', desc: 'AI-based profanity filter' },
     { key: 'sexualContent', label: 'Sexual Content', emoji: '<:Commentblock:1473370739351490794>', desc: 'Block explicit content' },
-    { key: 'slurs', label: 'Slurs', emoji: '<:dnd:1473370101427343403>', desc: 'Block hateful slurs' }
+    { key: 'slurs', label: 'Slurs', emoji: '<:dnd:1485248263857639424>', desc: 'Block hateful slurs' }
 ];
 
 function buildAutomodPanel(guild, cfg, expanded = false, btnPrefix = 'amc') {

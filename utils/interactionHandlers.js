@@ -3299,7 +3299,7 @@ async function handleAutoresponderButtons(interaction) {
     }
 
     function buildAutoresponderPanel(gc) {
-        const statusText = gc.enabled ? '<:online:1485248286653943900>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+        const statusText = gc.enabled ? '<:Toggleon:1473038585501581312>  **Enabled**' : '<:Toggleoff:1473038582813032590> **Disabled**';
         const countText = `**Total Responses:** ${gc.responses?.length || 0}`;
         const panelText = `# <:Fire:1473038604812161218> Autoresponder System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoresponders to automatically reply when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Response** - Create a new trigger → response pair\n<:Bookopen:1473038576391557130> **List All** - View all configured responses\n<:Trash:1473038090074591293> **Remove Response** - Delete a specific response\n\n**Controls:**\n${gc.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} **${gc.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all responses\n\n**Tips:**\n• Triggers are case-insensitive\n• Triggers can be partial matches\n• Supports Components v2 for beautiful responses!`;
 
@@ -3457,7 +3457,7 @@ async function handleAutoreactButtons(interaction) {
     }
 
     function buildAutoreactPanel(gc) {
-        const statusText = gc.enabled ? '<:online:1485248286653943900>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+        const statusText = gc.enabled ? '<:Toggleon:1473038585501581312>  **Enabled**' : '<:Toggleoff:1473038582813032590> **Disabled**';
         const countText = `**Total Reactions:** ${gc.reactions?.length || 0}`;
         const panelText = `# 😄 Autoreact System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoreactions to automatically react when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Reaction** - Create a trigger → emoji reaction\n<:Bookopen:1473038576391557130> **List All** - View all configured reactions\n<:Trash:1473038090074591293> **Remove Reaction** - Delete a specific reaction\n\n**Controls:**\n${gc.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} **${gc.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all reactions\n\n**Emoji Support:**\n• Unicode emojis: 😀, 👍, <:Heart:1473038659514007616>\n• Custom server emojis: :emojiname:\n• Multiple reactions per trigger!`;
 
@@ -3497,7 +3497,7 @@ async function handleAutoreactButtons(interaction) {
             .setCustomId('emojis')
             .setLabel('Emojis (separate with spaces)')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('👍 <:Heart:1473038659514007616> <:Money:1473377877239140529>')
+            .setPlaceholder('👍,👎,💸')
             .setRequired(true);
 
         modal.addComponents(
@@ -5195,7 +5195,7 @@ async function handleProfileButtons(interaction) {
 
         const BADGE_STYLES = [
             { label: 'Default', value: 'Default', description: 'Standard badge layout with icons', emoji: '🏅', default: currentBadge === 'default' },
-            { label: 'Compact', value: 'Compact', description: 'Smaller, condensed badge display', emoji: '📦', default: currentBadge === 'compact' },
+            { label: 'Compact', value: 'Compact', description: 'Smaller, condensed badge display', emoji: '<:Box:1473039115581915256>', default: currentBadge === 'compact' },
             { label: 'Detailed', value: 'Detailed', description: 'Badges with full descriptions', emoji: '📋', default: currentBadge === 'detailed' },
             { label: 'Hidden', value: 'Hidden', description: 'Hide all badges from your profile', emoji: '🚫', default: currentBadge === 'hidden' }
         ];
@@ -5985,7 +5985,7 @@ async function handleStickyButtons(interaction) {
         for (const [channelId, data] of messageList) {
             const channel = interaction.guild.channels.cache.get(channelId);
             const channelName = channel ? `<#${channelId}>` : `Unknown (\`${channelId}\`)`;
-            const typeIcon = data.displayType === 'embed' ? '<:Bookopen:1473038576391557130>' : data.displayType === 'container' ? '📦' : '<:Edit:1473037903625191580>';
+            const typeIcon = data.displayType === 'embed' ? '<:Bookopen:1473038576391557130>' : data.displayType === 'container' ? '<:Box:1473039115581915256>' : '<:Edit:1473037903625191580>';
             const content = data.content?.substring(0, 50) || 'No content';
             listText += `${typeIcon} **${channelName}**\n-# ${content}${data.content?.length > 50 ? '...' : ''}\n\n`;
         }

@@ -224,7 +224,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         userData.coins += coins;
         return {
           success: true,
-          title: '📦 Mystery Box Opened',
+          title: '<:Box:1473039115581915256> Mystery Box Opened',
           result: `${coinIcon(guildId)} You found **${formatCoins(coins, guildId)}** inside!`,
           extra: `💼 New balance: **${formatCoins(userData.coins, guildId)}**`,
         };
@@ -238,7 +238,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         pets[userId].animals.push(pet);
         return {
           success: true,
-          title: '📦 Mystery Box Opened',
+          title: '<:Box:1473039115581915256> Mystery Box Opened',
           result: `🐲 You found a **Rare Pet — Mystic Beast**!`,
           extra: `🐾 It has been added to your pets collection.`,
         };
@@ -246,9 +246,9 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         inventory[userId].push({ id: 'weapon_box', boughtAt: Date.now() });
         return {
           success: true,
-          title: '📦 Mystery Box Opened',
+          title: '<:Box:1473039115581915256> Mystery Box Opened',
           result: `🗡️ You found a **Weapon Box** inside!`,
-          extra: `📦 Use \`use weapon_box\` to equip a weapon to your active pet.`,
+          extra: `<:Box:1473039115581915256> Use \`use weapon_box\` to equip a weapon to your active pet.`,
         };
       }
     }
@@ -294,7 +294,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
           success: true,
           title: '💠 Crystal Box Opened',
           result: `🗡️ You found a **Weapon Box** inside!`,
-          extra: `📦 Use \`use weapon_box\` to equip a weapon to your active pet.`,
+          extra: `<:Box:1473039115581915256> Use \`use weapon_box\` to equip a weapon to your active pet.`,
         };
       }
     }

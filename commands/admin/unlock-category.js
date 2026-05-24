@@ -39,7 +39,7 @@ module.exports = {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('unlock_category_select_slash')
-            .setPlaceholder('<:Folderopen:1473039552783323348> Select a category to unlock')
+            .setPlaceholder('Select a category to unlock')
             .addOptions(categories.map(cat => ({
                 label: cat.name.slice(0, 100),
                 description: `${cat.children.cache.size} channels`,
@@ -121,7 +121,7 @@ module.exports = {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('unlock_category_select')
-            .setPlaceholder('<:Folderopen:1473039552783323348> Select a category to unlock')
+            .setPlaceholder('Select a category to unlock')
             .addOptions(categories.map(cat => ({
                 label: cat.name.slice(0, 100),
                 description: `${cat.children.cache.size} channels`,

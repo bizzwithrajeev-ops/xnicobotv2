@@ -50,7 +50,7 @@ module.exports = {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('lock_category_select_slash')
-            .setPlaceholder('<:Folderopen:1473039552783323348> Select a category to lock')
+            .setPlaceholder('Select a category to lock')
             .addOptions(categories.map(cat => ({
                 label: cat.name.slice(0, 100),
                 description: `${cat.children.cache.size} channels`,
@@ -126,7 +126,7 @@ module.exports = {
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('lock_category_select')
-            .setPlaceholder('<:Folderopen:1473039552783323348> Select a category to lock')
+            .setPlaceholder('Select a category to lock')
             .addOptions(categories.map(cat => ({
                 label: cat.name.slice(0, 100),
                 description: `${cat.children.cache.size} channels`,

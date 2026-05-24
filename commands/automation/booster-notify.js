@@ -60,7 +60,7 @@ function buildBoosterPanel(guildConfig, guild) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-    const statusEmoji = guildConfig.enabled ? '<:online:1485248286653943900>' : '<:offline:1455550933508333662>';
+    const statusEmoji = guildConfig.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const channelText = guildConfig.channel ? `<#${guildConfig.channel}>` : '`Not Set`';
     const boosterRoleText = guildConfig.boosterRole ? `<@&${guildConfig.boosterRole}>` : '`Discord Default`';
     const dmEnabled = guildConfig.dmThankYou?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
@@ -89,7 +89,7 @@ function buildBoosterPanel(guildConfig, guild) {
             .setCustomId('booster_toggle')
             .setLabel(guildConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(guildConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(guildConfig.enabled ? '<:dnd:1473370101427343403>' : '<:online:1473369837245042762>'),
+            .setEmoji(guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId('booster_channel')
             .setLabel('Set Channel')
@@ -492,7 +492,7 @@ module.exports = {
                 .setCustomId('embed_title')
                 .setLabel('Embed Title')
                 .setStyle(TextInputStyle.Short)
-                .setPlaceholder('<:Sketch:1473038248493453352> New Boost!')
+                .setPlaceholder('New Boost!')
                 .setValue(guildConfig.boostMessage.embedTitle || '')
                 .setRequired(false);
 

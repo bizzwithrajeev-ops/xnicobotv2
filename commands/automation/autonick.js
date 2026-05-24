@@ -96,7 +96,7 @@ module.exports = {
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Folder:1473039340425973972> AutoNick Status\n\n` +
-                            `**Status:** <:offline:1485248289690616041> Disabled\n\n` +
+                            `**Status:** <:Toggleoff:1473038582813032590> Disabled\n\n` +
                             `Use \`/autonick setup\` to enable it.`
                         )
                     );
@@ -108,7 +108,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Folder:1473039340425973972> AutoNick Configuration\n\n` +
-                        `**Status:** <:online:1485248286653943900> Enabled\n` +
+                        `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
                         `**Format:** ${guildConfig.format}`
                     )
                 );
@@ -195,7 +195,7 @@ module.exports = {
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Folder:1473039340425973972> AutoNick Status\n\n` +
-                            `**Status:** <:offline:1485248289690616041> Disabled\n\n` +
+                            `**Status:** <:Toggleoff:1473038582813032590> Disabled\n\n` +
                             `Use \`-autonick setup <format>\` to enable it.`
                         )
                     );
@@ -207,7 +207,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Folder:1473039340425973972> AutoNick Configuration\n\n` +
-                        `**Status:** <:online:1485248286653943900> Enabled\n` +
+                        `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
                         `**Format:** ${guildConfig.format}`
                     )
                 );

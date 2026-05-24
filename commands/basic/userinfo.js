@@ -27,7 +27,7 @@ const E = {
     caret:     '<:Caretright:1473038207221502106>',
     sketch:    '<:Sketch:1473038248493453352>',
     online:    '<:online:1485248286653943900>',
-    offline:   '<:offline:1455550933508333662>',
+    offline:   '<:offline:1485248289690616041>',
     book:      '<:Bookopen:1473038576391557130>',
     star:      '<:Star:1473038501766369300>',
     fire:      '<:Fire:1473038604812161218>',
@@ -38,7 +38,7 @@ const E = {
 const STATUS_EMOJI = {
     online: E.online,
     idle:   '<:idle:1473370064718827715>',
-    dnd:    '<:dnd:1473370101427343403>',
+    dnd:    '<:dnd:1485248263857639424>',
     offline: E.offline,
     invisible: E.offline,
 };

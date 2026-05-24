@@ -32,7 +32,7 @@ module.exports = {
                 const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Backup Created\n\n` +
-                        `**📦 Name:** \`${result.backupName}\`\n` +
+                        `**<:Box:1473039115581915256> Name:** \`${result.backupName}\`\n` +
                         `**<:Folderopen:1473039552783323348> Configs:** ${result.configCount} files saved\n` +
                         `**<:Timer:1473039056710406204> Timestamp:** ${result.timestamp}\n\n` +
                         `> Use \`backup-list\` to manage your backups.`
@@ -56,7 +56,7 @@ module.exports = {
 
         const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# 📦 Create Config Backup\n\n` +
+                `# <:Box:1473039115581915256> Create Config Backup\n\n` +
                 `This will save all current server configurations (welcomer, tickets, automod, etc.) to a backup file.\n`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
@@ -65,7 +65,7 @@ module.exports = {
             ));
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`bkcr:confirm:${sid}`).setLabel('📦 Create Backup').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`bkcr:confirm:${sid}`).setLabel('<:Box:1473039115581915256> Create Backup').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`bkcr:cancel:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
         );
         ctr.addActionRowComponents(row);
@@ -84,7 +84,7 @@ module.exports = {
                         const ok = new ContainerBuilder().setAccentColor(0xCAD7E6)
                             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                 `# <:Checkedbox:1473038547165384804> Backup Created\n\n` +
-                                `**📦 Name:** \`${result.backupName}\`\n` +
+                                `**<:Box:1473039115581915256> Name:** \`${result.backupName}\`\n` +
                                 `**<:Folderopen:1473039552783323348> Configs:** ${result.configCount} files saved\n` +
                                 `**<:Timer:1473039056710406204> Timestamp:** ${result.timestamp}`
                             ));

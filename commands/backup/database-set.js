@@ -49,7 +49,7 @@ module.exports = {
         const key = `${message.guild.id}_${type}_${name}`;
         const uid = message.author.id;
         const sid = `${uid}_${Date.now().toString(36)}`;
-        const emoji = TYPE_EMOJI[type] || '📦';
+        const emoji = TYPE_EMOJI[type] || '<:Box:1473039115581915256>';
 
         // Check if exists (overwrite warning)
         let existing;

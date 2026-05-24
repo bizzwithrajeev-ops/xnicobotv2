@@ -47,7 +47,7 @@ module.exports = {
 
             const uid = message.author.id;
             const sid = `${uid}_${Date.now().toString(36)}`;
-            const emoji = TYPE_EMOJI[existing.type] || '📦';
+            const emoji = TYPE_EMOJI[existing.type] || '<:Box:1473039115581915256>';
             const ts = existing.createdAt ? `\n**Created:** <t:${Math.floor(existing.createdAt / 1000)}:f>` : '';
 
             const ctr = new ContainerBuilder().setAccentColor(0xED4245)

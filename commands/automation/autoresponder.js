@@ -73,7 +73,7 @@ function buildPanelButtons(guildConfig) {
 }
 
 function buildPanelContent(guildConfig) {
-    const statusText = guildConfig.enabled ? '<:online:1485248286653943900>  **Enabled**' : '<:dnd:1473370101427343403> **Disabled**';
+    const statusText = guildConfig.enabled ? '<:Toggleon:1473038585501581312>  **Enabled**' : '<:Toggleoff:1473038582813032590> **Disabled**';
     const countText = `**Total Responses:** ${guildConfig.responses?.length || 0}`;
 
     return `# <:Fire:1473038604812161218> Autoresponder System\n\n**Status:** ${statusText}\n${countText}\n\n**Setup autoresponders to automatically reply when users send specific messages!**\n\n**How it works:**\n<:Add:1473038100862337035> **Add Response** - Create a new trigger → response pair\n<:Bookopen:1473038576391557130> **List All** - View all configured responses\n<:Trash:1473038090074591293> **Remove Response** - Delete a specific response\n\n**Controls:**\n${guildConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'} **${guildConfig.enabled ? 'Disable' : 'Enable'}** - Turn the system on/off\n<:Trash:1473038090074591293> **Clear All** - Remove all responses\n\n**Tips:**\n• Triggers are case-insensitive\n• Triggers can be partial matches (e.g., "hello" matches "hello there")\n• Supports Components v2 for beautiful responses!\n\n**Slash Commands:**\n\`/autoresponder add\` - Add a response directly\n\`/autoresponder remove\` - Remove by number\n\`/autoresponder list\` - View all responses\n\`/autoresponder toggle\` - Enable/disable\n\`/autoresponder clear\` - Remove all`;
@@ -232,7 +232,7 @@ module.exports = {
         }
 
         let listText = `# <:Fire:1473038604812161218> Autoresponse List\n\n`;
-        listText += `**Status:** ${guildConfig.enabled ? '<:online:1485248286653943900> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
+        listText += `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
 
         guildConfig.responses.forEach((item, index) => {
             const truncResponse = item.response.substring(0, 50);
