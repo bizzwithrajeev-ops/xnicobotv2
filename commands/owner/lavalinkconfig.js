@@ -5,13 +5,15 @@ const path = require('path');
 
 module.exports = {
     data: null,
+    name: 'lavalinkconfig',
+    prefix: 'lavalinkconfig',
+    aliases: ['llconfig', 'llc'],
+    description: 'Manage Lavalink node configuration',
+    usage: 'lavalinkconfig <add|remove|list|test|reload>',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message, args, lavalinkManager) {
-        if (!isOwner(message.author.id)) {
-            return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');
-        }
-
-        const subcommand = args[0]?.toLowerCase();
 
         if (!subcommand || subcommand === 'help') {
             const container = new ContainerBuilder()

@@ -10,8 +10,10 @@ const EMOJIS = {
     money:      '<:Money:1473377877239140529>',
     wallet:     '<:Money:1473377877239140529>',
     bank:       '<:Invoice:1473039492217835550>',
+    invoice:    '<:Invoice:1473039492217835550>',
     present:    '<:Present:1473038450465706076>',
     crown:      '<:Crown:1506010837368963142>',
+    sketch:     '<:Sketch:1473038248493453352>',
 
     // Status & Feedback
     check:      '<:Checkedbox:1473038547165384804>',
@@ -20,6 +22,7 @@ const EMOJIS = {
     star:       '<:Star:1473038501766369300>',
     lightning:  '<:Lightning:1473038797540298792>',
     clock:      '<:Clock:1473039102113878056>',
+    sandwatch:  '<:Clock:1473039102113878056>',
     alarm:      '<:Alarm:1473039068546732214>',
 
     // Actions

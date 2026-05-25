@@ -3,96 +3,138 @@
 /**
  * Minesweeper — bet on revealing safe tiles, cash out for a multiplier.
  *
- * Bug fixes in this rewrite
- * ─────────────────────────
- * 1. `buildGameContainer`, `buildSetupContainer`, `revealTile`, and
- *    `cashOut` all referenced a free `guildId` variable that wasn't in
- *    scope. Calling them threw `ReferenceError` mid-game (silently
- *    swallowed by Discord.js). Fixed by storing `guildId` on the
- *    `game` object at creation time and reading `game.guildId`
- *    everywhere downstream.
- * 2. `executePrefix` called `handleMines(reply, userId, args, guildId)`
- *    with only 4 args, but the signature expects
- *    `(reply, userId, args, interaction, guildId)` — so `guildId` was
- *    being passed as `interaction` and the actual guildId was
- *    `undefined`. Aligned the signatures.
- * 3. The "Lost" balance display, "Won" balance display, and "Potential"
- *    payout text all read `formatCoins(..., guildId)` from the missing
- *    free variable — same bug, same fix.
- * 4. Removed unused `interaction` parameter from `handleMines` since
- *    nothing in the function used it.
+ * Flow
+ * ────
+ *   1. `mines <bet>` opens a SETUP panel:
+ *        • Grid Size select   (3×3 / 4×4 / 5×4 / 5×5 / 6×5)
+ *        • Risk Level select  (Safe / Low / Medium / Hard / Extreme / Nightmare)
+ *        • [Start Game] button — disabled until both picks are made
+ *        • [Cancel] button     — discards the setup with no charge
+ *   2. Pressing **Start Game** deducts the bet, generates the board,
+ *      and switches to the live game panel.
+ *   3. Each safe tile bumps the multiplier; cash out any time.
+ *      Hitting a mine ends the round and reveals the full board.
  *
- * Custom emojis
- * ─────────────
- * Replaced unicode mine/risk emoji with the codebase's custom set so
- * the appearance is consistent with every other panel:
- *   <:Lightning:..>      title / cashout
- *   <:Cancel:..>         hit-mine state, full-board mine reveal
- *   <:Checkedbox:..>     cash-out success
- *   <:Toggleon:..>       low risk
- *   <:idle:..>           medium risk
- *   <:Fire:..>           hard risk
- *   <:Toggleoff:..>      extreme risk
- *   <:Sketch:..>         revealed safe tile (gem)
+ * Custom emojis only — every glyph in this command resolves to a real
+ * `<:Name:Id>` from the bot's emoji set, so Discord never rejects the
+ * payload with INVALID_FORM_BODY: emoji.
  */
 
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const {
+    SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+    StringSelectMenuBuilder, MessageFlags
+} = require('discord.js');
 const { formatCoins, formatCoinsShort, coinIcon, coinEmoji } = require('../../utils/currencyHelper');
-const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
+const {
+    createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
+} = require('../../utils/componentHelpers');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
+const economyManager = require('../../utils/economyManager');
 
 /* ═══════════════════════════════════════════════════════════════════
-   GAME CONFIG
+   CUSTOM EMOJI SET — every visual element references a real custom
+   emoji on the bot's home server. Falls back gracefully via the
+   emojiGuard sanitizer if any ever go missing.
+   ═══════════════════════════════════════════════════════════════════ */
+const E = {
+    title:    '<:Lightning:1473038797540298792>',  // header
+    gem:      '<:Sketch:1473038248493453352>',      // safe tile / win
+    mine:     '<:Cancel:1473037949187657818>',      // hit-mine / loss
+    success:  '<:Checkedbox:1473038547165384804>',  // success indicator
+    info:     '<:Inforect:1473038624172937287>',
+    warn:     '<:Infotriangle:1473038460456800459>',
+    coin:     '<:Money:1473377877239140529>',
+    bank:     '<:Invoice:1473039492217835550>',
+    sandwatch:'<:Sandwatch:1473038580094861545>',
+    settings: '<:Settings:1473037894703779851>',
+    skipnext: '<:Skipnext:1473039269726785737>',
+    riskSafe: '<:Toggleon:1473038585501581312>',
+    riskLow:  '<:Caretright:1473038207221502106>',
+    riskMed:  '<:Caretright:1473038207221502106>',
+    riskHard: '<:Fire:1473038604812161218>',
+    riskExt:  '<:Toggleoff:1473038582813032590>',
+    riskNm:   '<:dnd:1473370101586788444>',
+    grid:     '<:Box:1473039115581915256>',
+    star:     '<:Star:1473038501766369300>',
+    chart:    '<:transfer:1479780506718437396>',
+    history:  '<:History:1473037847568318605>',
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   GAME CONFIG — 5 grid sizes × 6 risk levels = 30 stages
    ═══════════════════════════════════════════════════════════════════ */
 
+// Discord limits each ActionRow to 5 components, so cols must always be ≤ 5.
+// `5x6` (6 rows × 5 cols) keeps the 30-tile grid valid; flipping to >5 cols
+// would crash with INVALID_FORM_BODY: BASE_TYPE_BAD_LENGTH.
 const GRIDS = {
-    '3x3': { rows: 3, cols: 3, total: 9 },
-    '4x4': { rows: 4, cols: 4, total: 16 },
-    '5x4': { rows: 4, cols: 5, total: 20 },
+    '3x3': { rows: 3, cols: 3, total: 9,  label: '3 × 3 (9 tiles)',  emoji: E.grid },
+    '4x4': { rows: 4, cols: 4, total: 16, label: '4 × 4 (16 tiles)', emoji: E.grid },
+    '5x4': { rows: 4, cols: 5, total: 20, label: '5 × 4 (20 tiles)', emoji: E.grid },
+    '5x5': { rows: 5, cols: 5, total: 25, label: '5 × 5 (25 tiles)', emoji: E.grid },
+    '5x6': { rows: 6, cols: 5, total: 30, label: '5 × 6 (30 tiles)', emoji: E.grid },
 };
 
 const RISKS = {
+    safe: {
+        mines: { '3x3': 1, '4x4': 1,  '5x4': 1,  '5x5': 2,  '5x6': 2  },
+        baseMultiplier: 1.10,
+        label: 'Safe',
+        emoji: E.riskSafe,
+        color: 0x10B981,
+        desc: 'Smallest payout, lowest risk',
+    },
     low: {
-        mines: { '3x3': 1, '4x4': 3,  '5x4': 4  },
-        baseMultiplier: 1.2,
-        label: '✧ Low',
-        color: 0x57F287
+        mines: { '3x3': 1, '4x4': 3,  '5x4': 4,  '5x5': 5,  '5x6': 6  },
+        baseMultiplier: 1.20,
+        label: 'Low',
+        emoji: E.riskLow,
+        color: 0x57F287,
+        desc: 'Few mines, modest multiplier',
     },
     medium: {
-        mines: { '3x3': 2, '4x4': 5,  '5x4': 7  },
-        baseMultiplier: 1.5,
-        label: '✦ Medium',
-        color: 0xFEE75C
+        mines: { '3x3': 2, '4x4': 5,  '5x4': 7,  '5x5': 8,  '5x6': 10 },
+        baseMultiplier: 1.50,
+        label: 'Medium',
+        emoji: E.riskMed,
+        color: 0xFEE75C,
+        desc: 'Balanced mines and reward',
     },
     hard: {
-        mines: { '3x3': 3, '4x4': 7,  '5x4': 10 },
-        baseMultiplier: 2.0,
-        label: '𖤍 Hard',
-        color: 0xF97316
+        mines: { '3x3': 3, '4x4': 7,  '5x4': 10, '5x5': 12, '5x6': 15 },
+        baseMultiplier: 2.00,
+        label: 'Hard',
+        emoji: E.riskHard,
+        color: 0xF97316,
+        desc: 'Many mines, high multiplier',
     },
     extreme: {
-        mines: { '3x3': 5, '4x4': 10, '5x4': 15 },
-        baseMultiplier: 3.5,
-        label: '𖤐 Extreme',
-        color: 0xED4245
+        mines: { '3x3': 4, '4x4': 9,  '5x4': 13, '5x5': 16, '5x6': 20 },
+        baseMultiplier: 3.00,
+        label: 'Extreme',
+        emoji: E.riskExt,
+        color: 0xED4245,
+        desc: 'Very few safe tiles, top payouts',
+    },
+    nightmare: {
+        mines: { '3x3': 5, '4x4': 11, '5x4': 16, '5x5': 20, '5x6': 25 },
+        baseMultiplier: 5.00,
+        label: 'Nightmare',
+        emoji: E.riskNm,
+        color: 0x8B0000,
+        desc: 'Insane risk, jackpot multiplier',
     },
 };
 
-const TITLE_EMOJI       = '<:Lightning:1473038797540298792>';
-const SAFE_TILE_EMOJI   = '<:Sketch:1473038248493453352>';
-const MINE_EMOJI        = '<:Cancel:1473037949187657818>';
-const SUCCESS_EMOJI     = '<:Checkedbox:1473038547165384804>';
-const WARN_EMOJI        = '<:Infotriangle:1473038460456800459>';
-
-/** Active games keyed by userId. */
+/** Active games + setups keyed by userId. */
 const activeGames = new Map();
 
 /* ═══════════════════════════════════════════════════════════════════
    PURE GAME LOGIC
    ═══════════════════════════════════════════════════════════════════ */
 
-function calculateMultiplier(revealed, totalSafe, risk) {
+function calculateMultiplier(revealed, risk) {
     if (revealed === 0) return 1;
     const base = RISKS[risk].baseMultiplier;
     return Math.round((Math.pow(base, revealed) + (revealed * 0.1)) * 100) / 100;
@@ -129,13 +171,13 @@ function buildGameGrid(game, reveal = false) {
             if (reveal && isMine) {
                 btn = new ButtonBuilder()
                     .setCustomId(`mines_${game.userId}_${idx}`)
-                    .setEmoji(MINE_EMOJI)
+                    .setEmoji(E.mine)
                     .setStyle(ButtonStyle.Danger)
                     .setDisabled(true);
             } else if (isRevealed) {
                 btn = new ButtonBuilder()
                     .setCustomId(`mines_${game.userId}_${idx}`)
-                    .setEmoji(SAFE_TILE_EMOJI)
+                    .setEmoji(E.gem)
                     .setStyle(ButtonStyle.Success)
                     .setDisabled(true);
             } else if (game.ended) {
@@ -156,58 +198,57 @@ function buildGameGrid(game, reveal = false) {
     }
 
     if (!game.ended && game.revealed.size > 0) {
-        const mult = calculateMultiplier(game.revealed.size, game.totalSafe, game.risk);
+        const mult = calculateMultiplier(game.revealed.size, game.risk);
         const payout = Math.floor(game.bet * mult);
-        // The guild's currency may be a free-form string from the
-        // dashboard (`$`, `coins`, ...). `setEmoji` only accepts
-        // valid unicode or `<:NAME:ID>` custom emoji — anything else
-        // makes Discord reject the whole component payload with
-        // INVALID_FORM_BODY. Fall back to no emoji in that case.
         const cashoutBtn = new ButtonBuilder()
             .setCustomId(`mines_${game.userId}_cashout`)
             .setLabel(`Cash Out · ${mult}x = ${formatNumber(payout)}`)
             .setStyle(ButtonStyle.Primary);
+        // Coin emoji on cashout if the guild's currency is a real emoji.
         const safeIcon = coinEmoji(game.guildId);
         if (safeIcon) cashoutBtn.setEmoji(safeIcon);
-        const cashoutRow = new ActionRowBuilder().addComponents(cashoutBtn);
-        rows.push(cashoutRow);
+        rows.push(new ActionRowBuilder().addComponents(cashoutBtn));
     }
 
     return rows;
 }
 
 function buildGameContainer(game, status = 'playing') {
-    const multiplier = calculateMultiplier(game.revealed.size, game.totalSafe, game.risk);
-    const potential = Math.floor(game.bet * multiplier);
-    const riskInfo = RISKS[game.risk];
-    const mineCount = riskInfo.mines[game.gridKey];
+    const multiplier = calculateMultiplier(game.revealed.size, game.risk);
+    const potential  = Math.floor(game.bet * multiplier);
+    const riskInfo   = RISKS[game.risk];
+    const gridInfo   = GRIDS[game.gridKey];
+    const mineCount  = riskInfo.mines[game.gridKey];
 
     let color = riskInfo.color;
     let statusText = '';
 
     if (status === 'playing') {
-        statusText =
-            `**Revealed:** ${game.revealed.size}/${game.totalSafe} safe tiles\n` +
-            `**Multiplier:** ${multiplier}x\n` +
-            `**Potential:** ${formatCoins(potential, game.guildId)}`;
+        statusText = [
+            `> ${E.gem} **Revealed:** ${game.revealed.size} / ${gridInfo.total - mineCount} safe tiles`,
+            `> ${E.chart} **Multiplier:** \`${multiplier}x\``,
+            `> ${E.coin} **Potential payout:** ${formatCoins(potential, game.guildId)}`,
+        ].join('\n');
     } else if (status === 'won') {
         color = 0x57F287;
-        statusText =
-            `${SUCCESS_EMOJI} **Cashed out at ${multiplier}x!**\n` +
-            `**Won:** ${formatCoins(potential, game.guildId)} (+${formatNumber(potential - game.bet)})`;
+        statusText = [
+            `> ${E.success} **Cashed out at \`${multiplier}x\`!**`,
+            `> ${E.coin} **Won:** ${formatCoins(potential, game.guildId)} (+${formatNumber(potential - game.bet)})`,
+        ].join('\n');
     } else if (status === 'lost') {
         color = 0xED4245;
-        statusText =
-            `${MINE_EMOJI} **BOOM! Hit a mine!**\n` +
-            `**Lost:** ${formatCoins(game.bet, game.guildId)}`;
+        statusText = [
+            `> ${E.mine} **BOOM! You hit a mine.**`,
+            `> ${E.coin} **Lost:** ${formatCoins(game.bet, game.guildId)}`,
+        ].join('\n');
     }
 
     const container = createContainer(color);
     addTextDisplay(container, [
-        `# ${TITLE_EMOJI} Minesweeper`,
+        `# ${E.title} Minesweeper`,
+        `-# ${gridInfo.emoji} ${gridInfo.label}  ·  ${riskInfo.emoji} **${riskInfo.label}** risk  ·  ${E.mine} ${mineCount} mines`,
         '',
-        `**Grid:** ${game.gridKey} • **Risk:** ${riskInfo.label} • **Mines:** ${mineCount}`,
-        `**Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
         '',
         statusText,
     ].join('\n'));
@@ -219,67 +260,95 @@ function buildSetupContainer(userId) {
     const game = activeGames.get(userId);
     if (!game) {
         const c = createContainer(0xED4245);
-        addTextDisplay(c, `${MINE_EMOJI} Setup expired. Run \`mines <bet>\` again.`);
+        addTextDisplay(c, `${E.mine} Setup expired. Run \`mines <bet>\` again.`);
         return c;
     }
 
-    const container = createContainer(0xCAD7E6);
-    addTextDisplay(container, [
-        `# ${TITLE_EMOJI} Minesweeper`,
-        '',
-        `**Bet:** ${formatCoins(game.bet, game.guildId)}`,
-        '',
-        `Select your grid size and risk level below:`,
-    ].join('\n'));
+    const ready = !!(game.gridKey && game.risk);
+    const accent = ready ? 0x57F287 : 0xCAD7E6;
 
+    const summaryLines = [
+        `# ${E.title} Minesweeper — Setup`,
+        '',
+        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+    ];
+
+    if (game.gridKey) {
+        summaryLines.push(`> ${GRIDS[game.gridKey].emoji} **Grid:** ${GRIDS[game.gridKey].label}`);
+    }
+    if (game.risk) {
+        const r = RISKS[game.risk];
+        const mineCount = r.mines[game.gridKey] ?? '?';
+        summaryLines.push(`> ${r.emoji} **Risk:** ${r.label}  ·  base ${r.baseMultiplier}x  ·  mines: ${mineCount}`);
+    }
+
+    summaryLines.push('');
+    summaryLines.push(ready
+        ? `${E.success} Configuration locked. Press **Start Game** when ready.`
+        : `${E.info} Pick a **grid size** and **risk level** below to enable Start.`);
+
+    const container = createContainer(accent);
+    addTextDisplay(container, summaryLines.join('\n'));
     addSeparator(container, SeparatorSpacingSize.Small);
 
-    const gridOptions = [
-        { label: '3×3 (9 tiles)',  value: '3x3', description: 'Quick game, fewer tiles',     emoji: '🔲' },
-        { label: '4×4 (16 tiles)', value: '4x4', description: 'Standard game',                emoji: '🔳' },
-        { label: '5×4 (20 tiles)', value: '5x4', description: 'Large grid, more strategy',   emoji: '⬛' },
-    ];
-    if (game.gridKey) {
-        const opt = gridOptions.find(o => o.value === game.gridKey);
-        if (opt) opt.default = true;
-    }
-
-    const riskOptions = [
-        { label: 'Low Risk',     value: 'low',     description: 'Fewer mines, lower multiplier',     emoji: '✧'  },
-        { label: 'Medium Risk',  value: 'medium',  description: 'Balanced mines & reward',            emoji: '✦'      },
-        { label: 'Hard Risk',    value: 'hard',    description: 'Many mines, high multiplier',        emoji: '𖤐'      },
-        { label: 'Extreme Risk', value: 'extreme', description: 'Most mines, highest multiplier',     emoji: '𖤍' },
-    ];
-    if (game.risk) {
-        const opt = riskOptions.find(o => o.value === game.risk);
-        if (opt) opt.default = true;
-    }
+    /* ── Grid Size select ─────────────────────────────────────────── */
+    const gridOptions = Object.entries(GRIDS).map(([key, g]) => ({
+        label: g.label,
+        value: key,
+        description: `${g.total} tiles total`,
+        emoji: g.emoji,
+        default: game.gridKey === key,
+    }));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`mines_setup_grid_${userId}`)
-            .setPlaceholder('Select grid size…')
+            .setPlaceholder(game.gridKey ? `Grid · ${GRIDS[game.gridKey].label}` : 'Select grid size…')
             .addOptions(gridOptions)
     ));
+
+    /* ── Risk Level select ────────────────────────────────────────── */
+    const riskOptions = Object.entries(RISKS).map(([key, r]) => ({
+        label: `${r.label} Risk`,
+        value: key,
+        description: `${r.desc} · base ${r.baseMultiplier}x`,
+        emoji: r.emoji,
+        default: game.risk === key,
+    }));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`mines_setup_risk_${userId}`)
-            .setPlaceholder('Select risk level…')
+            .setPlaceholder(game.risk ? `Risk · ${RISKS[game.risk].label}` : 'Select risk level…')
             .addOptions(riskOptions)
+    ));
+
+    /* ── Start / Cancel buttons ───────────────────────────────────── */
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`mines_setup_start_${userId}`)
+            .setLabel('Start Game')
+            .setEmoji(E.skipnext)
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(!ready),
+        new ButtonBuilder()
+            .setCustomId(`mines_setup_cancel_${userId}`)
+            .setLabel('Cancel')
+            .setEmoji(E.mine)
+            .setStyle(ButtonStyle.Secondary),
     ));
 
     return container;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   COMMAND HANDLER
+   COMMAND ENTRY (prefix + slash share this)
    ═══════════════════════════════════════════════════════════════════ */
 
 async function handleMines(reply, userId, args, guildId) {
     if (activeGames.has(userId)) {
         const c = createContainer(0xFEE75C);
-        addTextDisplay(c, `${WARN_EMOJI} You already have an active mines game! Finish it first or it will expire in 2 minutes.`);
+        addTextDisplay(c, `${E.warn} You already have an active mines session. Finish or cancel it first.`);
         return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -289,18 +358,18 @@ async function handleMines(reply, userId, args, guildId) {
     if (!betResult.valid) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, [
-            `# ${TITLE_EMOJI} Minesweeper`,
+            `# ${E.title} Minesweeper`,
             '',
-            `**Usage:** \`mines <bet>\``,
-            `**Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${E.info} **Usage:** \`mines <bet>\``,
+            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
-            `Reveal tiles without hitting a mine. Each safe tile increases your multiplier.`,
+            `Reveal tiles without hitting a mine. Each safe tile boosts your multiplier.`,
             `Cash out anytime to lock in your winnings.`,
             '',
-            `**Grids:** 3×3 • 4×4 • 5×4`,
-            `**Risks:** <:Toggleon:1473038585501581312> Low · <:idle:1473370085719863366> Medium · <:Fire:1473038604812161218> Hard · <:Toggleoff:1473038582813032590> Extreme`,
+            `**Grids:** ${Object.values(GRIDS).map(g => g.label.split(' ')[0]).join(' · ')}`,
+            `**Risks:** ${E.riskSafe} Safe · ${E.riskLow} Low · ${E.riskMed} Medium · ${E.riskHard} Hard · ${E.riskExt} Extreme · ${E.riskNm} Nightmare`,
             '',
-            `Higher risk = more mines = higher multipliers.`,
+            `Higher risk = more mines = bigger multipliers.`,
         ].join('\n'));
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -310,27 +379,27 @@ async function handleMines(reply, userId, args, guildId) {
     activeGames.set(userId, {
         phase: 'setup',
         bet,
-        guildId: guildId || null,   // ← persisted onto the game object so every helper has it
+        guildId: guildId || null,
         gridKey: null,
         risk: null,
         userId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
     });
 
-    // Auto-expire setup after 60s
+    // Auto-expire setup after 90s.
     setTimeout(() => {
-        const game = activeGames.get(userId);
-        if (game && game.phase === 'setup') activeGames.delete(userId);
-    }, 60_000);
+        const g = activeGames.get(userId);
+        if (g && g.phase === 'setup') activeGames.delete(userId);
+    }, 90_000);
 
     return reply({
         components: [buildSetupContainer(userId)],
-        flags: MessageFlags.IsComponentsV2
+        flags: MessageFlags.IsComponentsV2,
     });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   INTERACTION ROUTER
+   INTERACTION ROUTER (buttons + select menus)
    ═══════════════════════════════════════════════════════════════════ */
 
 async function handleMinesInteraction(interaction) {
@@ -343,17 +412,16 @@ async function handleMinesInteraction(interaction) {
     if (customId.startsWith('mines_setup_grid_')) {
         const targetUser = customId.split('_')[3];
         if (userId !== targetUser) {
-            return interaction.reply({ content: `${MINE_EMOJI} Not your game!`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `${E.mine} Not your game!`, flags: MessageFlags.Ephemeral });
         }
         const game = activeGames.get(userId);
         if (!game || game.phase !== 'setup') {
-            return interaction.reply({ content: `${MINE_EMOJI} Game expired.`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `${E.mine} Setup expired.`, flags: MessageFlags.Ephemeral });
         }
         game.gridKey = interaction.values[0];
-        if (game.gridKey && game.risk) return startGame(interaction, game);
         return interaction.update({
             components: [buildSetupContainer(userId)],
-            flags: MessageFlags.IsComponentsV2
+            flags: MessageFlags.IsComponentsV2,
         });
     }
 
@@ -361,32 +429,59 @@ async function handleMinesInteraction(interaction) {
     if (customId.startsWith('mines_setup_risk_')) {
         const targetUser = customId.split('_')[3];
         if (userId !== targetUser) {
-            return interaction.reply({ content: `${MINE_EMOJI} Not your game!`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `${E.mine} Not your game!`, flags: MessageFlags.Ephemeral });
         }
         const game = activeGames.get(userId);
         if (!game || game.phase !== 'setup') {
-            return interaction.reply({ content: `${MINE_EMOJI} Game expired.`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `${E.mine} Setup expired.`, flags: MessageFlags.Ephemeral });
         }
         game.risk = interaction.values[0];
-        if (game.gridKey && game.risk) return startGame(interaction, game);
         return interaction.update({
             components: [buildSetupContainer(userId)],
-            flags: MessageFlags.IsComponentsV2
+            flags: MessageFlags.IsComponentsV2,
         });
     }
 
-    /* ── Tile click or cashout ────────────────────────────────────── */
+    /* ── Setup: cancel ────────────────────────────────────────────── */
+    if (customId.startsWith('mines_setup_cancel_')) {
+        const targetUser = customId.split('_')[3];
+        if (userId !== targetUser) {
+            return interaction.reply({ content: `${E.mine} Not your game!`, flags: MessageFlags.Ephemeral });
+        }
+        activeGames.delete(userId);
+        const c = createContainer(0x6b7280);
+        addTextDisplay(c, `# ${E.mine} Setup Cancelled\n\nNo coins were charged.`);
+        return interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 });
+    }
+
+    /* ── Setup: start game ────────────────────────────────────────── */
+    if (customId.startsWith('mines_setup_start_')) {
+        const targetUser = customId.split('_')[3];
+        if (userId !== targetUser) {
+            return interaction.reply({ content: `${E.mine} Not your game!`, flags: MessageFlags.Ephemeral });
+        }
+        const game = activeGames.get(userId);
+        if (!game || game.phase !== 'setup') {
+            return interaction.reply({ content: `${E.mine} Setup expired.`, flags: MessageFlags.Ephemeral });
+        }
+        if (!game.gridKey || !game.risk) {
+            return interaction.reply({ content: `${E.warn} Pick both grid size and risk first.`, flags: MessageFlags.Ephemeral });
+        }
+        return startGame(interaction, game);
+    }
+
+    /* ── Live game: tile click or cashout ─────────────────────────── */
     const parts = customId.split('_');
     if (parts[0] === 'mines' && parts.length === 3) {
         const targetUser = parts[1];
         const action = parts[2];
 
         if (userId !== targetUser) {
-            return interaction.reply({ content: `${MINE_EMOJI} Not your game!`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `${E.mine} Not your game!`, flags: MessageFlags.Ephemeral });
         }
         const game = activeGames.get(userId);
         if (!game || game.phase !== 'playing') {
-            return interaction.reply({ content: `${MINE_EMOJI} No active game.`, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: `${E.mine} No active game.`, flags: MessageFlags.Ephemeral });
         }
 
         if (action === 'cashout') return cashOut(interaction, game);
@@ -405,14 +500,13 @@ async function handleMinesInteraction(interaction) {
    ═══════════════════════════════════════════════════════════════════ */
 
 async function startGame(interaction, game) {
-    const economyManager = require('../../utils/economyManager');
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, game.userId);
 
     if (userData.coins < game.bet) {
         activeGames.delete(game.userId);
         const c = createContainer(0xED4245);
-        addTextDisplay(c, `${MINE_EMOJI} Not enough coins. Balance: ${formatCoins(userData.coins, game.guildId)}`);
+        addTextDisplay(c, `${E.mine} Not enough coins. Balance: ${formatCoins(userData.coins, game.guildId)}`);
         return interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -426,13 +520,13 @@ async function startGame(interaction, game) {
     game.totalSafe = game.board.filter(x => !x).length;
     game.ended     = false;
 
-    // Auto-expire after 2 minutes
+    // Auto-expire after 3 minutes of inactivity.
     game.expireTimer = setTimeout(() => {
         if (activeGames.has(game.userId) && !game.ended) {
             game.ended = true;
             activeGames.delete(game.userId);
         }
-    }, 120_000);
+    }, 180_000);
 
     const container = buildGameContainer(game, 'playing');
     addSeparator(container, SeparatorSpacingSize.Small);
@@ -442,17 +536,10 @@ async function startGame(interaction, game) {
 }
 
 async function revealTile(interaction, game, tileIdx) {
-    // Anti-double-click + race-with-end guard. The previous
-    // implementation only checked `revealed.has(tileIdx)`, which
-    // means two near-simultaneous clicks both saw an empty set,
-    // both called `interaction.update`, and the second threw
-    // `InteractionAlreadyReplied` (logged but visible to the user).
     if (game.ended) return interaction.deferUpdate().catch(() => {});
     if (game.revealed.has(tileIdx)) return interaction.deferUpdate().catch(() => {});
-
-    // Mark as in-flight so a parallel click on a different tile
-    // bails out before mutating shared state.
     if (game._processing) return interaction.deferUpdate().catch(() => {});
+
     game._processing = true;
     try {
         const isMine = game.board[tileIdx];
@@ -463,7 +550,6 @@ async function revealTile(interaction, game, tileIdx) {
             clearTimeout(game.expireTimer);
             activeGames.delete(game.userId);
 
-            const economyManager = require('../../utils/economyManager');
             const economy = economyManager.loadEconomy();
             const { userData } = economyManager.getUser(economy, game.userId);
             userData.totalLost = (userData.totalLost || 0) + game.bet;
@@ -481,7 +567,7 @@ async function revealTile(interaction, game, tileIdx) {
 
         game.revealed.add(tileIdx);
 
-        // Auto-cashout when every safe tile has been revealed
+        // Auto cash-out when every safe tile is revealed.
         if (game.revealed.size >= game.totalSafe) return await cashOut(interaction, game);
 
         const container = buildGameContainer(game, 'playing');
@@ -495,19 +581,16 @@ async function revealTile(interaction, game, tileIdx) {
 }
 
 async function cashOut(interaction, game) {
-    // Race guard: if another click is already settling the game,
-    // swallow this one instead of double-paying out.
     if (game.ended || game._cashedOut) return interaction.deferUpdate().catch(() => {});
     game._cashedOut = true;
     game.ended = true;
     clearTimeout(game.expireTimer);
     activeGames.delete(game.userId);
 
-    const multiplier = calculateMultiplier(game.revealed.size, game.totalSafe, game.risk);
+    const multiplier = calculateMultiplier(game.revealed.size, game.risk);
     const payout = Math.floor(game.bet * multiplier);
     const profit = payout - game.bet;
 
-    const economyManager = require('../../utils/economyManager');
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, game.userId);
     userData.coins   += payout;
@@ -538,7 +621,7 @@ module.exports = {
         .addStringOption(o => o.setName('bet').setDescription('Bet amount (max 100k) or "all"').setRequired(true)),
 
     prefix: 'mines',
-    description: 'Minesweeper gambling — reveal tiles, avoid mines, cash out anytime (max 100k)',
+    description: 'Minesweeper gambling — pick grid + risk, reveal tiles, cash out anytime.',
     usage: 'mines <bet>',
     category: 'economy',
     aliases: ['minesweeper', 'ms'],
@@ -564,5 +647,5 @@ module.exports = {
             args,
             message.guild?.id
         );
-    }
+    },
 };

@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Fire:1473038604812161218> **Deepfried Image**',
     accentColor: 0xFF4500,
     errorMessage: '<:Cancel:1473037949187657818> Failed to deepfry image.',
+    prefixOnly: true,
 });

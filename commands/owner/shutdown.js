@@ -1,5 +1,13 @@
+'use strict';
+
+/**
+ * shutdown.js — prefix-only.
+ * Flushes jsonStore and exits with code 0 so the process manager
+ * stops the bot rather than restarting it.
+ */
+
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
 const log = require('../../utils/logger');
 
@@ -29,37 +37,15 @@ function formatPlayerInfo(activePlayers) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('shutdown')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Shutdown the bot'),
+    name: 'shutdown',
+    prefix: 'shutdown',
+    aliases: ['stopbot', 'kill'],
+    description: 'Owner-only: gracefully shut down the bot process',
+    usage: 'shutdown',
+    category: 'owner',
+    ownerOnly: true,
 
-    async execute(interaction, lavalinkManager) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-
-        const activePlayers = getActivePlayers(interaction.client);
-        const playerInfo = formatPlayerInfo(activePlayers);
-
-        if (activePlayers.length) {
-            log.warning(`Shutdown initiated with ${activePlayers.length} active player(s): ${activePlayers.map(p => `${p.guild} → ${p.track}`).join(', ')}`);
-        }
-
-        const container = new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:dnd:1485248263857639424> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`)
-            );
-
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        try { await jsonStore.flush(); } catch (e) {}
-        setTimeout(() => {
-            process.exit(0);
-        }, 1000);
-    },
-
-    async executePrefix(message, args, lavalinkManager) {
+    async executePrefix(message) {
         if (!isOwner(message.author.id)) {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');
         }
@@ -68,20 +54,17 @@ module.exports = {
         const playerInfo = formatPlayerInfo(activePlayers);
 
         if (activePlayers.length) {
-            log.warning(`Shutdown initiated with ${activePlayers.length} active player(s): ${activePlayers.map(p => `${p.guild} → ${p.track}`).join(', ')}`);
+            log.warning?.(`Shutdown initiated with ${activePlayers.length} active player(s): ${activePlayers.map(p => `${p.guild} → ${p.track}`).join(', ')}`);
         }
 
         const container = new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:dnd:1485248263857639424> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`)
-            );
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# <:dnd:1485248263857639424> Shutting Down\n\n**Status:** Flushing database and shutting down...${playerInfo}`
+            ));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
-        try { await jsonStore.flush(); } catch (e) {}
-        setTimeout(() => {
-            process.exit(0);
-        }, 1000);
+        try { await jsonStore.flush(); } catch {}
+        setTimeout(() => process.exit(0), 1000);
     }
 };

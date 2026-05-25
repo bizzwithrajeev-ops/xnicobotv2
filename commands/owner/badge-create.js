@@ -1,5 +1,4 @@
 const {
-    SlashCommandBuilder,
     ContainerBuilder,
     TextDisplayBuilder,
     SeparatorBuilder,
@@ -77,39 +76,6 @@ module.exports = {
     usage: 'badge-create <id> | <name> | [emoji] | [description] | [#hexcolor] | [imageUrl]',
     category: 'owner',
     ownerOnly: true,
-    prefixOnly: false,
-
-    data: new SlashCommandBuilder()
-        .setName('badge-create')
-        .setDescription('Owner-only: create a new custom badge')
-        .setDefaultMemberPermissions(0) // hide from everyone in UI
-        .addStringOption(o => o.setName('id').setDescription('Badge ID (lowercase, 2-32 chars)').setRequired(true))
-        .addStringOption(o => o.setName('name').setDescription('Display name').setRequired(true))
-        .addStringOption(o => o.setName('emoji').setDescription('Emoji or custom <:Name:id>').setRequired(false))
-        .addStringOption(o => o.setName('description').setDescription('Short description (<=200 chars)').setRequired(false))
-        .addStringOption(o => o.setName('color').setDescription('Hex color, e.g. #bcf1e4').setRequired(false))
-        .addStringOption(o => o.setName('image').setDescription('Optional image URL').setRequired(false))
-        .addIntegerOption(o => o.setName('position').setDescription('Sort order (defaults after existing custom badges)').setRequired(false)),
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ components: [err('Owner Only', 'This command is restricted to bot owners.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const payload = {
-            badgeId:     interaction.options.getString('id', true),
-            name:        interaction.options.getString('name', true),
-            emoji:       interaction.options.getString('emoji') || undefined,
-            description: interaction.options.getString('description') || undefined,
-            color:       interaction.options.getString('color') || undefined,
-            imageUrl:    interaction.options.getString('image') || undefined,
-            position:    interaction.options.getInteger('position') ?? undefined,
-        };
-
-        const r = await handleCreate(payload);
-        if (r.error) return interaction.reply({ components: [r.error], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        return interaction.reply({ components: [r.container], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

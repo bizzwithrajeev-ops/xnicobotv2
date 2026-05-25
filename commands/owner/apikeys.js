@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, SeparatorBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, SeparatorBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
@@ -265,19 +265,18 @@ function buildPlatformPanel(config, platform) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('apikeys')
-        .setDescription('Configure API keys for bot features (Owner only)'),
-
+    name: 'apikeys',
+    prefix: 'apikeys',
+    aliases: ['keys', 'api'],
+    description: 'Configure API keys for bot features (Owner only)',
+    usage: 'apikeys',
+    category: 'owner',
     ownerOnly: true,
 
-    async execute(interaction) {
-        const config = loadConfig();
-        const container = buildMainPanel(config);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-    },
-
     async executePrefix(message) {
+        if (!isOwner(message.author.id)) {
+            return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');
+        }
         const config = loadConfig();
         const container = buildMainPanel(config);
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

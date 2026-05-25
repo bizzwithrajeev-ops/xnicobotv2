@@ -47,7 +47,7 @@ async function handleWeekly(reply, userId, guildId) {
       return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const streak = userData.streak || 0;
+    const streak = userData.dailyStreak || userData.streak || 0;
     const weeklyClaimCount = (userData.weeklyClaimCount || 0) + 1;
     userData.weeklyClaimCount = weeklyClaimCount;
 

@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
 
@@ -76,46 +76,13 @@ function buildGuildSearchResult(guilds, query, filters) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('guild-search')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Search guilds by name or filter by member count')
-        .addStringOption(option =>
-            option.setName('query').setDescription('Search query (guild name or ID)'))
-        .addIntegerOption(option =>
-            option.setName('min-members').setDescription('Minimum member count').setMinValue(0))
-        .addIntegerOption(option =>
-            option.setName('max-members').setDescription('Maximum member count').setMinValue(1))
-        .addStringOption(option =>
-            option.setName('sort').setDescription('Sort results by')
-                .addChoices(
-                    { name: 'Members (High to Low)', value: 'members-desc' },
-                    { name: 'Members (Low to High)', value: 'members-asc' },
-                    { name: 'Name (A-Z)', value: 'name' },
-                    { name: 'Created (Newest)', value: 'created' }
-                )),
-
+    name: 'guild-search',
     prefix: 'guild-search',
+    aliases: ['gsearch', 'findguild', 'searchguild'],
     description: 'Search guilds by name or filter by member count',
     usage: 'guild-search [query] [--min <n>] [--max <n>] [--sort <type>]',
-    aliases: ['gsearch', 'findguild', 'searchguild'],
     category: 'owner',
     ownerOnly: true,
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: `${EMOJIS.ERROR} This command is only available to the bot owner!`, flags: MessageFlags.Ephemeral });
-        }
-
-        const query = interaction.options.getString('query');
-        const minMembers = interaction.options.getInteger('min-members');
-        const maxMembers = interaction.options.getInteger('max-members');
-        const sortBy = interaction.options.getString('sort') || 'members-desc';
-
-        const guilds = searchGuilds(interaction.client, query, minMembers, maxMembers, sortBy);
-        const result = buildGuildSearchResult(guilds, query, { minMembers, maxMembers, sortBy });
-        const reply = await interaction.reply({ ...result, flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral, fetchReply: true });
-        if (result._pageData) setupPaginationCollector(reply, result._pageData, interaction.user.id);
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

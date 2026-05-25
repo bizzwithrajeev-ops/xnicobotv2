@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
 
 async function performSync(client) {
@@ -93,38 +93,13 @@ function buildSyncResult(results) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('force-sync')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Force-sync bot cache with Discord API'),
-
+    name: 'force-sync',
     prefix: 'force-sync',
+    aliases: ['fsync', 'forcesync', 'sync'],
     description: 'Force-sync bot cache with Discord API',
     usage: 'force-sync',
-    aliases: ['fsync', 'forcesync', 'sync'],
     category: 'owner',
     ownerOnly: true,
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: `${EMOJIS.ERROR} This command is only available to the bot owner!`, flags: MessageFlags.Ephemeral });
-        }
-
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-        const loadingContainer = new ContainerBuilder()
-            .setAccentColor(COLORS.WARNING)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# ${EMOJIS.LOADING} Syncing Cache\n\n` +
-                `Fetching guilds, channels, and members from Discord API...\n` +
-                `-# This may take a moment depending on server count.`
-            ));
-
-        await interaction.editReply({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
-
-        const results = await performSync(interaction.client);
-        const container = buildSyncResult(results);
-        await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

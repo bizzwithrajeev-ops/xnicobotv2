@@ -5,7 +5,14 @@ const jsonStore = require('../../utils/jsonStore');
 const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
-    
+    name: 'removeowner',
+    prefix: 'removeowner',
+    aliases: ['delowner', 'removeco'],
+    description: 'Remove a co-owner from the bot',
+    usage: 'removeowner <@user>',
+    category: 'owner',
+    ownerOnly: true,
+
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');

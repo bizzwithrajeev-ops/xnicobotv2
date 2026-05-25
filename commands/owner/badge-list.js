@@ -1,5 +1,4 @@
 const {
-    SlashCommandBuilder,
     ContainerBuilder,
     TextDisplayBuilder,
     SeparatorBuilder,
@@ -78,38 +77,10 @@ async function buildAllBadgesPayload() {
 module.exports = {
     name: 'badge-list',
     prefix: 'badge-list',
+    aliases: ['badgelist'],
     description: 'List all badges or badges for a specific user',
     usage: 'badge-list [@user]',
     category: 'owner',
-    aliases: ['badgelist'],
-
-    data: new SlashCommandBuilder()
-        .setName('badge-list')
-        .setDescription('List all badges or badges for a specific user')
-        .addUserOption(option => option.setName('user').setDescription('Optional user to view badges for').setRequired(false)),
-
-    async execute(interaction) {
-        try {
-            await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-            const user = interaction.options.getUser('user');
-            const built = user
-                ? await buildUserBadgesPayload(user)
-                : await buildAllBadgesPayload();
-
-            const reply = await interaction.editReply(withV2(built.payload));
-            if (built.pageData) {
-                setupPaginationCollector(reply, built.pageData, interaction.user.id);
-            }
-        } catch (error) {
-            console.error('Error listing badges (slash):', error);
-            try {
-                await interaction.editReply({
-                    components: [buildEmptyContainer('Badge List Failed')],
-                    flags: MessageFlags.IsComponentsV2
-                });
-            } catch {}
-        }
-    },
 
     async executePrefix(message, args) {
         try {

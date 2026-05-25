@@ -1,24 +1,29 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * password.js — prefix-only.
+ * Generates a cryptographically-secure random password and DMs it to
+ * the caller (auto-deletes from chat after 60s if DMs are blocked).
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+const crypto = require('crypto');
 
 function generatePassword(length, includeNumbers, includeSymbols, includeUppercase) {
     let charset = 'abcdefghijklmnopqrstuvwxyz';
-    
     if (includeUppercase) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if (includeNumbers) charset += '0123456789';
-    if (includeSymbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    if (includeNumbers)   charset += '0123456789';
+    if (includeSymbols)   charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
     let password = '';
     for (let i = 0; i < length; i++) {
-        password += charset.charAt(Math.floor(Math.random() * charset.length));
+        password += charset.charAt(crypto.randomInt(0, charset.length));
     }
-    
     return password;
 }
 
-function buildPasswordContainer(password, length, includeNumbers, includeSymbols, includeUppercase) {
+function buildPasswordContainer(password, length) {
     const yes = '<:Checkedbox:1473038547165384804>';
-    const no = '<:Cancel:1473037949187657818>';
-    
     return new ContainerBuilder()
         .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
@@ -28,67 +33,37 @@ function buildPasswordContainer(password, length, includeNumbers, includeSymbols
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `📏 **Length:** ${length} characters\n` +
-                `🔢 **Numbers:** ${includeNumbers ? yes : no}\n` +
-                `🔣 **Symbols:** ${includeSymbols ? yes : no}\n` +
-                `<:Microphone:1473039293088927996> **Uppercase:** ${includeUppercase ? yes : no}\n\n` +
+                `🔢 **Numbers:** ${yes}\n` +
+                `🔣 **Symbols:** ${yes}\n` +
+                `<:Microphone:1473039293088927996> **Uppercase:** ${yes}\n\n` +
                 `*<:Inforect:1473038624172937287> Keep your password safe!*`
             )
         );
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('password')
-        .setDescription('Generate a secure random password')
-        .addIntegerOption(option =>
-            option.setName('length')
-                .setDescription('Password length (8-128)')
-                .setMinValue(8)
-                .setMaxValue(128)
-                .setRequired(false))
-        .addBooleanOption(option =>
-            option.setName('numbers')
-                .setDescription('Include numbers (default: true)')
-                .setRequired(false))
-        .addBooleanOption(option =>
-            option.setName('symbols')
-                .setDescription('Include symbols (default: true)')
-                .setRequired(false))
-        .addBooleanOption(option =>
-            option.setName('uppercase')
-                .setDescription('Include uppercase letters (default: true)')
-                .setRequired(false)),
-
-    async execute(interaction) {
-        const length = interaction.options.getInteger('length') || 16;
-        const includeNumbers = interaction.options.getBoolean('numbers') ?? true;
-        const includeSymbols = interaction.options.getBoolean('symbols') ?? true;
-        const includeUppercase = interaction.options.getBoolean('uppercase') ?? true;
-
-        const password = generatePassword(length, includeNumbers, includeSymbols, includeUppercase);
-        const container = buildPasswordContainer(password, length, includeNumbers, includeSymbols, includeUppercase);
-
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-    },
+    name: 'password',
+    prefix: 'password',
+    aliases: ['genpass', 'pwgen'],
+    description: 'Generate a secure random password',
+    usage: 'password [length]',
+    category: 'utility',
 
     async executePrefix(message, args) {
-        const length = parseInt(args[0]) || 16;
-        
+        const length = parseInt(args[0], 10) || 16;
         if (length < 8 || length > 128) {
             return message.reply('<:Cancel:1473037949187657818> Password length must be between 8 and 128 characters!');
         }
 
-        const password = generatePassword(length, true, true, true);
-        const container = buildPasswordContainer(password, length, true, true, true);
+        const password  = generatePassword(length, true, true, true);
+        const container = buildPasswordContainer(password, length);
 
-        const msg = await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        
-        setTimeout(async () => {
-            try {
-                await msg.delete();
-            } catch (error) {
-                console.log('Could not delete password message');
-            }
-        }, 60000);
+        try {
+            await message.author.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply('<:Checkedbox:1473038547165384804> Sent your generated password via DM.').catch(() => {});
+        } catch {
+            const sent = await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            setTimeout(() => { sent.delete().catch(() => {}); }, 60_000);
+        }
     }
 };

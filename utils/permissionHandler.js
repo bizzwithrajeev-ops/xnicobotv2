@@ -157,7 +157,7 @@ const COMMAND_PERMISSIONS = {
 
     // ── Admin: Trust System ──
     'add-owner':        [PermissionFlagsBits.ManageGuild],
-    'removeowner':      [PermissionFlagsBits.ManageGuild],
+    'remove-owner':     [PermissionFlagsBits.ManageGuild],
     'add-admin':        [PermissionFlagsBits.ManageGuild],
     'removeadmin':      [PermissionFlagsBits.ManageGuild],
     'addmod':           [PermissionFlagsBits.ManageGuild],

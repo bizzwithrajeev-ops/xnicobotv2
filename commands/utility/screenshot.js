@@ -15,7 +15,7 @@ module.exports = {
             url = 'https://' + url;
         }
 
-        const loadingMsg = await message.reply('<:wcamera:1386229251895857304> Taking screenshot...');
+        const loadingMsg = await message.reply('<:Image:1473039533112033508> Taking screenshot...');
 
         try {
             const screenshotUrl = `https://image.thum.io/get/width/1920/crop/768/maxAge/1/noanimate/${url}`;
@@ -23,7 +23,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <:wcamera:1386229251895857304> Website Screenshot\n\n**URL:** ${url}\n\n![Screenshot](${screenshotUrl})`)
+                        .setContent(`# <:Image:1473039533112033508> Website Screenshot\n\n**URL:** ${url}\n\n![Screenshot](${screenshotUrl})`)
                 );
 
             await loadingMsg.edit({ content: null, components: [container], flags: MessageFlags.IsComponentsV2 });

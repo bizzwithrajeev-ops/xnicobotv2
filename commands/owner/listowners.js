@@ -4,7 +4,14 @@ const path = require('path');
 const jsonStore = require('../../utils/jsonStore');
 
 module.exports = {
-    
+    name: 'listowners',
+    prefix: 'listowners',
+    aliases: ['owners', 'coowners'],
+    description: 'List the bot owner and co-owners',
+    usage: 'listowners',
+    category: 'owner',
+    ownerOnly: true,
+
     async executePrefix(message, args, lavalinkManager, client) {
         if (!isOwner(message.author.id)) {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');

@@ -54,8 +54,8 @@ const CATEGORY_GROUP_RULES = {
     voice: [
         { name: 'Text-to-Speech',      emoji: '<:Bullhorn:1473038903157199093>',   cmds: ['speak', 'speak-config', 'join-greet'] },
         { name: 'VC Kick & Mute',      emoji: '<:banhammer:1473367388597780592>',  cmds: ['vckick', 'vckickall', 'vcmute', 'vcmuteall', 'vcunmute', 'vcunmuteall', 'vcdeafen', 'vcdeafenall', 'vcundeafen', 'vcundeafenall', 'voiceban', 'voiceunban', 'voicemove', 'voicemoveall', 'vcdisconnectall'] },
-        { name: 'VC Lock & Access',    emoji: '<:Shield:1473038669831995494>',     cmds: ['lockall-voice', 'unlockall-voice'] },
-        { name: 'VC Settings',         emoji: '<:Settings:1473037894703779851>',   cmds: ['vclimit', 'vclist', 'vcrename', 'vcbitrate', 'vcstatus'] },
+        { name: 'VC Lock & Access',    emoji: '<:Shield:1473038669831995494>',     cmds: ['lockall-voice', 'unlockall-voice', 'hideall-voice', 'unhideall-voice'] },
+        { name: 'VC Settings',         emoji: '<:Settings:1473037894703779851>',   cmds: ['vclimit', 'vclist', 'vcrename', 'vcbitrate', 'vcstatus', 'vcstatusremove'] },
         { name: 'VC Roles & Setup',    emoji: '<:Caretright:1473038207221502106>', cmds: ['roleallvoice', 'roleallvoice-off', 'join2create-setup'] },
     ],
 
@@ -86,13 +86,13 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Channel Access',      emoji: '<:Shield:1473038669831995494>',     cmds: ['lock', 'unlock', 'lockall', 'unlockall', 'lock-category', 'unlock-category', 'hide', 'unhide', 'hideall', 'unhideall', 'hide-category', 'unhide-category'] },
         { name: 'Channel Speed',       emoji: '<:Lightning:1473038797540298792>',  cmds: ['slowmode', 'slowmode-all'] },
         { name: 'Channel Setup',       emoji: '<:Folder:1473039340425973972>',     cmds: ['create-channel', 'delete-channel', 'channelclone', 'channel-nsfw', 'channel-permissions', 'channel-position', 'channel-rename', 'channel-topic', 'clone-permissions', 'setcategory', 'category-delete', 'category-rename', 'ignore-channels', 'backup-channel'] },
-        { name: 'Role Management',     emoji: '<:Settings:1473037894703779851>',   cmds: ['create-role', 'delete-role', 'addrole', 'removerole', 'roleall', 'roleallbots', 'roleallhumans', 'massrole', 'move-role', 'role-color', 'role-hoist', 'role-icon', 'role-mentionable', 'role-position-set', 'role-rename'] },
+        { name: 'Role Management',     emoji: '<:Settings:1473037894703779851>',   cmds: ['create-role', 'delete-role', 'addrole', 'removerole', 'roleall', 'massrole', 'move-role', 'role-color', 'role-hoist', 'role-icon', 'role-mentionable', 'role-position-set', 'role-rename'] },
     ],
 
     // ── 7. Server Settings ────────────────────────────────────
     settings: [
         { name: 'Bot Configuration',   emoji: '<:Settings:1473037894703779851>',   cmds: ['setprefix', 'setbotname', 'bot-customize', 'botprofile', 'quicksetup', 'botblock', 'aichat-setup'] },
-        { name: 'Server Configuration', emoji: '<:Caretright:1473038207221502106>', cmds: ['reset-permissions', 'resetserver', 'redeemserverkey', 'servertag', 'guildtag', 'config-backup', 'dm-user', 'application'] },
+        { name: 'Server Configuration', emoji: '<:Caretright:1473038207221502106>', cmds: ['reset-permissions', 'resetserver', 'redeemserverkey', 'servertag', 'guildtag', 'config-backup', 'dm-user', 'application', 'confession-setup'] },
         { name: 'Emoji & Sticker',     emoji: '<:Gamepad:1473039216429498409>',    cmds: ['deleteemoji', 'renameemoji', 'sticker-delete', 'stealemoji', 'stealsticker', 'extract-emoji', 'remove-duplicates'] },
     ],
 
@@ -111,9 +111,9 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Auto Membership',     emoji: '<:Settings:1473037894703779851>',   cmds: ['autorole', 'autonick', 'statusrole'] },
         { name: 'Tickets',             emoji: '<:Attach:1473037923979886694>',     cmds: ['ticket-setup', 'ticket-add', 'ticket-close', 'ticket-remove', 'ticket-categories'] },
         { name: 'Welcomer & Leave',    emoji: '<:Shield:1473038669831995494>',     cmds: ['welcomer', 'leave-setup'] },
-        { name: 'Verification & Safety', emoji: '<:Checkedbox:1473038547165384804>', cmds: ['verification-setup', 'media-only', 'automodconfig'] },
+        { name: 'Verification & Safety', emoji: '<:Checkedbox:1473038547165384804>', cmds: ['verification-setup', 'media-only', 'automodconfig', 'screenshot-verify'] },
         { name: 'Notifications',       emoji: '<:Bullhorn:1473038903157199093>',   cmds: ['booster-notify', 'social-notify', 'youtube-notify'] },
-        { name: 'Engagement',          emoji: '<:Gamepad:1473039216429498409>',    cmds: ['giveaway', 'poll', 'reactionroles', 'roletemplate', 'starboard-setup', 'serverstats'] },
+        { name: 'Engagement',          emoji: '<:Gamepad:1473039216429498409>',    cmds: ['giveaway', 'poll', 'reactionroles', 'roletemplate', 'starboard-setup', 'serverstats', 'suggestion', 'feedback'] },
     ],
 
     // ── 10. Buttons & Selection ───────────────────────────────
@@ -137,12 +137,12 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 13. Basic & Misc ─────────────────────────────────────
     basic: [
-        { name: 'Bot Core',            emoji: '<:xnico:1486755083390550036>',       cmds: ['help', 'botinfo', 'ping', 'invite', 'uptime', 'vote', 'support', 'variables'] },
+        { name: 'Bot Core',            emoji: '<:xnico:1486755083390550036>',       cmds: ['help', 'botinfo', 'ping', 'invite', 'uptime', 'vote', 'myvotes', 'support', 'variables'] },
         { name: 'Premium',             emoji: '<:Crown:1506010837368963142>',     cmds: ['premium', 'redeemkey', 'redeemserverkey', 'serverpremium'] },
-        { name: 'Reminders & AFK',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['afk', 'reminder', 'announce'] },
-        { name: 'Lookup & APIs',       emoji: '<:Attach:1473037923979886694>',     cmds: ['github', 'npm', 'define', 'urban', 'urbanrandom', 'wikipedia', 'reddit', 'youtube', 'spotify', 'weather', 'color', 'ip'] },
+        { name: 'Reminders & AFK',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['afk', 'reminder', 'announce', 'timezone'] },
+        { name: 'Lookup & APIs',       emoji: '<:Attach:1473037923979886694>',     cmds: ['github', 'npm', 'define', 'urban', 'urbanrandom', 'wikipedia', 'reddit', 'youtube', 'yt', 'spotify', 'weather', 'color', 'ip', 'stockprice'] },
         { name: 'Media & Tools',       emoji: '<:Pin:1473038806612447500>',        cmds: ['image', 'screenshot', 'qrcode', 'shorten', 'pastebin', 'calculate', 'password', 'uuid', 'download'] },
-        { name: 'Misc & Community',    emoji: '<:Fire:1473038604812161218>',       cmds: ['firstmsg', 'pinned-messages', 'snowflake', 'enlarge', 'afklist', 'anime', 'manga', 'crypto', 'stocks', 'covid', 'suggest', 'report', 'apply'] },
+        { name: 'Misc & Community',    emoji: '<:Fire:1473038604812161218>',       cmds: ['firstmsg', 'pinned-messages', 'snowflake', 'enlarge', 'afklist', 'anime', 'manga', 'crypto', 'covid', 'suggest', 'report', 'apply'] },
     ],
 
     // ── 14. Stats & Activity ──────────────────────────────────
@@ -173,14 +173,14 @@ const CATEGORY_GROUP_RULES = {
     games: [
         { name: 'Word & Puzzle',       emoji: '<:Bookopen:1473038576391557130>',   cmds: ['wordle', 'scramble', 'wordchain', 'trivia'] },
         { name: 'Skill & Speed',       emoji: '<:Lightningalt:1473038679906844824>', cmds: ['fasttype', 'reactionspeed', 'mathgame', 'counting', 'emojiguess'] },
-        { name: 'AI & Interactive',    emoji: '<:Inforect:1473038624172937287>',   cmds: ['akinator', '8ball', 'truthordare', 'wouldyourather'] },
+        { name: 'AI & Interactive',    emoji: '<:Inforect:1473038624172937287>',   cmds: ['akinator', '8ball', 'truthordare', 'truthdare', 'wouldyourather'] },
     ],
 
     // ── 18. Fun ───────────────────────────────────────────────
     fun: [
-        { name: 'Entertainment',        emoji: '<:Fire:1473038604812161218>',      cmds: ['meme', 'joke', 'fact', 'quote', 'advice', 'gif', 'fortune', 'riddle', 'roast', 'compliment', 'pickup-line', 'choose', 'roll', 'random-yes-no'] },
-        { name: 'Social Fun',          emoji: '<:Money:1473377877239140529>',      cmds: ['ship', 'rate', 'pp', 'magic-number'] },
-        { name: 'Pranks & Misc',       emoji: '<:Caretright:1473038207221502106>', cmds: ['fkick', 'reaction', 'confession', 'nitro', 'faketweet'] },
+        { name: 'Entertainment',        emoji: '<:Fire:1473038604812161218>',      cmds: ['meme', 'joke', 'fact', 'quote', 'advice', 'gif', 'fortune', 'riddle', 'roast', 'compliment', 'pickup-line', 'pickupline', 'choose', 'roll', 'random-yes-no', 'yesno'] },
+        { name: 'Social Fun',          emoji: '<:Money:1473377877239140529>',      cmds: ['ship', 'rate', 'pp', 'magic-number', 'magicnumber', 'iq'] },
+        { name: 'Pranks & Misc',       emoji: '<:Caretright:1473038207221502106>', cmds: ['fkick', 'reaction', 'confession', 'confess', 'nitro', 'faketweet'] },
         { name: 'Text Fun',            emoji: '<:Envelope:1473038885364695113>',   cmds: ['ascii', 'clap', 'mock', 'reverse'] },
     ],
 
@@ -194,11 +194,13 @@ const CATEGORY_GROUP_RULES = {
     // ── 20. Economy ───────────────────────────────────────────
     economy: [
         { name: 'Earning',             emoji: '<:Lightning:1473038797540298792>',  cmds: ['daily', 'weekly', 'work', 'beg', 'crime', 'fish', 'hunt', 'adventure', 'mine', 'farm', 'heist'] },
-        { name: 'Gambling',            emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice', 'blackjack', 'roulette', 'rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
+        { name: 'Classic Gambling',    emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice', 'blackjack', 'roulette'] },
+        { name: 'Bet Games — Setup',   emoji: '<:Lightning:1473038797540298792>',  cmds: ['mines', 'crash', 'plinko', 'wheel', 'limbo', 'tower', 'keno'] },
+        { name: 'PvP & Mini-Games',    emoji: '<:transfer:1479780506718437396>',   cmds: ['rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
         { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard'] },
-        { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift'] },
+        { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift', 'customshop', 'stocks'] },
         { name: 'Combat & Pets',       emoji: '<:Fire:1473038604812161218>',       cmds: ['battle', 'weapon', 'pets'] },
-        { name: 'Admin Controls',      emoji: '<:Shield:1473038669831995494>',     cmds: ['addcoins'] },
+        { name: 'Admin Controls',      emoji: '<:Shield:1473038669831995494>',     cmds: ['addcoins', 'currency'] },
     ],
 
     // ── 21. Social ────────────────────────────────────────────
@@ -209,7 +211,7 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 22. Leveling ──────────────────────────────────────────
     leveling: [
-        { name: 'User',                emoji: '<:Bookopen:1473038576391557130>',   cmds: ['rank', 'levels', 'rank-customize'] },
+        { name: 'User',                emoji: '<:Bookopen:1473038576391557130>',   cmds: ['rank', 'levels', 'leaderboard', 'rank-customize'] },
         { name: 'Admin Controls',      emoji: '<:Settings:1473037894703779851>',   cmds: ['setlevel', 'resetlevel', 'levelroles', 'toggleleveling', 'levelmultiplier', 'levelchannel'] },
         { name: 'Setup',               emoji: '<:banhammer:1473367388597780592>',  cmds: ['leveling-setup', 'leveling-announcement', 'leveling-ignore'] },
     ],

@@ -106,7 +106,7 @@ module.exports = {
                     .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
-                            `# <:wcamera:1386229251895857304> No Media-Only Channels\n\n` +
+                            `# <:Image:1473039533112033508> No Media-Only Channels\n\n` +
                             `There are no media-only channels configured in this server.\n\n` +
                             `*Use /media-only add to create one*`
                         )
@@ -119,7 +119,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
-                        `# <:wcamera:1386229251895857304> Media-Only Channels\n\n` +
+                        `# <:Image:1473039533112033508> Media-Only Channels\n\n` +
                         `This server has **${channels.length}** media-only channel(s):\n\n` +
                         `${channels.map(id => `• <#${id}>`).join('\n')}\n\n` +
                         `*Only messages with attachments are allowed in these channels*`
@@ -157,7 +157,7 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
-                        `# <:wcamera:1386229251895857304> No Media-Only Channels\n\n` +
+                        `# <:Image:1473039533112033508> No Media-Only Channels\n\n` +
                         `There are no media-only channels configured in this server.\n\n` +
                         `*Use /media-only add to create one*`
                     )
@@ -170,7 +170,7 @@ module.exports = {
             .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
-                    `# <:wcamera:1386229251895857304> Media-Only Channels\n\n` +
+                    `# <:Image:1473039533112033508> Media-Only Channels\n\n` +
                     `This server has **${channels.length}** media-only channel(s):\n\n` +
                     `${channels.map(id => `• <#${id}>`).join('\n')}\n\n` +
                     `*Only messages with attachments are allowed in these channels*`

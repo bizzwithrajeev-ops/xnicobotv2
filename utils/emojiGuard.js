@@ -18,6 +18,51 @@
 
 const DEFAULT_FALLBACK = '✨';
 
+// Lazy-loaded emoji-regex (matches Unicode emoji codepoints/sequences).
+// Used to filter out characters that *look* like a glyph but aren't a
+// real emoji (e.g. the typographical stars '✧' / '✦' / '𖤐' / '𖤍').
+// Discord's setEmoji + select-menu option.emoji require either a
+// valid <a?:NAME:ID> custom emoji or a true Unicode emoji — anything
+// else fails validation as INVALID_FORM_BODY.
+let _emojiRegex = null;
+function _getEmojiRegex() {
+    if (_emojiRegex) return _emojiRegex;
+    try {
+        const factory = require('emoji-regex');
+        _emojiRegex = factory();
+    } catch {
+        _emojiRegex = null;
+    }
+    return _emojiRegex;
+}
+
+/**
+ * Returns true if `str` is a single, complete Unicode emoji that
+ * Discord will accept. Returns false for typographical symbols like
+ * '✧' (U+2727), '✦' (U+2726), '𖤐' (U+16D90), '𖤍' (U+16D8D),
+ * letters, digits, punctuation, etc.
+ */
+function isUnicodeEmoji(str) {
+    if (typeof str !== 'string' || str.length === 0) return false;
+    const re = _getEmojiRegex();
+    if (re) {
+        re.lastIndex = 0;
+        const m = re.exec(str);
+        return !!m && m[0] === str;
+    }
+    // Fallback when emoji-regex isn't available: treat anything that's
+    // *purely* in known emoji blocks (Misc Symbols & Pictographs +
+    // Emoticons + Transport + Supplemental + Dingbats with VS-16) as
+    // an emoji. Conservative — false negatives are fine here.
+    const codePoints = [...str].map(c => c.codePointAt(0));
+    return codePoints.every(cp =>
+        (cp >= 0x1F300 && cp <= 0x1FAFF) ||      // pictographs / emoticons / transport / supplemental
+        (cp >= 0x2600  && cp <= 0x26FF && str.includes('\uFE0F')) || // misc symbols (with VS-16)
+        (cp >= 0x2700  && cp <= 0x27BF && str.includes('\uFE0F')) || // dingbats (with VS-16)
+        cp === 0x200D  || cp === 0xFE0F           // ZWJ + VS-16 joiners
+    );
+}
+
 // Specific bad-id → semantic fallback map.
 // IDs sourced from cross-server emojis the bot lost access to.
 const BAD_EMOJI_FALLBACKS = {
@@ -127,11 +172,30 @@ function clientHasEmoji(id) {
 /**
  * Sanitize a single emoji string.
  * Accepts:
- *   - Unicode emoji (returned unchanged)
+ *   - Unicode emoji (validated; non-emoji glyphs fall back to null)
  *   - <a?:name:id> string
  *   - { id, name, animated } object
  *   - bare numeric id
- * Returns: the same shape as input, or a safe Unicode fallback.
+ * Returns: the same shape as input, or null/fallback when the value
+ *          is not a Discord-valid emoji.
+ *
+ * Returning `null` is intentional — `ButtonBuilder#setEmoji(null)` and
+ * select-menu `option.emoji = null` are both valid no-ops, so this
+ * never breaks a component that previously had a bad glyph; it just
+ * renders the button/option without an icon instead of failing the
+ * whole payload with INVALID_FORM_BODY.
+ *
+ * Precedence (in order):
+ *   1. Explicit `BAD_EMOJI_FALLBACKS[id]` — known-bad → unicode swap
+ *   2. Live client cache (`clientHasEmoji`) — most authoritative
+ *      • cache says HAS  → keep the input as-is
+ *      • cache says MISS → swap for `DEFAULT_FALLBACK`
+ *   3. `KNOWN_GOOD_IDS` set — explicit whitelist
+ *   4. `KNOWN_GOOD_PREFIXES` heuristic — only used when the client
+ *      cache hasn't populated yet (e.g. during early startup before
+ *      `attachClient` is called). Once the cache is live, step 2
+ *      always overrides this so emojis the bot lost access to don't
+ *      slip through.
  */
 function sanitizeEmoji(input) {
     if (input == null) return input;
@@ -139,22 +203,31 @@ function sanitizeEmoji(input) {
     // Object form
     if (typeof input === 'object') {
         const id = input.id ? String(input.id) : null;
-        if (!id) return input; // unicode in .name only
-        if (isWhitelistedId(id)) return input;
+        if (!id) {
+            // Unicode-only object: validate the name field too.
+            if (typeof input.name === 'string' && !isUnicodeEmoji(input.name)) {
+                return null;
+            }
+            return input;
+        }
         if (BAD_EMOJI_FALLBACKS[id]) return BAD_EMOJI_FALLBACKS[id];
         const has = clientHasEmoji(id);
+        if (has === true) return input;
         if (has === false) return DEFAULT_FALLBACK;
-        return input; // unknown — leave as-is, runtime will validate
+        // cache not available yet — fall back to heuristic
+        if (isWhitelistedId(id)) return input;
+        return DEFAULT_FALLBACK;
     }
 
     if (typeof input !== 'string') return input;
 
     // Plain numeric id (used wrongly in a few places)
     if (/^\d{15,22}$/.test(input)) {
-        if (isWhitelistedId(input)) return `<:emoji:${input}>`;
         if (BAD_EMOJI_FALLBACKS[input]) return BAD_EMOJI_FALLBACKS[input];
         const has = clientHasEmoji(input);
-        if (has) return `<:emoji:${input}>`;
+        if (has === true) return `<:emoji:${input}>`;
+        if (has === false) return DEFAULT_FALLBACK;
+        if (isWhitelistedId(input)) return `<:emoji:${input}>`;
         return DEFAULT_FALLBACK;
     }
 
@@ -162,14 +235,17 @@ function sanitizeEmoji(input) {
     const m = input.match(/^<(a?):([^:]+):(\d{15,22})>$/);
     if (m) {
         const id = m[3];
-        if (isWhitelistedId(id)) return input;
         if (BAD_EMOJI_FALLBACKS[id]) return BAD_EMOJI_FALLBACKS[id];
         const has = clientHasEmoji(id);
+        if (has === true) return input;
         if (has === false) return DEFAULT_FALLBACK;
-        return input; // pass through if we can't tell yet
+        // cache not available yet — fall back to heuristic
+        if (isWhitelistedId(id)) return input;
+        return DEFAULT_FALLBACK;
     }
 
-    return input; // unicode or unknown text — pass through
+    // Plain unicode string — validate it's an actual emoji.
+    return isUnicodeEmoji(input) ? input : null;
 }
 
 function attachClient(client) {
@@ -202,18 +278,31 @@ function installPatches() {
         proto.__emojiGuardPatched = true;
     }
 
-    // Also patch addOptions / addComponents on string select to catch options
-    // built as plain objects (toJSON path).
-    if (djs.StringSelectMenuBuilder?.prototype) {
-        const sm = djs.StringSelectMenuBuilder.prototype;
-        if (!sm.__emojiGuardPatched && typeof sm.addOptions === 'function') {
-            const orig = sm.addOptions;
-            sm.addOptions = function patchedAddOptions(...args) {
+    // Patch the option-list mutators on every select-menu builder we know.
+    // A bad emoji in a single option still poisons the whole component
+    // payload, so this needs to fire for `addOptions`, `setOptions`, and
+    // `spliceOptions` regardless of which select builder the caller used.
+    const selectBuilders = [
+        djs.StringSelectMenuBuilder,
+        djs.SelectMenuBuilder,           // legacy alias still exported in djs v14
+        djs.UserSelectMenuBuilder,
+        djs.RoleSelectMenuBuilder,
+        djs.ChannelSelectMenuBuilder,
+        djs.MentionableSelectMenuBuilder,
+    ].filter(Boolean);
+
+    for (const B of selectBuilders) {
+        const sm = B.prototype;
+        if (!sm || sm.__emojiGuardPatched) continue;
+        for (const fn of ['addOptions', 'setOptions', 'spliceOptions']) {
+            const orig = sm[fn];
+            if (typeof orig !== 'function') continue;
+            sm[fn] = function patchedSelectFn(...args) {
                 const fixed = args.map(a => Array.isArray(a) ? a.map(fixOpt) : fixOpt(a));
                 return orig.apply(this, fixed);
             };
-            sm.__emojiGuardPatched = true;
         }
+        sm.__emojiGuardPatched = true;
     }
 }
 
@@ -227,6 +316,7 @@ function fixOpt(opt) {
 
 module.exports = {
     sanitizeEmoji,
+    isUnicodeEmoji,
     attachClient,
     installPatches,
     BAD_EMOJI_FALLBACKS,

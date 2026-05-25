@@ -1,54 +1,65 @@
 const { isOwner } = require('../../utils/helpers');
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 const jsonStore = require('../../utils/jsonStore');
+
+const VALID_KEYS = [
+    'defaultPrefix', 'maintenanceMode', 'maintenanceMessage',
+    'maxGuilds', 'developerMode', 'commandCooldown',
+    'embedColor', 'supportServer', 'voteLink'
+];
+
+function getDefaults() {
+    return {
+        defaultPrefix: process.env.PREFIX || '-',
+        maintenanceMode: false,
+        maintenanceMessage: 'Bot is currently under maintenance. Please try again later.',
+        globalAnnouncement: null,
+        maxGuilds: 1000,
+        developerMode: false,
+        autoRestart: true,
+        commandCooldown: 3000,
+        embedColor: '#0099ff',
+        supportServer: null,
+        voteLink: process.env.VOTE_LINK || null
+    };
+}
+
+function loadConfig() {
+    const data = jsonStore.read('globalconfig');
+    if (!data || Object.keys(data).length === 0) {
+        const defaults = getDefaults();
+        jsonStore.write('globalconfig', defaults);
+        return defaults;
+    }
+    return data;
+}
+
+function saveConfig(config) {
+    jsonStore.write('globalconfig', config);
+}
 
 module.exports = {
     name: 'globalconfig',
+    prefix: 'globalconfig',
+    aliases: ['gconfig', 'gcfg'],
     description: 'View or modify global bot settings',
-    
+    usage: 'globalconfig [view|set <key> <value>|reset]',
+    category: 'owner',
+    ownerOnly: true,
+
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');
         }
 
-        const action = args[0];
-        const key = args[1];
-        const value = args.slice(2).join(' ');
-
-        const configPath = path.join(__dirname, '..', '..', 'config', 'globalconfig.json');
-
-        const loadConfig = () => {
-            const data = jsonStore.read('globalconfig');
-            if (!data || Object.keys(data).length === 0) {
-                const defaultConfig = {
-                    defaultPrefix: process.env.PREFIX || '-',
-                    maintenanceMode: false,
-                    maintenanceMessage: 'Bot is currently under maintenance. Please try again later.',
-                    globalAnnouncement: null,
-                    maxGuilds: 1000,
-                    developerMode: false,
-                    autoRestart: true,
-                    commandCooldown: 3000,
-                    embedColor: '#0099ff',
-                    supportServer: null,
-                    voteLink: process.env.VOTE_LINK || null
-                };
-                jsonStore.write('globalconfig', defaultConfig);
-                return defaultConfig;
-            }
-            return data;
-        };
-
-        const saveConfig = (config) => {
-            jsonStore.write('globalconfig', config);
-        };
+        const action = (args[0] || 'view').toLowerCase();
+        const key    = args[1];
+        const value  = args.slice(2).join(' ');
 
         try {
             const config = loadConfig();
 
-            if (!action || action === 'view') {
+            if (action === 'view') {
                 const container = new ContainerBuilder()
                     .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
@@ -63,50 +74,53 @@ module.exports = {
                             `**Max Guilds:** ${config.maxGuilds}\n` +
                             `**Command Cooldown:** ${config.commandCooldown}ms\n` +
                             `**Embed Color:** ${config.embedColor}\n\n` +
-                            `**Maintenance Message:** ${config.maintenanceMessage.substring(0, 100)}\n` +
+                            `**Maintenance Message:** ${String(config.maintenanceMessage || '').substring(0, 100)}\n` +
                             `**Support Server:** ${config.supportServer || 'Not set'}\n` +
                             `**Vote Link:** ${config.voteLink || 'Not set'}\n\n` +
-                            `*Use \`-globalconfig set <key> <value>\` to modify*`
+                            `*Use \`globalconfig set <key> <value>\` to modify*`
                         )
                     );
-
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
             if (action === 'set') {
-                if (!key || !value) {
-                    return message.reply('<:Cancel:1473037949187657818> Usage: `-globalconfig set <key> <value>`');
+                if (!key || value === '') {
+                    return message.reply('<:Cancel:1473037949187657818> Usage: `globalconfig set <key> <value>`');
                 }
-
-                const validKeys = ['defaultPrefix', 'maintenanceMode', 'maintenanceMessage', 'maxGuilds', 'developerMode', 'commandCooldown', 'embedColor', 'supportServer', 'voteLink'];
-                
-                if (!validKeys.includes(key)) {
-                    return message.reply(`<:Cancel:1473037949187657818> Invalid key! Valid keys: ${validKeys.join(', ')}`);
+                if (!VALID_KEYS.includes(key)) {
+                    return message.reply(`<:Cancel:1473037949187657818> Invalid key. Valid keys: ${VALID_KEYS.join(', ')}`);
                 }
 
                 let parsedValue = value;
                 if (key === 'maintenanceMode' || key === 'developerMode') {
-                    parsedValue = value.toLowerCase() === 'true' || value === '1' || value.toLowerCase() === 'on';
+                    parsedValue = ['true', '1', 'on', 'yes', 'enable'].includes(value.toLowerCase());
                 } else if (key === 'maxGuilds' || key === 'commandCooldown') {
-                    parsedValue = parseInt(value);
-                    if (isNaN(parsedValue)) {
-                        return message.reply('<:Cancel:1473037949187657818> Value must be a number!');
+                    parsedValue = parseInt(value, 10);
+                    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+                        return message.reply('<:Cancel:1473037949187657818> Value must be a non-negative number.');
                     }
+                } else if (key === 'embedColor') {
+                    if (!/^#?[0-9a-fA-F]{6}$/.test(value)) {
+                        return message.reply('<:Cancel:1473037949187657818> Embed color must be a 6-digit hex (e.g. `#0099ff`).');
+                    }
+                    parsedValue = value.startsWith('#') ? value : `#${value}`;
                 }
 
                 config[key] = parsedValue;
                 saveConfig(config);
-
-                message.reply(`<:Checkedbox:1473038547165384804> Successfully set **${key}** to \`${parsedValue}\``);
-            } else if (action === 'reset') {
-                fs.unlinkSync(configPath);
-                message.reply('<:Checkedbox:1473038547165384804> Global configuration has been reset to defaults!');
-            } else {
-                message.reply('<:Cancel:1473037949187657818> Invalid action! Use: view, set, reset');
+                return message.reply(`<:Checkedbox:1473038547165384804> Set **${key}** to \`${parsedValue}\``);
             }
 
+            if (action === 'reset') {
+                // Replace stored config with defaults rather than deleting a non-existent file.
+                const defaults = getDefaults();
+                saveConfig(defaults);
+                return message.reply('<:Checkedbox:1473038547165384804> Global configuration reset to defaults.');
+            }
+
+            return message.reply('<:Cancel:1473037949187657818> Invalid action. Use `view`, `set`, or `reset`.');
         } catch (error) {
-            message.reply(`<:Cancel:1473037949187657818> Error managing global config: ${error.message}`);
+            return message.reply(`<:Cancel:1473037949187657818> Error managing global config: ${error.message}`);
         }
     }
 };

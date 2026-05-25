@@ -34,7 +34,7 @@ const { registerPanel, updatePanel } = require('../../utils/panelRegistry');
 const mgr = require('../../utils/screenshotVerifyManager');
 const {
     buildSetupPanel, buildTaskEditor, buildUserPanel,
-    buildReviewedMessage, formatDuration
+    buildReviewedMessage, formatDuration, engineLabelFromAi
 } = require('../../utils/screenshotVerifyEmbeds');
 const { TASK_PRESETS, ACTION_PRESETS } = require('../../utils/screenshotVerifyManagerShared');
 
@@ -192,7 +192,7 @@ async function showSetupPanel(replyTarget, guild) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('screenshot-verify')
-        .setDescription('Smart screenshot verification: tasks, AI detection, custom actions')
+        .setDescription('Smart screenshot verification with OCR + AI, custom tasks and actions')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(s => s
             .setName('panel')
@@ -442,6 +442,8 @@ module.exports = {
         if (id === 'sshot_settings')      return openSettingsModal(interaction);
         if (id === 'sshot_apply_privacy') return handleApplyPrivacy(interaction);
         if (id === 'sshot_toggle_hide')   return handleToggleHide(interaction);
+        if (id === 'sshot_cycle_mode')    return handleCycleMode(interaction);
+        if (id === 'sshot_cycle_engine')  return handleCycleEngine(interaction);
         if (id === 'sshot_reset')         return openResetConfirm(interaction);
         if (id === 'sshot_reset_confirm') return handleResetConfirm(interaction);
         if (id === 'sshot_reset_cancel') {
@@ -576,22 +578,19 @@ module.exports = {
         if (id === 'sshot_modal_settings') {
             const partial = {};
             const modeRaw       = interaction.fields.getTextInputValue('mode').trim().toLowerCase();
+            const verifierRaw   = interaction.fields.getTextInputValue('verifier').trim().toLowerCase();
             const confRaw       = interaction.fields.getTextInputValue('confidence').trim();
             const cooldownRaw   = interaction.fields.getTextInputValue('cooldown_h').trim();
             const autoDeleteRaw = interaction.fields.getTextInputValue('auto_delete').trim().toLowerCase();
-            const colorRaw      = interaction.fields.getTextInputValue('color_hex').trim();
 
-            if (['auto', 'review', 'hybrid'].includes(modeRaw)) partial.mode = modeRaw;
+            if (['auto', 'review', 'hybrid'].includes(modeRaw))     partial.mode = modeRaw;
+            if (['ocr', 'ai', 'hybrid'].includes(verifierRaw))      partial.verifier = verifierRaw;
             const conf = parseInt(confRaw, 10);
             if (!isNaN(conf) && conf >= 50 && conf <= 100) partial.confidenceThreshold = conf;
             const h = parseFloat(cooldownRaw);
             if (!isNaN(h) && h >= 0 && h <= 24 * 30) partial.cooldown = Math.floor(h * 3600000);
             if (['yes', 'y', 'on', '1', 'true'].includes(autoDeleteRaw))   partial.autoDelete = true;
             if (['no', 'n', 'off', '0', 'false'].includes(autoDeleteRaw))  partial.autoDelete = false;
-            if (colorRaw) {
-                const parsed = parseInt(colorRaw.replace('#', ''), 16);
-                if (!isNaN(parsed) && parsed >= 0 && parsed <= 0xFFFFFF) partial.color = parsed;
-            }
 
             const updated = mgr.setGuildConfig(guildId, partial);
             await interaction.reply({
@@ -600,10 +599,10 @@ module.exports = {
                     'Verification behavior has been updated.',
                     {
                         Mode:       updated.mode,
+                        Engine:     updated.verifier || 'hybrid',
                         Confidence: `${updated.confidenceThreshold}%`,
                         Cooldown:   formatDuration(updated.cooldown),
-                        AutoDelete: updated.autoDelete ? 'On' : 'Off',
-                        Color:      '#' + updated.color.toString(16).padStart(6, '0').toUpperCase()
+                        AutoDelete: updated.autoDelete ? 'On' : 'Off'
                     }
                 )],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -895,6 +894,40 @@ async function handleToggleHide(interaction) {
     }
 }
 
+/**
+ * Cycle the verification mode: auto → hybrid → review → auto.
+ * One click flips between auto/manual/hybrid without opening a modal.
+ */
+async function handleCycleMode(interaction) {
+    const guildId = interaction.guild.id;
+    const cfg = mgr.getGuildConfig(guildId);
+    const NEXT = { auto: 'hybrid', hybrid: 'review', review: 'auto' };
+    const next = NEXT[cfg.mode] || 'hybrid';
+    const updated = mgr.setGuildConfig(guildId, { mode: next });
+    return interaction.update({
+        components: [buildSetupPanel(interaction.guild, updated)],
+        flags: MessageFlags.IsComponentsV2
+    });
+}
+
+/**
+ * Cycle the detection engine: ocr → ai → hybrid → ocr.
+ * Lets admins flip between local OCR (free, deterministic) and the
+ * Groq vision LLM (broader visual understanding) instantly.
+ */
+async function handleCycleEngine(interaction) {
+    const guildId = interaction.guild.id;
+    const cfg = mgr.getGuildConfig(guildId);
+    const NEXT = { ocr: 'ai', ai: 'hybrid', hybrid: 'ocr' };
+    const current = cfg.verifier || 'hybrid';
+    const next = NEXT[current] || 'hybrid';
+    const updated = mgr.setGuildConfig(guildId, { verifier: next });
+    return interaction.update({
+        components: [buildSetupPanel(interaction.guild, updated)],
+        flags: MessageFlags.IsComponentsV2
+    });
+}
+
 async function handleSendUserPanel(interaction) {
     const cfg = mgr.getGuildConfig(interaction.guild.id);
     if (!cfg.enabled) {
@@ -991,8 +1024,17 @@ async function openSettingsModal(interaction) {
             ),
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
+                    .setCustomId('verifier')
+                    .setLabel('Engine (ocr / ai / hybrid)')
+                    .setStyle(TextInputStyle.Short)
+                    .setValue(cfg.verifier || 'hybrid')
+                    .setRequired(true)
+                    .setMaxLength(8)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
                     .setCustomId('confidence')
-                    .setLabel('AI Confidence Threshold (50-100)')
+                    .setLabel('Confidence Threshold (50-100)')
                     .setStyle(TextInputStyle.Short)
                     .setValue(String(cfg.confidenceThreshold))
                     .setRequired(true)
@@ -1015,15 +1057,6 @@ async function openSettingsModal(interaction) {
                     .setValue(cfg.autoDelete ? 'yes' : 'no')
                     .setRequired(false)
                     .setMaxLength(3)
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('color_hex')
-                    .setLabel('User panel accent color (hex)')
-                    .setStyle(TextInputStyle.Short)
-                    .setValue('#' + (cfg.color || 0x5865F2).toString(16).padStart(6, '0').toUpperCase())
-                    .setRequired(false)
-                    .setMaxLength(7)
             )
         ));
 }
@@ -1435,7 +1468,10 @@ async function handleManualReview(interaction, submissionId, action, reason) {
             } catch {}
         }
     } else {
-        await interaction.update({ components: [updated] }).catch(() => {});
+        await interaction.update({
+            components: [updated],
+            flags: MessageFlags.IsComponentsV2
+        }).catch(() => {});
     }
 
     refreshSetupPanel(interaction.client, interaction.guild);
@@ -1465,7 +1501,7 @@ function formatSubmitResult(result) {
                 'Auto-Verified',
                 `Your screenshot for **${result.task.name}** was approved automatically.`,
                 {
-                    Confidence: `${ai?.confidence ?? 0}%`,
+                    [`${engineLabelFromAi(ai)} Confidence`]: `${ai?.confidence ?? 0}%`,
                     Actions: aSummary,
                     'Submission ID': `\`${sub.id}\``
                 }
@@ -1519,7 +1555,7 @@ async function showPendingList(replyTarget, ephemeral = true) {
     for (const s of pending.slice(0, 15)) {
         const task = mgr.getTask(cfg, s.taskId);
         content += `> <:User:1473038971398520977> <@${s.userId}> · **${task?.name || 'unknown'}** · \`${s.id}\` · <t:${Math.floor(s.submittedAt / 1000)}:R>`;
-        if (s.ai)               content += ` · AI \`${s.ai.confidence ?? 0}%\``;
+        if (s.ai)               content += ` · ${engineLabelFromAi(s.ai)} \`${s.ai.confidence ?? 0}%\``;
         if (s.reviewMessageId)  content += ` · [open](https://discord.com/channels/${guildId}/${s.reviewChannelId}/${s.reviewMessageId})`;
         content += `\n`;
     }
@@ -1558,7 +1594,7 @@ async function showLookup(replyTarget, submissionId) {
     content += `<:Bookopen:1473038576391557130> **Task:** ${task?.name || '`unknown`'}\n`;
     content += `<:Alarm:1473039068546732214> **Submitted:** <t:${Math.floor(sub.submittedAt / 1000)}:F>\n`;
     if (sub.reviewedAt) content += `<:Shield:1473038669831995494> **Reviewed by:** <@${sub.reviewedBy}> · <t:${Math.floor(sub.reviewedAt / 1000)}:R>\n`;
-    if (sub.ai)         content += `<:Lightning:1473038797540298792> **AI:** \`${sub.ai.confidence}%\` · ${sub.ai.matched ? 'match' : 'no-match'}\n> ${sub.ai.reasoning || ''}\n`;
+    if (sub.ai)         content += `<:Lightning:1473038797540298792> **${engineLabelFromAi(sub.ai)}:** \`${sub.ai.confidence}%\` · ${sub.ai.matched ? 'match' : 'no-match'}\n> ${sub.ai.reasoning || ''}\n`;
     if (sub.reason)     content += `<:Chat:1473038936241864865> **Reason:** ${sub.reason}\n`;
     if (sub.note)       content += `<:Bookopen:1473038576391557130> **Note:** ${sub.note}\n`;
 

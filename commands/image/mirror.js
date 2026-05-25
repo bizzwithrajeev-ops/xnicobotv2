@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Refresh:1473037911581528165> **Mirrored Image**',
     accentColor: 0xCAD7E6,
     errorMessage: '<:Cancel:1473037949187657818> Failed to mirror image.',
+    prefixOnly: true,
 });

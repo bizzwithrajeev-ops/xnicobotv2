@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize, PermissionsBitField } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize, PermissionsBitField } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
 // ─── Persistent Bot Invite Store ───
@@ -182,19 +182,13 @@ async function renderPage(client, page) {
 // ─── Command ───
 
 module.exports = {
+    name: 'serverlist',
     prefix: 'serverlist',
+    aliases: ['servers', 'guilds', 'sl'],
     description: 'List all servers the bot is in with invite links',
     usage: 'serverlist [page]',
     category: 'owner',
-    aliases: ['servers', 'guilds', 'sl'],
-
-    data: new SlashCommandBuilder()
-        .setName('serverlist')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: List all servers the bot is in')
-        .addIntegerOption(option =>
-            option.setName('page')
-                .setDescription('Page number')
-                .setMinValue(1)),
+    ownerOnly: true,
 
     // Exported helpers for button handler & other commands
     renderPage,
@@ -202,23 +196,6 @@ module.exports = {
     getStoredInvite,
     loadBotInvites,
     PER_PAGE,
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-        const page = interaction.options.getInteger('page') || 1;
-        const { container, row, totalPages } = await renderPage(interaction.client, page);
-
-        if (page > totalPages) {
-            return interaction.editReply({ content: `<:Cancel:1473037949187657818> Invalid page! Max page: ${totalPages}` });
-        }
-
-        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

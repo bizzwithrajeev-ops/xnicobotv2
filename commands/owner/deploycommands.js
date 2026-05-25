@@ -1,33 +1,18 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, REST, Routes } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { isSlashBlocked } = require('../../utils/slashBlocklist');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('deploycommands')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Deploy slash commands globally'),
-
+    name: 'deploycommands',
     prefix: 'deploycommands',
     aliases: ['deploy', 'deploycmds'],
     description: 'Clear guild commands & fresh global slash deployment',
     usage: 'deploycommands',
     category: 'owner',
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({
-                content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!',
-                flags: MessageFlags.Ephemeral,
-            });
-        }
-
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const result = await deploySlashCommands(interaction.client);
-        const container = buildResultContainer(result);
-        await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
+    ownerOnly: true,
 
     async executePrefix(message) {
         if (!isOwner(message.author.id)) {
@@ -82,6 +67,10 @@ async function deploySlashCommands(client) {
 
                 if (command.data && command.data !== null && !command.prefixOnly && typeof command.execute === 'function') {
                     const commandData = command.data.toJSON();
+                    if (isSlashBlocked(commandData.name)) {
+                        prefixOnly++;
+                        continue;
+                    }
                     if (seenNames.has(commandData.name)) {
                         skippedDuplicates++;
                         continue;

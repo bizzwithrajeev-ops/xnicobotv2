@@ -85,24 +85,26 @@ async function executeImageCommand(message, args, options) {
 }
 
 /**
- * Create a full image command module with slash + prefix support.
+ * Create an image command module.
+ *
+ * By default the factory builds both a slash payload (`data`) and an
+ * `execute(interaction)` handler in addition to the `executePrefix`
+ * handler. Pass `prefixOnly: true` to omit the slash side of the
+ * module entirely so the command only ever runs through the prefix
+ * dispatcher.
+ *
+ * @param {object} opts
+ * @param {boolean} [opts.prefixOnly=false] Skip slash registration.
  */
 function createImageCommand(opts) {
     const {
         name, description, aliases = [],
         effectName, apiEndpoint, filename, title,
         accentColor = 0xCAD7E6, errorMessage,
+        prefixOnly = false,
     } = opts;
 
-    const slashData = new SlashCommandBuilder()
-        .setName(name)
-        .setDescription(description)
-        .addAttachmentOption(o => o.setName('image').setDescription('Image to apply effect to').setRequired(false))
-        .addUserOption(o => o.setName('user').setDescription('Use this user\'s avatar').setRequired(false))
-        .addStringOption(o => o.setName('url').setDescription('Image URL').setRequired(false));
-
-    return {
-        data: slashData,
+    const base = {
         prefix: name,
         name,
         description,
@@ -111,31 +113,46 @@ function createImageCommand(opts) {
         aliases,
         dmAllowed: true,
 
-        async execute(interaction) {
-            if (!isImageApiConfigured()) {
-                return interaction.reply({ content: getUnavailableMessage(), flags: MessageFlags.Ephemeral });
-            }
-            await interaction.deferReply();
-
-            const { url: imageUrl, source: sourceType } = getImageUrlFromInteraction(interaction);
-            try {
-                const apiUrl = getImageApiUrl(apiEndpoint, imageUrl);
-                if (!apiUrl) {
-                    return interaction.editReply({ content: getUnavailableMessage() });
-                }
-                const attachment = new AttachmentBuilder(apiUrl, { name: filename });
-                const container = createImageResponse(title, `Applied ${effectName} to ${sourceType}`, filename, accentColor);
-                await interaction.editReply({ components: [container], files: [attachment], flags: MessageFlags.IsComponentsV2 });
-            } catch (error) {
-                log.error(`[IMAGE] ${effectName} error:`, error.message);
-                await interaction.editReply({ content: errorMessage || `<:Cancel:1473037949187657818> Failed to apply ${effectName}.` });
-            }
-        },
-
         async executePrefix(message, args) {
             await executeImageCommand(message, args, { effectName, apiEndpoint, filename, title, accentColor, errorMessage });
         },
     };
+
+    if (prefixOnly) {
+        // Mark explicitly so the loader treats this as prefix-only.
+        base.prefixOnly = true;
+        return base;
+    }
+
+    base.data = new SlashCommandBuilder()
+        .setName(name)
+        .setDescription(description)
+        .addAttachmentOption(o => o.setName('image').setDescription('Image to apply effect to').setRequired(false))
+        .addUserOption(o => o.setName('user').setDescription('Use this user\'s avatar').setRequired(false))
+        .addStringOption(o => o.setName('url').setDescription('Image URL').setRequired(false));
+
+    base.execute = async function execute(interaction) {
+        if (!isImageApiConfigured()) {
+            return interaction.reply({ content: getUnavailableMessage(), flags: MessageFlags.Ephemeral });
+        }
+        await interaction.deferReply();
+
+        const { url: imageUrl, source: sourceType } = getImageUrlFromInteraction(interaction);
+        try {
+            const apiUrl = getImageApiUrl(apiEndpoint, imageUrl);
+            if (!apiUrl) {
+                return interaction.editReply({ content: getUnavailableMessage() });
+            }
+            const attachment = new AttachmentBuilder(apiUrl, { name: filename });
+            const container = createImageResponse(title, `Applied ${effectName} to ${sourceType}`, filename, accentColor);
+            await interaction.editReply({ components: [container], files: [attachment], flags: MessageFlags.IsComponentsV2 });
+        } catch (error) {
+            log.error(`[IMAGE] ${effectName} error:`, error.message);
+            await interaction.editReply({ content: errorMessage || `<:Cancel:1473037949187657818> Failed to apply ${effectName}.` });
+        }
+    };
+
+    return base;
 }
 
 module.exports = {

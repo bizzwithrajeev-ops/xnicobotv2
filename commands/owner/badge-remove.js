@@ -1,9 +1,6 @@
 const { isOwner } = require('../../utils/helpers');
 const { resolveUser } = require('../../utils/resolveUser');
-const {
-    SlashCommandBuilder,
-    MessageFlags
-} = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const badgeManager = require('../../utils/badgeManager');
 const {
     BADGE_ICONS,
@@ -41,70 +38,12 @@ function buildOrphanRemovedMessage(badgeId, user, totalBadges) {
 
 module.exports = {
     name: 'badge-remove',
+    prefix: 'badge-remove',
+    aliases: ['removebadge', 'badgeremove'],
     description: 'Remove a custom badge from a user (Owner Only)',
-    usage: '<@user> <badge-id>',
-    data: new SlashCommandBuilder()
-        .setName('badge-remove')
-        .setDescription('Remove a custom badge from a user (Owner Only)')
-        .addUserOption(option => option.setName('user').setDescription('User to remove the badge from').setRequired(true))
-        .addStringOption(option => option.setName('badge-id').setDescription('Badge to remove').setRequired(true).setAutocomplete(true)),
-
-    async autocomplete(interaction) {
-        const focused = (interaction.options.getFocused() || '').toLowerCase();
-        const badges = await badgeManager.getAllBadges();
-        const filtered = badges
-            .filter(b =>
-                b.badgeId.toLowerCase().includes(focused) ||
-                (b.name || '').toLowerCase().includes(focused)
-            )
-            .slice(0, 25);
-        await interaction.respond(filtered.map(b => ({
-            name: `${b.name} (${b.badgeId})`.slice(0, 100),
-            value: b.badgeId
-        })));
-    },
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({
-                content: `${BADGE_ICONS.Cancel} This command is only available to the bot owner.`,
-                flags: MessageFlags.Ephemeral
-            });
-        }
-
-        await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-
-        try {
-            const user = interaction.options.getUser('user', true);
-            const badgeId = interaction.options.getString('badge-id', true).toLowerCase();
-
-            if (user.bot) {
-                return editV2Reply(interaction, {
-                    components: [buildErrorContainer('Cannot Remove Badge', 'Bots do not own badges.')]
-                });
-            }
-
-            const result = await badgeManager.removeBadgeFromUser(user.id, badgeId);
-            if (!result.success) {
-                return editV2Reply(interaction, {
-                    components: [buildErrorContainer('Could Not Remove Badge', result.message || 'Unknown error.')]
-                });
-            }
-
-            return editV2Reply(interaction, {
-                components: [
-                    result.badge
-                        ? buildSuccessMessage(result.badge, user, result.totalBadges)
-                        : buildOrphanRemovedMessage(badgeId, user, result.totalBadges)
-                ]
-            });
-        } catch (error) {
-            console.error('Error removing badge:', error);
-            return editV2Reply(interaction, {
-                components: [buildErrorContainer('Failed to Remove Badge', error.message || 'Unknown error.')]
-            });
-        }
-    },
+    usage: 'badge-remove <@user> <badge-id>',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {
@@ -117,8 +56,7 @@ module.exports = {
             return message.reply({
                 components: [buildErrorContainer(
                     'Invalid Usage',
-                    `**Usage:** \`${prefix}badge-remove <@user> <badge-id>\`\n\n` +
-                    '-# You can also use `/badge-remove` for guided input.'
+                    `**Usage:** \`${prefix}badge-remove <@user> <badge-id>\``
                 )],
                 flags: MessageFlags.IsComponentsV2
             });

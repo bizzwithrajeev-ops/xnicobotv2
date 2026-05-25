@@ -1,9 +1,6 @@
 const { isOwner } = require('../../utils/helpers');
 const { resolveUser } = require('../../utils/resolveUser');
-const {
-    SlashCommandBuilder,
-    MessageFlags
-} = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const badgeManager = require('../../utils/badgeManager');
 const {
     BADGE_ICONS,
@@ -27,78 +24,12 @@ function buildSuccessMessage(badge, user, totalBadges) {
 
 module.exports = {
     name: 'badge-give',
+    prefix: 'badge-give',
+    aliases: ['givebadge', 'badgegive'],
     description: 'Give a custom badge to a user (Owner Only)',
-    usage: '<@user> <badge-id>',
-    data: new SlashCommandBuilder()
-        .setName('badge-give')
-        .setDescription('Give a custom badge to a user (Owner Only)')
-        .addUserOption(option => option.setName('user').setDescription('User to award the badge to').setRequired(true))
-        .addStringOption(option => option.setName('badge-id').setDescription('Badge to award').setRequired(true).setAutocomplete(true)),
-
-    async autocomplete(interaction) {
-        const focused = (interaction.options.getFocused() || '').toLowerCase();
-        const badges = await badgeManager.getAllBadges();
-        const filtered = badges
-            .filter(b =>
-                b.badgeId.toLowerCase().includes(focused) ||
-                (b.name || '').toLowerCase().includes(focused)
-            )
-            .slice(0, 25);
-        await interaction.respond(filtered.map(b => ({
-            name: `${b.name} (${b.badgeId})`.slice(0, 100),
-            value: b.badgeId
-        })));
-    },
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({
-                content: `${BADGE_ICONS.Cancel} This command is only available to the bot owner.`,
-                flags: MessageFlags.Ephemeral
-            });
-        }
-
-        await interaction.deferReply();
-
-        try {
-            const user = interaction.options.getUser('user', true);
-            const badgeId = interaction.options.getString('badge-id', true).toLowerCase();
-
-            if (user.bot) {
-                return editV2Reply(interaction, {
-                    components: [buildErrorContainer('Cannot Award Badge', 'Badges cannot be awarded to bots.')]
-                });
-            }
-
-            const badges = await badgeManager.getAllBadges();
-            const badge = badges.find(b => b.badgeId === badgeId);
-            if (!badge) {
-                const list = badges.map(b => `\`${b.badgeId}\``).join(', ') || '*none*';
-                return editV2Reply(interaction, {
-                    components: [buildErrorContainer(
-                        'Badge Not Found',
-                        `Badge with ID \`${badgeId}\` does not exist.\n\n**Available badges:** ${list}`
-                    )]
-                });
-            }
-
-            const result = await badgeManager.addBadgeToUser(user.id, badgeId);
-            if (!result.success) {
-                return editV2Reply(interaction, {
-                    components: [buildErrorContainer('Could Not Award Badge', result.message || 'Unknown error.')]
-                });
-            }
-
-            return editV2Reply(interaction, {
-                components: [buildSuccessMessage(result.badge, user, result.totalBadges)]
-            });
-        } catch (error) {
-            console.error('Error giving badge:', error);
-            return editV2Reply(interaction, {
-                components: [buildErrorContainer('Failed to Award Badge', error.message || 'Unknown error.')]
-            });
-        }
-    },
+    usage: 'badge-give <@user> <badge-id>',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {
@@ -111,8 +42,7 @@ module.exports = {
             return message.reply({
                 components: [buildErrorContainer(
                     'Invalid Usage',
-                    `**Usage:** \`${prefix}badge-give <@user> <badge-id>\`\n\n` +
-                    '-# You can also use `/badge-give` for guided input.'
+                    `**Usage:** \`${prefix}badge-give <@user> <badge-id>\``
                 )],
                 flags: MessageFlags.IsComponentsV2
             });

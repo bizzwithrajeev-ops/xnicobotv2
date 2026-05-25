@@ -1,12 +1,20 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, ChannelType, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * channelinfo.js — prefix-only.
+ * Displays metadata for the mentioned channel or the channel the
+ * message was sent in.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ChannelType, MessageFlags } = require('discord.js');
 
 const CHANNEL_TYPES = {
-    [ChannelType.GuildText]: 'Text Channel',
-    [ChannelType.GuildVoice]: 'Voice Channel',
-    [ChannelType.GuildCategory]: 'Category',
+    [ChannelType.GuildText]:         'Text Channel',
+    [ChannelType.GuildVoice]:        'Voice Channel',
+    [ChannelType.GuildCategory]:     'Category',
     [ChannelType.GuildAnnouncement]: 'Announcement Channel',
-    [ChannelType.GuildStageVoice]: 'Stage Channel',
-    [ChannelType.GuildForum]: 'Forum Channel'
+    [ChannelType.GuildStageVoice]:   'Stage Channel',
+    [ChannelType.GuildForum]:        'Forum Channel'
 };
 
 function buildChannelInfo(channel) {
@@ -56,41 +64,20 @@ function buildChannelInfo(channel) {
 }
 
 module.exports = {
+    name: 'channelinfo',
     prefix: 'channelinfo',
+    aliases: ['channel-info', 'cinfo'],
     description: 'Display information about a channel',
-    usage: 'channelinfo',
+    usage: 'channelinfo [#channel]',
     category: 'basic',
-    aliases: ['channel-info-detailed'],
-    data: new SlashCommandBuilder()
-        .setName('channelinfo')
-        .setDescription('Display information about a channel')
-        .addChannelOption(option =>
-            option.setName('channel')
-                .setDescription('The channel to get info about')),
-    
-    async execute(interaction) {
-        try {
-            const channel = interaction.options.getChannel('channel') || interaction.channel;
-            const container = buildChannelInfo(channel);
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error(`[CHANNELINFO] Error:`, error);
-            const content = '<:Cancel:1473037949187657818> An error occurred while running this command.';
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content }).catch(() => {});
-            } else {
-                await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
-        }
-    },
 
-    async executePrefix(message, args) {
+    async executePrefix(message) {
         try {
             const channel = message.mentions.channels.first() || message.channel;
             const container = buildChannelInfo(channel);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error(`[CHANNELINFO] Error:`, error);
+            console.error('[channelinfo]', error);
             await message.reply('<:Cancel:1473037949187657818> An error occurred while running this command.').catch(() => {});
         }
     }

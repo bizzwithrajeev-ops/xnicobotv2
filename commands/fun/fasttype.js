@@ -1,6 +1,13 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+'use strict';
 
-const phrases = [
+/**
+ * fasttype.js — prefix-only.
+ * 30-second typing speed challenge.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+
+const PHRASES = [
     'The quick brown fox jumps over the lazy dog',
     'Pack my box with five dozen liquor jugs',
     'How vexingly quick daft zebras jump',
@@ -21,7 +28,7 @@ const phrases = [
     'Live long and prosper'
 ];
 
-const words = [
+const WORDS = [
     'algorithm', 'butterfly', 'chocolate', 'developer', 'elephant',
     'fantastic', 'gorgeous', 'hamburger', 'incredible', 'javascript',
     'keyboard', 'lightning', 'microphone', 'notebook', 'orchestra',
@@ -29,52 +36,22 @@ const words = [
     'umbrella', 'volleyball', 'watermelon', 'xylophone', 'yesterday'
 ];
 
-module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('fasttype')
-        .setDescription('Test your typing speed')
-        .addStringOption(opt =>
-            opt.setName('difficulty')
-                .setDescription('Choose difficulty')
-                .setRequired(false)
-                .addChoices(
-                    { name: 'Easy (Single Word)', value: 'easy' },
-                    { name: 'Medium (Short Phrase)', value: 'medium' },
-                    { name: 'Hard (Long Phrase)', value: 'hard' }
-                )),
-
-    prefix: 'fasttype',
-    description: 'Test your typing speed - type the phrase as fast as you can!',
-    usage: 'fasttype [easy/medium/hard]',
-    category: 'games',
-    aliases: ['type', 'typingtest', 'typerace', 'typinggame'],
-
-    async execute(interaction) {
-        const difficulty = interaction.options.getString('difficulty') || 'medium';
-        await playFastType(interaction, true, difficulty);
-    },
-
-    async executePrefix(message, args) {
-        const difficulty = ['easy', 'medium', 'hard'].includes(args[0]?.toLowerCase()) ? args[0].toLowerCase() : 'medium';
-        await playFastType(message, false, difficulty);
+function pickPhrase(difficulty) {
+    if (difficulty === 'easy') return WORDS[Math.floor(Math.random() * WORDS.length)];
+    if (difficulty === 'hard') {
+        const a = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+        const b = PHRASES[Math.floor(Math.random() * PHRASES.length)].split(' ').slice(0, 3).join(' ');
+        return `${a} ${b}`;
     }
-};
+    return PHRASES[Math.floor(Math.random() * PHRASES.length)];
+}
 
-async function playFastType(context, isInteraction, difficulty) {
-    const channel = context.channel;
-    const authorId = isInteraction ? context.user.id : context.author.id;
-    
-    let text;
-    if (difficulty === 'easy') {
-        text = words[Math.floor(Math.random() * words.length)];
-    } else if (difficulty === 'hard') {
-        text = phrases[Math.floor(Math.random() * phrases.length)] + ' ' + 
-               phrases[Math.floor(Math.random() * phrases.length)].split(' ').slice(0, 3).join(' ');
-    } else {
-        text = phrases[Math.floor(Math.random() * phrases.length)];
-    }
+async function playFastType(message, difficulty) {
+    const channel  = message.channel;
+    const authorId = message.author.id;
+    const text     = pickPhrase(difficulty);
 
-    const container = new ContainerBuilder()
+    const promptContainer = new ContainerBuilder()
         .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
@@ -87,35 +64,31 @@ async function playFastType(context, isInteraction, difficulty) {
         );
 
     const startTime = Date.now();
+    await message.reply({ components: [promptContainer], flags: MessageFlags.IsComponentsV2 });
 
-    if (isInteraction) {
-        await context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    } else {
-        await context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    }
-
-    const filter = m => m.author.id === authorId;
-    
     try {
-        const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
-        const response = collected.first().content;
-        const endTime = Date.now();
-        const timeTaken = (endTime - startTime) / 1000;
-
-        const correctChars = [...response].filter((char, i) => char === text[i]).length;
-        const accuracy = Math.round((correctChars / text.length) * 100);
-        const wpm = Math.round((text.split(' ').length / timeTaken) * 60);
-        const cpm = Math.round((text.length / timeTaken) * 60);
+        const collected = await channel.awaitMessages({
+            filter: m => m.author.id === authorId,
+            max: 1,
+            time: 30_000,
+            errors: ['time']
+        });
+        const response   = collected.first().content;
+        const timeTaken  = (Date.now() - startTime) / 1000;
+        const correctChars = [...response].filter((c, i) => c === text[i]).length;
+        const accuracy   = Math.round((correctChars / text.length) * 100);
+        const wpm        = Math.round((text.split(' ').length / timeTaken) * 60);
+        const cpm        = Math.round((text.length / timeTaken) * 60);
 
         let rating, color;
         if (response.toLowerCase() === text.toLowerCase() && accuracy >= 95) {
-            if (wpm >= 80) { rating = '<:Award:1473038391632203887> LEGENDARY!'; color = 0xFFD700; }
-            else if (wpm >= 60) { rating = '<:Star:1473038501766369300> Excellent!'; color = 0x00FF00; }
+            if (wpm >= 80)      { rating = '<:Award:1473038391632203887> LEGENDARY!';     color = 0xFFD700; }
+            else if (wpm >= 60) { rating = '<:Star:1473038501766369300> Excellent!';      color = 0x00FF00; }
             else if (wpm >= 40) { rating = '<:Checkedbox:1473038547165384804> Good job!'; color = 0x00FF00; }
-            else { rating = '👍 Nice try!'; color = 0x00FF00; }
+            else                { rating = '👍 Nice try!';                                color = 0x00FF00; }
         } else {
             rating = accuracy >= 80 ? '<:Edit:1473037903625191580> Almost there!' : '<:Cancel:1473037949187657818> Try again!';
-            color = accuracy >= 80 ? 0xFFA500 : 0xFF0000;
+            color  = accuracy >= 80 ? 0xFFA500 : 0xFF0000;
         }
 
         const resultContainer = new ContainerBuilder()
@@ -127,7 +100,9 @@ async function playFastType(context, isInteraction, difficulty) {
                     `**<:Invoice:1473039492217835550> Accuracy:** ${accuracy}%\n` +
                     `**<:Edit:1473037903625191580> WPM:** ${wpm}\n` +
                     `**⌨️ CPM:** ${cpm}\n\n` +
-                    `${accuracy < 100 ? `**Your text:**\n\`${response.substring(0, 100)}${response.length > 100 ? '...' : ''}\`` : '**Perfect match!** <:Present:1473038450465706076>'}`
+                    (accuracy < 100
+                        ? `**Your text:**\n\`${response.substring(0, 100)}${response.length > 100 ? '...' : ''}\``
+                        : '**Perfect match!** <:Present:1473038450465706076>')
                 )
             );
         await channel.send({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
@@ -142,3 +117,17 @@ async function playFastType(context, isInteraction, difficulty) {
         await channel.send({ components: [timeoutContainer], flags: MessageFlags.IsComponentsV2 });
     }
 }
+
+module.exports = {
+    name: 'fasttype',
+    prefix: 'fasttype',
+    aliases: ['type', 'typingtest', 'typerace', 'typinggame'],
+    description: 'Test your typing speed - type the phrase as fast as you can!',
+    usage: 'fasttype [easy|medium|hard]',
+    category: 'fun',
+
+    async executePrefix(message, args) {
+        const difficulty = ['easy', 'medium', 'hard'].includes(args[0]?.toLowerCase()) ? args[0].toLowerCase() : 'medium';
+        await playFastType(message, difficulty);
+    }
+};

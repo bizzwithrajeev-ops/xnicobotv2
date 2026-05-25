@@ -896,8 +896,12 @@ client.systemLogs = log.store;
 const commandFolders = ['music', 'voice', 'basic', 'fun', 'action', 'admin', 'automation', 'utility', 'owner', 'economy', 'leveling', 'image', 'social', 'backup', 'webhook', 'dm', 'stats'];
 const commands = [];
 
+// Single source of truth for commands kept as prefix-only.
+const { isSlashBlocked } = require('./utils/slashBlocklist');
+
 const categoryCount = {};
 let prefixOnlyCount = 0;
+let slashBlockedCount = 0;
 
 for (const folder of commandFolders) {
     const commandsPath = path.join(__dirname, 'commands', folder);
@@ -931,17 +935,22 @@ for (const folder of commandFolders) {
                 }
             }
 
-            // Only register slash commands if not marked as prefix-only
+            // Only register slash commands if not marked as prefix-only AND not blocklisted.
             if (!command.prefixOnly && 'execute' in command) {
-                const commandData = command.data.toJSON();
-                commandData.category = folder; // Attach category for prioritization
-                commands.push(commandData);
+                if (isSlashBlocked(commandName)) {
+                    slashBlockedCount++;
+                } else {
+                    const commandData = command.data.toJSON();
+                    commandData.category = folder; // Attach category for prioritization
+                    commands.push(commandData);
+                }
             } else if (command.prefixOnly) {
                 prefixOnlyCount++;
             }
         } else if ('executePrefix' in command) {
-            // Prefix-only commands without slash command data
-            const commandName = file.replace('.js', '');
+            // Prefix-only commands without slash command data.
+            // Honor `command.prefix` / `command.name` first, fall back to the filename.
+            const commandName = command.prefix || command.name || file.replace('.js', '');
 
             if (client.commands.has(commandName)) {
                 log.warning(`Duplicate command detected: "${commandName}" in ${folder}/${file} (already exists)`);
@@ -976,6 +985,9 @@ const commandItems = Object.entries(categoryCount).map(([cat, count]) => {
 log.section('Commands', true);
 log.compact(commandItems);
 log.info(`Total commands: ${totalLoaded}`);
+if (slashBlockedCount > 0) {
+    log.info(`Slash-blocked (prefix-only by policy): ${slashBlockedCount}`);
+}
 
 // Lavalink — all setup consolidated in utils/lavalinkSetup.js
 const lavalinkManager = createLavalinkManager(client);
@@ -2502,6 +2514,81 @@ client.on('interactionCreate', async (interaction) => {
                         if (handled !== false) return;
                     } catch (error) {
                         log.error(`Mines Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            // Route crash game buttons (start, cashout, cancel). Setup
+            // select menus are routed in the isStringSelectMenu block.
+            if (interaction.customId.startsWith('crash_')) {
+                const crashCmd = client.commands.get('crash');
+                if (crashCmd && crashCmd.handleCrashInteraction) {
+                    try {
+                        const handled = await crashCmd.handleCrashInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Crash Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            // Route plinko game buttons (start, cancel). Setup select
+            // menus are routed in the isStringSelectMenu block.
+            if (interaction.customId.startsWith('plinko_')) {
+                const plinkoCmd = client.commands.get('plinko');
+                if (plinkoCmd && plinkoCmd.handlePlinkoInteraction) {
+                    try {
+                        const handled = await plinkoCmd.handlePlinkoInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Plinko Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            // Route wheel game buttons (start, cancel). Setup select
+            // menus are routed in the isStringSelectMenu block.
+            if (interaction.customId.startsWith('wheel_')) {
+                const wheelCmd = client.commands.get('wheel');
+                if (wheelCmd && wheelCmd.handleWheelInteraction) {
+                    try {
+                        const handled = await wheelCmd.handleWheelInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Wheel Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            // Route limbo game buttons (start, cancel).
+            if (interaction.customId.startsWith('limbo_')) {
+                const limboCmd = client.commands.get('limbo');
+                if (limboCmd && limboCmd.handleLimboInteraction) {
+                    try {
+                        const handled = await limboCmd.handleLimboInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Limbo Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            // Route tower game buttons (start, pick, cashout, cancel).
+            if (interaction.customId.startsWith('tower_')) {
+                const towerCmd = client.commands.get('tower');
+                if (towerCmd && towerCmd.handleTowerInteraction) {
+                    try {
+                        const handled = await towerCmd.handleTowerInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Tower Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            // Route keno game buttons (number toggles, start, clear, cancel).
+            if (interaction.customId.startsWith('keno_')) {
+                const kenoCmd = client.commands.get('keno');
+                if (kenoCmd && kenoCmd.handleKenoInteraction) {
+                    try {
+                        const handled = await kenoCmd.handleKenoInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Keno Button Error: ${error.message}`, error);
                     }
                 }
             }
@@ -5232,6 +5319,85 @@ client.on('interactionCreate', async (interaction) => {
                         if (handled !== false) return;
                     } catch (error) {
                         log.error(`Mines Setup Select Error: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Route crash setup select menus (risk + auto-cashout).
+            if (interaction.customId.startsWith('crash_setup_')) {
+                const crashCmd = client.commands.get('crash');
+                if (crashCmd && crashCmd.handleCrashInteraction) {
+                    try {
+                        const handled = await crashCmd.handleCrashInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Crash Setup Select Error: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Route plinko setup select menus (rows + risk).
+            if (interaction.customId.startsWith('plinko_setup_')) {
+                const plinkoCmd = client.commands.get('plinko');
+                if (plinkoCmd && plinkoCmd.handlePlinkoInteraction) {
+                    try {
+                        const handled = await plinkoCmd.handlePlinkoInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Plinko Setup Select Error: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Route wheel setup select menus (preset).
+            if (interaction.customId.startsWith('wheel_setup_')) {
+                const wheelCmd = client.commands.get('wheel');
+                if (wheelCmd && wheelCmd.handleWheelInteraction) {
+                    try {
+                        const handled = await wheelCmd.handleWheelInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Wheel Setup Select Error: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Route limbo setup select menus (target multiplier).
+            if (interaction.customId.startsWith('limbo_setup_')) {
+                const limboCmd = client.commands.get('limbo');
+                if (limboCmd && limboCmd.handleLimboInteraction) {
+                    try {
+                        const handled = await limboCmd.handleLimboInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Limbo Setup Select Error: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Route tower setup select menus (difficulty).
+            if (interaction.customId.startsWith('tower_setup_')) {
+                const towerCmd = client.commands.get('tower');
+                if (towerCmd && towerCmd.handleTowerInteraction) {
+                    try {
+                        const handled = await towerCmd.handleTowerInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Tower Setup Select Error: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Route keno setup + picker select menus
+            // (`keno_setup_count_*`, `keno_pick_low_*`, `keno_pick_high_*`).
+            if (interaction.customId.startsWith('keno_')) {
+                const kenoCmd = client.commands.get('keno');
+                if (kenoCmd && kenoCmd.handleKenoInteraction) {
+                    try {
+                        const handled = await kenoCmd.handleKenoInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Keno Setup Select Error: ${error.message}`, error);
                     }
                 }
                 return;

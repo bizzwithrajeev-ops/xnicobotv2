@@ -5,8 +5,13 @@ const path = require('path');
 
 module.exports = {
     name: 'systemlogs',
+    prefix: 'systemlogs',
+    aliases: ['logs', 'syslogs', 'syslog'],
     description: 'View bot system logs and errors',
-    
+    usage: 'systemlogs [lines] [error|warn|info|all]',
+    category: 'owner',
+    ownerOnly: true,
+
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');

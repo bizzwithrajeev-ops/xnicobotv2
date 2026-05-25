@@ -1,5 +1,4 @@
 const {
-    SlashCommandBuilder,
     ContainerBuilder,
     TextDisplayBuilder,
     MessageFlags,
@@ -63,34 +62,6 @@ module.exports = {
     usage: 'badge-edit <badgeId> field=value [field=value ...]',
     category: 'owner',
     ownerOnly: true,
-
-    data: new SlashCommandBuilder()
-        .setName('badge-edit')
-        .setDescription('Owner-only: edit a custom badge')
-        .setDefaultMemberPermissions(0)
-        .addStringOption(o => o.setName('id').setDescription('Badge ID to edit').setRequired(true))
-        .addStringOption(o => o.setName('name').setDescription('New display name'))
-        .addStringOption(o => o.setName('emoji').setDescription('New emoji'))
-        .addStringOption(o => o.setName('description').setDescription('New description'))
-        .addStringOption(o => o.setName('color').setDescription('New hex color'))
-        .addStringOption(o => o.setName('image').setDescription('New image URL'))
-        .addIntegerOption(o => o.setName('position').setDescription('New sort position')),
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ components: [err('Owner Only', 'This command is restricted to bot owners.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-        const id = interaction.options.getString('id', true);
-        const { patch, invalid } = buildPatch((name) => {
-            const opt = interaction.options.get(name);
-            return opt ? opt.value : undefined;
-        });
-        if (invalid) return interaction.reply({ components: [err('Invalid Field', `\`${invalid}\` value is not valid.`)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        const result = await badgeManager.editBadge(id, patch);
-        if (!result.success) return interaction.reply({ components: [err('Edit Failed', result.message || 'Could not edit the badge.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        return interaction.reply({ components: [ok(result.badge)], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

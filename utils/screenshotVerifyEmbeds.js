@@ -40,6 +40,19 @@ function modeBadge(mode) {
     return '<:Settings:1473037894703779851> Hybrid';
 }
 
+function engineBadge(engine) {
+    if (engine === 'ocr') return '<:Bookopen:1473038576391557130> OCR (Tesseract)';
+    if (engine === 'ai')  return '<:Lightning:1473038797540298792> AI Vision';
+    return '<:Settings:1473037894703779851> Hybrid (OCR + AI)';
+}
+
+function engineLabelFromAi(ai) {
+    if (!ai) return 'Verifier';
+    if (ai.model === 'tesseract') return 'OCR';
+    if (typeof ai.model === 'string' && /llama|gpt|claude|gemini|vision/i.test(ai.model)) return 'AI Vision';
+    return 'Verifier';
+}
+
 function actionSummary(action) {
     const preset = ACTION_PRESETS[action.type];
     const label = preset?.label || action.type;
@@ -66,14 +79,15 @@ function buildSetupPanel(guild, cfg) {
         && tasks.every(t => t.actions && t.actions.length > 0));
 
     let content = `# <:Document:1473039496995143731> Screenshot Verification\n`;
-    content += `-# Smart, AI-assisted screenshot proof system with custom tasks and actions\n\n`;
+    content += `-# Smart screenshot proof system with OCR + AI detection, custom tasks and actions\n\n`;
 
     content += `### <:Settings:1473037894703779851> Status\n`;
     content += `> ${cfg.enabled
         ? '<:Toggleon:1473038585501581312> **Active**'
         : '<:Toggleoff:1473038582813032590> **Disabled**'}`;
     content += ` · ${ready ? 'Configured' : '`Setup incomplete`'}\n`;
-    content += `> **Mode:** ${modeBadge(cfg.mode)} · **Confidence:** \`${cfg.confidenceThreshold}%\`\n\n`;
+    content += `> **Mode:** ${modeBadge(cfg.mode)} · **Confidence:** \`${cfg.confidenceThreshold}%\`\n`;
+    content += `> **Engine:** ${engineBadge(cfg.verifier || 'hybrid')}\n\n`;
 
     content += `### <:Settings:1473037894703779851> Channels\n`;
     content += `> <:Chat:1473038936241864865> **Submission Channel:** ${cfg.submissionChannelId ? `<#${cfg.submissionChannelId}>` : '`Not set`'}\n`;
@@ -187,7 +201,32 @@ function buildSetupPanel(guild, cfg) {
             .setEmoji('<:Trash:1473038090074591293>')
     );
 
-    container.addActionRowComponents(row1, row2, row3);
+    // Quick-toggle row — one click flips Mode (auto / hybrid / review)
+    // and Engine (OCR / AI / hybrid). Avoids the 5-field modal for the
+    // most-changed settings.
+    const verifier = cfg.verifier || 'hybrid';
+    const row4 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('sshot_cycle_mode')
+            .setLabel(`Mode: ${cfg.mode === 'auto' ? 'Auto' : cfg.mode === 'review' ? 'Manual' : 'Hybrid'}`)
+            .setStyle(cfg.mode === 'auto' ? ButtonStyle.Success
+                    : cfg.mode === 'review' ? ButtonStyle.Danger
+                    : ButtonStyle.Primary)
+            .setEmoji(cfg.mode === 'auto' ? '<:Lightning:1473038797540298792>'
+                    : cfg.mode === 'review' ? '<:Shield:1473038669831995494>'
+                    : '<:Settings:1473037894703779851>'),
+        new ButtonBuilder()
+            .setCustomId('sshot_cycle_engine')
+            .setLabel(`Engine: ${verifier === 'ocr' ? 'OCR' : verifier === 'ai' ? 'AI' : 'Hybrid'}`)
+            .setStyle(verifier === 'ocr' ? ButtonStyle.Success
+                    : verifier === 'ai' ? ButtonStyle.Primary
+                    : ButtonStyle.Secondary)
+            .setEmoji(verifier === 'ocr' ? '<:Document:1473039496995143731>'
+                    : verifier === 'ai' ? '<:Lightning:1473038797540298792>'
+                    : '<:Settings:1473037894703779851>')
+    );
+
+    container.addActionRowComponents(row1, row2, row3, row4);
 
     // Task picker (jump straight to a task editor) — only if there are tasks
     if (tasks.length > 0) {
@@ -335,8 +374,13 @@ function buildUserPanel(cfg) {
     }
 
     content += `\n\n### <:Lightning:1473038797540298792> How it works\n`;
-    if (cfg.mode === 'auto')   content += `> Our AI verifier checks your screenshot **automatically**. Approved submissions trigger your role + actions instantly.`;
-    if (cfg.mode === 'hybrid') content += `> Our AI verifier checks your screenshot. Strong matches are approved automatically; uncertain ones are reviewed by staff.`;
+    const engineLabel = (cfg.verifier === 'ocr')
+        ? 'an on-device OCR scan'
+        : (cfg.verifier === 'ai')
+            ? 'an AI vision model'
+            : 'OCR + AI vision';
+    if (cfg.mode === 'auto')   content += `> ${engineLabel} checks your screenshot **automatically**. Approved submissions trigger your role + actions instantly.`;
+    if (cfg.mode === 'hybrid') content += `> ${engineLabel} checks your screenshot. Strong matches are approved automatically; uncertain ones go to staff.`;
     if (cfg.mode === 'review') content += `> Every submission is reviewed by staff. You'll get a DM with the result.`;
 
     const container = new ContainerBuilder()
@@ -388,12 +432,13 @@ function buildReviewMessage(submission, task, cfg, ai) {
 
     if (ai) {
         const aiBadge = ai.matched
-            ? '<:Checkedbox:1473038547165384804> AI Match'
-            : '<:Cancel:1473037949187657818> AI No-Match';
-        content += `<:Lightning:1473038797540298792> **AI:** ${aiBadge} · \`${ai.confidence ?? 0}%\` confidence\n`;
+            ? '<:Checkedbox:1473038547165384804> Match'
+            : '<:Cancel:1473037949187657818> No-Match';
+        const engineLabel = engineLabelFromAi(ai);
+        content += `<:Lightning:1473038797540298792> **${engineLabel}:** ${aiBadge} · \`${ai.confidence ?? 0}%\` confidence\n`;
         if (ai.reasoning) content += `> ${ai.reasoning}\n`;
     } else {
-        content += `<:Lightning:1473038797540298792> **AI:** *Not available — manual review*\n`;
+        content += `<:Lightning:1473038797540298792> **Verifier:** *Not available — manual review*\n`;
     }
 
     if (submission.note) {
@@ -458,7 +503,8 @@ function buildReviewedMessage(submission, task, cfg, action, moderatorId, reason
     content += `<:Alarm:1473039068546732214> **Reviewed:** <t:${Math.floor(Date.now() / 1000)}:R>`;
 
     if (submission.ai) {
-        content += `\n<:Lightning:1473038797540298792> **AI Confidence:** \`${submission.ai.confidence ?? 0}%\``;
+        const engineLabel = engineLabelFromAi(submission.ai);
+        content += `\n<:Lightning:1473038797540298792> **${engineLabel} Confidence:** \`${submission.ai.confidence ?? 0}%\``;
     }
     if (reason) {
         content += `\n<:Chat:1473038936241864865> **Reason:** ${reason}`;
@@ -491,5 +537,8 @@ module.exports = {
     buildUserPanel,
     buildReviewMessage,
     buildReviewedMessage,
-    formatDuration
+    formatDuration,
+    engineLabelFromAi,
+    engineBadge,
+    modeBadge
 };

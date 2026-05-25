@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 
 function formatUptime(ms) {
     const seconds = Math.floor(ms / 1000);
@@ -18,23 +18,13 @@ function formatUptime(ms) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('lavalinkinfo')
-        .setDescription('View Lavalink node information (Owner only)'),
-
-    async execute(interaction, lavalinkManager) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-
-        if (!lavalinkManager || !lavalinkManager.nodeManager || !lavalinkManager.nodeManager.nodes) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Lavalink manager is not initialized!', flags: MessageFlags.Ephemeral });
-        }
-
-        const nodes = Array.from(lavalinkManager.nodeManager.nodes.values());
-        const container = buildLavalinkContainer(nodes, lavalinkManager);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-    },
+    name: 'lavalinkinfo',
+    prefix: 'lavalinkinfo',
+    aliases: ['llinfo', 'lli'],
+    description: 'View Lavalink node information (Owner only)',
+    usage: 'lavalinkinfo',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message, args, lavalinkManager) {
         if (!isOwner(message.author.id)) {

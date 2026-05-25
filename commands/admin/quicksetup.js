@@ -400,7 +400,7 @@ function buildPanel(session, guild) {
     header += `-# Apply professional security baselines to **${guild.name}** in one click`;
 
     const status = enabledCount === 0
-        ? `<:idle:1473370085719863366> **No modules selected** — pick at least one below`
+        ? `<:idle:1485248283768262676> **No modules selected** — pick at least one below`
         : enabledCount === totalSystems
             ? `<:Settingsadjust:1473038223625294048> **All ${totalSystems} modules selected** — ready to apply`
             : `<:Toggleoff:1473038582813032590> **${enabledCount}/${totalSystems} modules selected**`;

@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Editalt:1473038138577256670> **Sketch Effect**',
     accentColor: 0x696969,
     errorMessage: '<:Cancel:1473037949187657818> Failed to convert image to sketch.',
+    prefixOnly: true,
 });

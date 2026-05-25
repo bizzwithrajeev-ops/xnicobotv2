@@ -9,9 +9,8 @@
 
 const { isOwner } = require('../../utils/helpers');
 const {
-    SlashCommandBuilder, MessageFlags,
-    ContainerBuilder, TextDisplayBuilder,
-    SeparatorBuilder, SeparatorSpacingSize
+    MessageFlags,
+    ContainerBuilder, TextDisplayBuilder
 } = require('discord.js');
 
 const topggPoster = require('../../utils/topggPoster');
@@ -82,24 +81,13 @@ async function runSync(client) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('topgg-sync')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Force a Top.gg stats sync'),
+    name: 'topgg-sync',
     prefix: 'topgg-sync',
     aliases: ['topggsync', 'syncguilds', 'postgg'],
     description: 'Force a Top.gg server-count sync',
     usage: 'topgg-sync',
     category: 'owner',
     ownerOnly: true,
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: denied(), flags: MessageFlags.Ephemeral });
-        }
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const container = await runSync(interaction.client);
-        await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message) {
         if (!isOwner(message.author.id)) {

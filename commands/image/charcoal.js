@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Editalt:1473038138577256670> **Charcoal Drawing**',
     accentColor: 0x2F4F4F,
     errorMessage: '<:Cancel:1473037949187657818> Failed to apply charcoal effect.',
+    prefixOnly: true,
 });

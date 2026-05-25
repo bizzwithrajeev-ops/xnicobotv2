@@ -74,20 +74,20 @@ const PLATFORMS = {
 };
 
 const PLATFORM_INFO = {
-    youtube:     { name: 'YouTube',      emoji: '<:YouTube:1473038100862337035>',      color: 0xFF0000, hasVideo: true,  hasAudio: true  },
-    instagram:   { name: 'Instagram',    emoji: '<:Instagram:1473038100862337035>',    color: 0xE1306C, hasVideo: true,  hasAudio: true  },
-    tiktok:      { name: 'TikTok',       emoji: '<:Tiktok:1473038100862337035>',       color: 0x010101, hasVideo: true,  hasAudio: true  },
-    twitter:     { name: 'Twitter/X',    emoji: '<:Twitter:1473038100862337035>',      color: 0x1DA1F2, hasVideo: true,  hasAudio: true  },
-    reddit:      { name: 'Reddit',       emoji: '<:Reddit:1473038100862337035>',       color: 0xFF4500, hasVideo: true,  hasAudio: true  },
-    facebook:    { name: 'Facebook',     emoji: '<:Facebook:1473038100862337035>',     color: 0x1877F2, hasVideo: true,  hasAudio: true  },
-    twitch:      { name: 'Twitch',       emoji: '<:Twitch:1473038100862337035>',       color: 0x9146FF, hasVideo: true,  hasAudio: true  },
-    soundcloud:  { name: 'SoundCloud',   emoji: '<:Soundcloud:1473038100862337035>',   color: 0xFF5500, hasVideo: false, hasAudio: true  },
-    pinterest:   { name: 'Pinterest',    emoji: '<:Pinterest:1473038100862337035>',    color: 0xBD081C, hasVideo: true,  hasAudio: false },
-    vimeo:       { name: 'Vimeo',        emoji: '<:Vimeo:1473038100862337035>',        color: 0x1AB7EA, hasVideo: true,  hasAudio: true  },
-    dailymotion: { name: 'Dailymotion',  emoji: '<:Dailymotion:1473038100862337035>',  color: 0x0066DC, hasVideo: true,  hasAudio: true  },
-    bilibili:    { name: 'Bilibili',     emoji: '<:Bilibili:1473038100862337035>',     color: 0x00A1D6, hasVideo: true,  hasAudio: true  },
-    spotify:     { name: 'Spotify',      emoji: '<:Spotify:1473038100862337035>',      color: 0x1DB954, hasVideo: false, hasAudio: true  },
-    unknown:     { name: 'Website',      emoji: '<:Globe:1473039496995143731>',        color: 0x5865F2, hasVideo: true,  hasAudio: true  },
+    youtube:     { name: 'YouTube',      emoji: '<:Cloudcheck:1473039563499765892>',      color: 0xFF0000, hasVideo: true,  hasAudio: true  },
+    instagram:   { name: 'Instagram',    emoji: '<:Cloudcheck:1473039563499765892>',    color: 0xE1306C, hasVideo: true,  hasAudio: true  },
+    tiktok:      { name: 'TikTok',       emoji: '<:Cloudcheck:1473039563499765892>',       color: 0x010101, hasVideo: true,  hasAudio: true  },
+    twitter:     { name: 'Twitter/X',    emoji: '<:Cloudcheck:1473039563499765892>',      color: 0x1DA1F2, hasVideo: true,  hasAudio: true  },
+    reddit:      { name: 'Reddit',       emoji: '<:Cloudcheck:1473039563499765892>',       color: 0xFF4500, hasVideo: true,  hasAudio: true  },
+    facebook:    { name: 'Facebook',     emoji: '<:Cloudcheck:1473039563499765892>',     color: 0x1877F2, hasVideo: true,  hasAudio: true  },
+    twitch:      { name: 'Twitch',       emoji: '<:Cloudcheck:1473039563499765892>',       color: 0x9146FF, hasVideo: true,  hasAudio: true  },
+    soundcloud:  { name: 'SoundCloud',   emoji: '<:Cloudcheck:1473039563499765892>',   color: 0xFF5500, hasVideo: false, hasAudio: true  },
+    pinterest:   { name: 'Pinterest',    emoji: '<:Cloudcheck:1473039563499765892>',    color: 0xBD081C, hasVideo: true,  hasAudio: false },
+    vimeo:       { name: 'Vimeo',        emoji: '<:Cloudcheck:1473039563499765892>',        color: 0x1AB7EA, hasVideo: true,  hasAudio: true  },
+    dailymotion: { name: 'Dailymotion',  emoji: '<:Cloudcheck:1473039563499765892>',  color: 0x0066DC, hasVideo: true,  hasAudio: true  },
+    bilibili:    { name: 'Bilibili',     emoji: '<:Cloudcheck:1473039563499765892>',     color: 0x00A1D6, hasVideo: true,  hasAudio: true  },
+    spotify:     { name: 'Spotify',      emoji: '<:Cloudcheck:1473039563499765892>',      color: 0x1DB954, hasVideo: false, hasAudio: true  },
+    unknown:     { name: 'Website',      emoji: '<:Cloudcheck:1473039563499765892>',        color: 0x5865F2, hasVideo: true,  hasAudio: true  },
 };
 
 function detectPlatform(url) {

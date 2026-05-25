@@ -1,26 +1,16 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, SectionBuilder, ThumbnailBuilder } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const os = require('os');
 const { BRANDING } = require('../../utils/responseBuilder');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('system')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: View system resource usage and bot performance'),
-    prefix: 'system',
     name: 'system',
+    prefix: 'system',
+    aliases: ['sys', 'resources', 'perf'],
     description: 'View system resources and performance metrics',
     usage: 'system',
     category: 'owner',
-    aliases: ['sys', 'resources', 'perf'],
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        await this.showSystem(interaction, interaction.client);
-    },
+    ownerOnly: true,
 
     async executePrefix(message) {
         if (!isOwner(message.author.id)) return;

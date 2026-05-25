@@ -1,28 +1,16 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const premiumManager = require('../../utils/premiumManager');
 const badgeManager = require('../../utils/badgeManager');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('userlookup')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Detailed user lookup across all servers')
-        .addStringOption(o => o.setName('userid').setDescription('The user ID to look up').setRequired(true)),
-    prefix: 'userlookup',
     name: 'userlookup',
+    prefix: 'userlookup',
+    aliases: ['ulookup', 'finduser', 'whois-owner'],
     description: 'Detailed user lookup across all servers',
     usage: 'userlookup <userID>',
     category: 'owner',
-    aliases: ['ulookup', 'finduser', 'whois-owner'],
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const userId = interaction.options.getString('userid');
-        await this.lookupUser(interaction, interaction.client, userId);
-    },
+    ownerOnly: true,
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) return;

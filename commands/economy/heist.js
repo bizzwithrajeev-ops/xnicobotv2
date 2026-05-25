@@ -32,16 +32,22 @@ const FAIL_LINES = [
 ];
 
 function buildLobbyEmbed(target, leader, members, secondsLeft) {
-  const memberList = members.map(m => `> 🧑 ${m.username}`).join('\n') || '> *(no crew yet)*';
+  // Leader is always part of the heist; surface that in the crew list
+  // so the count matches what `runHeist` actually uses.
+  const totalCrew = members.length + 1;
+  const memberList = [
+    `> 🧑 ${leader.username} *(leader)*`,
+    ...members.map(m => `> 🧑 ${m.username}`),
+  ].join('\n');
   const c = createContainer(0xCAD7E6);
   addTextDisplay(c, [
     `# ${target.emoji} Heist Planning — ${target.name}`,
     '',
     `${EMOJIS.user} **Leader:** ${leader.username}`,
-    `👥 **Crew (${members.length}):**`,
+    `👥 **Crew (${totalCrew}):**`,
     memberList,
     '',
-    `${EMOJIS.sandwatch} Heist launches in **${secondsLeft}s** — click below to join!`,
+    `${EMOJIS.sandwatch} Heist launches in **${Math.max(0, secondsLeft)}s** — click below to join!`,
     `-# Success rate improves with more crew members.`,
   ].join('\n'));
   return c;
@@ -94,9 +100,14 @@ async function runHeist(msg, target, leader, members, interaction) {
     const fineLines = [];
     for (const p of allParticipants) {
       const { userData } = economyManager.getUser(economy, p.id);
-      const fine = Math.floor((userData.coins || 0) * target.riskFine);
-      userData.coins = Math.max(0, (userData.coins || 0) - fine);
-      fineLines.push(`> ${p.username} → **-${formatCoins(fine, guildId)}**`);
+      const before = Math.max(0, userData.coins || 0);
+      const fine = Math.max(0, Math.floor(before * target.riskFine));
+      userData.coins = Math.max(0, before - fine);
+      fineLines.push(
+        fine > 0
+          ? `> ${p.username} → **-${formatCoins(fine, guildId)}**`
+          : `> ${p.username} → *(no coins to lose)*`
+      );
     }
     economyManager.saveEconomy(economy);
 
@@ -141,8 +152,20 @@ async function startHeist(interaction, targetId) {
   const idx = targetId !== null ? targetId : Math.floor(Math.random() * TARGETS.length);
   const target = TARGETS[Math.min(Math.max(idx, 0), TARGETS.length - 1)];
 
-  cooldowns.set(leaderId, now);
   const members = [];
+
+  let msg;
+  try {
+    await interaction.deferReply();
+  } catch (err) {
+    // Interaction expired or failed — don't burn the user's cooldown.
+    return;
+  }
+
+  // Commit cooldown + active-heist registration only after the lobby
+  // message is on its way. This avoids burning a 5-minute cooldown
+  // when Discord rejects the deferReply (token expired, etc.).
+  cooldowns.set(leaderId, now);
   activeHeists.set(leaderId, { target, members, leaderId });
 
   const joinBtn = new ButtonBuilder()
@@ -157,19 +180,33 @@ async function startHeist(interaction, targetId) {
     .setStyle(ButtonStyle.Danger);
   const row = new ActionRowBuilder().addComponents(joinBtn, startBtn);
 
-  await interaction.deferReply();
-  const msg = await interaction.editReply({
-    components: [buildLobbyEmbed(target, interaction.user, members, 30), row],
-    flags: MessageFlags.IsComponentsV2,
-  });
+  try {
+    msg = await interaction.editReply({
+      components: [buildLobbyEmbed(target, interaction.user, members, 30), row],
+      flags: MessageFlags.IsComponentsV2,
+    });
+  } catch (err) {
+    // Couldn't post the lobby — release the cooldown/state we just set.
+    cooldowns.delete(leaderId);
+    activeHeists.delete(leaderId);
+    return;
+  }
 
   let secondsLeft = 30;
+  let finished = false;
+  const collector = msg.createMessageComponentCollector({ time: JOIN_WINDOW });
+
   const ticker = setInterval(async () => {
     secondsLeft -= 5;
     if (secondsLeft <= 0) {
+      if (finished) return;
+      finished = true;
       clearInterval(ticker);
+      try { collector.stop('timer_expired'); } catch {}
+      const current = activeHeists.get(leaderId);
+      const finalMembers = current ? current.members : members;
       activeHeists.delete(leaderId);
-      return runHeist(msg, target, interaction.user, members, interaction);
+      return runHeist(msg, target, interaction.user, finalMembers, interaction);
     }
     const current = activeHeists.get(leaderId);
     const currentMembers = current ? current.members : members;
@@ -179,32 +216,34 @@ async function startHeist(interaction, targetId) {
     }).catch(() => {});
   }, 5000);
 
-  const collector = msg.createMessageComponentCollector({ time: JOIN_WINDOW });
-
   collector.on('collect', async btn => {
+    if (finished) return btn.deferUpdate().catch(() => {});
+
     if (btn.customId === `heist_join_${leaderId}`) {
       const joiner = btn.user;
       const heist = activeHeists.get(leaderId);
-      if (!heist) return btn.deferUpdate();
+      if (!heist) return btn.deferUpdate().catch(() => {});
 
       if (joiner.id === leaderId || heist.members.find(m => m.id === joiner.id)) {
-        return btn.reply({ content: 'You are already in this heist!', flags: MessageFlags.Ephemeral });
+        return btn.reply({ content: 'You are already in this heist!', flags: MessageFlags.Ephemeral }).catch(() => {});
       }
       heist.members.push(joiner);
       await btn.update({
         components: [buildLobbyEmbed(target, interaction.user, heist.members, secondsLeft), row],
         flags: MessageFlags.IsComponentsV2,
-      });
+      }).catch(() => {});
 
     } else if (btn.customId === `heist_start_${leaderId}`) {
       if (btn.user.id !== leaderId) {
-        return btn.reply({ content: 'Only the leader can launch early!', flags: MessageFlags.Ephemeral });
+        return btn.reply({ content: 'Only the leader can launch early!', flags: MessageFlags.Ephemeral }).catch(() => {});
       }
+      if (finished) return btn.deferUpdate().catch(() => {});
+      finished = true;
       clearInterval(ticker);
       collector.stop('early_launch');
       const heist = activeHeists.get(leaderId);
       activeHeists.delete(leaderId);
-      await btn.deferUpdate();
+      await btn.deferUpdate().catch(() => {});
       return runHeist(msg, target, interaction.user, heist ? heist.members : members, interaction);
     }
   });
@@ -230,11 +269,12 @@ module.exports = {
     const idx = args[0] ? parseInt(args[0]) - 1 : null;
     const fakeInteraction = {
       user: message.author,
+      guild: message.guild,
       reply: message.reply.bind(message),
       deferReply: async () => {},
       editReply: message.reply.bind(message),
     };
-    return startHeist(fakeInteraction, idx);
+    return startHeist(fakeInteraction, isNaN(idx) ? null : idx);
   },
 
   async execute(interaction) {

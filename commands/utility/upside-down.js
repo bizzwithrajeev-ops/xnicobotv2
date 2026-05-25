@@ -1,6 +1,13 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+'use strict';
 
-const flipped = {
+/**
+ * upside-down.js — prefix-only.
+ * Render text upside down using Unicode lookalikes and reversal.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+
+const FLIPPED = {
     'a': 'ɐ', 'b': 'q', 'c': 'ɔ', 'd': 'p', 'e': 'ǝ', 'f': 'ɟ', 'g': 'ƃ', 'h': 'ɥ', 'i': 'ᴉ', 'j': 'ɾ',
     'k': 'ʞ', 'l': 'l', 'm': 'ɯ', 'n': 'u', 'o': 'o', 'p': 'd', 'q': 'b', 'r': 'ɹ', 's': 's', 't': 'ʇ',
     'u': 'n', 'v': 'ʌ', 'w': 'ʍ', 'x': 'x', 'y': 'ʎ', 'z': 'z',
@@ -12,84 +19,51 @@ const flipped = {
     '<': '>', '>': '<', '&': '⅋', '_': '‾', ';': '؛', '"': '„', '\'': ','
 };
 
-module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('upside-down')
-        .setDescription('Flip text upside down')
-        .addStringOption(o => o.setName('text').setDescription('Text to flip').setRequired(true)),
+const MAX_OUTPUT = 2000;
 
+function flipText(text) {
+    return text.split('').map(c => FLIPPED[c] || c).reverse().join('');
+}
+
+function errorContainer(title, body) {
+    return new ContainerBuilder()
+        .setAccentColor(0xED4245)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> ${title}\n\n${body}`));
+}
+
+module.exports = {
+    name: 'upside-down',
     prefix: 'upside-down',
+    aliases: ['upsidedown', 'fliptext'],
     description: 'Flip text upside down',
     usage: 'upside-down <text>',
     category: 'utility',
-    aliases: ['upsidedown', 'fliptext'],
-
-    async execute(interaction) {
-        const text = interaction.options.getString('text');
-        await flipText(interaction, text, true);
-    },
 
     async executePrefix(message, args) {
         if (args.length === 0) {
-            const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to flip!\n\n**Usage:** \`-upside-down <text>\`\n**Example:** \`-upside-down Hello World\``
-                    )
-                );
-            return message.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({
+                components: [errorContainer('Missing Text', 'Please provide text to flip!\n\n**Usage:** `upside-down <text>`\n**Example:** `upside-down Hello World`')],
+                flags: MessageFlags.IsComponentsV2
+            });
         }
 
         const text = args.join(' ');
-        await flipText(message, text, false);
+        try {
+            const result = flipText(text);
+            if (result.length > MAX_OUTPUT) {
+                return message.reply({
+                    components: [errorContainer('Too Long', `Result is too long! (Max ${MAX_OUTPUT} characters)`)],
+                    flags: MessageFlags.IsComponentsV2
+                });
+            }
+            const container = new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# 🙃 Upside Down Text\n\n**Original:**\n${text}\n\n**Flipped:**\n${result}`
+                ));
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch (error) {
+            await message.reply({ components: [errorContainer('Error', error.message)], flags: MessageFlags.IsComponentsV2 });
+        }
     }
 };
-
-async function flipText(context, text, isInteraction) {
-    try {
-        const result = text.split('').map(char => flipped[char] || char).reverse().join('');
-
-        if (result.length > 2000) {
-            const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Too Long\n\nResult is too long! (Max 2000 characters)`
-                    )
-                );
-            if (isInteraction) {
-                return context.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
-            } else {
-                return context.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
-            }
-        }
-
-        const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `# 🙃 Upside Down Text\n\n` +
-                    `**Original:**\n${text}\n\n` +
-                    `**Flipped:**\n${result}`
-                )
-            );
-
-        if (isInteraction) {
-            await context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } else {
-            await context.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-    } catch (error) {
-        const errorContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error.message}`)
-            );
-        if (isInteraction) {
-            await context.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
-        } else {
-            await context.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
-        }
-    }
-}

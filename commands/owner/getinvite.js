@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, PermissionsBitField } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, PermissionsBitField } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -15,26 +15,13 @@ function saveBotInvites(data) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('getinvite')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Get an invite link for a server')
-        .addStringOption(o => o.setName('guildid').setDescription('The server ID').setRequired(true)),
-    prefix: 'getinvite',
     name: 'getinvite',
+    prefix: 'getinvite',
+    aliases: ['fetchinvite', 'guildinvite', 'serverinvite'],
     description: 'Get an invite link for a server the bot is in',
     usage: 'getinvite <serverID>',
     category: 'owner',
-    aliases: ['fetchinvite', 'guildinvite', 'serverinvite'],
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-
-        const guildId = interaction.options.getString('guildid');
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        await this.fetchInvite(interaction, interaction.client, guildId);
-    },
+    ownerOnly: true,
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) return;

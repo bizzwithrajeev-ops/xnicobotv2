@@ -1,5 +1,12 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
+'use strict';
+
+/**
+ * manga.js — prefix-only.
+ * Searches AniList for a manga and renders a Components V2 card.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+const { buildErrorResponse } = require('../../utils/responseBuilder');
 
 const ANILIST_URL = 'https://graphql.anilist.co';
 
@@ -28,24 +35,21 @@ function buildMangaContainer(manga) {
     const author = manga.staff?.nodes?.[0]?.name?.full || 'Unknown';
     const genres = manga.genres?.slice(0, 5).join(', ') || 'N/A';
     const statusMap = {
-        FINISHED: '<:Checkedbox:1473038547165384804> Completed',
-        RELEASING: '<:Bullhorn:1473038903157199093> Publishing',
+        FINISHED:         '<:Checkedbox:1473038547165384804> Completed',
+        RELEASING:        '<:Bullhorn:1473038903157199093> Publishing',
         NOT_YET_RELEASED: '<:Alarm:1473039068546732214> Upcoming',
-        CANCELLED: '<:Cancel:1473037949187657818> Cancelled',
-        HIATUS: '<:Timer:1473039056710406204> Hiatus',
+        CANCELLED:        '<:Cancel:1473037949187657818> Cancelled',
+        HIATUS:           '<:Timer:1473039056710406204> Hiatus',
     };
 
     const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
 
     const headerSection = new SectionBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# <:Bookopen:1473038576391557130> ${title}`)
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Bookopen:1473038576391557130> ${title}`));
     if (manga.coverImage?.large) {
         headerSection.setThumbnailAccessory(new ThumbnailBuilder({ media: { url: manga.coverImage.large } }));
     }
     container.addSectionComponents(headerSection);
-
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
     let info = '';
@@ -60,9 +64,7 @@ function buildMangaContainer(manga) {
     if (manga.startDate?.year) info += `<:Caretright:1473038207221502106> **Started:** ${manga.startDate.year}\n`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(info));
-
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`**Synopsis:**\n> ${cleanDescription(manga.description).replace(/\n/g, '\n> ')}`)
     );
@@ -73,7 +75,6 @@ function buildMangaContainer(manga) {
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
-
     return container;
 }
 
@@ -90,44 +91,23 @@ async function searchManga(query) {
 }
 
 module.exports = {
+    name: 'manga',
     prefix: 'manga',
+    aliases: ['mangasearch'],
     description: 'Search for manga information on AniList',
     usage: 'manga <name>',
     category: 'basic',
-    aliases: ['mangasearch'],
-
-    data: new SlashCommandBuilder()
-        .setName('manga')
-        .setDescription('Search for manga information')
-        .addStringOption(opt => opt.setName('query').setDescription('The manga to search for').setRequired(true)),
-
-    async execute(interaction) {
-        const query = interaction.options.getString('query');
-        await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-        try {
-            const manga = await searchManga(query);
-            if (!manga) {
-                const err = buildErrorResponse('<:Infotriangle:1473038460456800459> Not Found', `No manga found for **${query}**.`);
-                return interaction.editReply({ components: [err], flags: MessageFlags.IsComponentsV2 });
-            }
-            const container = buildMangaContainer(manga);
-            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            const err = buildErrorResponse('Error', 'Failed to search manga.', error.message);
-            await interaction.editReply({ components: [err], flags: MessageFlags.IsComponentsV2 });
-        }
-    },
 
     async executePrefix(message, args) {
         if (!args.length) {
-            const err = buildErrorResponse('<:Infotriangle:1473038460456800459> Missing Argument', 'Please provide a manga name.\n**Usage:** `manga <name>`');
+            const err = buildErrorResponse('Missing Argument', 'Please provide a manga name.\n**Usage:** `manga <name>`');
             return message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
         }
         const query = args.join(' ');
         try {
             const manga = await searchManga(query);
             if (!manga) {
-                const err = buildErrorResponse('<:Infotriangle:1473038460456800459> Not Found', `No manga found for **${query}**.`);
+                const err = buildErrorResponse('Not Found', `No manga found for **${query}**.`);
                 return message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
             }
             const container = buildMangaContainer(manga);

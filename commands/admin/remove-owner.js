@@ -3,11 +3,15 @@ const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBu
 const trust = require('../../utils/trustManager');
 
 module.exports = {
-    prefix: 'removeowner',
+    prefix: 'remove-owner',
     description: 'Remove the second owner from this guild',
-    usage: 'removeowner',
+    usage: 'remove-owner',
     category: 'admin',
-    aliases: ['delowner'],
+    // NOTE: command name kept as 'remove-owner' to mirror its sibling 'add-owner'
+    // and to avoid colliding with commands/owner/removeowner.js, which is a
+    // distinct bot-owner command for managing bot co-owners. 'delowner' is
+    // intentionally not aliased here — it belongs to the bot co-owner command.
+    aliases: ['removesecondowner'],
 
     async executePrefix(message) {
         if (!trust.isGuildOwner(message.guild, message.author.id)) {

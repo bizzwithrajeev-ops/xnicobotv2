@@ -1,7 +1,14 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * fortune.js — prefix-only.
+ * Cracks open a fortune cookie for the caller.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { COLORS } = require('../../utils/responseBuilder');
 
-const fortunes = [
+const FORTUNES = [
     "A pleasant surprise is waiting for you.",
     "Your hard work will soon pay off.",
     "Good things come to those who wait.",
@@ -29,33 +36,27 @@ const fortunes = [
 ];
 
 function buildFortune(username) {
-    const fortune = fortunes[Math.floor(Math.random() * fortunes.length)];
-    let content = `# 🔮 Fortune Cookie\n\n`;
-    content += `**${username}**, your fortune:\n\n`;
-    content += `> *"${fortune}"*\n\n`;
-    content += `-# 🥠 Crack open another fortune cookie for more wisdom!`;
+    const fortune = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
+    const content =
+        `# 🔮 Fortune Cookie\n\n` +
+        `**${username}**, your fortune:\n\n` +
+        `> *"${fortune}"*\n\n` +
+        `-# 🥠 Crack open another fortune cookie for more wisdom!`;
+
     return new ContainerBuilder()
         .setAccentColor(COLORS.WARNING)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('fortune')
-        .setDescription('Open a fortune cookie and receive your fortune'),
+    name: 'fortune',
     prefix: 'fortune',
+    aliases: ['fortunecookie', 'cookie'],
     description: 'Open a fortune cookie and receive your fortune',
     usage: 'fortune',
     category: 'fun',
-    aliases: ['fortunecookie', 'cookie'],
-
-    async execute(interaction) {
-        const container = buildFortune(interaction.user.username);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message) {
-        const container = buildFortune(message.author.username);
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [buildFortune(message.author.username)], flags: MessageFlags.IsComponentsV2 });
     }
 };

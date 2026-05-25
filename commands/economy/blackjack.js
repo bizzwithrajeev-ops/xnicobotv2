@@ -88,7 +88,7 @@ function buildContainer(game, hideDealer = true, resultText = null, payout = 0) 
     if (resultText) {
         content += `\n\n${resultText}`;
         if (payout > game.bet) {
-            content += `\n\n${coinIcon(guildId)} **Payout:** +${formatCoinsShort(payout - game.bet, game.guildId)} profit (received ${formatCoinsShort(payout, game.guildId)})`;
+            content += `\n\n${coinIcon(game.guildId)} **Payout:** +${formatCoinsShort(payout - game.bet, game.guildId)} profit (received ${formatCoinsShort(payout, game.guildId)})`;
         } else if (payout === game.bet) {
             content += `\n\n🤝 **Refund:** ${formatCoinsShort(game.bet, game.guildId)} returned`;
         } else {

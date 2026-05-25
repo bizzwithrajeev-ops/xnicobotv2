@@ -1,6 +1,17 @@
+'use strict';
+
+/**
+ * eval.js — prefix-only.
+ * Owner-only JavaScript REPL inside the bot process. Output and any
+ * thrown error are formatted into a Components V2 container.
+ */
+
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
 const util = require('util');
+
+const MAX_OUTPUT = 1500;
+const MAX_INPUT  = 1000;
 
 function buildEvalContainer(code, output, isError = false) {
     return new ContainerBuilder()
@@ -8,50 +19,24 @@ function buildEvalContainer(code, output, isError = false) {
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# ${isError ? '<:Cancel:1473037949187657818> Eval Error' : '<:Bookopen:1473038576391557130> Eval Result'}\n\n` +
-                `**<:Fire:1473038604812161218> Input:**\n\`\`\`js\n${code.substring(0, 1000)}\n\`\`\`\n` +
+                `**<:Fire:1473038604812161218> Input:**\n\`\`\`js\n${code.substring(0, MAX_INPUT)}\n\`\`\`\n` +
                 `**<:Image:1473039533112033508> ${isError ? 'Error' : 'Output'}:**\n\`\`\`js\n${output}\n\`\`\``
             )
         );
 }
 
+function truncate(value) {
+    return value.length > MAX_OUTPUT ? value.substring(0, MAX_OUTPUT) + '…' : value;
+}
+
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('eval')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Execute JavaScript code')
-        .addStringOption(option =>
-            option.setName('code')
-                .setDescription('The code to execute')
-                .setRequired(true)),
-    
-    async execute(interaction, lavalinkManager) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-
-        const code = interaction.options.getString('code');
-        
-        try {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
-            
-            let evaled = eval(code);
-            
-            if (evaled instanceof Promise) {
-                evaled = await evaled;
-            }
-            
-            let output = typeof evaled === 'string' ? evaled : util.inspect(evaled, { depth: 0 });
-            
-            if (output.length > 1500) {
-                output = output.substring(0, 1500) + '...';
-            }
-
-            const container = buildEvalContainer(code, output);
-            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            const container = buildEvalContainer(code, error.message, true);
-            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-    },
+    name: 'eval',
+    prefix: 'eval',
+    aliases: ['ev', 'js'],
+    description: 'Owner-only: evaluate raw JavaScript inside the bot',
+    usage: 'eval <code>',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message, args, lavalinkManager) {
         if (!isOwner(message.author.id)) {
@@ -60,25 +45,19 @@ module.exports = {
 
         const code = args.join(' ');
         if (!code) return message.reply('<:Cancel:1473037949187657818> Please provide code to evaluate!');
-        
-        try {
-            let evaled = eval(code);
-            
-            if (evaled instanceof Promise) {
-                evaled = await evaled;
-            }
-            
-            let output = typeof evaled === 'string' ? evaled : util.inspect(evaled, { depth: 0 });
-            
-            if (output.length > 1500) {
-                output = output.substring(0, 1500) + '...';
-            }
 
-            const container = buildEvalContainer(code, output);
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const client = message.client; // exposed for use in evaluated code
+        try {
+            // eslint-disable-next-line no-eval
+            let evaled = eval(code);
+            if (evaled instanceof Promise) evaled = await evaled;
+
+            const output = typeof evaled === 'string' ? evaled : util.inspect(evaled, { depth: 0 });
+            const container = buildEvalContainer(code, truncate(output));
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            const container = buildEvalContainer(code, error.message, true);
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const container = buildEvalContainer(code, truncate(error.stack || error.message), true);
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     }
 };

@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
 const os = require('os');
 
@@ -141,26 +141,13 @@ function calculateHealth(ping, heapPercent, cpuPercent) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('shard-status')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: View shard info, memory, and guild distribution'),
-
+    name: 'shard-status',
     prefix: 'shard-status',
+    aliases: ['shards', 'shardstatus', 'shardinfo'],
     description: 'View shard info, memory, and guild distribution',
     usage: 'shard-status',
-    aliases: ['shards', 'shardstatus', 'shardinfo'],
     category: 'owner',
     ownerOnly: true,
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: `${EMOJIS.ERROR} This command is only available to the bot owner!`, flags: MessageFlags.Ephemeral });
-        }
-
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const container = await buildShardStatus(interaction.client);
-        await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

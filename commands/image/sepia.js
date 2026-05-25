@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Attach:1473037923979886694> **Sepia Filter**',
     accentColor: 0xB8860B,
     errorMessage: '<:Cancel:1473037949187657818> Failed to apply sepia filter.',
+    prefixOnly: true,
 });

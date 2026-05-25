@@ -1,25 +1,34 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * urbanrandom.js — prefix-only.
+ * Pull a random definition from Urban Dictionary.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const axios = require('axios');
 
 async function getRandomDefinition() {
     try {
-        const response = await axios.get('https://api.urbandictionary.com/v0/random');
-        return response.data.list[0];
+        const response = await axios.get('https://api.urbandictionary.com/v0/random', { timeout: 10_000 });
+        return response.data?.list?.[0] || null;
     } catch {
         return null;
     }
 }
 
 function buildUrbanContainer(data) {
-    let content = `# <:Bookopen:1473038576391557130> ${data.word}\n\n` +
-        `${data.definition.substring(0, 1500)}\n\n` +
+    let content =
+        `# <:Bookopen:1473038576391557130> ${data.word}\n\n` +
+        `${String(data.definition || '').substring(0, 1500)}\n\n` +
         `👍 **${data.thumbs_up}** | 👎 **${data.thumbs_down}**`;
 
     if (data.example) {
-        content += `\n\n**Example:**\n*${data.example.substring(0, 500)}*`;
+        content += `\n\n**Example:**\n*${String(data.example).substring(0, 500)}*`;
     }
-
-    content += `\n\n*By ${data.author}*`;
+    if (data.author) {
+        content += `\n\n*By ${data.author}*`;
+    }
 
     return new ContainerBuilder()
         .setAccentColor(0xCAD7E6)
@@ -27,29 +36,18 @@ function buildUrbanContainer(data) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('urbanrandom')
-        .setDescription('Get a random Urban Dictionary definition'),
+    name: 'urbanrandom',
+    prefix: 'urbanrandom',
+    aliases: ['urbrand', 'urbandictrandom'],
+    description: 'Get a random Urban Dictionary definition',
+    usage: 'urbanrandom',
+    category: 'utility',
 
-    async execute(interaction) {
+    async executePrefix(message) {
         const data = await getRandomDefinition();
-
-        if (!data) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch a random definition!', flags: MessageFlags.Ephemeral });
-        }
-
-        const container = buildUrbanContainer(data);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
-
-    async executePrefix(message, args) {
-        const data = await getRandomDefinition();
-
         if (!data) {
             return message.reply('<:Cancel:1473037949187657818> Failed to fetch a random definition!');
         }
-
-        const container = buildUrbanContainer(data);
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [buildUrbanContainer(data)], flags: MessageFlags.IsComponentsV2 });
     }
 };

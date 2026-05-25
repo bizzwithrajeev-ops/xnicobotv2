@@ -1,28 +1,14 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('fetchmsg')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Fetch any message by ID from any channel')
-        .addStringOption(o => o.setName('messageid').setDescription('The message ID').setRequired(true))
-        .addStringOption(o => o.setName('channelid').setDescription('The channel ID (optional, searches all)').setRequired(false)),
-    prefix: 'fetchmsg',
     name: 'fetchmsg',
+    prefix: 'fetchmsg',
+    aliases: ['getmsg', 'fetchmessage', 'msgfetch'],
     description: 'Fetch and display any message by its ID',
     usage: 'fetchmsg <messageID> [channelID]',
     category: 'owner',
-    aliases: ['getmsg', 'fetchmessage', 'msgfetch'],
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const messageId = interaction.options.getString('messageid');
-        const channelId = interaction.options.getString('channelid');
-        await this.fetchMessage(interaction, interaction.client, messageId, channelId);
-    },
+    ownerOnly: true,
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) return;

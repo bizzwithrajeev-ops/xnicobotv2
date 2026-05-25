@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Attach:1473037923979886694> **Greyscale Filter**',
     accentColor: 0x808080,
     errorMessage: '<:Cancel:1473037949187657818> Failed to convert image to greyscale.',
+    prefixOnly: true,
 });

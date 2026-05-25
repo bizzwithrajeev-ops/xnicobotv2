@@ -49,3 +49,7 @@ dist/
 build/
 .next/
 .cache/
+
+# ── OCR / TTS runtime caches (downloaded models, no need to commit) ─────────
+.ocr-cache/
+.tts-cache/

@@ -1,34 +1,29 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * clap.js — prefix-only.
+ * Insert 👏 between every word.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 
 function buildClap(text) {
-    const clapped = text.split(' ').join(' 👏 ');
-    let content = `# 👏 Clap Text\n\n`;
-    content += `${clapped} 👏`;
+    const clapped = text.split(/\s+/).filter(Boolean).join(' 👏 ');
     return new ContainerBuilder()
-        .setAccentColor(COLORS.FUN)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+        .setAccentColor(COLORS.FUN || 0xCAD7E6)
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`# 👏 Clap Text\n\n${clapped} 👏`)
+        );
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('clap')
-        .setDescription('Add 👏 between each word')
-        .addStringOption(opt =>
-            opt.setName('text')
-                .setDescription('The text to clap')
-                .setRequired(true)),
+    name: 'clap',
     prefix: 'clap',
+    aliases: ['clapback'],
     description: 'Add 👏 between each word',
     usage: 'clap <text>',
     category: 'fun',
-    aliases: ['clapback'],
-
-    async execute(interaction) {
-        const text = interaction.options.getString('text');
-        const container = buildClap(text);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
 
     async executePrefix(message, args) {
         const text = args.join(' ');
@@ -40,8 +35,6 @@ module.exports = {
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
-
-        const container = buildClap(text);
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [buildClap(text)], flags: MessageFlags.IsComponentsV2 });
     }
 };

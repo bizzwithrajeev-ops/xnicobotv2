@@ -226,7 +226,7 @@ module.exports = {
     description: 'Bet on roulette — colors/parity/range pay 1×, dozens 2×, single number 35×.',
     usage: 'roulette <bet> <red|black|even|odd|low|high|d1|d2|d3|0-36>',
     category: 'economy',
-    aliases: ['rl', 'wheel'],
+    aliases: ['rl'],
 
     async execute(interaction) {
         if (await gamblingGuard(interaction)) return;

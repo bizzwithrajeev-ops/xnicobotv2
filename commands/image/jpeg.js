@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Attach:1473037923979886694> **Needs More JPEG!**',
     accentColor: 0x8B4513,
     errorMessage: '<:Cancel:1473037949187657818> Failed to JPEGify image.',
+    prefixOnly: true,
 });

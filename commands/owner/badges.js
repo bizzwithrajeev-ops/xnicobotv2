@@ -1,6 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
 const {
-    SlashCommandBuilder,
     MessageFlags,
     ContainerBuilder,
     TextDisplayBuilder,
@@ -55,25 +54,11 @@ const HELP_TEXT = {
 module.exports = {
     name: 'ownerbadges',
     prefix: 'ownerbadges',
+    aliases: ['obadges'],
     description: 'Owner badge suite help / umbrella command',
     usage: 'ownerbadges',
     category: 'owner',
-    aliases: ['obadges'],
-
-    data: new SlashCommandBuilder()
-        .setName('ownerbadges')
-        .setDescription('Owner badge suite help / umbrella command'),
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({
-                content: `${BADGE_ICONS.Cancel} This command is only available to the bot owner.`,
-                flags: MessageFlags.Ephemeral
-            });
-        }
-        const components = buildHelpContainer();
-        await interaction.reply({ components, flags: MessageFlags.IsComponentsV2 });
-    },
+    ownerOnly: true,
 
     async executePrefix(message) {
         if (!isOwner(message.author.id)) {

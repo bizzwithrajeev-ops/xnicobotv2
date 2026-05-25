@@ -1379,6 +1379,7 @@ app.get('/api/guild/:guildId/screenshot-verify-config', authMiddleware, (req, re
     res.json({
         enabled:             cfg.enabled === true,
         mode:                cfg.mode || 'hybrid',
+        verifier:            cfg.verifier || 'hybrid',
         confidenceThreshold: cfg.confidenceThreshold || 75,
         cooldown:            cfg.cooldown || 0,
         autoDelete:          cfg.autoDelete !== false,
@@ -1400,7 +1401,7 @@ app.put('/api/guild/:guildId/screenshot-verify-config', authMiddleware, (req, re
     if (!all[gid]) {
         all[gid] = {
             enabled: false, submissionChannelId: null, reviewChannelId: null, logChannelId: null,
-            mode: 'hybrid', confidenceThreshold: 75, cooldown: 0,
+            mode: 'hybrid', verifier: 'hybrid', confidenceThreshold: 75, cooldown: 0,
             autoDelete: true, hideAfterVerify: true, color: 0x5865F2,
             approveMessage: 'Your screenshot was approved.',
             rejectMessage:  'Your screenshot did not pass verification. You may try again.',
@@ -1414,6 +1415,7 @@ app.put('/api/guild/:guildId/screenshot-verify-config', authMiddleware, (req, re
     // task may carry actions that spawn role grants / DMs).
     if (typeof body.enabled === 'boolean') cfg.enabled = body.enabled;
     if (['auto', 'review', 'hybrid'].includes(body.mode)) cfg.mode = body.mode;
+    if (['ocr', 'ai', 'hybrid'].includes(body.verifier)) cfg.verifier = body.verifier;
     if (typeof body.confidenceThreshold === 'number' && body.confidenceThreshold >= 50 && body.confidenceThreshold <= 100) {
         cfg.confidenceThreshold = Math.round(body.confidenceThreshold);
     }

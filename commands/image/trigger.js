@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Fire:1473038604812161218> **TRIGGERED**',
     accentColor: 0xFF0000,
     errorMessage: '<:Cancel:1473037949187657818> Failed to create triggered GIF.',
+    prefixOnly: true,
 });

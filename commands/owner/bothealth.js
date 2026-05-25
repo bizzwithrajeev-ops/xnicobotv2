@@ -2,11 +2,17 @@ const { isOwner } = require('../../utils/helpers');
 const { AttachmentBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const os = require('os');
-const imageCache = require('../../utils/imageCache');
 
 const jsonStore = require('../../utils/jsonStore');
 module.exports = {
     data: null,
+    name: 'bothealth',
+    prefix: 'bothealth',
+    aliases: ['health', 'healthcheck'],
+    description: 'Generate a comprehensive bot/system health report image',
+    usage: 'bothealth',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message, args, lavalinkManager) {
         if (!isOwner(message.author.id)) {

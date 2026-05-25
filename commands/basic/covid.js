@@ -1,4 +1,11 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * covid.js — prefix-only.
+ * Fetches COVID-19 statistics from disease.sh and renders a Components V2 container.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
 const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 
 const API_BASE = 'https://disease.sh/v3/covid-19';
@@ -47,7 +54,9 @@ function buildCovidContainer(data, country) {
 }
 
 async function fetchCovid(country) {
-    const url = (!country || country === 'global') ? `${API_BASE}/all` : `${API_BASE}/countries/${encodeURIComponent(country)}`;
+    const url = (!country || country === 'global')
+        ? `${API_BASE}/all`
+        : `${API_BASE}/countries/${encodeURIComponent(country)}`;
     const res = await fetch(url);
     if (!res.ok) {
         if (res.status === 404) return null;
@@ -57,36 +66,15 @@ async function fetchCovid(country) {
 }
 
 module.exports = {
+    name: 'covid',
     prefix: 'covid',
+    aliases: ['corona', 'covid19'],
     description: 'Get COVID-19 statistics for a country or globally',
     usage: 'covid [country]',
     category: 'basic',
-    aliases: ['corona', 'covid19'],
-
-    data: new SlashCommandBuilder()
-        .setName('covid')
-        .setDescription('Get COVID-19 statistics')
-        .addStringOption(opt => opt.setName('country').setDescription('Country name (leave empty for global)').setRequired(false)),
-
-    async execute(interaction) {
-        const country = interaction.options.getString('country') || 'global';
-        await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-        try {
-            const data = await fetchCovid(country);
-            if (!data) {
-                const err = buildErrorResponse('Not Found', `No data found for **${country}**. Check the country name.`);
-                return interaction.editReply({ components: [err], flags: MessageFlags.IsComponentsV2 });
-            }
-            const container = buildCovidContainer(data, country);
-            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            const err = buildErrorResponse('Error', 'Failed to fetch COVID data.', error.message);
-            await interaction.editReply({ components: [err], flags: MessageFlags.IsComponentsV2 });
-        }
-    },
 
     async executePrefix(message, args) {
-        const country = args.join(' ') || 'global';
+        const country = args.join(' ').trim() || 'global';
         try {
             const data = await fetchCovid(country);
             if (!data) {

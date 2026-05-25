@@ -1,5 +1,5 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
 
@@ -149,66 +149,17 @@ function buildSingleCommandStats(stats, commandName) {
 }
 
 module.exports = {
-    trackCommand,
-
-    data: new SlashCommandBuilder()
-        .setName('command-stats')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: View command usage statistics')
-        .addStringOption(option =>
-            option.setName('command').setDescription('View stats for a specific command'))
-        .addStringOption(option =>
-            option.setName('filter').setDescription('Sort/filter results')
-                .addChoices(
-                    { name: 'Most Used', value: 'most' },
-                    { name: 'Least Used', value: 'least' },
-                    { name: 'Recently Used', value: 'recent' }
-                ))
-        .addBooleanOption(option =>
-            option.setName('reset').setDescription('Reset all command statistics')),
-
+    name: 'command-stats',
     prefix: 'command-stats',
+    aliases: ['cmdstats', 'commandstats', 'cs'],
     description: 'View command usage statistics',
     usage: 'command-stats [command] [--filter most|least|recent] [--reset]',
-    aliases: ['cmdstats', 'commandstats', 'cs'],
     category: 'owner',
     ownerOnly: true,
 
     trackCommand,
     loadStats,
     saveStats,
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: `${EMOJIS.ERROR} This command is only available to the bot owner!`, flags: MessageFlags.Ephemeral });
-        }
-
-        const shouldReset = interaction.options.getBoolean('reset');
-
-        if (shouldReset) {
-            saveStats({ commands: {}, totalExecutions: 0, lastReset: Date.now() });
-            const container = new ContainerBuilder()
-                .setAccentColor(COLORS.SUCCESS)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# ${EMOJIS.SUCCESS} Statistics Reset\n\nAll command usage statistics have been cleared.`
-                ))
-                .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const stats = loadStats();
-        const commandName = interaction.options.getString('command');
-        const filter = interaction.options.getString('filter') || 'most';
-
-        if (commandName) {
-            const result = buildSingleCommandStats(stats, commandName);
-            return interaction.reply({ ...result, flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const result = buildCommandStatsDisplay(stats, interaction.client, filter);
-        const reply = await interaction.reply({ ...result, flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral, fetchReply: true });
-        if (result._pageData) setupPaginationCollector(reply, result._pageData, interaction.user.id);
-    },
 
     async executePrefix(message, args) {
         if (!isOwner(message.author.id)) {

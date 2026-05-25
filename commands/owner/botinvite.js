@@ -1,23 +1,14 @@
 const { isOwner } = require('../../utils/helpers');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle, OAuth2Scopes, PermissionsBitField } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle, OAuth2Scopes, PermissionsBitField } = require('discord.js');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('botinvite')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Generate bot invite link with custom permissions'),
-    prefix: 'botinvite',
     name: 'botinvite',
+    prefix: 'botinvite',
+    aliases: ['generateinvite', 'invitelink', 'oauth'],
     description: 'Generate bot OAuth2 invite link',
     usage: 'botinvite',
     category: 'owner',
-    aliases: ['generateinvite', 'invitelink', 'oauth'],
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-        await this.showInvite(interaction, interaction.client);
-    },
+    ownerOnly: true,
 
     async executePrefix(message) {
         if (!isOwner(message.author.id)) return;

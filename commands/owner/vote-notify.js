@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
@@ -88,26 +88,17 @@ function createControlRow(config) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('vote-notify')
-        .setDescription('Configure Top.gg vote notifications')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
-    async execute(interaction) {
-        const config = loadConfig();
-        const guildConfig = config[interaction.guild.id] || {};
-
-        const container = buildVotePanel(guildConfig, interaction.client);
-        const settingsRow = createSettingsRow();
-        const controlRow = createControlRow(guildConfig);
-
-        await interaction.reply({
-            components: [container, settingsRow, controlRow],
-            flags: MessageFlags.IsComponentsV2
-        });
-    },
+    name: 'vote-notify',
+    prefix: 'vote-notify',
+    aliases: ['votenotify', 'votepanel'],
+    description: 'Configure Top.gg vote notifications',
+    usage: 'vote-notify',
+    category: 'owner',
 
     async executePrefix(message) {
+        if (!message.guild) {
+            return message.reply('<:Cancel:1473037949187657818> This must be used in a server.');
+        }
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('<:Cancel:1473037949187657818> You need **Administrator** permission!');
         }

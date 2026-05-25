@@ -1,6 +1,14 @@
+'use strict';
+
+/**
+ * restart.js — prefix-only.
+ * Flushes jsonStore and exits with code 1 so a process manager
+ * (pm2/replit/nodemon/systemd) can restart the bot.
+ */
+
 const { isOwner } = require('../../utils/helpers');
 const jsonStore = require('../../utils/jsonStore');
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
+const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
 const log = require('../../utils/logger');
 
 function getActivePlayers(client) {
@@ -29,35 +37,13 @@ function formatPlayerInfo(activePlayers) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('restart')
-        .setDescription('<:Lock:1473038513749491773> Owner Only: Restart the bot'),
-
-    async execute(interaction) {
-        if (!isOwner(interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command is only available to the bot owner!', flags: MessageFlags.Ephemeral });
-        }
-
-        const activePlayers = getActivePlayers(interaction.client);
-        const playerInfo = formatPlayerInfo(activePlayers);
-
-        if (activePlayers.length) {
-            log.warning(`Restart initiated with ${activePlayers.length} active player(s): ${activePlayers.map(p => `${p.guild} → ${p.track}`).join(', ')}`);
-        }
-
-        const container = new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:Refresh:1473037911581528165> Restarting Bot\n\n**Status:** Flushing database and restarting...\n**Expected downtime:** 5-10 seconds${playerInfo}`)
-            );
-
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        try { await jsonStore.flush(); } catch (e) {}
-        setTimeout(() => {
-            process.exit(1);
-        }, 1000);
-    },
+    name: 'restart',
+    prefix: 'restart',
+    aliases: ['reboot'],
+    description: 'Owner-only: restart the bot process',
+    usage: 'restart',
+    category: 'owner',
+    ownerOnly: true,
 
     async executePrefix(message) {
         if (!isOwner(message.author.id)) {
@@ -68,20 +54,17 @@ module.exports = {
         const playerInfo = formatPlayerInfo(activePlayers);
 
         if (activePlayers.length) {
-            log.warning(`Restart initiated with ${activePlayers.length} active player(s): ${activePlayers.map(p => `${p.guild} → ${p.track}`).join(', ')}`);
+            log.warning?.(`Restart initiated with ${activePlayers.length} active player(s): ${activePlayers.map(p => `${p.guild} → ${p.track}`).join(', ')}`);
         }
 
         const container = new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:Refresh:1473037911581528165> Restarting Bot\n\n**Status:** Flushing database and restarting...\n**Expected downtime:** 5-10 seconds${playerInfo}`)
-            );
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# <:Refresh:1473037911581528165> Restarting Bot\n\n**Status:** Flushing database and restarting...\n**Expected downtime:** 5-10 seconds${playerInfo}`
+            ));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
-        try { await jsonStore.flush(); } catch (e) {}
-        setTimeout(() => {
-            process.exit(1);
-        }, 1000);
+        try { await jsonStore.flush(); } catch {}
+        setTimeout(() => process.exit(1), 1000);
     }
 };

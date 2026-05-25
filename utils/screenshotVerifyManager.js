@@ -49,7 +49,8 @@
 
 const jsonStore = require('./jsonStore');
 const log       = require('./logger-styled');
-const { detectScreenshot } = require('./screenshotVerifyVision');
+const { detectScreenshot: detectViaAI } = require('./screenshotVerifyVision');
+const { detectScreenshot: detectViaOCR } = require('./screenshotVerifyOCR');
 const {
     STORE_CONFIG, STORE_SUBS,
     TASK_PRESETS, ACTION_PRESETS,
@@ -69,6 +70,11 @@ function defaultGuildConfig() {
         reviewChannelId:     null,
         logChannelId:        null,
         mode: 'hybrid',
+        // Detection engine:
+        //   'ocr'    — local Tesseract only (free, deterministic, offline)
+        //   'ai'     — Groq vision LLM only
+        //   'hybrid' — OCR first; if it can't decide, escalate to AI (default)
+        verifier: 'hybrid',
         confidenceThreshold: DEFAULT_CONFIDENCE,
         cooldown: 0,
         autoDelete: true,
@@ -535,6 +541,45 @@ function validateAttachment(attachment) {
 }
 
 /**
+ * Unified verification dispatcher. Picks the configured engine
+ * (`ocr` / `ai` / `hybrid`) and returns the same {matched, taskId,
+ * confidence, reasoning, model} shape regardless of the underlying
+ * engine — so the rest of the pipeline never branches on engine.
+ *
+ * Hybrid behaviour: run OCR first (fast, free, deterministic). If it
+ * confidently matches, use it. If it's uncertain, fall through to the
+ * AI verifier. If both fail (binary missing, key missing, network),
+ * return null so the manager can route to manual review.
+ */
+async function runVerifier({ engine, imageUrl, tasks, threshold }) {
+    const ENGINE = (engine || 'hybrid').toLowerCase();
+    const useOCR = ENGINE === 'ocr'    || ENGINE === 'hybrid';
+    const useAI  = ENGINE === 'ai'     || ENGINE === 'hybrid';
+
+    let ocrResult = null;
+    if (useOCR) {
+        ocrResult = await detectViaOCR({ imageUrl, tasks, threshold }).catch(() => null);
+        // OCR alone is strong enough to short-circuit when:
+        //   - it confidently matched, OR
+        //   - this engine doesn't have an AI fallback configured.
+        if (ENGINE === 'ocr') return ocrResult;
+        if (ocrResult && ocrResult.matched && ocrResult.confidence >= (threshold || DEFAULT_CONFIDENCE)) {
+            return ocrResult;
+        }
+    }
+
+    if (useAI) {
+        const aiResult = await detectViaAI({ imageUrl, tasks }).catch(() => null);
+        if (aiResult) return aiResult;
+    }
+
+    // AI bailed (no key, network error, etc.) — return whatever OCR
+    // produced even if it's a low-confidence "no match", so staff has
+    // *some* signal in the review embed.
+    return ocrResult;
+}
+
+/**
  * Public submit entry point. Handles validation, AI detection, and
  * dispatch to either auto-action execution or the manual review queue.
  *
@@ -588,11 +633,13 @@ async function submitScreenshot(opts) {
         task = getTask(cfg, preSelectedTaskId);
         if (!task) return { ok: false, error: 'The task you selected no longer exists.' };
 
-        // Even with a pre-selected task, run AI detection (unless mode=review with no API key)
+        // Even with a pre-selected task, run detection (unless mode=review explicitly skips it)
         if (cfg.mode !== 'review') {
-            ai = await detectScreenshot({
-                imageUrl: attachment.proxyURL || attachment.url,
-                tasks:    [task]
+            ai = await runVerifier({
+                engine:    cfg.verifier,
+                imageUrl:  attachment.proxyURL || attachment.url,
+                tasks:     [task],
+                threshold: cfg.confidenceThreshold
             });
         }
     } else {
@@ -602,11 +649,13 @@ async function submitScreenshot(opts) {
             // and let them pick. We default to the first task as the "claimed" task.
             task = cfg.tasks[0];
         } else {
-            ai = await detectScreenshot({
-                imageUrl: attachment.proxyURL || attachment.url,
-                tasks:    cfg.tasks
+            ai = await runVerifier({
+                engine:    cfg.verifier,
+                imageUrl:  attachment.proxyURL || attachment.url,
+                tasks:     cfg.tasks,
+                threshold: cfg.confidenceThreshold
             });
-            // ai.taskId may be null if the model couldn't classify. Fall back to the first
+            // ai.taskId may be null if the engine couldn't classify. Fall back to the first
             // task so the submission record is still attached to *something* and staff can
             // re-categorise on review.
             const matchedTask = ai?.taskId ? getTask(cfg, ai.taskId) : null;
@@ -648,10 +697,14 @@ async function submitScreenshot(opts) {
             reviewedBy: client.user.id
         });
 
+        const engineLabel = ai?.model === 'tesseract' ? 'OCR'
+            : (ai?.model && /llama|gpt|claude|gemini|vision/i.test(ai.model)) ? 'AI Vision'
+            : 'Verifier';
+
         const dmContent = `# <:Checkedbox:1473038547165384804> Verified Automatically\n\n`
             + `Your screenshot for **${task.name}** in **${guild.name}** was approved.\n\n`
             + (cfg.approveMessage ? `> ${cfg.approveMessage}\n` : '')
-            + `\n-# Confidence: \`${aiConfidence}%\` · Submission ID: \`${submission.id}\``;
+            + `\n-# ${engineLabel} confidence: \`${aiConfidence}%\` · Submission ID: \`${submission.id}\``;
         dmUser(client, user.id, dmContent);
 
         const summary = actionResults.map(r =>
@@ -660,7 +713,7 @@ async function submitScreenshot(opts) {
 
         logAudit(guild, cfg,
             `<:Checkedbox:1473038547165384804> Auto-approved \`${submission.id}\` from <@${user.id}> · `
-            + `task **${task.name}** · confidence \`${aiConfidence}%\`\n${summary}`
+            + `task **${task.name}** · ${engineLabel.toLowerCase()} confidence \`${aiConfidence}%\`\n${summary}`
         );
 
         return {
@@ -695,7 +748,18 @@ async function submitScreenshot(opts) {
         return { ok: true, decision: 'auto-rejected', submission, task, ai };
     }
 
-    // Otherwise → manual review queue
+    // Otherwise → manual review queue. If the engine failed to run
+    // (binary missing, key missing, network) AND we're in auto mode
+    // with no review channel, the queue will fail too — return a
+    // clearer message in that case so staff know what to fix.
+    if (!ai && cfg.mode === 'auto' && !cfg.reviewChannelId) {
+        deleteSubmission(guild.id, submission.id);
+        return {
+            ok: false,
+            error: 'Verification engine is unavailable and no review channel is set. Ask staff to configure a review channel or re-enable the verifier.'
+        };
+    }
+
     return queueForReview({ client, guild, cfg, task, user, submission, attachment, ai, note });
 }
 
@@ -730,9 +794,13 @@ async function queueForReview({ client, guild, cfg, task, user, submission, ai, 
         reviewChannelId: posted.channel.id
     });
 
+    const verifierLabel = ai?.model === 'tesseract' ? 'OCR'
+        : (ai?.model && /llama|gpt|claude|gemini|vision/i.test(ai.model)) ? 'AI'
+        : null;
+
     logAudit(guild, cfg,
         `<:Lightning:1473038797540298792> Queued \`${submission.id}\` from <@${user.id}> · task **${task.name}** · `
-        + (ai ? `AI: \`${ai.confidence ?? 0}%\` ${ai.matched ? 'match' : 'no-match'}` : 'no AI')
+        + (verifierLabel ? `${verifierLabel}: \`${ai.confidence ?? 0}%\` ${ai.matched ? 'match' : 'no-match'}` : 'no verifier signal')
         + (fallbackReason ? ` · ${fallbackReason}` : '')
     );
 
@@ -840,6 +908,7 @@ module.exports = {
 
     // Pipelines
     submitScreenshot, manualReview, reassignTask,
+    runVerifier,
 
     // Helpers
     runTaskActions, runAction, applyPlaceholders,

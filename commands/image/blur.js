@@ -10,4 +10,5 @@ module.exports = createImageCommand({
     title: '<:Attach:1473037923979886694> **Blur Effect Applied**',
     accentColor: 0xCAD7E6,
     errorMessage: '<:Cancel:1473037949187657818> Failed to blur image.',
+    prefixOnly: true,
 });
