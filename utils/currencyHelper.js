@@ -138,6 +138,43 @@ function coinIcon(guildId) {
     return getEconomySettings(guildId).currency || DEFAULTS.currency;
 }
 
+/**
+ * Returns the guild's currency icon **only if** it is a valid value
+ * for `ButtonBuilder#setEmoji` / select-menu `emoji` fields — i.e. a
+ * unicode emoji or a `<:NAME:ID>` / `<a:NAME:ID>` custom emoji.
+ *
+ * The dashboard accepts free-form text in the currency field
+ * (`$`, `coins`, `gold`, etc.) so callers that pass `coinIcon(...)`
+ * straight into `setEmoji(...)` end up with Discord rejecting the
+ * payload as `INVALID_FORM_BODY: emoji`. Use this helper everywhere
+ * we're rendering an emoji on a component button/menu instead, and
+ * fall back gracefully (return null) when the configured currency
+ * isn't actually emoji-shaped.
+ */
+const CUSTOM_EMOJI_RE = /^<a?:[A-Za-z0-9_]+:\d{10,}>$/;
+let _emojiRegex = null;
+function _isUnicodeEmoji(str) {
+    if (typeof str !== 'string' || !str) return false;
+    try {
+        if (!_emojiRegex) _emojiRegex = require('emoji-regex')();
+        // Reset state for global regex
+        _emojiRegex.lastIndex = 0;
+        const m = _emojiRegex.exec(str);
+        return !!m && m[0] === str;
+    } catch {
+        // Fallback: match a single non-ASCII character.
+        return /^[^\u0000-\u007F]+$/.test(str) && [...str].length <= 4;
+    }
+}
+
+function coinEmoji(guildId) {
+    const raw = coinIcon(guildId);
+    if (typeof raw !== 'string' || !raw) return null;
+    if (CUSTOM_EMOJI_RE.test(raw)) return raw;
+    if (_isUnicodeEmoji(raw)) return raw;
+    return null;
+}
+
 function formatCoins(amount, guildId) {
     const cfg = getEconomySettings(guildId);
     const formatted = Number(amount || 0).toLocaleString();
@@ -156,6 +193,7 @@ module.exports = {
     getCurrency,
     getCurrencyName,
     coinIcon,
+    coinEmoji,
     formatCoins,
     formatCoinsShort,
     getGuildSettings,

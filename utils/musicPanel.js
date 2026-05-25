@@ -515,7 +515,7 @@ function buildVoiceStatus(player, track = null) {
  * @returns {string} Formatted waiting status
  */
 function buildWaitingStatus() {
-    return `🎵 /play <song>`;
+    return `<:Music:1473039311057190972> **/play <song>**`;
 }
 
 /**

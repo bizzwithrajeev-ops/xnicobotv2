@@ -2300,7 +2300,7 @@ app.get('/api/commands', authMiddleware, (req, res) => {
             { name: 'Utility', count: 94, icon: '🔧', desc: 'Welcomer, tickets, giveaways, starboard, polls' },
             { name: 'Owner', count: 55, icon: '👑', desc: 'Bot management, eval, deploy, broadcasting' },
             { name: 'Fun', count: 52, icon: '🎮', desc: 'Games, trivia, Akinator, memes' },
-            { name: 'Music', count: 47, icon: '🎵', desc: 'Lavalink player with filters, queue, favorites' },
+            { name: 'Music', count: 47, icon: '<:Music:1473039311057190972>', desc: 'Lavalink player with filters, queue, favorites' },
             { name: 'Basic', count: 47, icon: '📋', desc: 'Server info, user info, roles, permissions' },
             { name: 'Economy', count: 29, icon: '💰', desc: 'Currency, shop, gambling, fishing, pets' },
             { name: 'Voice', count: 21, icon: '🔊', desc: 'Join-to-create, voice roles' },

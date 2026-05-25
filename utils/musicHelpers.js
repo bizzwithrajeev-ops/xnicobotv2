@@ -141,8 +141,8 @@ function voiceStatusGlyph(sourceName) {
     if (s.includes('spotify'))    return '🟢';
     if (s.includes('soundcloud')) return '🟠';
     if (s.includes('apple'))      return '🍎';
-    if (s.includes('deezer'))     return '🎵';
-    return '🎵';
+    if (s.includes('deezer'))     return '<:Music:1473039311057190972>';
+    return '<:Music:1473039311057190972>';
 }
 
 /**

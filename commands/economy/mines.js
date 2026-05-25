@@ -37,7 +37,7 @@
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort, coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort, coinIcon, coinEmoji } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
@@ -158,13 +158,18 @@ function buildGameGrid(game, reveal = false) {
     if (!game.ended && game.revealed.size > 0) {
         const mult = calculateMultiplier(game.revealed.size, game.totalSafe, game.risk);
         const payout = Math.floor(game.bet * mult);
-        const cashoutRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`mines_${game.userId}_cashout`)
-                .setLabel(`Cash Out · ${mult}x = ${formatNumber(payout)}`)
-                .setEmoji(coinIcon(game.guildId))
-                .setStyle(ButtonStyle.Primary)
-        );
+        // The guild's currency may be a free-form string from the
+        // dashboard (`$`, `coins`, ...). `setEmoji` only accepts
+        // valid unicode or `<:NAME:ID>` custom emoji — anything else
+        // makes Discord reject the whole component payload with
+        // INVALID_FORM_BODY. Fall back to no emoji in that case.
+        const cashoutBtn = new ButtonBuilder()
+            .setCustomId(`mines_${game.userId}_cashout`)
+            .setLabel(`Cash Out · ${mult}x = ${formatNumber(payout)}`)
+            .setStyle(ButtonStyle.Primary);
+        const safeIcon = coinEmoji(game.guildId);
+        if (safeIcon) cashoutBtn.setEmoji(safeIcon);
+        const cashoutRow = new ActionRowBuilder().addComponents(cashoutBtn);
         rows.push(cashoutRow);
     }
 
@@ -240,10 +245,10 @@ function buildSetupContainer(userId) {
     }
 
     const riskOptions = [
-        { label: 'Low Risk',     value: 'low',     description: 'Fewer mines, lower multiplier',     emoji: '<:Toggleon:1473038585501581312>'  },
-        { label: 'Medium Risk',  value: 'medium',  description: 'Balanced mines & reward',            emoji: '<:idle:1473370085719863366>'      },
-        { label: 'Hard Risk',    value: 'hard',    description: 'Many mines, high multiplier',        emoji: '<:Fire:1473038604812161218>'      },
-        { label: 'Extreme Risk', value: 'extreme', description: 'Most mines, highest multiplier',     emoji: '<:Toggleoff:1473038582813032590>' },
+        { label: 'Low Risk',     value: 'low',     description: 'Fewer mines, lower multiplier',     emoji: '✧'  },
+        { label: 'Medium Risk',  value: 'medium',  description: 'Balanced mines & reward',            emoji: '✦'      },
+        { label: 'Hard Risk',    value: 'hard',    description: 'Many mines, high multiplier',        emoji: '𖤐'      },
+        { label: 'Extreme Risk', value: 'extreme', description: 'Most mines, highest multiplier',     emoji: '𖤍' },
     ];
     if (game.risk) {
         const opt = riskOptions.find(o => o.value === game.risk);
