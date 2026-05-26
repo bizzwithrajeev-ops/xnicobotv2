@@ -12,7 +12,8 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ChannelType
+    ChannelType,
+    StringSelectMenuBuilder
 } = require('discord.js');
 const { 
     toggleInviteTracking, 
@@ -22,9 +23,38 @@ const {
     setReward,
     removeReward
 } = require('../../utils/inviteManager');
+const { getDefaultMessages, getVariableGroups, replaceInviteVariables, buildContainer: buildMsgContainer } = require('../../utils/inviteMessageBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
+
+// ── Message type metadata for the Messages panel ──────────────────────────
+const MESSAGE_TYPES = {
+    join: {
+        label: 'Join Message',
+        description: 'Sent when a tracked member joins via a known invite.',
+        emoji: '<:Userplus:1473038912212435086>',
+        accent: 0x57F287,
+    },
+    leave: {
+        label: 'Leave Message',
+        description: 'Sent when a tracked member leaves the server.',
+        emoji: '<:Userblock:1473038868184826149>',
+        accent: 0xED4245,
+    },
+    vanity: {
+        label: 'Vanity / Unknown',
+        description: 'Sent when a member joins without a trackable invite.',
+        emoji: '<:Sketch:1473038248493453352>',
+        accent: 0xFEE75C,
+    },
+    fake: {
+        label: 'Alt Detection',
+        description: 'Sent when a joining member is flagged as a likely alt.',
+        emoji: '<:Shield:1473038669831995494>',
+        accent: 0xED4245,
+    },
+};
 
 function loadConfig() {
     if (!jsonStore.has('invites')) {
@@ -39,55 +69,95 @@ function saveConfig(config) {
 
 function getGuildConfig(guildId) {
     const config = loadConfig();
-    return config[guildId] || { enabled: false, rewards: [], channel: null };
+    const entry = config[guildId] || { enabled: false, rewards: [], channel: null };
+    if (!entry.messages) entry.messages = getDefaultMessages();
+    return entry;
 }
 
 function updateGuildConfig(guildId, updates) {
     const config = loadConfig();
     if (!config[guildId]) {
-        config[guildId] = { enabled: false, rewards: [], channel: null, totals: {}, members: {}, invites: {} };
+        config[guildId] = {
+            enabled: false,
+            rewards: [],
+            channel: null,
+            totals: {},
+            members: {},
+            invites: {},
+            messages: getDefaultMessages(),
+        };
     }
+    if (!config[guildId].messages) config[guildId].messages = getDefaultMessages();
     Object.assign(config[guildId], updates);
     saveConfig(config);
     return config[guildId];
 }
 
+/**
+ * Update a single message-type config (merge fields) for a guild.
+ */
+function updateMessageConfig(guildId, type, updates) {
+    const config = loadConfig();
+    if (!config[guildId]) {
+        config[guildId] = {
+            enabled: false,
+            rewards: [],
+            channel: null,
+            totals: {},
+            members: {},
+            invites: {},
+            messages: getDefaultMessages(),
+        };
+    }
+    if (!config[guildId].messages) config[guildId].messages = getDefaultMessages();
+    if (!config[guildId].messages[type]) config[guildId].messages[type] = getDefaultMessages()[type];
+    Object.assign(config[guildId].messages[type], updates);
+    saveConfig(config);
+    return config[guildId].messages[type];
+}
+
 function buildMainPanel(guildConfig, guild) {
     const enabled = guildConfig.enabled;
     const rewards = guildConfig.rewards || [];
+    const messages = guildConfig.messages || getDefaultMessages();
     const logChannel = guildConfig.channel ? guild.channels.cache.get(guildConfig.channel) : null;
-    
+
+    const enabledMsgCount = Object.values(messages).filter(m => m?.enabled !== false).length;
+    const totalMsgCount = Object.keys(MESSAGE_TYPES).length;
+
     let content = `# <:Fire:1473038604812161218> Invite Tracking System\n\n`;
-    content += `Track member invites, reward top inviters, and monitor server growth with comprehensive analytics.\n\n`;
-    
+    content += `Track member invites, reward top inviters, and broadcast custom join/leave messages with full variable support.\n\n`;
+
     content += `### <:Bookopen:1473038576391557130> Current Configuration\n`;
-    content += `**Status:** ${enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
-    content += `**Log Channel:** ${logChannel ? `<#${logChannel.id}>` : '*Not configured*'}\n`;
-    content += `**Reward Roles:** ${rewards.length} configured\n\n`;
-    
-    content += `### 🎁 Invite Rewards\n`;
+    content += `<:Caretright:1473038207221502106> **Status:** ${enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
+    content += `<:Caretright:1473038207221502106> **Log Channel:** ${logChannel ? `<#${logChannel.id}>` : '*Not configured*'}\n`;
+    content += `<:Caretright:1473038207221502106> **Reward Roles:** \`${rewards.length}\` configured\n`;
+    content += `<:Caretright:1473038207221502106> **Custom Messages:** \`${enabledMsgCount}/${totalMsgCount}\` enabled\n\n`;
+
+    content += `### <:Present:1473038450465706076> Invite Rewards\n`;
     if (rewards.length === 0) {
-        content += `*No reward roles configured yet. Click "Rewards" to set up milestone rewards!*\n`;
+        content += `*No reward roles configured yet. Click "Rewards" to set up milestone rewards.*\n`;
     } else {
         const sortedRewards = [...rewards].sort((a, b) => a.invites - b.invites);
         for (const reward of sortedRewards.slice(0, 5)) {
             content += `<:Caretright:1473038207221502106> **${reward.invites} invites** → <@&${reward.roleId}>\n`;
         }
         if (rewards.length > 5) {
-            content += `*...and ${rewards.length - 5} more rewards*\n`;
+            content += `-# …and ${rewards.length - 5} more rewards\n`;
         }
     }
-    
-    content += `\n### <:Chat:1473038936241864865> How to Use\n`;
-    content += `**1.** Click  Tracking** to start tracking invites\n`;
-    content += `**2.** Set a **Log Channel** to receive join notifications\n`;
-    content += `**3.** Add **Rewards** to give roles at invite milestones\n\n`;
-    
+
+    content += `\n### <:Chat:1473038936241864865> Quick Setup\n`;
+    content += `**1.** Enable **Tracking** to start collecting invite data\n`;
+    content += `**2.** Set a **Log Channel** to receive event messages\n`;
+    content += `**3.** Customize **Messages** with your own variables\n`;
+    content += `**4.** Add **Rewards** to grant roles at milestones\n\n`;
+
     content += `### <:Shield:1473038669831995494> Related Commands\n`;
-    content += `\`/invite-stats\` - View your invite statistics\n`;
-    content += `\`/invite-leaderboard\` - Server invite rankings\n`;
-    content += `\`/invite-analytics\` - Detailed invite analytics`;
-    
+    content += `\`/invite-stats\` — your invite statistics\n`;
+    content += `\`/invite-leaderboard\` — top inviters\n`;
+    content += `\`/invite-analytics\` — server-wide analytics`;
+
     return content;
 }
 
@@ -130,13 +200,23 @@ function createControlRow(guildConfig) {
                 .setCustomId('invite_rewards')
                 .setLabel('Rewards')
                 .setStyle((guildConfig.rewards?.length > 0) ? ButtonStyle.Success : ButtonStyle.Primary)
-                .setEmoji('🎁')
+                .setEmoji('<:Present:1473038450465706076>'),
+            new ButtonBuilder()
+                .setCustomId('invite_messages')
+                .setLabel('Messages')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('<:Chat:1473038936241864865>')
         );
 }
 
 function createSettingsRow(guildConfig) {
     return new ActionRowBuilder()
         .addComponents(
+            new ButtonBuilder()
+                .setCustomId('invite_variables')
+                .setLabel('Variables')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Clipboard:1473039573037617162>'),
             new ButtonBuilder()
                 .setCustomId('invite_add_reward')
                 .setLabel('Add Reward')
@@ -157,19 +237,20 @@ function createSettingsRow(guildConfig) {
 
 function buildRewardsPanel(guildConfig, guild) {
     const rewards = guildConfig.rewards || [];
-    
-    let content = `# 🎁 Invite Rewards\n\n`;
-    
+
+    let content = `# <:Present:1473038450465706076> Invite Rewards\n\n`;
+
     if (rewards.length === 0) {
-        content += `No reward roles configured yet.\n\nClick **Add Reward** to create invite milestones!`;
+        content += `*No reward roles configured yet.*\n\nClick **Add Reward** to create invite milestones.`;
     } else {
+        content += `Members who hit these invite milestones will be awarded the matching role automatically.\n\n`;
         const sortedRewards = [...rewards].sort((a, b) => a.invites - b.invites);
         for (const reward of sortedRewards) {
             const role = guild.roles.cache.get(reward.roleId);
-            content += `• **${reward.invites} invites** → ${role ? role.toString() : 'Unknown Role'}\n`;
+            content += `<:Caretright:1473038207221502106> **${reward.invites} invites** → ${role ? role.toString() : '*Unknown Role*'}\n`;
         }
     }
-    
+
     return content;
 }
 
@@ -202,10 +283,212 @@ function buildRewardsContainer(guildConfig, guild) {
                     .setCustomId('invite_back')
                     .setLabel('Back')
                     .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('⬅️')
+                    .setEmoji('<:Caretright:1473038207221502106>')
             )
     );
     
+    return container;
+}
+
+// ── Messages Hub ─────────────────────────────────────────────────────────
+
+function buildMessagesPanel(guildConfig) {
+    const messages = guildConfig.messages || getDefaultMessages();
+    const logChannelId = guildConfig.channel;
+
+    let content = `# <:Chat:1473038936241864865> Custom Invite Messages\n\n`;
+    content += `Customize what gets posted to your invite log channel for each event.\nEvery message supports rich variables — click **Variables** to see the full list.\n\n`;
+
+    if (!logChannelId) {
+        content += `### <:Infotriangle:1473038460456800459> No Log Channel Configured\n`;
+        content += `Set a log channel from the main panel before messages can be sent.\n\n`;
+    }
+
+    content += `### <:Bookopen:1473038576391557130> Message Status\n`;
+    for (const [type, meta] of Object.entries(MESSAGE_TYPES)) {
+        const cfg = messages[type] || {};
+        const status = cfg.enabled === false
+            ? '<:Toggleoff:1473038582813032590> Disabled'
+            : '<:Toggleon:1473038585501581312> Enabled';
+        content += `${meta.emoji} **${meta.label}** — ${status}\n`;
+        content += `-# ${meta.description}\n`;
+    }
+
+    content += `\n### <:Clipboard:1473039573037617162> Tips\n`;
+    content += `<:Caretright:1473038207221502106> Use **Edit** on any message to rewrite the content with variables.\n`;
+    content += `<:Caretright:1473038207221502106> Use **Toggle** to turn a message on or off without losing the template.\n`;
+    content += `<:Caretright:1473038207221502106> **Reset** restores the default xNico-styled template.\n`;
+
+    return content;
+}
+
+function buildMessagesContainer(guildConfig) {
+    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(buildMessagesPanel(guildConfig))
+    );
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+    );
+
+    // Selector to pick which message to manage
+    const select = new StringSelectMenuBuilder()
+        .setCustomId('invite_msg_select')
+        .setPlaceholder('Select a message to configure…')
+        .setMinValues(1)
+        .setMaxValues(1);
+
+    for (const [type, meta] of Object.entries(MESSAGE_TYPES)) {
+        const cfg = (guildConfig.messages || {})[type] || {};
+        select.addOptions({
+            label: meta.label,
+            value: type,
+            description: cfg.enabled === false ? 'Disabled' : 'Enabled',
+            emoji: meta.emoji.match(/^<a?:.+?:(\d+)>$/) ? { id: meta.emoji.match(/^<a?:.+?:(\d+)>$/)[1], name: meta.emoji.match(/^<a?:(.+?):/)[1] } : undefined,
+        });
+    }
+
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('invite_variables')
+                .setLabel('Variables')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Clipboard:1473039573037617162>'),
+            new ButtonBuilder()
+                .setCustomId('invite_back')
+                .setLabel('Back')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Caretright:1473038207221502106>')
+        )
+    );
+
+    return container;
+}
+
+function buildMessageEditorPanel(type, guildConfig) {
+    const meta = MESSAGE_TYPES[type];
+    const cfg = (guildConfig.messages || {})[type] || getDefaultMessages()[type];
+    const enabled = cfg.enabled !== false;
+
+    let content = `# ${meta.emoji} ${meta.label}\n`;
+    content += `-# ${meta.description}\n\n`;
+    content += `### <:Bookopen:1473038576391557130> Status\n`;
+    content += `<:Caretright:1473038207221502106> ${enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
+
+    content += `### <:Editalt:1473038138577256670> Current Template\n`;
+    const preview = (cfg.content || '*(empty)*').slice(0, 1500);
+    content += '```\n' + preview.replace(/```/g, '`\u200b``') + '\n```\n';
+    if ((cfg.content || '').length > 1500) {
+        content += `-# Template truncated for preview (${cfg.content.length} chars total).\n`;
+    }
+
+    content += `\n### <:Clipboard:1473039573037617162> Quick Reference\n`;
+    content += `<:Caretright:1473038207221502106> Click **Variables** for the full placeholder list.\n`;
+    content += `<:Caretright:1473038207221502106> Click **Preview** to render the template against your own data.\n`;
+
+    return content;
+}
+
+function buildMessageEditorContainer(type, guildConfig) {
+    const meta = MESSAGE_TYPES[type];
+    const cfg = (guildConfig.messages || {})[type] || getDefaultMessages()[type];
+    const enabled = cfg.enabled !== false;
+
+    const container = new ContainerBuilder().setAccentColor(meta.accent);
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(buildMessageEditorPanel(type, guildConfig))
+    );
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+    );
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`invite_msg_edit_${type}`)
+                .setLabel('Edit Template')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('<:Editalt:1473038138577256670>'),
+            new ButtonBuilder()
+                .setCustomId(`invite_msg_toggle_${type}`)
+                .setLabel(enabled ? 'Disable' : 'Enable')
+                .setStyle(enabled ? ButtonStyle.Danger : ButtonStyle.Success)
+                .setEmoji(enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
+            new ButtonBuilder()
+                .setCustomId(`invite_msg_preview_${type}`)
+                .setLabel('Preview')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Eye:1473038435056095242>'),
+            new ButtonBuilder()
+                .setCustomId(`invite_msg_reset_${type}`)
+                .setLabel('Reset')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:History:1473037847568318605>')
+        )
+    );
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('invite_variables')
+                .setLabel('Variables')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Clipboard:1473039573037617162>'),
+            new ButtonBuilder()
+                .setCustomId('invite_messages')
+                .setLabel('Back to Messages')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Caretright:1473038207221502106>')
+        )
+    );
+
+    return container;
+}
+
+function buildVariablesContainer() {
+    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+
+    let content = `# <:Clipboard:1473039573037617162> Available Variables\n\n`;
+    content += `Drop any of these placeholders into your message templates and they'll be replaced at send-time.\n\n`;
+
+    for (const group of getVariableGroups()) {
+        content += `### ${group.title}\n`;
+        content += group.vars.map(v => `\`${v}\``).join(' ') + `\n\n`;
+    }
+
+    content += `### <:Infotriangle:1473038460456800459> Tips\n`;
+    content += `<:Caretright:1473038207221502106> Variables are case-sensitive — lowercase only.\n`;
+    content += `<:Caretright:1473038207221502106> Inviter variables resolve to *Unknown* on vanity/discovery joins.\n`;
+    content += `<:Caretright:1473038207221502106> Alt-detection variables only populate inside the **fake** template.\n`;
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+    );
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('invite_messages')
+                .setLabel('Back to Messages')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Caretright:1473038207221502106>'),
+            new ButtonBuilder()
+                .setCustomId('invite_back')
+                .setLabel('Main Panel')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Bookopen:1473038576391557130>')
+        )
+    );
+
     return container;
 }
 
@@ -240,7 +523,7 @@ module.exports = {
     },
 
     async handleInteraction(interaction) {
-        if (!interaction.isButton() && !interaction.isModalSubmit()) return false;
+        if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isStringSelectMenu()) return false;
         
         const customId = interaction.customId;
         if (!customId.startsWith('invite_')) return false;
@@ -258,6 +541,24 @@ module.exports = {
         
         const guildId = interaction.guild.id;
         let guildConfig = getGuildConfig(guildId);
+
+        // ── String select menu (message-type chooser) ────────────────────
+        if (interaction.isStringSelectMenu()) {
+            if (customId === 'invite_msg_select') {
+                const type = interaction.values[0];
+                if (!MESSAGE_TYPES[type]) {
+                    await interaction.reply({
+                        content: '<:Cancel:1473037949187657818> Unknown message type.',
+                        flags: MessageFlags.Ephemeral,
+                    });
+                    return true;
+                }
+                const container = buildMessageEditorContainer(type, guildConfig);
+                await interaction.update({ components: [container] });
+                return true;
+            }
+            return false;
+        }
         
         if (interaction.isButton()) {
             if (customId === 'invite_toggle') {
@@ -367,6 +668,123 @@ module.exports = {
                 await interaction.update({ components: [container] });
                 return true;
             }
+
+            // ── Messages hub ───────────────────────────────────────────
+            if (customId === 'invite_messages') {
+                const container = buildMessagesContainer(guildConfig);
+                await interaction.update({ components: [container] });
+                return true;
+            }
+
+            if (customId === 'invite_variables') {
+                const container = buildVariablesContainer();
+                await interaction.update({ components: [container] });
+                return true;
+            }
+
+            // Per-message-type buttons: edit / toggle / preview / reset
+            const editMatch = customId.match(/^invite_msg_edit_(\w+)$/);
+            if (editMatch) {
+                const type = editMatch[1];
+                if (!MESSAGE_TYPES[type]) return true;
+                const cfg = (guildConfig.messages || {})[type] || getDefaultMessages()[type];
+
+                const modal = new ModalBuilder()
+                    .setCustomId(`invite_modal_msg_${type}`)
+                    .setTitle(`Edit ${MESSAGE_TYPES[type].label}`);
+
+                const contentInput = new TextInputBuilder()
+                    .setCustomId('content')
+                    .setLabel('Message Template (variables supported)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Use {user}, {invitermention}, {invitercount}, etc.')
+                    .setValue((cfg.content || '').slice(0, 4000))
+                    .setMaxLength(4000)
+                    .setRequired(true);
+
+                const colorInput = new TextInputBuilder()
+                    .setCustomId('color')
+                    .setLabel('Accent Color (hex, e.g. #57F287)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('#57F287')
+                    .setValue(cfg.accentColor ? `#${cfg.accentColor.toString(16).padStart(6, '0').toUpperCase()}` : '#CAD7E6')
+                    .setMaxLength(9)
+                    .setRequired(false);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(contentInput),
+                    new ActionRowBuilder().addComponents(colorInput),
+                );
+                await interaction.showModal(modal);
+                return true;
+            }
+
+            const toggleMatch = customId.match(/^invite_msg_toggle_(\w+)$/);
+            if (toggleMatch) {
+                const type = toggleMatch[1];
+                if (!MESSAGE_TYPES[type]) return true;
+                const current = (guildConfig.messages || {})[type] || getDefaultMessages()[type];
+                updateMessageConfig(guildId, type, { enabled: !(current.enabled !== false) });
+                guildConfig = getGuildConfig(guildId);
+
+                const container = buildMessageEditorContainer(type, guildConfig);
+                await interaction.update({ components: [container] });
+                return true;
+            }
+
+            const resetMatch = customId.match(/^invite_msg_reset_(\w+)$/);
+            if (resetMatch) {
+                const type = resetMatch[1];
+                if (!MESSAGE_TYPES[type]) return true;
+                const defaults = getDefaultMessages()[type];
+                updateMessageConfig(guildId, type, {
+                    content: defaults.content,
+                    accentColor: defaults.accentColor,
+                    enabled: true,
+                });
+                guildConfig = getGuildConfig(guildId);
+
+                await interaction.reply({
+                    content: '<:Checkedbox:1473038547165384804> Template restored to default.',
+                    flags: MessageFlags.Ephemeral,
+                });
+                const container = buildMessageEditorContainer(type, guildConfig);
+                await interaction.message.edit({ components: [container] }).catch(() => {});
+                return true;
+            }
+
+            const previewMatch = customId.match(/^invite_msg_preview_(\w+)$/);
+            if (previewMatch) {
+                const type = previewMatch[1];
+                if (!MESSAGE_TYPES[type]) return true;
+                const cfg = (guildConfig.messages || {})[type] || getDefaultMessages()[type];
+
+                // Build a preview using the invoker as both member and inviter
+                const ctx = {
+                    member: interaction.member,
+                    guild: interaction.guild,
+                    inviter: interaction.user,
+                    invite: {
+                        code: 'preview',
+                        url: 'https://discord.gg/preview',
+                        totalForInviter: 42,
+                        inviterCodeCount: 3,
+                    },
+                    alt: {
+                        riskScore: 75,
+                        accountAgeDays: 2,
+                        flags: ['Account created less than 3 days ago', 'No profile picture set'],
+                    },
+                };
+                const resolved = replaceInviteVariables(cfg.content || '', ctx);
+                const preview = buildMsgContainer(resolved, cfg.accentColor || 0xCAD7E6, `Preview — ${MESSAGE_TYPES[type].label}`);
+
+                await interaction.reply({
+                    components: [preview],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                });
+                return true;
+            }
         }
         
         if (interaction.isModalSubmit()) {
@@ -453,6 +871,51 @@ module.exports = {
                 guildConfig = getGuildConfig(guildId);
                 const container = buildRewardsContainer(guildConfig, interaction.guild);
                 await interaction.message.edit({ components: [container] });
+                return true;
+            }
+
+            // ── Custom message editor modal ───────────────────────────
+            const msgEditMatch = customId.match(/^invite_modal_msg_(\w+)$/);
+            if (msgEditMatch) {
+                const type = msgEditMatch[1];
+                if (!MESSAGE_TYPES[type]) return true;
+
+                const content = interaction.fields.getTextInputValue('content').trim();
+                if (!content) {
+                    await interaction.reply({
+                        content: '<:Cancel:1473037949187657818> Message content cannot be empty.',
+                        flags: MessageFlags.Ephemeral,
+                    });
+                    return true;
+                }
+
+                let accentColor;
+                const rawColor = interaction.fields.getTextInputValue('color').trim();
+                if (rawColor) {
+                    const cleaned = rawColor.replace(/^#/, '');
+                    if (/^[0-9A-Fa-f]{6}$/.test(cleaned)) {
+                        accentColor = parseInt(cleaned, 16);
+                    } else {
+                        await interaction.reply({
+                            content: '<:Cancel:1473037949187657818> Invalid hex color. Use a format like `#57F287`.',
+                            flags: MessageFlags.Ephemeral,
+                        });
+                        return true;
+                    }
+                }
+
+                const updates = { content };
+                if (accentColor !== undefined) updates.accentColor = accentColor;
+                updateMessageConfig(guildId, type, updates);
+
+                await interaction.reply({
+                    content: `<:Checkedbox:1473038547165384804> ${MESSAGE_TYPES[type].label} updated.`,
+                    flags: MessageFlags.Ephemeral,
+                });
+
+                guildConfig = getGuildConfig(guildId);
+                const container = buildMessageEditorContainer(type, guildConfig);
+                await interaction.message.edit({ components: [container] }).catch(() => {});
                 return true;
             }
         }

@@ -1,659 +1,1143 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags, ChannelType, SeparatorBuilder, SeparatorSpacingSize, EmbedBuilder, EmbedBuilder: EB } = require('discord.js');
-const { startMessageBuilderSession, handleButtonInteraction, handleModalSubmit: handleMsgBuilderModal, buildMessageBuilderPanel, buildPreviewEmbed, buildComponentsV2Message, replacePlaceholders: msgReplacePlaceholders, getSession, messageBuilderSessions, extractPrefixFromCustomId } = require('../../utils/actionMessageBuilder');
+const {
+    SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder,
+    ActionRowBuilder, StringSelectMenuBuilder, MessageFlags, ChannelType,
+    SeparatorBuilder, SeparatorSpacingSize, EmbedBuilder
+} = require('discord.js');
+const {
+    startMessageBuilderSession, handleButtonInteraction,
+    handleModalSubmit: handleMsgBuilderModal,
+    buildMessageBuilderPanel, extractPrefixFromCustomId,
+    replacePlaceholders: msgReplace, buildComponentsV2Message,
+} = require('../../utils/actionMessageBuilder');
 const { checkAndExpire } = require('../../utils/panelExpiration');
+const {
+    readAll, saveAll, ensureMigrated, newPanelId,
+    resolvePanelCategories,
+} = require('../../utils/ticketPanels');
 
-const jsonStore = require('../../utils/jsonStore');
+/* ───────────────────────────── presets ─────────────────────────── */
 
-function loadConfig() {
-    if (!jsonStore.has('tickets')) {
-        jsonStore.write('tickets', {});
-        return {};
+// Curated category presets — picked when admin runs `/ticket-setup style`.
+// Each preset gives the panel its own personality plus appropriate categories.
+const TICKET_PRESETS = {
+    purchase: {
+        label: 'Purchase / Sales Support',
+        description: 'Optimized for storefronts, product help and billing tickets.',
+        categories: [
+            { id: 'purchase', label: 'Purchase Help',    emoji: '🛒', description: 'Help with buying or product info' },
+            { id: 'billing',  label: 'Billing Issue',    emoji: '💳', description: 'Payment, invoices and refunds' },
+            { id: 'product',  label: 'Product Support',  emoji: '📦', description: 'Issues with a delivered product' },
+            { id: 'general',  label: 'General Question', emoji: '<:Chat:1473038936241864865>', description: 'Anything else we can help with' }
+        ]
+    },
+    general: {
+        label: 'General Server Support',
+        description: 'Balanced setup for community servers.',
+        categories: [
+            { id: 'general', label: 'General Support', emoji: '<:Chat:1473038936241864865>',  description: 'General questions and help' },
+            { id: 'bug',     label: 'Bug Report',      emoji: '🐛',                          description: 'Report a bug or glitch' },
+            { id: 'feature', label: 'Feature Request', emoji: '<:Star:1473038501766369300>', description: 'Suggest an improvement' },
+            { id: 'report',  label: 'User Report',     emoji: '🚨',                          description: 'Report a member or behavior' },
+            { id: 'other',   label: 'Other',           emoji: '<:Edit:1473037903625191580>', description: "Anything that doesn't fit above" }
+        ]
+    },
+    random: {
+        label: 'Casual / Random',
+        description: 'Light tone — for community/fun servers.',
+        categories: [
+            { id: 'chat',   label: 'Just Chat',      emoji: '💬', description: 'Hop in and chat with us' },
+            { id: 'fun',    label: 'Fun Stuff',      emoji: '🎉', description: 'Suggestions, games, events' },
+            { id: 'help',   label: 'Need Help',      emoji: '🆘', description: 'I need a hand with something' },
+            { id: 'random', label: 'Other / Random', emoji: '<:Edit:1473037903625191580>', description: 'Whatever else you need' }
+        ]
+    },
+    minimal: {
+        label: 'Minimal',
+        description: 'Just one button — opens a generic ticket.',
+        categories: [
+            { id: 'general', label: 'Open Ticket', emoji: '🎫', description: 'Open a private support ticket' }
+        ]
     }
-    const data = jsonStore.read('tickets');
-    if (Array.isArray(data)) {
-        jsonStore.write('tickets', {});
-        return {};
-    }
-    return data;
-}
+};
 
-function saveConfig(config) {
-    jsonStore.write('tickets', config);
-}
+/* ─────────────────────── panel rendering ───────────────────────── */
 
-function buildDefaultPanelContent(supportRole, categories) {
-    let content = `# 🎫 Support Ticket System\n\n`;
-    content += `Need assistance? Our support team is here to help! Select a category below that best matches your inquiry.\n\n`;
-    content += `### <:Document:1473039496995143731> Available Categories\n`;
-    
-    for (const cat of categories) {
-        const cleanLabel = cat.label.replace(/<:[^>]+>/g, '').trim();
-        content += `${cat.emoji.startsWith('<') ? '<:Pin:1473038806612447500>' : cat.emoji} **${cleanLabel}**\n`;
-        content += `*${cat.description}*\n\n`;
-    }
-    
-    content += `### 📖 How It Works\n`;
-    content += `**1.** Select a category from the dropdown menu below\n`;
-    content += `**2.** A private channel will be created for your ticket\n`;
-    content += `**3.** Describe your issue and our team will assist you\n\n`;
-    content += `**Support Team:** ${supportRole}`;
-    
-    return content;
-}
+/**
+ * Render the panel message body. Used for both initial send and live updates.
+ * Returns a discord.js send/edit payload (with components + flags).
+ */
+function buildPanelMessage({ guildConfig, panel, panelId, supportRole, guild }) {
+    const categories = resolvePanelCategories(guildConfig, panel);
 
-function buildTicketPanel(supportRole, categories, panelConfig, guild) {
-    if (panelConfig && panelConfig.mode) {
-        const { replacePlaceholders: msgReplace } = require('../../utils/actionMessageBuilder');
-        if (panelConfig.mode === 'components') {
-            // Components V2 panel using ContainerBuilder
-            const { buildComponentsV2Message: buildV2 } = require('../../utils/actionMessageBuilder');
-            const container = buildV2(panelConfig, null, guild, null);
-            return { type: 'components', container };
-        } else if (panelConfig.mode === 'embed') {
-            // Return embed-based panel
-                        const embed = new EB();
-            if (panelConfig.title) embed.setTitle(msgReplace(panelConfig.title, null, guild));
-            if (panelConfig.description) embed.setDescription(msgReplace(panelConfig.description, null, guild));
-            if (panelConfig.color) embed.setColor(panelConfig.color);
-            if (panelConfig.image) embed.setImage(panelConfig.image);
-            if (panelConfig.thumbnail) embed.setThumbnail(panelConfig.thumbnail);
-            if (panelConfig.author) embed.setAuthor({ name: msgReplace(panelConfig.author, null, guild), iconURL: panelConfig.authorIcon || undefined });
-            if (panelConfig.footer) embed.setFooter({ text: msgReplace(panelConfig.footer, null, guild), iconURL: panelConfig.footerIcon || undefined });
-            if (panelConfig.fields?.length) {
-                for (const f of panelConfig.fields.slice(0, 25)) {
-                    embed.addFields({ name: msgReplace(f.name, null, guild), value: msgReplace(f.value, null, guild), inline: f.inline || false });
-                }
-            }
-            return { type: 'embed', embed };
-        } else if (panelConfig.content) {
-            return { type: 'simple', content: msgReplace(panelConfig.content, null, guild) };
-        }
-    }
-    return { type: 'default', content: buildDefaultPanelContent(supportRole, categories) };
-}
-
-function buildPanelMessage(supportRole, categories, panelConfig, guild) {
-    const panel = buildTicketPanel(supportRole, categories, panelConfig, guild);
+    // Custom-id encodes the panel id so a single bot can host many panels.
     const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('ticket_category_select')
-        .setPlaceholder('Select a ticket category to get help')
-        .addOptions(
-            categories.map(cat => ({
-                label: cat.label.replace(/^[^\s]+\s/, ''),
-                value: cat.id,
-                description: cat.description,
-                emoji: cat.emoji
-            }))
-        );
+        .setCustomId(`ticket_select:${panelId}`);
+
+    if (categories.length === 0) {
+        // Fresh setup — no categories yet. Surface a clear placeholder so the
+        // panel still renders, but block ticket creation until admins add some.
+        selectMenu
+            .setPlaceholder('<:Inforect:1473038624172937287> Please create new categories to add here')
+            .setDisabled(true)
+            .addOptions([{
+                label: 'No categories available',
+                value: '__none__',
+                description: 'Admins: run /ticket-categories add'
+            }]);
+    } else {
+        selectMenu
+            .setPlaceholder('Select a ticket category to get help')
+            .addOptions(
+                categories.slice(0, 25).map(cat => {
+                    const opt = { label: cat.label.slice(0, 100), value: cat.id, description: (cat.description || '').slice(0, 100) };
+                    const parsed = parseEmoji(cat.emoji);
+                    if (parsed) opt.emoji = parsed;
+                    return opt;
+                })
+            );
+    }
+
     const row = new ActionRowBuilder().addComponents(selectMenu);
 
-    if (panel.type === 'embed') {
-        return { embeds: [panel.embed], components: [row] };
+    // Build the visible body — either a custom V2/embed/simple panel or our default.
+    const panelConfig = panel?.panelMessage || guildConfig?.panelMessage || null;
+
+    if (panelConfig?.mode === 'components') {
+        const container = buildComponentsV2Message(panelConfig, null, guild, null);
+        container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+        container.addActionRowComponents(row);
+        return { components: [container], flags: MessageFlags.IsComponentsV2 };
     }
-    if (panel.type === 'components') {
-        // Append the select menu row to the V2 container
-        panel.container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-        panel.container.addActionRowComponents(row);
-        return { components: [panel.container], flags: MessageFlags.IsComponentsV2 };
+
+    if (panelConfig?.mode === 'embed') {
+        const embed = new EmbedBuilder();
+        if (panelConfig.title)       embed.setTitle(msgReplace(panelConfig.title, null, guild));
+        if (panelConfig.description) embed.setDescription(msgReplace(panelConfig.description, null, guild));
+        if (panelConfig.color)       embed.setColor(panelConfig.color);
+        if (panelConfig.image)       embed.setImage(panelConfig.image);
+        if (panelConfig.thumbnail)   embed.setThumbnail(panelConfig.thumbnail);
+        if (panelConfig.author)      embed.setAuthor({ name: msgReplace(panelConfig.author, null, guild), iconURL: panelConfig.authorIcon || undefined });
+        if (panelConfig.footer)      embed.setFooter({ text: msgReplace(panelConfig.footer, null, guild), iconURL: panelConfig.footerIcon || undefined });
+        if (panelConfig.fields?.length) {
+            for (const f of panelConfig.fields.slice(0, 25)) {
+                embed.addFields({
+                    name:  msgReplace(f.name, null, guild),
+                    value: msgReplace(f.value, null, guild),
+                    inline: f.inline || false,
+                });
+            }
+        }
+        return { embeds: [embed], components: [row] };
     }
+
+    if (panelConfig?.mode === 'simple' && panelConfig.content) {
+        const container = new ContainerBuilder()
+            .setAccentColor(0xCAD7E6)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(msgReplace(panelConfig.content, null, guild)))
+            .addActionRowComponents(row);
+        return { components: [container], flags: MessageFlags.IsComponentsV2 };
+    }
+
+    // Default body
+    const body = buildDefaultPanelContent({ supportRole, categories, panelLabel: panel?.label });
     const container = new ContainerBuilder()
         .setAccentColor(0xCAD7E6)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(panel.content))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
         .addActionRowComponents(row);
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
-function buildSetupConfirmation(channel, category, supportRole) {
-    return `# <:Checkedbox:1473038547165384804> Ticket System Successfully Configured\n\n` +
-        `Your ticket system is now ready to use!\n\n` +
-        `### <:Document:1473039496995143731> Configuration Summary\n` +
-        `**Panel Channel:** ${channel}\n` +
-        `**Ticket Category:** ${category}\n` +
-        `**Support Role:** ${supportRole}\n\n` +
-        `### 🎫 Default Ticket Categories\n` +
-        `<:Chat:1473038936241864865> **General Support** - General questions and help\n` +
-        `🐛 **Bug Report** - Report bugs and issues\n` +
-        `<:Star:1473038501766369300> **Feature Request** - Suggest new features\n` +
-        `💳 **Payment Issue** - Billing and payment help\n` +
-        `<:Edit:1473037903625191580> **Other** - Anything else\n\n` +
-        `### <:Settings:1473037894703779851> Related Commands\n` +
-        `\`/ticket-add @user\` - Add a user to the ticket\n` +
-        `\`/ticket-remove @user\` - Remove a user from the ticket\n` +
-        `\`/ticket-close\` - Close the current ticket\n` +
-        `\`/ticket-transcript\` - Save ticket transcript\n\n` +
-        `*Users can now create tickets using the dropdown menu!*`;
+function buildDefaultPanelContent({ supportRole, categories, panelLabel }) {
+    let content = `# <:Document:1473039496995143731> Support Tickets`;
+    if (panelLabel && panelLabel !== 'Default') content += ` — ${panelLabel}`;
+    content += `\n\n`;
+
+    if (categories.length === 0) {
+        content += `<:Inforect:1473038624172937287> **No ticket categories configured yet.**\n\n`;
+        content += `Admins, add some with:\n`;
+        content += `> \`/ticket-categories add <id> <label> <emoji> <description>\`\n\n`;
+        content += `Or apply a preset with \`/ticket-setup style preset:<purchase|general|random|minimal>\`.\n\n`;
+        if (supportRole) content += `**Support Team:** ${supportRole}`;
+        return content;
+    }
+
+    content += `Need a hand? Pick a category from the dropdown below and we'll spin up a private channel for you.\n\n`;
+    content += `### <:Bookopen:1473038576391557130> Available Categories\n`;
+    for (const cat of categories) {
+        const cleanLabel = cat.label.replace(/<:[^>]+>/g, '').trim();
+        const showEmoji  = cat.emoji && !cat.emoji.startsWith('<') ? cat.emoji : '<:Pin:1473038806612447500>';
+        content += `${showEmoji} **${cleanLabel}**\n`;
+        content += `> *${cat.description}*\n\n`;
+    }
+    content += `### <:Lightbulbalt:1473038470787240009> How It Works\n`;
+    content += `<:Pin:1473038806612447500> **1.** Select a category from the dropdown menu below\n`;
+    content += `<:Pin:1473038806612447500> **2.** A private channel is created — only you and staff can see it\n`;
+    content += `<:Pin:1473038806612447500> **3.** Describe your issue and our team will assist you\n\n`;
+    if (supportRole) content += `**Support Team:** ${supportRole}`;
+    return content;
 }
+
+/**
+ * Parse a stored emoji string into a Discord select-option emoji shape.
+ * Accepts unicode strings ("🐛"), custom emojis ("<:Name:123>" / "<a:Name:123>"),
+ * or raw IDs ("123"). Returns `null` if nothing usable is found so callers can omit.
+ */
+function parseEmoji(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    const m = raw.match(/^<(a)?:([\w~]+):(\d+)>$/);
+    if (m) return { id: m[3], name: m[2], animated: !!m[1] };
+    if (/^\d{15,}$/.test(raw)) return { id: raw };
+    return { name: raw };
+}
+
+/* ────────────────── confirmation / status messages ───────────────── */
+
+function buildSetupConfirmation({ panelChannel, ticketCategory, supportRole, panelLabel }) {
+    return `# <:Checkedbox:1473038547165384804> Ticket Panel Created\n\n` +
+        `Your panel is live. Users can open tickets from it as soon as you add categories.\n\n` +
+        `### <:Document:1473039496995143731> Panel Summary\n` +
+        `<:Pin:1473038806612447500> **Panel Label:** \`${panelLabel}\`\n` +
+        `<:Pin:1473038806612447500> **Panel Channel:** ${panelChannel}\n` +
+        `<:Pin:1473038806612447500> **Ticket Category:** ${ticketCategory}\n` +
+        `<:Pin:1473038806612447500> **Support Role:** ${supportRole}\n\n` +
+        `### <:Star:1473038501766369300> Next Steps\n` +
+        `<:Pin:1473038806612447500> Add categories: \`/ticket-categories add <id> <label> <emoji> <description>\`\n` +
+        `<:Pin:1473038806612447500> Or apply a preset: \`/ticket-setup style preset:purchase\`\n` +
+        `<:Pin:1473038806612447500> Configure transcripts: \`/ticket-setup transcript mode:auto log-channel:#logs\`\n\n` +
+        `### <:Bookopen:1473038576391557130> Multiple Panels\n` +
+        `<:Pin:1473038806612447500> Add another panel: \`/ticket-setup panel-add channel:#sales label:Sales\`\n` +
+        `<:Pin:1473038806612447500> List panels: \`/ticket-setup panel-list\`\n` +
+        `<:Pin:1473038806612447500> Tie panel to specific categories: \`/ticket-setup panel-categories\``;
+}
+
+/* ─────────────────────── command builder ──────────────────────── */
 
 module.exports = {
     category: 'automation',
     data: new SlashCommandBuilder()
         .setName('ticket-setup')
         .setDescription('Setup the ticket support system with categorized ticket creation')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('create')
-                .setDescription('Create a new ticket system')
-                .addChannelOption(option =>
-                    option.setName('channel')
-                        .setDescription('Channel where the ticket panel will be displayed')
-                        .setRequired(true))
-                .addChannelOption(option =>
-                    option.setName('category')
-                        .setDescription('Category where ticket channels will be created')
-                        .setRequired(true))
-                .addRoleOption(option =>
-                    option.setName('support-role')
-                        .setDescription('Role that can view and manage all tickets')
-                        .setRequired(true)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('help')
-                .setDescription('View detailed guide on setting up the ticket system'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('message')
-                .setDescription('Customize the welcome message sent when a ticket is opened'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('reset-message')
-                .setDescription('Reset the ticket welcome message to default'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('panel')
-                .setDescription('Customize the ticket panel message displayed in the channel'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('reset-panel')
-                .setDescription('Reset the ticket panel message to default'))
+        .addSubcommand(s => s
+            .setName('create')
+            .setDescription('Create the first ticket panel (no categories until you add them)')
+            .addChannelOption(o => o.setName('channel').setDescription('Channel where the ticket panel will be displayed').setRequired(true))
+            .addChannelOption(o => o.setName('category').setDescription('Discord category where ticket channels will be created').setRequired(true))
+            .addRoleOption(o => o.setName('support-role').setDescription('Role that can view and manage tickets').setRequired(true)))
+        .addSubcommand(s => s
+            .setName('panel-add')
+            .setDescription('Add another ticket panel in a different channel (with its own categories)')
+            .addChannelOption(o => o.setName('channel').setDescription('Channel where this panel will be posted').setRequired(true))
+            .addStringOption(o => o.setName('label').setDescription('Short label so admins can identify this panel').setRequired(true))
+            .addStringOption(o => o.setName('categories').setDescription('Comma-separated category IDs to expose (default: all)').setRequired(false))
+            .addRoleOption(o => o.setName('support-role').setDescription('Override support role for this panel only').setRequired(false))
+            .addChannelOption(o => o.setName('ticket-category').setDescription('Override Discord category for tickets opened from this panel').setRequired(false)))
+        .addSubcommand(s => s
+            .setName('panel-list')
+            .setDescription('List all ticket panels configured in this server'))
+        .addSubcommand(s => s
+            .setName('panel-remove')
+            .setDescription('Remove a ticket panel (deletes the panel message)')
+            .addStringOption(o => o.setName('panel-id').setDescription('The panel ID (see /ticket-setup panel-list)').setRequired(true)))
+        .addSubcommand(s => s
+            .setName('panel-categories')
+            .setDescription('Choose which categories a specific panel exposes')
+            .addStringOption(o => o.setName('panel-id').setDescription('The panel ID (see /ticket-setup panel-list)').setRequired(true))
+            .addStringOption(o => o.setName('categories').setDescription('Comma-separated category IDs (empty = show all)').setRequired(false)))
+        .addSubcommand(s => s
+            .setName('help')
+            .setDescription('View detailed guide on the ticket system'))
+        .addSubcommand(s => s
+            .setName('message')
+            .setDescription('Customize the welcome message sent when a ticket is opened'))
+        .addSubcommand(s => s
+            .setName('reset-message')
+            .setDescription('Reset the ticket welcome message to default'))
+        .addSubcommand(s => s
+            .setName('panel')
+            .setDescription('Customize the panel message displayed in the panel channel'))
+        .addSubcommand(s => s
+            .setName('reset-panel')
+            .setDescription('Reset the ticket panel message to default'))
+        .addSubcommand(s => s
+            .setName('style')
+            .setDescription('Apply a category preset to the category pool')
+            .addStringOption(o => o.setName('preset').setDescription('Which category style to apply').setRequired(true)
+                .addChoices(
+                    { name: 'Purchase / Sales Support', value: 'purchase' },
+                    { name: 'General Server Support',   value: 'general' },
+                    { name: 'Casual / Random',          value: 'random' },
+                    { name: 'Minimal (single button)',  value: 'minimal' }
+                )))
+        .addSubcommand(s => s
+            .setName('transcript')
+            .setDescription('Configure transcript saving for closed tickets')
+            .addStringOption(o => o.setName('mode').setDescription('When to save transcripts').setRequired(true)
+                .addChoices(
+                    { name: 'Auto — save automatically when a ticket closes', value: 'auto' },
+                    { name: 'Manual — only when staff click "Save Transcript"', value: 'manual' },
+                    { name: 'Both — auto-save plus the manual button',         value: 'both' },
+                    { name: 'Off — disable transcripts entirely',              value: 'off' }
+                ))
+            .addChannelOption(o => o.setName('log-channel').setDescription('Channel where transcripts are posted').setRequired(false)))
+        .addSubcommand(s => s
+            .setName('status')
+            .setDescription('Inspect the current ticket system configuration'))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-    
+
+    /* ───────────────────────── routing ─────────────────────────── */
+
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
-
-        if (subcommand === 'help') {
-            return this.handleHelp(interaction);
+        switch (subcommand) {
+            case 'create':           return this.handleCreate(interaction);
+            case 'panel-add':        return this.handlePanelAdd(interaction);
+            case 'panel-list':       return this.handlePanelList(interaction);
+            case 'panel-remove':     return this.handlePanelRemove(interaction);
+            case 'panel-categories': return this.handlePanelCategories(interaction);
+            case 'help':             return this.handleHelp(interaction);
+            case 'message':          return this.handleMessage(interaction);
+            case 'reset-message':    return this.handleResetMessage(interaction);
+            case 'panel':            return this.handlePanel(interaction);
+            case 'reset-panel':      return this.handleResetPanel(interaction);
+            case 'style':            return this.handleStyle(interaction);
+            case 'transcript':       return this.handleTranscript(interaction);
+            case 'status':           return this.handleStatus(interaction);
         }
+    },
 
-        if (subcommand === 'message') {
-            return this.handleMessage(interaction);
-        }
+    /* ────────────────────────── create ─────────────────────────── */
 
-        if (subcommand === 'reset-message') {
-            return this.handleResetMessage(interaction);
-        }
-
-        if (subcommand === 'panel') {
-            return this.handlePanel(interaction);
-        }
-
-        if (subcommand === 'reset-panel') {
-            return this.handleResetPanel(interaction);
-        }
-
+    async handleCreate(interaction) {
         const channel = interaction.options.getChannel('channel');
-        const category = interaction.options.getChannel('category');
+        const ticketCategory = interaction.options.getChannel('category');
         const supportRole = interaction.options.getRole('support-role');
-        
-        if (category.type !== ChannelType.GuildCategory) {
-            const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xED4245)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Invalid Category\n\n` +
-                        `Please select a **category channel** (folder icon), not a text channel.\n\n` +
-                        `**Tip:** Categories appear with folder icons in your channel list.`
-                    )
-                );
-            return interaction.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+
+        if (ticketCategory.type !== ChannelType.GuildCategory) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> The **category** option must be a Discord category (folder icon), not a text channel.',
+                flags: MessageFlags.Ephemeral
+            });
         }
-        
-        const config = loadConfig();
-        const existingGuildConfig = config[interaction.guild.id];
-        const categories = [
-            { id: 'support', label: 'General Support', emoji: '<:Chat:1473038936241864865>', description: 'Get help with general questions and inquiries' },
-            { id: 'other', label: 'Other', emoji: '<:Edit:1473037903625191580>', description: 'Anything else that doesn\'t fit above' }
-        ];
-        
-        config[interaction.guild.id] = {
-            channelId: channel.id,
-            categoryId: category.id,
-            supportRoleId: supportRole.id,
-            tickets: existingGuildConfig?.tickets || {},
-            nextTicketNumber: existingGuildConfig?.nextTicketNumber || 0,
-            categories: categories
+
+        if (![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> The **channel** option must be a text channel.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const config = readAll();
+        const existing = ensureMigrated(config[interaction.guild.id]);
+
+        const guildConfig = {
+            // Guild-level defaults (fall-throughs for panels that don't override)
+            categoryId:     ticketCategory.id,
+            supportRoleId:  supportRole.id,
+            tickets:        existing?.tickets        || {},
+            nextTicketNumber: existing?.nextTicketNumber || 0,
+            // Fresh setup → empty category pool. Admins fill it via
+            // /ticket-categories add or /ticket-setup style.
+            categories:     existing?.categories     || [],
+            transcriptMode: existing?.transcriptMode || 'manual',
+            transcriptChannelId: existing?.transcriptChannelId || null,
+            welcomeMessage: existing?.welcomeMessage,
+            panelMessage:   existing?.panelMessage,
+            panels:         existing?.panels || {},
         };
-        saveConfig(config);
-        
-        const panelMsg = buildPanelMessage(supportRole, categories, null, interaction.guild);
-        const panelMessage = await channel.send(panelMsg);
-        
-        config[interaction.guild.id].panelMessageId = panelMessage.id;
-        saveConfig(config);
-        
+
+        // Reset any previously orphaned legacy single-panel data — the new
+        // `panels` map is the source of truth from now on.
+        delete guildConfig.channelId;
+        delete guildConfig.panelMessageId;
+
+        // The "default" panel is created on first setup; subsequent creates
+        // overwrite it (re-posts the panel) but leave any other panels alone.
+        const panelId = 'default';
+        const renderArgs = {
+            guildConfig,
+            panel: {
+                channelId: channel.id,
+                label: 'Default',
+                categoryIds: [],          // empty = expose entire pool
+                supportRoleId: null,      // fall back to guild
+                channelCategoryId: null,
+                panelMessage: null,
+            },
+            panelId,
+            supportRole,
+            guild: interaction.guild,
+        };
+
+        // Tear down the old default panel if there was one
+        const old = guildConfig.panels[panelId];
+        if (old?.channelId && old?.messageId) {
+            try {
+                const oldChan = await interaction.guild.channels.fetch(old.channelId).catch(() => null);
+                const oldMsg  = oldChan ? await oldChan.messages.fetch(old.messageId).catch(() => null) : null;
+                if (oldMsg) await oldMsg.delete().catch(() => null);
+            } catch { /* non-fatal */ }
+        }
+
+        const panelMessage = await channel.send(buildPanelMessage(renderArgs));
+
+        guildConfig.panels[panelId] = {
+            channelId: channel.id,
+            messageId: panelMessage.id,
+            label: 'Default',
+            categoryIds: [],
+            supportRoleId: null,
+            channelCategoryId: null,
+            panelMessage: null,
+        };
+
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+
         const setupContainer = new ContainerBuilder()
             .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(buildSetupConfirmation(channel, category, supportRole))
-            );
-        
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                buildSetupConfirmation({
+                    panelChannel: channel,
+                    ticketCategory,
+                    supportRole,
+                    panelLabel: 'Default',
+                })
+            ));
         await interaction.reply({ components: [setupContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     },
 
-    async handleMessage(interaction) {
-        const config = loadConfig();
-        const guildConfig = config[interaction.guild.id];
+    /* ───────────────────────── panel-add ───────────────────────── */
 
-        if (!guildConfig) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not set up yet! Use `/ticket-setup create` first.', flags: MessageFlags.Ephemeral });
+    async handlePanelAdd(interaction) {
+        const channel = interaction.options.getChannel('channel');
+        const label   = interaction.options.getString('label').trim().slice(0, 50);
+        const catsRaw = interaction.options.getString('categories') || '';
+        const supportRole = interaction.options.getRole('support-role');
+        const ticketCategory = interaction.options.getChannel('ticket-category');
+
+        if (![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> The panel **channel** must be a text channel.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        if (ticketCategory && ticketCategory.type !== ChannelType.GuildCategory) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> **ticket-category** must be a Discord category.',
+                flags: MessageFlags.Ephemeral
+            });
         }
 
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Run `/ticket-setup create` first to configure the base ticket system.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        // Validate requested category IDs against the pool (silently drop unknowns)
+        const pool = (guildConfig.categories || []).map(c => c.id);
+        const requested = catsRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const categoryIds = requested.filter(id => pool.includes(id));
+        const unknown = requested.filter(id => !pool.includes(id));
+
+        const panelId = newPanelId();
+        const panel = {
+            channelId: channel.id,
+            messageId: null,                    // populated after send
+            label,
+            categoryIds,                        // [] = expose all
+            supportRoleId: supportRole?.id || null,
+            channelCategoryId: ticketCategory?.id || null,
+            panelMessage: null,
+        };
+
+        const guildSupportRole = guildConfig.supportRoleId ? interaction.guild.roles.cache.get(guildConfig.supportRoleId) : null;
+        const panelSupportRole = supportRole || guildSupportRole;
+
+        const sent = await channel.send(buildPanelMessage({
+            guildConfig,
+            panel,
+            panelId,
+            supportRole: panelSupportRole,
+            guild: interaction.guild,
+        })).catch(err => {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> Failed to send panel: ${err.message}`,
+                flags: MessageFlags.Ephemeral
+            }).then(() => null);
+        });
+        if (!sent) return;
+
+        panel.messageId = sent.id;
+        guildConfig.panels = guildConfig.panels || {};
+        guildConfig.panels[panelId] = panel;
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+
+        const summary = new ContainerBuilder()
+            .setAccentColor(0x57F287)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# <:Checkedbox:1473038547165384804> Panel Added\n\n` +
+                `### <:Document:1473039496995143731> Panel Details\n` +
+                `<:Pin:1473038806612447500> **ID:** \`${panelId}\`\n` +
+                `<:Pin:1473038806612447500> **Label:** \`${label}\`\n` +
+                `<:Pin:1473038806612447500> **Channel:** ${channel}\n` +
+                `<:Pin:1473038806612447500> **Categories:** ${categoryIds.length ? categoryIds.map(c => `\`${c}\``).join(', ') : '*all*'}\n` +
+                `<:Pin:1473038806612447500> **Support Role Override:** ${supportRole || '*none (uses default)*'}\n` +
+                `<:Pin:1473038806612447500> **Ticket Category Override:** ${ticketCategory || '*none (uses default)*'}\n` +
+                (unknown.length ? `\n<:Inforect:1473038624172937287> Skipped unknown category IDs: ${unknown.map(c => `\`${c}\``).join(', ')}\n` : '') +
+                `\n### <:Lightbulbalt:1473038470787240009> Next\n` +
+                `<:Pin:1473038806612447500> Edit which categories show: \`/ticket-setup panel-categories panel-id:${panelId}\`\n` +
+                `<:Pin:1473038806612447500> Remove panel: \`/ticket-setup panel-remove panel-id:${panelId}\``
+            ));
+        await interaction.reply({ components: [summary], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    },
+
+    /* ──────────────────────── panel-list ───────────────────────── */
+
+    async handlePanelList(interaction) {
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Ticket system is not set up yet — run `/ticket-setup create` first.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const panels = Object.entries(guildConfig.panels || {});
+        let body = `# <:Bookopen:1473038576391557130> Ticket Panels (${panels.length})\n\n`;
+
+        if (!panels.length) {
+            body += `*No panels yet. Run \`/ticket-setup create\` to add the first one.*`;
+        } else {
+            for (const [id, p] of panels) {
+                const cats = (p.categoryIds && p.categoryIds.length)
+                    ? p.categoryIds.map(c => `\`${c}\``).join(', ')
+                    : '*all*';
+                body += `### <:Pin:1473038806612447500> ${p.label || 'Untitled'}  \`${id}\`\n`;
+                body += `<:Pin:1473038806612447500> **Channel:** <#${p.channelId}>\n`;
+                body += `<:Pin:1473038806612447500> **Categories:** ${cats}\n`;
+                if (p.supportRoleId)     body += `<:Pin:1473038806612447500> **Role Override:** <@&${p.supportRoleId}>\n`;
+                if (p.channelCategoryId) body += `<:Pin:1473038806612447500> **Ticket Category Override:** <#${p.channelCategoryId}>\n`;
+                body += `\n`;
+            }
+        }
+
+        await interaction.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+    },
+
+    /* ──────────────────────── panel-remove ─────────────────────── */
+
+    async handlePanelRemove(interaction) {
+        const panelId = interaction.options.getString('panel-id');
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig?.panels?.[panelId]) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> No panel found with ID \`${panelId}\`. Use \`/ticket-setup panel-list\` to see panels.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const panel = guildConfig.panels[panelId];
+
+        // Best-effort cleanup of the panel message
+        try {
+            const ch = await interaction.guild.channels.fetch(panel.channelId).catch(() => null);
+            const msg = ch ? await ch.messages.fetch(panel.messageId).catch(() => null) : null;
+            if (msg) await msg.delete().catch(() => null);
+        } catch { /* non-fatal */ }
+
+        delete guildConfig.panels[panelId];
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+
+        await interaction.reply({
+            content: `<:Checkedbox:1473038547165384804> Removed panel \`${panel.label || panelId}\` (\`${panelId}\`).`,
+            flags: MessageFlags.Ephemeral
+        });
+    },
+
+    /* ───────────────────── panel-categories ────────────────────── */
+
+    async handlePanelCategories(interaction) {
+        const panelId = interaction.options.getString('panel-id');
+        const catsRaw = interaction.options.getString('categories') || '';
+
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig?.panels?.[panelId]) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> No panel found with ID \`${panelId}\`.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const pool = (guildConfig.categories || []).map(c => c.id);
+        const requested = catsRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const categoryIds = requested.filter(id => pool.includes(id));
+        const unknown = requested.filter(id => !pool.includes(id));
+
+        guildConfig.panels[panelId].categoryIds = categoryIds;
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+
+        // Live update
+        const updated = await updatePanelMessage(interaction.client, interaction.guild.id, panelId);
+
+        await interaction.reply({
+            content:
+                `<:Checkedbox:1473038547165384804> Panel \`${panelId}\` now exposes ${categoryIds.length ? categoryIds.map(c => `\`${c}\``).join(', ') : '**all categories**'}.` +
+                (unknown.length ? `\n<:Inforect:1473038624172937287> Ignored unknown IDs: ${unknown.map(c => `\`${c}\``).join(', ')}` : '') +
+                (updated ? `` : `\n<:Inforect:1473038624172937287> Could not auto-refresh the panel message.`),
+            flags: MessageFlags.Ephemeral
+        });
+    },
+
+    /* ─────────────────── style / transcript / status ───────────── */
+
+    async handleStyle(interaction) {
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Run `/ticket-setup create` first.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        const presetKey = interaction.options.getString('preset');
+        const preset = TICKET_PRESETS[presetKey];
+        if (!preset) {
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> Unknown preset.', flags: MessageFlags.Ephemeral });
+        }
+
+        guildConfig.categories = JSON.parse(JSON.stringify(preset.categories));
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+
+        // Refresh every panel — they may have shown empty placeholders
+        let refreshed = 0;
+        for (const panelId of Object.keys(guildConfig.panels || {})) {
+            if (await updatePanelMessage(interaction.client, interaction.guild.id, panelId)) refreshed++;
+        }
+
+        const catList = guildConfig.categories
+            .map(c => `${c.emoji} **${c.label}** — ${c.description}`)
+            .join('\n');
+
+        await interaction.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# <:Checkedbox:1473038547165384804> Style Applied\n\n` +
+                    `**Preset:** ${preset.label}\n` +
+                    `${preset.description}\n\n` +
+                    `### <:Bookopen:1473038576391557130> Category Pool\n${catList}\n\n` +
+                    `<:Checkedbox:1473038547165384804> Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.`
+                ))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+    },
+
+    async handleTranscript(interaction) {
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Run `/ticket-setup create` first.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        const mode = interaction.options.getString('mode');
+        const logChannel = interaction.options.getChannel('log-channel');
+
+        if (logChannel && ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(logChannel.type)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Transcript log channel must be a **text** channel.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        if ((mode === 'auto' || mode === 'both') && !logChannel && !guildConfig.transcriptChannelId) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Auto-transcript needs a `log-channel`. Pass one with `log-channel:#channel`.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        guildConfig.transcriptMode = mode;
+        if (logChannel) guildConfig.transcriptChannelId = logChannel.id;
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+
+        const desc = {
+            auto:   'Transcripts are saved **automatically** when any ticket is closed.',
+            manual: 'Transcripts are saved only when staff press the **Save Transcript** button.',
+            both:   'Transcripts are saved **automatically on close** *and* via the manual button.',
+            off:    'Transcript saving is **disabled**.',
+        }[mode];
+        const target = (mode === 'auto' || mode === 'both')
+            ? `**Log Channel:** <#${guildConfig.transcriptChannelId}>`
+            : `**Log Channel:** *(not used in this mode)*`;
+
+        await interaction.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# <:Checkedbox:1473038547165384804> Transcript Settings Saved\n\n` +
+                    `**Mode:** \`${mode}\`\n` +
+                    `${target}\n\n` +
+                    `${desc}\n\n` +
+                    `### <:Document:1473039496995143731> Output Format\n` +
+                    `Transcripts are delivered as both \`.md\` and \`.html\`. All messages, attachments, and embeds are captured up to a 2,000-message limit.`
+                ))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+    },
+
+    async handleStatus(interaction) {
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Ticket system is not set up yet. Use `/ticket-setup create`.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const panels = Object.entries(guildConfig.panels || {});
+        const panelLines = panels.length
+            ? panels.map(([id, p]) =>
+                `<:Pin:1473038806612447500> **${p.label || 'Untitled'}** \`${id}\` → <#${p.channelId}> · ${(p.categoryIds?.length ? p.categoryIds.length + ' cats' : 'all cats')}`
+            ).join('\n')
+            : '*none*';
+
+        const cat        = guildConfig.categoryId    ? `<#${guildConfig.categoryId}>`     : '*missing*';
+        const role       = guildConfig.supportRoleId ? `<@&${guildConfig.supportRoleId}>` : '*missing*';
+        const tMode      = guildConfig.transcriptMode || 'manual';
+        const tLog       = guildConfig.transcriptChannelId ? `<#${guildConfig.transcriptChannelId}>` : '*not set*';
+        const openTickets = Object.keys(guildConfig.tickets || {}).length;
+        const totalIssued = guildConfig.nextTicketNumber || 0;
+
+        const categoriesList = (guildConfig.categories || [])
+            .map(c => `<:Pin:1473038806612447500> ${c.emoji} **${c.label}** \`${c.id}\``)
+            .join('\n') || '*none — add some with /ticket-categories add*';
+
+        const welcomeStatus = guildConfig.welcomeMessage ? '<:Checkedbox:1473038547165384804> Custom' : '<:Edit:1473037903625191580> Default';
+
+        await interaction.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# <:Document:1473039496995143731> Ticket System Status\n\n` +
+                    `### <:Settings:1473037894703779851> Defaults\n` +
+                    `<:Pin:1473038806612447500> **Ticket Category:** ${cat}\n` +
+                    `<:Pin:1473038806612447500> **Support Role:** ${role}\n\n` +
+                    `### <:Bookopen:1473038576391557130> Panels (${panels.length})\n${panelLines}\n\n` +
+                    `### <:Star:1473038501766369300> Category Pool (${(guildConfig.categories || []).length})\n${categoriesList}\n\n` +
+                    `### <:Clipboardalt:1473039555190849598> Transcripts\n` +
+                    `<:Pin:1473038806612447500> **Mode:** \`${tMode}\`\n` +
+                    `<:Pin:1473038806612447500> **Log Channel:** ${tLog}\n\n` +
+                    `### <:Edit:1473037903625191580> Customization\n` +
+                    `<:Pin:1473038806612447500> **Welcome Message:** ${welcomeStatus}\n\n` +
+                    `### <:Chat:1473038936241864865> Activity\n` +
+                    `<:Pin:1473038806612447500> **Open Tickets:** \`${openTickets}\`\n` +
+                    `<:Pin:1473038806612447500> **Total Issued:** \`${totalIssued}\``
+                ))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+    },
+
+    /* ───────────────── welcome / panel builders ────────────────── */
+
+    async handleMessage(interaction) {
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+        if (!guildConfig) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Run `/ticket-setup create` first.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
         const prefix = `ticketmsg:${interaction.guild.id}`;
         const data = startMessageBuilderSession(interaction.user.id, 'ticket', interaction.guild.id, 'welcome', 'Ticket Welcome Message');
-
-        // Pre-fill with existing custom message if any
-        if (guildConfig.welcomeMessage) {
-            const wm = guildConfig.welcomeMessage;
-            data.mode = wm.mode || 'simple';
-            data.content = wm.content || '';
-            data.title = wm.title || '';
-            data.description = wm.description || '';
-            data.color = wm.color || '#5865F2';
-            data.image = wm.image || '';
-            data.thumbnail = wm.thumbnail || '';
-            data.footer = wm.footer || '';
-            data.footerIcon = wm.footerIcon || '';
-            data.author = wm.author || '';
-            data.authorIcon = wm.authorIcon || '';
-            data.fields = wm.fields || [];
-        }
-
+        if (guildConfig.welcomeMessage) Object.assign(data, {
+            mode: guildConfig.welcomeMessage.mode || 'simple',
+            content: guildConfig.welcomeMessage.content || '',
+            title: guildConfig.welcomeMessage.title || '',
+            description: guildConfig.welcomeMessage.description || '',
+            color: guildConfig.welcomeMessage.color || '#5865F2',
+            image: guildConfig.welcomeMessage.image || '',
+            thumbnail: guildConfig.welcomeMessage.thumbnail || '',
+            footer: guildConfig.welcomeMessage.footer || '',
+            footerIcon: guildConfig.welcomeMessage.footerIcon || '',
+            author: guildConfig.welcomeMessage.author || '',
+            authorIcon: guildConfig.welcomeMessage.authorIcon || '',
+            fields: guildConfig.welcomeMessage.fields || [],
+        });
         const container = buildMessageBuilderPanel(data, prefix, 'Ticket Welcome Message');
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     },
 
     async handlePanel(interaction) {
-        const config = loadConfig();
-        const guildConfig = config[interaction.guild.id];
-
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
         if (!guildConfig) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not set up yet! Use `/ticket-setup create` first.', flags: MessageFlags.Ephemeral });
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Run `/ticket-setup create` first.',
+                flags: MessageFlags.Ephemeral
+            });
         }
-
         const prefix = `ticketpanel:${interaction.guild.id}`;
         const data = startMessageBuilderSession(interaction.user.id, 'ticketpanel', interaction.guild.id, 'panel', 'Ticket Panel Message');
-
-        if (guildConfig.panelMessage) {
-            const pm = guildConfig.panelMessage;
-            data.mode = pm.mode || 'simple';
-            data.content = pm.content || '';
-            data.title = pm.title || '';
-            data.description = pm.description || '';
-            data.color = pm.color || '#5865F2';
-            data.image = pm.image || '';
-            data.thumbnail = pm.thumbnail || '';
-            data.footer = pm.footer || '';
-            data.footerIcon = pm.footerIcon || '';
-            data.author = pm.author || '';
-            data.authorIcon = pm.authorIcon || '';
-            data.fields = pm.fields || [];
-        }
-
+        if (guildConfig.panelMessage) Object.assign(data, {
+            mode: guildConfig.panelMessage.mode || 'simple',
+            content: guildConfig.panelMessage.content || '',
+            title: guildConfig.panelMessage.title || '',
+            description: guildConfig.panelMessage.description || '',
+            color: guildConfig.panelMessage.color || '#5865F2',
+            image: guildConfig.panelMessage.image || '',
+            thumbnail: guildConfig.panelMessage.thumbnail || '',
+            footer: guildConfig.panelMessage.footer || '',
+            footerIcon: guildConfig.panelMessage.footerIcon || '',
+            author: guildConfig.panelMessage.author || '',
+            authorIcon: guildConfig.panelMessage.authorIcon || '',
+            fields: guildConfig.panelMessage.fields || [],
+        });
         const container = buildMessageBuilderPanel(data, prefix, 'Ticket Panel Message');
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     },
 
     async handleResetPanel(interaction) {
-        const config = loadConfig();
-        const guildConfig = config[interaction.guild.id];
-
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
         if (!guildConfig) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not set up yet!', flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not set up.', flags: MessageFlags.Ephemeral });
         }
-
         delete guildConfig.panelMessage;
-        saveConfig(config);
-
-        // Re-send the default panel
-        try {
-            const guild = interaction.guild;
-            const channel = await guild.channels.fetch(guildConfig.channelId).catch(() => null);
-            const supportRole = guildConfig.supportRoleId ? await guild.roles.fetch(guildConfig.supportRoleId).catch(() => null) : null;
-            const categories = guildConfig.categories || [];
-            if (channel && guildConfig.panelMessageId) {
-                const oldMsg = await channel.messages.fetch(guildConfig.panelMessageId).catch(() => null);
-                if (oldMsg) {
-                    const panelMsg = buildPanelMessage(supportRole, categories, null, guild);
-                    await oldMsg.edit(panelMsg);
-                }
-            }
-        } catch {}
-
-        const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `# <:Checkedbox:1473038547165384804> Panel Message Reset\n\n` +
-                    `The ticket panel message has been reset to the default.\n\n` +
-                    `Use \`/ticket-setup panel\` to customize it again.`
-                )
-            );
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+        for (const panelId of Object.keys(guildConfig.panels || {})) {
+            await updatePanelMessage(interaction.client, interaction.guild.id, panelId);
+        }
+        await interaction.reply({
+            content: '<:Checkedbox:1473038547165384804> Panel message reset to default. All panels refreshed.',
+            flags: MessageFlags.Ephemeral
+        });
     },
 
     async handleResetMessage(interaction) {
-        const config = loadConfig();
-        const guildConfig = config[interaction.guild.id];
-
+        const config = readAll();
+        const guildConfig = ensureMigrated(config[interaction.guild.id]);
         if (!guildConfig) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not set up yet!', flags: MessageFlags.Ephemeral });
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not set up.', flags: MessageFlags.Ephemeral });
         }
-
         delete guildConfig.welcomeMessage;
-        saveConfig(config);
-
-        const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `# <:Checkedbox:1473038547165384804> Welcome Message Reset\n\n` +
-                    `The ticket welcome message has been reset to the default.\n\n` +
-                    `### Default Message\n` +
-                    `The default message includes:\n` +
-                    `• Welcome greeting with user mention\n` +
-                    `• Category label\n` +
-                    `• Creation timestamp\n` +
-                    `• Instructions for describing the issue\n` +
-                    `• Ticket command help\n\n` +
-                    `Use \`/ticket-setup message\` to customize it again.`
-                )
-            );
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        config[interaction.guild.id] = guildConfig;
+        saveAll(config);
+        await interaction.reply({
+            content: '<:Checkedbox:1473038547165384804> Welcome message reset to default.',
+            flags: MessageFlags.Ephemeral
+        });
     },
+
+    /* ──────────────────── builder button/modal routing ─────────── */
 
     async handleInteraction(interaction) {
         if (!interaction.isButton()) return false;
         if (await checkAndExpire(interaction, 'config')) return true;
         const prefix = extractPrefixFromCustomId(interaction.customId);
 
-        // Handle panel builder buttons
         if (prefix.startsWith('ticketpanel:')) {
             const guildId = prefix.replace('ticketpanel:', '');
-
             const onSave = async (btnInteraction, data) => {
-                const config = loadConfig();
-                if (!config[guildId]) {
-                    return btnInteraction.update({ content: '<:Cancel:1473037949187657818> Ticket system config not found!', components: [], flags: MessageFlags.Ephemeral });
+                const config = readAll();
+                const guildConfig = ensureMigrated(config[guildId]);
+                if (!guildConfig) {
+                    return btnInteraction.update({ content: '<:Cancel:1473037949187657818> Ticket system not configured!', components: [] });
                 }
-
-                config[guildId].panelMessage = {
-                    mode: data.mode,
-                    content: data.content || '',
-                    title: data.title || '',
-                    description: data.description || '',
-                    color: data.color || '#5865F2',
-                    image: data.image || '',
-                    thumbnail: data.thumbnail || '',
-                    footer: data.footer || '',
-                    footerIcon: data.footerIcon || '',
-                    author: data.author || '',
-                    authorIcon: data.authorIcon || '',
-                    fields: data.fields || []
-                };
-                saveConfig(config);
-
-                // Update the live panel message
-                try {
-                    const guild = btnInteraction.guild;
-                    const channel = await guild.channels.fetch(config[guildId].channelId).catch(() => null);
-                    const supportRole = config[guildId].supportRoleId ? await guild.roles.fetch(config[guildId].supportRoleId).catch(() => null) : null;
-                    const categories = config[guildId].categories || [];
-                    if (channel && config[guildId].panelMessageId) {
-                        const oldMsg = await channel.messages.fetch(config[guildId].panelMessageId).catch(() => null);
-                        if (oldMsg) {
-                            const panelMsg = buildPanelMessage(supportRole, categories, config[guildId].panelMessage, guild);
-                            await oldMsg.edit(panelMsg);
-                        }
-                    }
-                } catch {}
-
-                const confirmContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
-                    .addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent(
-                            `# <:Checkedbox:1473038547165384804> Panel Message Saved!\n\n` +
-                            `Your custom ticket panel message has been saved and applied.\n\n` +
-                            `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : '<:Chat:1473038936241864865> Simple'}\n\n` +
-                            `The panel in the ticket channel has been updated.\n\n` +
-                            `Use \`/ticket-setup reset-panel\` to revert to default.`
-                        )
-                    );
-                await btnInteraction.update({ components: [confirmContainer], flags: MessageFlags.IsComponentsV2 });
+                guildConfig.panelMessage = sanitizePanelMessageData(data);
+                config[guildId] = guildConfig;
+                saveAll(config);
+                let refreshed = 0;
+                for (const panelId of Object.keys(guildConfig.panels || {})) {
+                    if (await updatePanelMessage(btnInteraction.client, guildId, panelId)) refreshed++;
+                }
+                await btnInteraction.update({
+                    components: [new ContainerBuilder()
+                        .setAccentColor(0xCAD7E6)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# <:Checkedbox:1473038547165384804> Panel Message Saved\n\n` +
+                            `Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.\n` +
+                            `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : data.mode === 'components' ? '<:Settings:1473037894703779851> Components V2' : '<:Chat:1473038936241864865> Simple'}\n\n` +
+                            `Reset with \`/ticket-setup reset-panel\`.`
+                        ))],
+                    flags: MessageFlags.IsComponentsV2
+                });
             };
-
-            const onCancel = async (btnInteraction) => {
-                await btnInteraction.update({ content: '<:Cancel:1473037949187657818> Panel builder cancelled.', components: [], flags: MessageFlags.Ephemeral });
-            };
-
+            const onCancel = async (b) => b.update({ content: '<:Cancel:1473037949187657818> Panel builder cancelled.', components: [] });
             return await handleButtonInteraction(interaction, prefix, 'ticketpanel', guildId, 'panel', onSave, onCancel);
         }
 
-        // Handle welcome message builder buttons
         if (!prefix.startsWith('ticketmsg:')) return false;
-
         const guildId = prefix.replace('ticketmsg:', '');
-
         const onSave = async (btnInteraction, data) => {
-            const config = loadConfig();
-            if (!config[guildId]) {
-                return btnInteraction.update({ content: '<:Cancel:1473037949187657818> Ticket system config not found!', components: [], flags: MessageFlags.Ephemeral });
+            const config = readAll();
+            const guildConfig = ensureMigrated(config[guildId]);
+            if (!guildConfig) {
+                return btnInteraction.update({ content: '<:Cancel:1473037949187657818> Ticket system not configured!', components: [] });
             }
-
-            // Save the welcome message config
-            config[guildId].welcomeMessage = {
-                mode: data.mode,
-                content: data.content || '',
-                title: data.title || '',
-                description: data.description || '',
-                color: data.color || '#5865F2',
-                image: data.image || '',
-                thumbnail: data.thumbnail || '',
-                footer: data.footer || '',
-                footerIcon: data.footerIcon || '',
-                author: data.author || '',
-                authorIcon: data.authorIcon || '',
-                fields: data.fields || []
-            };
-            saveConfig(config);
-
-            const confirmContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> Welcome Message Saved!\n\n` +
-                        `Your custom ticket welcome message has been saved.\n\n` +
+            guildConfig.welcomeMessage = sanitizePanelMessageData(data);
+            config[guildId] = guildConfig;
+            saveAll(config);
+            await btnInteraction.update({
+                components: [new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Welcome Message Saved\n\n` +
                         `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : '<:Chat:1473038936241864865> Simple'}\n\n` +
-                        `This message will be sent when a new ticket is opened.\n\n` +
-                        `### Available Placeholders\n` +
-                        `\`{user}\` - Mention the ticket opener\n` +
-                        `\`{username}\` - Username\n` +
-                        `\`{server}\` - Server name\n` +
-                        `\`{timestamp}\` - Current time\n` +
-                        `\`{membercount}\` - Member count\n\n` +
-                        `Use \`/ticket-setup reset-message\` to revert to default.`
-                    )
-                );
-            await btnInteraction.update({ components: [confirmContainer], flags: MessageFlags.IsComponentsV2 });
+                        `Will be sent on every new ticket.\n\n` +
+                        `### <:Lightbulbalt:1473038470787240009> Placeholders\n` +
+                        `\`{user}\` \`{username}\` \`{server}\` \`{timestamp}\` \`{membercount}\` \`{channel}\``
+                    ))],
+                flags: MessageFlags.IsComponentsV2
+            });
         };
-
-        const onCancel = async (btnInteraction) => {
-            await btnInteraction.update({ content: '<:Cancel:1473037949187657818> Message builder cancelled.', components: [], flags: MessageFlags.Ephemeral });
-        };
-
+        const onCancel = async (b) => b.update({ content: '<:Cancel:1473037949187657818> Message builder cancelled.', components: [] });
         return await handleButtonInteraction(interaction, prefix, 'ticket', guildId, 'welcome', onSave, onCancel);
     },
 
     async handleModalSubmit(interaction) {
         const prefix = extractPrefixFromCustomId(interaction.customId);
-
-        // Handle panel builder modals
         if (prefix.startsWith('ticketpanel:')) {
-            const guildId = prefix.replace('ticketpanel:', '');
-            return await handleMsgBuilderModal(interaction, prefix, 'ticketpanel', guildId, 'panel');
+            return handleMsgBuilderModal(interaction, prefix, 'ticketpanel', prefix.replace('ticketpanel:', ''), 'panel');
         }
-
-        // Handle welcome message builder modals
-        if (!prefix.startsWith('ticketmsg:')) return false;
-
-        const guildId = prefix.replace('ticketmsg:', '');
-        return await handleMsgBuilderModal(interaction, prefix, 'ticket', guildId, 'welcome');
+        if (prefix.startsWith('ticketmsg:')) {
+            return handleMsgBuilderModal(interaction, prefix, 'ticket', prefix.replace('ticketmsg:', ''), 'welcome');
+        }
+        return false;
     },
+
+    /* ───────────────────────── help ─────────────────────────────── */
 
     async handleHelp(interaction) {
-        const helpContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `# <:Clipboard:1473039573037617162> Ticket System - Complete Guide\n\n` +
-                    `Create a professional support ticket system for your server!\n\n` +
-                    `### <:Settings:1473037894703779851> Setup Steps\n\n` +
-                    `**Step 1:** Create a category for tickets\n` +
-                    `Go to Server Settings > Create Category > Name it "Tickets" or "Support"\n\n` +
-                    `**Step 2:** Create a channel for the ticket panel\n` +
-                    `Create a text channel like #create-ticket or #support\n\n` +
-                    `**Step 3:** Create or choose a support role\n` +
-                    `This role will be able to see and manage all tickets\n\n` +
-                    `**Step 4:** Run the setup command\n` +
-                    `\`/ticket-setup create channel:#support category:#Tickets support-role:@Support\`\n\n` +
-                    `### 🎫 How It Works\n\n` +
-                    `**For Users:**\n` +
-                    `• Click the dropdown in the ticket panel\n` +
-                    `• Select a category that matches their issue\n` +
-                    `• A private channel is created for them\n` +
-                    `• They describe their issue and wait for support\n\n` +
-                    `**For Support Staff:**\n` +
-                    `• See all ticket channels automatically\n` +
-                    `• Use \`/ticket-close\` to close tickets\n` +
-                    `• Use \`/ticket-add @user\` to add people\n` +
-                    `• Use \`/ticket-transcript\` to save logs\n\n` +
-                    `### <:Document:1473039496995143731> Default Categories\n` +
-                    `<:Chat:1473038936241864865> **General Support** - General questions\n` +
-                    `🐛 **Bug Report** - Report issues\n` +
-                    `<:Star:1473038501766369300> **Feature Request** - Suggest features\n` +
-                    `💳 **Payment Issue** - Billing help\n` +
-                    `<:Edit:1473037903625191580> **Other** - Everything else\n\n` +
-                    `### <:Infotriangle:1473038460456800459> Requirements\n` +
-                    `**Bot Permissions:**\n` +
-                    `• Manage Channels\n` +
-                    `• Manage Roles\n` +
-                    `• View Channels\n` +
-                    `• Send Messages\n\n` +
-                    `### <:Lightbulbalt:1473038470787240009> Pro Tips\n` +
-                    `• Put the ticket panel in a read-only channel\n` +
-                    `• Only support staff should have the support role\n` +
-                    `• Keep the ticket category clean - closed tickets are deleted\n` +
-                    `• Use transcripts to save important conversations`
-                )
-            );
-
-        await interaction.reply({ components: [helpContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        await interaction.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# <:Clipboard:1473039573037617162> Ticket System — Complete Guide\n\n` +
+                    `Multi-panel ticket support with category presets, customizable messages, and full transcripts.\n\n` +
+                    `### <:Settings:1473037894703779851> First-Time Setup\n` +
+                    `<:Pin:1473038806612447500> **1.** \`/ticket-setup create channel:#tickets category:Tickets support-role:@Support\`\n` +
+                    `<:Pin:1473038806612447500> **2.** Add categories: \`/ticket-categories add <id> <label> <emoji> <description>\`\n` +
+                    `<:Pin:1473038806612447500>      *(or)* \`/ticket-setup style preset:purchase\`\n` +
+                    `<:Pin:1473038806612447500> **3.** *(optional)* \`/ticket-setup transcript mode:auto log-channel:#logs\`\n\n` +
+                    `### <:Bookopen:1473038576391557130> Multiple Panels\n` +
+                    `<:Pin:1473038806612447500> Add a second panel: \`/ticket-setup panel-add channel:#sales label:Sales categories:purchase,billing\`\n` +
+                    `<:Pin:1473038806612447500> List all panels: \`/ticket-setup panel-list\`\n` +
+                    `<:Pin:1473038806612447500> Edit panel categories: \`/ticket-setup panel-categories panel-id:<id> categories:billing,product\`\n` +
+                    `<:Pin:1473038806612447500> Remove a panel: \`/ticket-setup panel-remove panel-id:<id>\`\n\n` +
+                    `### <:Star:1473038501766369300> Customize\n` +
+                    `\`/ticket-setup style preset:<purchase|general|random|minimal>\`\n` +
+                    `\`/ticket-setup panel\` — design the panel body (V2 builder)\n` +
+                    `\`/ticket-setup message\` — design the in-ticket welcome\n` +
+                    `\`/ticket-setup status\` — current configuration\n` +
+                    `\`/ticket-categories add|edit|remove|list\` — fine-tune the category pool\n\n` +
+                    `### <:Chat:1473038936241864865> User Flow\n` +
+                    `<:Pin:1473038806612447500> Pick a category from the dropdown\n` +
+                    `<:Pin:1473038806612447500> Get a private channel named \`category-username-N\` (e.g. \`general-rajeev-1\`)\n` +
+                    `<:Pin:1473038806612447500> Discuss with staff, share screenshots, etc.\n` +
+                    `<:Pin:1473038806612447500> Close → transcript saves automatically (if enabled)\n\n` +
+                    `### <:Document:1473039496995143731> In-Ticket Commands\n` +
+                    `\`/ticket-add @user\` — invite someone\n` +
+                    `\`/ticket-remove @user\` — remove someone\n` +
+                    `\`/ticket-close\` — close the ticket\n\n` +
+                    `### <:Infotriangle:1473038460456800459> Required Bot Permissions\n` +
+                    `Manage Channels • Manage Roles • Send Messages • Embed Links • Attach Files • Read Message History`
+                ))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
     },
+
+    /* ─────────────────────── prefix command ────────────────────── */
 
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
             return message.reply('<:Cancel:1473037949187657818> You need **Manage Guild** permission to use this command!');
         }
-
-        if (args[0]?.toLowerCase() === 'message') {
-            return message.reply('<:Cancel:1473037949187657818> The message builder is only available via slash command: `/ticket-setup message`');
+        const sub = args[0]?.toLowerCase();
+        if (['message', 'panel', 'style', 'transcript', 'status', 'panel-add', 'panel-list', 'panel-remove', 'panel-categories'].includes(sub)) {
+            return message.reply(`<:Inforect:1473038624172937287> The \`${sub}\` action is only available via slash command: \`/ticket-setup ${sub}\``);
         }
-
-        if (args[0]?.toLowerCase() === 'reset-message') {
-            const config = loadConfig();
-            if (!config[message.guild.id]) {
-                return message.reply('<:Cancel:1473037949187657818> Ticket system is not set up yet!');
+        if (sub === 'reset-message') {
+            const config = readAll();
+            const guildConfig = ensureMigrated(config[message.guild.id]);
+            if (!guildConfig) return message.reply('<:Cancel:1473037949187657818> Ticket system is not set up.');
+            delete guildConfig.welcomeMessage;
+            config[message.guild.id] = guildConfig; saveAll(config);
+            return message.reply('<:Checkedbox:1473038547165384804> Welcome message reset to default.');
+        }
+        if (sub === 'reset-panel') {
+            const config = readAll();
+            const guildConfig = ensureMigrated(config[message.guild.id]);
+            if (!guildConfig) return message.reply('<:Cancel:1473037949187657818> Ticket system is not set up.');
+            delete guildConfig.panelMessage;
+            config[message.guild.id] = guildConfig; saveAll(config);
+            for (const panelId of Object.keys(guildConfig.panels || {})) {
+                await updatePanelMessage(message.client, message.guild.id, panelId);
             }
-            delete config[message.guild.id].welcomeMessage;
-            saveConfig(config);
-            return message.reply('<:Checkedbox:1473038547165384804> Ticket welcome message has been reset to default!');
+            return message.reply('<:Checkedbox:1473038547165384804> Panel reset to default. Refreshed all panels.');
         }
-
-        if (!args.length || args[0]?.toLowerCase() === 'help') {
-            const helpContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# 🎫 Ticket System Setup Guide\n\n` +
-                        `Create a professional ticket support system for your server.\n\n` +
-                        `### 📖 Usage\n` +
+        if (!args.length || sub === 'help') {
+            return message.reply({
+                components: [new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# <:Clipboard:1473039573037617162> Ticket System — Quick Setup\n\n` +
+                        `### <:Document:1473039496995143731> Usage\n` +
                         `\`-ticket-setup #panel-channel #category @support-role\`\n\n` +
-                        `### <:Document:1473039496995143731> Parameters\n` +
-                        `**#panel-channel** - Where users see the ticket creation menu\n` +
-                        `**#category** - Where ticket channels will be created (must be a category!)\n` +
-                        `**@support-role** - Role that can view and manage all tickets\n\n` +
-                        `### <:Edit:1473037903625191580> Example\n` +
-                        `\`-ticket-setup #support #Tickets @Support Team\`\n\n` +
-                        `### 🎫 Features\n` +
-                        `• 5 pre-configured ticket categories\n` +
-                        `• Private ticket channels\n` +
-                        `• Ticket transcripts\n` +
-                        `• Add/remove users from tickets\n` +
-                        `• Close and delete tickets\n\n` +
-                        `### <:Settings:1473037894703779851> Related Commands\n` +
-                        `\`-ticket-close\` - Close a ticket\n` +
-                        `\`-ticket-add @user\` - Add user to ticket\n` +
-                        `\`-ticket-remove @user\` - Remove user\n` +
-                        `\`-ticket-transcript\` - Save transcript\n\n` +
-                        `### <:Lightbulbalt:1473038470787240009> Tip\n` +
-                        `Use \`/ticket-setup help\` for detailed guide!`
-                    )
-                );
-            return message.reply({ components: [helpContainer], flags: MessageFlags.IsComponentsV2 });
+                        `Use \`/ticket-setup help\` for the full guide. Multi-panel features (\`panel-add\`, \`panel-list\`, etc.) are slash-only.`
+                    ))],
+                flags: MessageFlags.IsComponentsV2
+            });
         }
 
         const channels = Array.from(message.mentions.channels.values());
         const role = message.mentions.roles.first();
-
         if (channels.length < 2 || !role) {
-            return message.reply('<:Cancel:1473037949187657818> **Usage:** `-ticket-setup #panel-channel #category @support-role`\n*Make sure to mention both a text channel and a category!*');
+            return message.reply('<:Cancel:1473037949187657818> **Usage:** `-ticket-setup #panel-channel #category @support-role`');
         }
-
         const channel = channels[0];
         const category = channels[1];
-        
         if (category.type !== ChannelType.GuildCategory) {
-            return message.reply('<:Cancel:1473037949187657818> The second channel must be a **category** (folder icon), not a text channel!');
+            return message.reply('<:Cancel:1473037949187657818> The second channel must be a **category** (folder icon).');
         }
-        
-        const config = loadConfig();
-        const categories = [
-            { id: 'support', label: 'General Support', emoji: '<:Chat:1473038936241864865>', description: 'Get help with general questions and inquiries' },
-            { id: 'bug', label: 'Bug Report', emoji: '🐛', description: 'Report a bug, glitch, or unexpected behavior' },
-            { id: 'feature', label: 'Feature Request', emoji: '<:Star:1473038501766369300>', description: 'Suggest a new feature or improvement' },
-            { id: 'payment', label: 'Payment Issue', emoji: '💳', description: 'Help with payments, billing, or subscriptions' },
-            { id: 'other', label: 'Other', emoji: '<:Edit:1473037903625191580>', description: 'Anything else that doesn\'t fit above' }
-        ];
-        
-        config[message.guild.id] = {
-            channelId: channel.id,
-            categoryId: category.id,
+
+        const config = readAll();
+        const existing = ensureMigrated(config[message.guild.id]);
+        const guildConfig = {
+            categoryId:    category.id,
             supportRoleId: role.id,
-            tickets: {},
-            categories: categories
+            tickets:           existing?.tickets || {},
+            nextTicketNumber:  existing?.nextTicketNumber || 0,
+            categories:        existing?.categories || [],
+            transcriptMode:    existing?.transcriptMode || 'manual',
+            transcriptChannelId: existing?.transcriptChannelId || null,
+            welcomeMessage:    existing?.welcomeMessage,
+            panelMessage:      existing?.panelMessage,
+            panels:            existing?.panels || {},
         };
-        saveConfig(config);
-        
-        const panelMsg = buildPanelMessage(role, categories, null, message.guild);
-        const panelMessage = await channel.send(panelMsg);
-        
-        config[message.guild.id].panelMessageId = panelMessage.id;
-        saveConfig(config);
-        
-        const setupContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(buildSetupConfirmation(channel, category, role))
-            );
-        
-        message.reply({ components: [setupContainer], flags: MessageFlags.IsComponentsV2 });
-    }
+
+        const old = guildConfig.panels.default;
+        if (old?.channelId && old?.messageId) {
+            try {
+                const oldChan = await message.guild.channels.fetch(old.channelId).catch(() => null);
+                const oldMsg  = oldChan ? await oldChan.messages.fetch(old.messageId).catch(() => null) : null;
+                if (oldMsg) await oldMsg.delete().catch(() => null);
+            } catch {}
+        }
+
+        const renderArgs = {
+            guildConfig,
+            panel: { channelId: channel.id, label: 'Default', categoryIds: [], supportRoleId: null, channelCategoryId: null, panelMessage: null },
+            panelId: 'default',
+            supportRole: role,
+            guild: message.guild,
+        };
+        const sent = await channel.send(buildPanelMessage(renderArgs));
+
+        guildConfig.panels.default = {
+            channelId: channel.id,
+            messageId: sent.id,
+            label: 'Default',
+            categoryIds: [],
+            supportRoleId: null,
+            channelCategoryId: null,
+            panelMessage: null,
+        };
+        config[message.guild.id] = guildConfig;
+        saveAll(config);
+
+        await message.reply({
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    buildSetupConfirmation({
+                        panelChannel: channel, ticketCategory: category, supportRole: role, panelLabel: 'Default'
+                    })
+                ))],
+            flags: MessageFlags.IsComponentsV2
+        });
+    },
 };
+
+/* ────────────────────────── helpers ────────────────────────────── */
+
+function sanitizePanelMessageData(data) {
+    return {
+        mode:        data.mode,
+        content:     data.content     || '',
+        title:       data.title       || '',
+        description: data.description || '',
+        color:       data.color       || '#5865F2',
+        image:       data.image       || '',
+        thumbnail:   data.thumbnail   || '',
+        footer:      data.footer      || '',
+        footerIcon:  data.footerIcon  || '',
+        author:      data.author      || '',
+        authorIcon:  data.authorIcon  || '',
+        fields:      data.fields      || [],
+    };
+}
+
+/**
+ * Re-render a specific panel's message with the latest config + categories.
+ * Returns true on success. Stale or deleted panel messages are dropped from
+ * the config so we don't keep retrying forever.
+ */
+async function updatePanelMessage(client, guildId, panelId) {
+    const config = readAll();
+    const guildConfig = ensureMigrated(config[guildId]);
+    if (!guildConfig?.panels?.[panelId]) return false;
+
+    const panel = guildConfig.panels[panelId];
+    if (!panel.channelId || !panel.messageId) return false;
+
+    try {
+        const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+        if (!guild) return false;
+        const channel = await guild.channels.fetch(panel.channelId).catch(() => null);
+        if (!channel || !channel.isTextBased()) return false;
+        const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
+        if (!msg) {
+            // Message was deleted. Drop it from config so next /ticket-setup create
+            // doesn't try to delete a ghost.
+            delete guildConfig.panels[panelId];
+            config[guildId] = guildConfig;
+            saveAll(config);
+            return false;
+        }
+
+        const supportRoleId = panel.supportRoleId || guildConfig.supportRoleId;
+        const supportRole = supportRoleId ? await guild.roles.fetch(supportRoleId).catch(() => null) : null;
+
+        await msg.edit(buildPanelMessage({
+            guildConfig, panel, panelId, supportRole, guild,
+        }));
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+// Export internals so commands/automation/ticket-categories.js can call updatePanelMessage
+module.exports.updatePanelMessage = updatePanelMessage;
+module.exports.TICKET_PRESETS = TICKET_PRESETS;

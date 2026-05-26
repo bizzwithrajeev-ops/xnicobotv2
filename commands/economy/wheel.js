@@ -22,7 +22,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsAmount } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -133,7 +133,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Fortune Wheel — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.preset) {
         const p = PRESETS[game.preset];
@@ -199,7 +199,7 @@ function buildResultContainer(game, result) {
         `# ${E.title} Fortune Wheel`,
         `-# ${p.emoji} ${p.label}  ·  ${result.total} segments`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.spin} **Landed:** slot ${result.slot + 1} → ${multiplierEmoji(result.mult)} \`${result.mult}x\``,
         '',
         won

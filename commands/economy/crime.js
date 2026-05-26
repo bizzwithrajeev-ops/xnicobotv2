@@ -1,14 +1,14 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 
 const CRIMES = [
   { name: 'Pickpocketing', emoji: '🤏', successRate: 0.55, minReward: 200, maxReward: 800, minFine: 100, maxFine: 400 },
   { name: 'Car Theft', emoji: '🚗', successRate: 0.40, minReward: 500, maxReward: 2000, minFine: 300, maxFine: 1000 },
-  { name: 'Bank Heist', emoji: '🏦', successRate: 0.25, minReward: 2000, maxReward: 8000, minFine: 1000, maxFine: 3000 },
+  { name: 'Bank Heist', emoji: '<:Bank:1473039150927319192>', successRate: 0.25, minReward: 2000, maxReward: 8000, minFine: 1000, maxFine: 3000 },
   { name: 'Jewelry Robbery', emoji: '💍', successRate: 0.35, minReward: 1000, maxReward: 5000, minFine: 500, maxFine: 2000 },
   { name: 'Hacking', emoji: '💻', successRate: 0.45, minReward: 400, maxReward: 1500, minFine: 200, maxFine: 800 },
   { name: 'Art Forgery', emoji: '<:Palette:1473039029476917461>', successRate: 0.50, minReward: 300, maxReward: 1200, minFine: 150, maxFine: 600 },
@@ -67,7 +67,7 @@ async function handleCrime(reply, userId, guildId) {
       `<:Checkedbox:1473038547165384804> **SUCCESS!**`,
       `> ${msg}`,
       '',
-      `${coinIcon(guildId)} **Reward:** +${formatCoins(reward, guildId)}`,
+      `${coinIcon(guildId)} **Reward:** +${formatCoinsAmount(reward, guildId)}`,
       `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       `<:Invoice:1473039492217835550> **Crimes Committed:** ${userData.crimeCount}`,
       '',
@@ -85,7 +85,7 @@ async function handleCrime(reply, userId, guildId) {
       `<:Cancel:1473037949187657818> **BUSTED!**`,
       `> ${msg}`,
       '',
-      `${coinIcon(guildId)} **Fine:** -${formatCoins(fine, guildId)}`,
+      `${coinIcon(guildId)} **Fine:** -${formatCoinsAmount(fine, guildId)}`,
       `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       '',
       `-# Cooldown: 2 minutes`,

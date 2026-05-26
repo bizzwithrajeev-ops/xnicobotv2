@@ -3,7 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { getEconomySettings, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { robGuard } = require('../../utils/economyGuards');
 const { resolveUser } = require('../../utils/resolveUser');
 const COOLDOWN = 60 * 1000;
@@ -92,7 +92,7 @@ module.exports = {
                 '',
                 `<:Checkedbox:1473038547165384804> You stole **${formatCoins(amount, guildId)}** from **${target.username}**!`,
                 '',
-                `${coinIcon(guildId)} **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
+                `${coinIcon(guildId)} **Your Balance:** ${formatCoinsAmount(robber.coins, guildId)}`,
                 '',
                 `-# Cooldown: 1 minute`,
             ].join('\n'));
@@ -110,8 +110,8 @@ module.exports = {
             '',
             `<:Cancel:1473037949187657818> You got caught!`,
             '',
-            `${coinIcon(guildId)} **Fine:** ${formatCoins(fine, guildId)}`,
-            `${coinIcon(guildId)} **Your Balance:** ${formatCoins(robber.coins, guildId)}`,
+            `${coinIcon(guildId)} **Fine:** ${formatCoinsAmount(fine, guildId)}`,
+            `${coinIcon(guildId)} **Your Balance:** ${formatCoinsAmount(robber.coins, guildId)}`,
             '',
             `-# Cooldown: 1 minute`,
         ].join('\n'));

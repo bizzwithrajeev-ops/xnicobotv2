@@ -496,19 +496,40 @@ app.get('/api/guilds/me', authMiddleware, async (req, res) => {
  * module actually take effect — without translation the bot keeps
  * reading from `logs` while the dashboard writes to a parallel store
  * the bot never reads.
+ *
+ * Adding a new log category? Update both this map AND
+ * `botLoggingToDashboard` below so the round-trip stays lossless.
+ * Keys defined here must also exist as `set-<key>` slash subcommands
+ * in `commands/admin/logging-setup.js` (`logTypeNames`).
  */
+const DASHBOARD_TO_BOT_LOG_KEYS = {
+    modLog:        'moderation',
+    messageLog:    'message',
+    memberLog:     'member',
+    serverLog:     'server',
+    voiceLog:      'voice',
+    automodLog:    'automod',
+    securityLog:   'security',
+    boostLog:      'boost',
+    commandsLog:   'commands',
+    reactionsLog:  'reactions',
+    pinsLog:       'pins',
+};
+const BOT_TO_DASHBOARD_LOG_KEYS = Object.fromEntries(
+    Object.entries(DASHBOARD_TO_BOT_LOG_KEYS).map(([k, v]) => [v, k])
+);
+
 function dashboardLoggingToBot(uiCfg, prevBotCfg = {}) {
     const out = { ...prevBotCfg };
     if (uiCfg && typeof uiCfg === 'object') {
-        if ('modLog' in uiCfg)         out.moderation = uiCfg.modLog || null;
-        if ('messageLog' in uiCfg)     out.message    = uiCfg.messageLog || null;
-        if ('memberLog' in uiCfg)      out.member     = uiCfg.memberLog || null;
-        if ('serverLog' in uiCfg)      out.server     = uiCfg.serverLog || null;
-        if ('voiceLog' in uiCfg)       out.voice      = uiCfg.voiceLog || null;
+        for (const [uiKey, botKey] of Object.entries(DASHBOARD_TO_BOT_LOG_KEYS)) {
+            if (uiKey in uiCfg) out[botKey] = uiCfg[uiKey] || null;
+        }
         if ('ignoredChannels' in uiCfg) out.ignoredChannels = uiCfg.ignoredChannels || [];
-        // Preserve mode + webhooks if they were set elsewhere (e.g. /logging-setup).
+        // Preserve mode + webhooks + filters if they were set elsewhere (e.g. /logging-setup).
         if ('mode' in uiCfg)           out.mode       = uiCfg.mode;
         if ('webhooks' in uiCfg)       out.webhooks   = uiCfg.webhooks;
+        if ('filters' in uiCfg)        out.filters    = uiCfg.filters;
     }
     return out;
 }
@@ -519,17 +540,19 @@ function dashboardLoggingToBot(uiCfg, prevBotCfg = {}) {
  */
 function botLoggingToDashboard(botCfg) {
     if (!botCfg || typeof botCfg !== 'object') return {};
-    return {
-        enabled: !!(botCfg.message || botCfg.member || botCfg.server || botCfg.moderation || botCfg.voice),
-        modLog: botCfg.moderation || null,
-        messageLog: botCfg.message || null,
-        memberLog: botCfg.member || null,
-        serverLog: botCfg.server || null,
-        voiceLog: botCfg.voice || null,
+    const out = {
         ignoredChannels: botCfg.ignoredChannels || [],
-        mode: botCfg.mode || 'bot',
-        webhooks: botCfg.webhooks || {}
+        mode:            botCfg.mode || 'bot',
+        webhooks:        botCfg.webhooks || {},
+        filters:         botCfg.filters || {},
     };
+    let anyConfigured = false;
+    for (const [botKey, uiKey] of Object.entries(BOT_TO_DASHBOARD_LOG_KEYS)) {
+        out[uiKey] = botCfg[botKey] || null;
+        if (botCfg[botKey]) anyConfigured = true;
+    }
+    out.enabled = anyConfigured;
+    return out;
 }
 
 function getGuildModuleConfig(guildId, module) {
@@ -578,7 +601,14 @@ const MODULE_DEFAULTS = {
     leveling: () => ({ enabled: false, xpPerMessage: 15, xpCooldown: 60, announcements: { enabled: true, channel: null, message: 'Congrats {user}! You reached level {level}!' }, noXpRoles: [], noXpChannels: [], levelRoles: {}, xpMultiplier: 1 }),
     economy: () => ({ enabled: false, startingBalance: 0, dailyReward: 1000, currency: '<:Money:1473377877239140529>', currencyName: 'coins', weeklyReward: 5000, workMinReward: 100, workMaxReward: 300, robChance: 50, robEnabled: true, gamblingEnabled: true, shopEnabled: true }),
     tickets: () => ({ enabled: false, categoryId: null, supportRoleId: null, maxOpen: 5, logChannel: null, closeConfirmation: true, transcripts: true, dmOnClose: true, autoClose: 0, welcomeMessage: 'Support will be with you shortly.' }),
-    logging: () => ({ enabled: false, modLog: null, messageLog: null, memberLog: null, serverLog: null, voiceLog: null, ignoredChannels: [] }),
+    logging: () => ({
+        enabled: false,
+        modLog: null, messageLog: null, memberLog: null, serverLog: null, voiceLog: null,
+        automodLog: null, securityLog: null, boostLog: null, commandsLog: null,
+        reactionsLog: null, pinsLog: null,
+        ignoredChannels: [],
+        mode: 'bot', webhooks: {}, filters: {},
+    }),
     music: () => ({ enabled: true, defaultVolume: 80, maxQueueSize: 100, djRoleId: null, voteSkip: true, announce: true }),
     antinuke: () => ({
         enabled: false,

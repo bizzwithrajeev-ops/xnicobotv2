@@ -128,11 +128,12 @@ module.exports = {
             // 6. Logging
             maxScore += 15;
             if (logs) {
-                const activeLogTypes = ['message', 'member', 'voice', 'server', 'moderation'].filter(t => logs[t]).length;
+                const LOG_CATEGORIES = ['message', 'member', 'voice', 'server', 'moderation', 'automod', 'security', 'boost', 'commands', 'reactions', 'pins'];
+                const activeLogTypes = LOG_CATEGORIES.filter(t => logs[t]).length;
                 if (activeLogTypes > 0) {
-                    score += Math.min(15, activeLogTypes * 3);
-                    checks.push(`<:Checkedbox:1473038547165384804> **Logging** — ${activeLogTypes}/5 types configured`);
-                    if (activeLogTypes < 5) recommendations.push('Configure all log types for complete audit trail');
+                    score += Math.min(15, activeLogTypes * 1.5);
+                    checks.push(`<:Checkedbox:1473038547165384804> **Logging** — ${activeLogTypes}/${LOG_CATEGORIES.length} types configured`);
+                    if (activeLogTypes < LOG_CATEGORIES.length) recommendations.push('Configure all log types for complete audit trail');
                 } else {
                     checks.push(`<:Cancel:1473037949187657818> **Logging** — No log channels set`);
                     recommendations.push('**Set up logging** — critical for tracking moderation actions');

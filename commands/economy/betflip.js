@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
@@ -74,7 +74,7 @@ async function handleBetflip(reply, userId, args, guildId) {
 
     resultLines.push(
         '',
-        `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
+        `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
         '',
         `-# ${won ? 'Nice flip! Go again?' : 'Better luck next flip!'}`,
     );

@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -21,14 +21,14 @@ async function handleBalance(reply, targetUser, guildId) {
         '',
         `### <:User:1473038971398520977> ${targetUser.username}`,
         '',
-        `> ${coinIcon(guildId)} **Wallet:** ${formatCoins(wallet, guildId)}`,
+        `> ${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(wallet, guildId)}`,
         `> <:Invoice:1473039492217835550> **Bank:** ${formatCoins(bank, guildId)}`,
     ].join('\n'));
 
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
-        `> <:Sketch:1473038248493453352> **Total Worth:** ${formatCoins(total, guildId)}`,
+        `> <:Sketch:1473038248493453352> **Total Worth:** ${formatCoinsAmount(total, guildId)}`,
         '',
         `-# Use \`deposit\` and \`withdraw\` to manage your bank`,
     ].join('\n'));

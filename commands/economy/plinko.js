@@ -29,7 +29,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins, formatCoinsShort, coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort, coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -133,7 +133,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Plinko — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.rows) {
         lines.push(`> ${ROW_OPTIONS[game.rows].emoji} **Rows:** ${ROW_OPTIONS[game.rows].label}`);
@@ -248,20 +248,20 @@ function buildLiveContainer(game, status, info = {}) {
         `# ${E.title} Plinko`,
         `-# ${E.rows} ${ROW_OPTIONS[game.rows].label}  ·  ${r.emoji} ${r.label}`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
 
     if (status === 'falling') {
         lines.push(`> ${E.ball} **Dropping...** row ${info.row}/${game.rows}`);
     } else if (status === 'won') {
         lines.push(`> ${E.success} **Slot ${info.slot}** → \`${info.mult}x\` payout`);
-        lines.push(`> ${E.coin} **Won:** ${formatCoins(info.payout, game.guildId)} (+${formatNumber(info.payout - game.bet)})`);
+        lines.push(`> ${E.coin} **Won:** ${formatCoinsAmount(info.payout, game.guildId)} (+${formatNumber(info.payout - game.bet)})`);
     } else if (status === 'lost') {
         lines.push(`> ${E.fail} **Slot ${info.slot}** → \`${info.mult}x\` payout`);
-        lines.push(`> ${E.coin} **Lost:** ${formatCoins(game.bet - info.payout, game.guildId)} (kept ${formatNumber(info.payout)})`);
+        lines.push(`> ${E.coin} **Lost:** ${formatCoinsAmount(game.bet - info.payout, game.guildId)} (kept ${formatNumber(info.payout)})`);
     } else if (status === 'push') {
         lines.push(`> ${E.info} **Slot ${info.slot}** → \`${info.mult}x\` payout`);
-        lines.push(`> ${E.coin} **Bet refunded:** ${formatCoins(info.payout, game.guildId)}`);
+        lines.push(`> ${E.coin} **Bet refunded:** ${formatCoinsAmount(info.payout, game.guildId)}`);
     }
 
     lines.push('');

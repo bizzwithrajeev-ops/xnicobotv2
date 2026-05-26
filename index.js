@@ -45,6 +45,49 @@ const { trackCommand } = require('./commands/owner/command-stats');
 
 log.installConsoleInterceptors();
 
+/**
+ * Silent message-delete paths (music panel, antilink, automod, suggestion
+ * channel, screenshot-verify, etc.) used to call `.delete().catch(() => {})`,
+ * which hid every error AND every reason. When a user reported "messages
+ * are vanishing in my server", there was nothing in the console to point
+ * at the responsible feature.
+ *
+ * `safeDeleteMessage` keeps the same best-effort semantics (we still
+ * never throw into messageCreate) but emits a single clear log line so
+ * operators can identify which feature deleted which message in which
+ * channel for which user. Set DEBUG_AUTO_DELETE=verbose in .env to also
+ * log successful deletes; otherwise only failures are logged.
+ *
+ * @param {import('discord.js').Message} message  the message being deleted
+ * @param {string} reason  short feature label, e.g. 'music-panel', 'antilink'
+ * @returns {Promise<boolean>} true on success, false on failure
+ */
+async function safeDeleteMessage(message, reason) {
+    if (!message || !message.deletable) {
+        // Most likely already deleted by another listener — log at debug
+        // so we don't spam the console with noise on every message.
+        try {
+            log.debug(`[auto-delete:${reason}] skipped (not deletable) guild=${message?.guild?.id || 'dm'} channel=#${message?.channel?.name || message?.channel?.id || '?'} user=${message?.author?.tag || message?.author?.id || '?'}`);
+        } catch {}
+        return false;
+    }
+    const verbose = process.env.DEBUG_AUTO_DELETE === 'verbose';
+    const guildId = message.guild?.id || 'dm';
+    const channelTag = message.channel?.name ? `#${message.channel.name}` : message.channel?.id;
+    const userTag = message.author?.tag || message.author?.id || '?';
+    const preview = (message.content || '').slice(0, 80).replace(/\n/g, ' ');
+    try {
+        await message.delete();
+        if (verbose) {
+            log.info(`[auto-delete:${reason}] ok guild=${guildId} channel=${channelTag} user=${userTag} content="${preview}"`);
+        }
+        return true;
+    } catch (err) {
+        log.warning(`[auto-delete:${reason}] FAILED guild=${guildId} channel=${channelTag} user=${userTag} content="${preview}" — ${err?.code || ''} ${err?.message || err}`);
+        return false;
+    }
+}
+
 const DEFAULT_PREFIX = process.env.PREFIX || '-';
 
 // Default channel for vote notifications when a guild has no explicit
@@ -4011,7 +4054,7 @@ client.on('interactionCreate', async (interaction) => {
 
                     // Use role ID directly — guild role cache may be incomplete on large servers
                     const claimSupportRoleId = guildConfig.supportRoleId;
-                    const isClaimAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+                    const isClaimAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
                     if (claimSupportRoleId && !interaction.member.roles.cache.has(claimSupportRoleId) && !isClaimAdmin) {
                         return interaction.reply({ content: '<:Cancel:1473037949187657818> Only support team members can claim tickets!', flags: MessageFlags.Ephemeral });
                     }
@@ -4055,7 +4098,7 @@ client.on('interactionCreate', async (interaction) => {
                     }
 
                     const isSupport = guildConfig.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-                    const isCloseAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+                    const isCloseAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
                     const isTicketOwner = ticketData.userId === interaction.user.id;
 
                     if (!isSupport && !isCloseAdmin && !isTicketOwner) {
@@ -4110,7 +4153,7 @@ client.on('interactionCreate', async (interaction) => {
 
                     // Permission check — use role ID directly, not cache lookup
                     const isSupport = guildConfig.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-                    const isConfirmAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+                    const isConfirmAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
                     const isTicketOwner = ticketData.userId === interaction.user.id;
                     const isClaimer = ticketData.claimedBy === interaction.user.id;
 
@@ -4120,6 +4163,12 @@ client.on('interactionCreate', async (interaction) => {
                             flags: MessageFlags.Ephemeral
                         });
                     }
+
+                    // Capture state we'll need *before* deleting the entry
+                    const closingChannel = interaction.channel;
+                    const closingGuild   = interaction.guild;
+                    const tMode = guildConfig.transcriptMode || 'manual';
+                    const wantsAuto = (tMode === 'auto' || tMode === 'both') && !!guildConfig.transcriptChannelId;
 
                     delete guildConfig.tickets[interaction.channel.id];
                     jsonStore.write('tickets', config);
@@ -4131,15 +4180,75 @@ client.on('interactionCreate', async (interaction) => {
                                 .setContent(
                                     `# <:Lock:1473038513749491773> Ticket Closed\n\n` +
                                     `Closed by ${interaction.user}\n\n` +
-                                    `Channel will be deleted in 5 seconds...`
+                                    (wantsAuto
+                                        ? `Saving transcript and deleting channel in 8 seconds...`
+                                        : `Channel will be deleted in 5 seconds...`)
                                 )
                         );
 
                     await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
-                    setTimeout(() => {
-                        interaction.channel.delete().catch(err => log.error(`Failed to delete ticket: ${err.message}`));
-                    }, 5000);
+                    // Auto-transcript: run *before* deletion so the channel still exists
+                    // while we fetch messages. We use a hard 30s budget so a stuck fetch
+                    // never blocks deletion forever.
+                    if (wantsAuto) {
+                        const transcriptPromise = (async () => {
+                            try {
+                                const { fetchAllMessages, buildTranscriptAttachments, postTranscriptToLogChannel } = require('./utils/ticketTranscript');
+                                const messages = await fetchAllMessages(closingChannel, { limit: 2000 });
+
+                                const opener = ticketData.userId
+                                    ? await client.users.fetch(ticketData.userId).catch(() => null)
+                                    : null;
+                                const claimer = ticketData.claimedBy
+                                    ? await client.users.fetch(ticketData.claimedBy).catch(() => null)
+                                    : null;
+
+                                const meta = {
+                                    channelName:   closingChannel.name,
+                                    guildName:     closingGuild.name,
+                                    openerTag:     opener?.tag || ticketData.userId,
+                                    openerId:      ticketData.userId,
+                                    categoryLabel: ticketData.categoryLabel || 'N/A',
+                                    createdAt:     ticketData.createdAt,
+                                    closedAt:      Date.now(),
+                                    closedBy:      `${interaction.user.tag} (auto on close)`,
+                                    claimedByTag:  claimer?.tag,
+                                    addedMembers:  (ticketData.members || []).map(id => ({ id })),
+                                    messageCount:  messages.length,
+                                };
+
+                                const attachments = buildTranscriptAttachments(messages, meta);
+                                await postTranscriptToLogChannel(closingGuild, guildConfig.transcriptChannelId, attachments, meta);
+
+                                if (opener) {
+                                    try {
+                                        await opener.send({
+                                            content: `<:Clipboardalt:1473039555190849598> Your ticket **${closingChannel.name}** in **${closingGuild.name}** has been closed. A copy of the transcript is attached.`,
+                                            files: attachments
+                                        });
+                                    } catch { /* DMs closed */ }
+                                }
+                            } catch (err) {
+                                log.error(`Auto-transcript on close failed: ${err.message}`, err);
+                            }
+                        })();
+
+                        const TRANSCRIPT_BUDGET_MS = 30_000;
+                        await Promise.race([
+                            transcriptPromise,
+                            new Promise(res => setTimeout(res, TRANSCRIPT_BUDGET_MS))
+                        ]);
+
+                        // Brief delay so the closing message is visible before deletion
+                        setTimeout(() => {
+                            closingChannel.delete().catch(err => log.error(`Failed to delete ticket: ${err.message}`));
+                        }, 2000);
+                    } else {
+                        setTimeout(() => {
+                            closingChannel.delete().catch(err => log.error(`Failed to delete ticket: ${err.message}`));
+                        }, 5000);
+                    }
                 } catch (error) {
                     log.error(`Ticket close confirm error: ${error.message}`, error);
                     if (!interaction.replied && !interaction.deferred) {
@@ -4166,48 +4275,62 @@ client.on('interactionCreate', async (interaction) => {
                     // Permission check — owner, support, or admin only
                     const isTranscriptOwner = ticketData?.userId === interaction.user.id;
                     const isTranscriptSupport = guildConfig?.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-                    const isTranscriptAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+                    const isTranscriptAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
                     if (!isTranscriptOwner && !isTranscriptSupport && !isTranscriptAdmin) {
                         return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the ticket owner or support team can save transcripts!', flags: MessageFlags.Ephemeral });
                     }
 
+                    // Honor configured mode — manual button is disabled when mode === 'off' or 'auto'
+                    const tMode = guildConfig?.transcriptMode || 'manual';
+                    if (tMode === 'off') {
+                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Transcripts are disabled on this server. Ask an admin to run `/ticket-setup transcript`.', flags: MessageFlags.Ephemeral });
+                    }
+                    if (tMode === 'auto') {
+                        return interaction.reply({ content: '<:Inforect:1473038624172937287> This server uses **auto** transcripts only — the transcript will be posted to the log channel when the ticket closes.', flags: MessageFlags.Ephemeral });
+                    }
+
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                    const messages = await interaction.channel.messages.fetch({ limit: 100 });
-                    const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+                    const { fetchAllMessages, buildTranscriptAttachments, postTranscriptToLogChannel } = require('./utils/ticketTranscript');
+                    const messages = await fetchAllMessages(interaction.channel, { limit: 2000 });
 
-                    const createdAt = ticketData?.createdAt ? new Date(ticketData.createdAt).toISOString() : 'Unknown';
-                    const categoryLabel = ticketData?.categoryLabel || 'N/A';
+                    const opener = ticketData?.userId
+                        ? await interaction.client.users.fetch(ticketData.userId).catch(() => null)
+                        : null;
+                    const claimer = ticketData?.claimedBy
+                        ? await interaction.client.users.fetch(ticketData.claimedBy).catch(() => null)
+                        : null;
 
-                    let transcript = `# Ticket Transcript\n`;
-                    transcript += `**Channel:** ${interaction.channel.name}\n`;
-                    transcript += `**Created:** ${createdAt}\n`;
-                    transcript += `**Category:** ${categoryLabel}\n`;
-                    if (ticketData?.claimedBy) transcript += `**Claimed By:** <@${ticketData.claimedBy}> (${ticketData.claimedBy})\n`;
-                    if (ticketData?.members?.length) transcript += `**Added Members:** ${ticketData.members.map(id => `<@${id}> (${id})`).join(', ')}\n`;
-                    transcript += `**Messages:** ${sortedMessages.size}\n\n`;
-                    transcript += `---\n\n`;
+                    const meta = {
+                        channelName:   interaction.channel.name,
+                        guildName:     interaction.guild.name,
+                        openerTag:     opener?.tag || ticketData?.userId,
+                        openerId:      ticketData?.userId,
+                        categoryLabel: ticketData?.categoryLabel || 'N/A',
+                        createdAt:     ticketData?.createdAt,
+                        closedAt:      Date.now(),
+                        closedBy:      `${interaction.user.tag} (manual save)`,
+                        claimedByTag:  claimer?.tag,
+                        addedMembers:  (ticketData?.members || []).map(id => ({ id })),
+                        messageCount:  messages.length,
+                    };
 
-                    sortedMessages.forEach(msg => {
-                        const timestamp = new Date(msg.createdTimestamp).toISOString();
-                        const author = msg.author.username;
-                        const content = msg.content || '[No text content]';
-                        transcript += `**[${timestamp}] ${author}:**\n${content}\n\n`;
-                    });
+                    const attachments = buildTranscriptAttachments(messages, meta);
 
-                    const buffer = Buffer.from(transcript, 'utf8');
-                    const { AttachmentBuilder: TranscriptAttachment } = require('discord.js');
-                    const attachment = new TranscriptAttachment(buffer, { name: `transcript-${interaction.channel.name}.md` });
+                    // Mirror to the log channel if configured
+                    if (guildConfig?.transcriptChannelId) {
+                        await postTranscriptToLogChannel(interaction.guild, guildConfig.transcriptChannelId, attachments, meta).catch(() => null);
+                    }
 
                     await interaction.editReply({
-                        content: '<:Checkedbox:1473038547165384804> Transcript generated!',
-                        files: [attachment]
+                        content: `<:Checkedbox:1473038547165384804> Transcript generated with **${messages.length}** message(s).`,
+                        files: attachments
                     });
                 } catch (error) {
                     log.error(`Ticket transcript error: ${error.message}`, error);
                     if (interaction.deferred) {
                         await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate transcript!' });
-                    } else {
+                    } else if (!interaction.replied) {
                         await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to generate transcript!', flags: MessageFlags.Ephemeral });
                     }
                 }
@@ -4223,58 +4346,63 @@ client.on('interactionCreate', async (interaction) => {
                         return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not configured!', flags: MessageFlags.Ephemeral });
                     }
 
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => null);
+
                     const existingTicket = Object.entries(guildConfig.tickets || {}).find(([_, ticket]) => ticket.userId === interaction.user.id);
                     if (existingTicket) {
                         const existingChannel = interaction.guild.channels.cache.get(existingTicket[0]);
                         if (existingChannel) {
-                            return interaction.reply({ content: `<:Cancel:1473037949187657818> You already have an open ticket! ${existingChannel}`, flags: MessageFlags.Ephemeral });
+                            return interaction.editReply({ content: `<:Inforect:1473038624172937287> You already have an open ticket: ${existingChannel}` });
                         } else {
-                            // Clean up stale ticket entry for deleted channel
                             delete guildConfig.tickets[existingTicket[0]];
                             jsonStore.write('tickets', config);
                         }
                     }
 
                     if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> I don\'t have permission to create channels! Please contact an administrator.', flags: MessageFlags.Ephemeral });
+                        return interaction.editReply({ content: '<:Cancel:1473037949187657818> I don\'t have permission to create channels! Please contact an administrator.' });
                     }
 
-                    // Use monotonically incrementing ticket number
-                    guildConfig.nextTicketNumber = (guildConfig.nextTicketNumber || Object.keys(guildConfig.tickets || {}).length) + 1;
-                    const ticketNumber = guildConfig.nextTicketNumber;
-                    const ticketChannelName = `ticket-${interaction.user.username}-${ticketNumber}`;
+                    // Atomic-ish ticket number bump (re-read live config)
+                    const liveConfig = readTicketsConfig();
+                    const liveGuildConfig = liveConfig[interaction.guild.id] || guildConfig;
+                    const ticketCount = Object.keys(liveGuildConfig.tickets || {}).length;
+                    liveGuildConfig.nextTicketNumber = Math.max(
+                        (liveGuildConfig.nextTicketNumber || 0) + 1,
+                        ticketCount + 1
+                    );
+                    const ticketNumber = liveGuildConfig.nextTicketNumber;
+                    jsonStore.write('tickets', liveConfig);
 
-                    const category = interaction.guild.channels.cache.get(guildConfig.categoryId);
+                    const { buildTicketChannelName: buildLegacyName } = require('./utils/ticketTranscript');
+                    const ticketChannelName = buildLegacyName('ticket', interaction.user.username, ticketNumber);
+
+                    const category = interaction.guild.channels.cache.get(liveGuildConfig.categoryId);
                     if (!category) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket category not found!', flags: MessageFlags.Ephemeral });
+                        return interaction.editReply({ content: '<:Cancel:1473037949187657818> Ticket category not found!' });
                     }
 
                     const ticketChannel = await interaction.guild.channels.create({
                         name: ticketChannelName,
                         parent: category.id,
+                        topic: `🎫 Support Ticket • Opened by ${interaction.user.tag} • #${ticketNumber}`,
                         permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: ['ViewChannel']
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
-                            },
-                            {
-                                id: guildConfig.supportRoleId,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
-                            }
+                            { id: interaction.guild.id, deny: ['ViewChannel'] },
+                            { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
+                            { id: liveGuildConfig.supportRoleId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageMessages'] },
+                            { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageChannels'] }
                         ]
                     });
 
-                    guildConfig.tickets = guildConfig.tickets || {};
-                    guildConfig.tickets[ticketChannel.id] = {
+                    liveGuildConfig.tickets = liveGuildConfig.tickets || {};
+                    liveGuildConfig.tickets[ticketChannel.id] = {
                         userId: interaction.user.id,
+                        category: 'general',
                         categoryLabel: 'General',
+                        ticketNumber,
                         createdAt: Date.now()
                     };
-                    jsonStore.write('tickets', config);
+                    jsonStore.write('tickets', liveConfig);
 
                     const ticketButtons = new ActionRowBuilder()
                         .addComponents(
@@ -4282,7 +4410,7 @@ client.on('interactionCreate', async (interaction) => {
                                 .setCustomId('ticket_claim')
                                 .setLabel('Claim Ticket')
                                 .setStyle(ButtonStyle.Primary)
-                                .setEmoji('🎫'),
+                                .setEmoji('<:Inforect:1473038624172937287>'),
                             new ButtonBuilder()
                                 .setCustomId('ticket_close_btn')
                                 .setLabel('Close Ticket')
@@ -4298,16 +4426,27 @@ client.on('interactionCreate', async (interaction) => {
                     // Build welcome message - use custom if configured, otherwise default
                     const legacyWelcome = guildConfig.welcomeMessage;
                     if (legacyWelcome && ((legacyWelcome.mode === 'embed' && (legacyWelcome.title || legacyWelcome.description)) || (legacyWelcome.mode === 'simple' && legacyWelcome.content))) {
-                        const { replacePlaceholders: legReplace, buildPreviewEmbed: legBuildEmbed } = require('./utils/actionMessageBuilder');
+                        const { replacePlaceholders: legReplace } = require('./utils/actionMessageBuilder');
                         if (legacyWelcome.mode === 'embed') {
-                            const embed = legBuildEmbed(legacyWelcome, interaction.user, interaction.guild, ticketChannel);
+                            // embeds + IsComponentsV2 cannot coexist — flatten the embed into V2 text
+                            let embedText = `# <:Document:1473039496995143731> Support Ticket\n`;
+                            embedText += `**Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
+                            if (legacyWelcome.author)      embedText += `*${legReplace(legacyWelcome.author,      interaction.user, interaction.guild, ticketChannel)}*\n`;
+                            if (legacyWelcome.title)       embedText += `### ${legReplace(legacyWelcome.title,    interaction.user, interaction.guild, ticketChannel)}\n`;
+                            if (legacyWelcome.description) embedText += `${legReplace(legacyWelcome.description, interaction.user, interaction.guild, ticketChannel)}\n`;
+                            if (legacyWelcome.fields?.length) {
+                                embedText += '\n';
+                                for (const field of legacyWelcome.fields.slice(0, 25)) {
+                                    embedText += `**${legReplace(field.name, interaction.user, interaction.guild, ticketChannel)}**\n${legReplace(field.value, interaction.user, interaction.guild, ticketChannel)}\n\n`;
+                                }
+                            }
+                            if (legacyWelcome.footer) embedText += `\n-# ${legReplace(legacyWelcome.footer, interaction.user, interaction.guild, ticketChannel)}`;
+
                             const container = new ContainerBuilder()
                                 .setAccentColor(parseInt((legacyWelcome.color || '#5865F2').replace('#', ''), 16))
-                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                                    `# 🎫 Support Ticket\n**Created:** <t:${Math.floor(Date.now() / 1000)}:R>`
-                                ))
+                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(embedText))
                                 .addActionRowComponents(ticketButtons);
-                            await ticketChannel.send({ embeds: [embed], components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
+                            await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
                                 log.error(`Error sending ticket message: ${err.message}`, err);
                             });
                         } else {
@@ -4315,7 +4454,7 @@ client.on('interactionCreate', async (interaction) => {
                             const container = new ContainerBuilder()
                                 .setAccentColor(0xCAD7E6)
                                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                                    `# 🎫 Support Ticket\n**Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n${customContent}`
+                                    `# <:Document:1473039496995143731> Support Ticket\n**Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n${customContent}`
                                 ))
                                 .addActionRowComponents(ticketButtons);
                             await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
@@ -4328,13 +4467,17 @@ client.on('interactionCreate', async (interaction) => {
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
                                     .setContent(
-                                        `# 🎫 Support Ticket\n\n` +
-                                        `Welcome ${interaction.user}! Thank you for reaching out.\n\n` +
-                                        `**Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
+                                        `# <:Document:1473039496995143731> Support Ticket\n\n` +
+                                        `Welcome ${interaction.user} — thanks for reaching out.\n\n` +
+                                        `### <:Clipboard:1473039573037617162> Ticket Details\n` +
+                                        `<:Pin:1473038806612447500> **Ticket Number:** \`#${ticketNumber}\`\n` +
+                                        `<:Pin:1473038806612447500> **Opened:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
+                                        `### <:Lightbulbalt:1473038470787240009> What to do next\n` +
                                         `Please describe your issue in detail. A support team member will assist you shortly.\n\n` +
-                                        `Use the buttons below or commands:\n` +
-                                        `• \`/ticket-add @user\` - Add someone to ticket\n` +
-                                        `• \`/ticket-remove @user\` - Remove someone`
+                                        `### <:Settings:1473037894703779851> Useful Commands\n` +
+                                        `\`/ticket-add @user\` — invite someone\n` +
+                                        `\`/ticket-remove @user\` — remove someone\n` +
+                                        `\`/ticket-close\` — close this ticket`
                                     )
                             )
                             .addActionRowComponents(ticketButtons);
@@ -4343,17 +4486,35 @@ client.on('interactionCreate', async (interaction) => {
                         });
                     }
 
-                    // Send a separate plain message so role + user actually get pinged
+                    // Separate ping message — role and user mentioned with explicit allowedMentions
                     const legacyPingParts = [];
-                    if (guildConfig.supportRoleId) legacyPingParts.push(`<@&${guildConfig.supportRoleId}>`);
+                    if (liveGuildConfig.supportRoleId) legacyPingParts.push(`<@&${liveGuildConfig.supportRoleId}>`);
                     legacyPingParts.push(`${interaction.user}`);
-                    await ticketChannel.send(`${legacyPingParts.join(' ')} — A new ticket has been opened!`).catch(() => { });
+                    await ticketChannel.send({
+                        content: `${legacyPingParts.join(' ')}`,
+                        allowedMentions: { roles: liveGuildConfig.supportRoleId ? [liveGuildConfig.supportRoleId] : [], users: [interaction.user.id] }
+                    }).catch(() => { });
 
-                    await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Ticket created! ${ticketChannel}`, flags: MessageFlags.Ephemeral });
+                    interaction.user.send({
+                        content: `<:Checkedbox:1473038547165384804> Your support ticket has been opened in **${interaction.guild.name}**.\n` +
+                                 `Jump to it: ${ticketChannel.url}`
+                    }).catch(() => {});
+
+                    const successContainer = new ContainerBuilder()
+                        .setAccentColor(0x57F287)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# <:Checkedbox:1473038547165384804> Ticket Created\n\n` +
+                            `Your ticket is ready: ${ticketChannel}\n` +
+                            `Ticket Number: \`#${ticketNumber}\``
+                        ));
+                    await interaction.editReply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
                 } catch (error) {
                     log.error(`Legacy ticket creation: ${error.message}`, error);
-                    if (!interaction.replied) {
-                        await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error creating the ticket!', flags: MessageFlags.Ephemeral });
+                    const errMsg = '<:Cancel:1473037949187657818> There was an error creating the ticket!';
+                    if (interaction.deferred) {
+                        await interaction.editReply({ content: errMsg }).catch(() => {});
+                    } else if (!interaction.replied) {
+                        await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
                     }
                 }
                 return;
@@ -5246,6 +5407,22 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Invite tracking message-type picker
+            if (interaction.customId.startsWith('invite_')) {
+                const inviteCmd = client.commands.get('invite-setup');
+                if (inviteCmd?.handleInteraction) {
+                    try {
+                        const handled = await inviteCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Invite Select Error: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred processing this action.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                        }
+                        return;
+                    }
+                }
+            }
             // Join-to-Create admin dashboard interface picker
             if (interaction.customId === 'j2cset_pick') {
                 const j2cCmd = client.commands.get('join2create-setup');
@@ -5610,28 +5787,58 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
 
-            // Handle ticket category selection
-            if (interaction.customId === 'ticket_category_select') {
+            // Handle ticket category selection (multi-panel + legacy)
+            if (interaction.customId === 'ticket_category_select' || interaction.customId.startsWith('ticket_select:')) {
                 try {
+                    const { ensureMigrated, resolvePanelCategories, resolveSupportRoleId, resolveChannelCategoryId, findPanelByMessageId } = require('./utils/ticketPanels');
+
                     const config = readTicketsConfig();
-                    const guildConfig = config[interaction.guild.id];
+                    const guildConfig = ensureMigrated(config[interaction.guild.id]);
 
                     if (!guildConfig) {
                         return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not configured for this server! Ask an admin to run `/ticket-setup create`', flags: MessageFlags.Ephemeral });
                     }
 
+                    // Resolve which panel emitted this interaction
+                    let panelId = null;
+                    if (interaction.customId.startsWith('ticket_select:')) {
+                        panelId = interaction.customId.split(':')[1];
+                    } else {
+                        // Legacy customId — look up panel by the message we replied to
+                        const found = findPanelByMessageId(guildConfig, interaction.message?.id);
+                        if (found) panelId = found.panelId;
+                        // Fall back to the "default" panel if no match (older deployments)
+                        if (!panelId && guildConfig.panels?.default) panelId = 'default';
+                    }
+                    const panel = panelId ? guildConfig.panels?.[panelId] : null;
+
                     const selectedCategory = interaction.values[0];
-                    const categoryInfo = guildConfig.categories?.find(cat => cat.id === selectedCategory);
+                    if (selectedCategory === '__none__') {
+                        return interaction.reply({ content: '<:Inforect:1473038624172937287> No categories are available yet. An admin needs to add some via `/ticket-categories add`.', flags: MessageFlags.Ephemeral });
+                    }
+
+                    // Restrict to the panel's whitelist when present
+                    const allowedCats  = panel ? resolvePanelCategories(guildConfig, panel) : (guildConfig.categories || []);
+                    const categoryInfo = allowedCats.find(c => c.id === selectedCategory);
 
                     if (!categoryInfo) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid category selected!', flags: MessageFlags.Ephemeral });
+                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid category selected for this panel!', flags: MessageFlags.Ephemeral });
+                    }
+
+                    // Defer immediately — channel creation can take >3s on slow guilds
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => null);
+
+                    // Reset the dropdown so the user can re-open another ticket later
+                    // without needing to re-click the same row.
+                    if (interaction.message?.editable) {
+                        interaction.message.edit({ components: interaction.message.components }).catch(() => null);
                     }
 
                     const existingTicket = Object.entries(guildConfig.tickets || {}).find(([_, ticket]) => ticket.userId === interaction.user.id);
                     if (existingTicket) {
                         const existingChannel = interaction.guild.channels.cache.get(existingTicket[0]);
                         if (existingChannel) {
-                            return interaction.reply({ content: `<:Cancel:1473037949187657818> You already have an open ticket! ${existingChannel}`, flags: MessageFlags.Ephemeral });
+                            return interaction.editReply({ content: `<:Inforect:1473038624172937287> You already have an open ticket: ${existingChannel}` });
                         } else {
                             // Clean up stale ticket entry for deleted channel
                             delete guildConfig.tickets[existingTicket[0]];
@@ -5640,46 +5847,63 @@ client.on('interactionCreate', async (interaction) => {
                     }
 
                     if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> I don\'t have permission to create channels! Please contact an administrator.', flags: MessageFlags.Ephemeral });
+                        return interaction.editReply({ content: '<:Cancel:1473037949187657818> I don\'t have permission to create channels! Please contact an administrator.' });
                     }
 
-                    // Use monotonically incrementing ticket number
-                    guildConfig.nextTicketNumber = (guildConfig.nextTicketNumber || Object.keys(guildConfig.tickets || {}).length) + 1;
-                    const ticketNumber = guildConfig.nextTicketNumber;
-                    const ticketChannelName = `ticket-${interaction.user.username}-${ticketNumber}`;
+                    // Atomic-ish ticket number bump
+                    const liveConfig = readTicketsConfig();
+                    const liveGuildConfig = ensureMigrated(liveConfig[interaction.guild.id]) || guildConfig;
+                    const ticketCount = Object.keys(liveGuildConfig.tickets || {}).length;
+                    liveGuildConfig.nextTicketNumber = Math.max(
+                        (liveGuildConfig.nextTicketNumber || 0) + 1,
+                        ticketCount + 1
+                    );
+                    const ticketNumber = liveGuildConfig.nextTicketNumber;
+                    jsonStore.write('tickets', liveConfig);
 
-                    const category = interaction.guild.channels.cache.get(guildConfig.categoryId);
+                    // Channel name: `<categoryId>-<username>-<n>` (e.g. `general-rajeev-1`)
+                    const { buildTicketChannelName } = require('./utils/ticketTranscript');
+                    const ticketChannelName = buildTicketChannelName(categoryInfo.id, interaction.user.username, ticketNumber);
+
+                    // Resolve effective overrides (panel-level wins, guild-level fallback)
+                    const effectiveCategoryId   = resolveChannelCategoryId(liveGuildConfig, panel);
+                    const effectiveSupportRole  = resolveSupportRoleId(liveGuildConfig, panel);
+
+                    const category = effectiveCategoryId ? interaction.guild.channels.cache.get(effectiveCategoryId) : null;
                     if (!category) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket category not found! The category may have been deleted.', flags: MessageFlags.Ephemeral });
+                        return interaction.editReply({ content: '<:Cancel:1473037949187657818> Ticket category not found! The Discord category may have been deleted.' });
+                    }
+
+                    const overwrites = [
+                        { id: interaction.guild.id,        deny:  ['ViewChannel'] },
+                        { id: interaction.user.id,         allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
+                        { id: interaction.client.user.id,  allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageChannels'] },
+                    ];
+                    if (effectiveSupportRole) {
+                        overwrites.push({
+                            id: effectiveSupportRole,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageMessages']
+                        });
                     }
 
                     const ticketChannel = await interaction.guild.channels.create({
                         name: ticketChannelName,
                         parent: category.id,
-                        permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: ['ViewChannel']
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
-                            },
-                            {
-                                id: guildConfig.supportRoleId,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory']
-                            }
-                        ]
+                        topic: `🎫 ${categoryInfo.label} • Opened by ${interaction.user.tag} • #${ticketNumber}${panel ? ` • Panel: ${panel.label}` : ''}`,
+                        permissionOverwrites: overwrites,
                     });
 
-                    guildConfig.tickets = guildConfig.tickets || {};
-                    guildConfig.tickets[ticketChannel.id] = {
+                    liveGuildConfig.tickets = liveGuildConfig.tickets || {};
+                    liveGuildConfig.tickets[ticketChannel.id] = {
                         userId: interaction.user.id,
                         category: selectedCategory,
                         categoryLabel: categoryInfo.label,
+                        ticketNumber,
+                        panelId,                          // remember which panel opened this ticket
+                        supportRoleId: effectiveSupportRole, // pin so close-perm checks survive role rotation
                         createdAt: Date.now()
                     };
-                    jsonStore.write('tickets', config);
+                    jsonStore.write('tickets', liveConfig);
 
                     const emojiDisplay = categoryInfo.emoji.startsWith('<') ? '' : categoryInfo.emoji + ' ';
                     const labelClean = categoryInfo.label.replace(/<:[^>]+>/g, '').trim();
@@ -5690,10 +5914,10 @@ client.on('interactionCreate', async (interaction) => {
                                 .setCustomId('ticket_claim')
                                 .setLabel('Claim Ticket')
                                 .setStyle(ButtonStyle.Primary)
-                                .setEmoji('🎫'),
+                                .setEmoji('<:Inforect:1473038624172937287>'),
                             new ButtonBuilder()
                                 .setCustomId('ticket_close_btn')
-                                .setLabel('Close Ticket')
+                                .setLabel('Close')
                                 .setStyle(ButtonStyle.Danger)
                                 .setEmoji('<:Lock:1473038513749491773>'),
                             new ButtonBuilder()
@@ -5704,13 +5928,13 @@ client.on('interactionCreate', async (interaction) => {
                         );
 
                     // Build welcome message - use custom if configured, otherwise default
-                    const welcomeMsg = guildConfig.welcomeMessage;
+                    const welcomeMsg = liveGuildConfig.welcomeMessage;
                     if (welcomeMsg && ((welcomeMsg.mode === 'embed' && (welcomeMsg.title || welcomeMsg.description)) || (welcomeMsg.mode === 'simple' && welcomeMsg.content))) {
                         const { replacePlaceholders: ticketReplace } = require('./utils/actionMessageBuilder');
                         if (welcomeMsg.mode === 'embed') {
                             // Build V2-native text from embed data (embeds + IsComponentsV2 cannot coexist)
-                            let embedText = `# 🎫 ${emojiDisplay}${labelClean}\n`;
-                            embedText += `**Category:** ${labelClean} | **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
+                            let embedText = `# <:Document:1473039496995143731> ${emojiDisplay}${labelClean}\n`;
+                            embedText += `**Category:** ${labelClean} • **Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
                             if (welcomeMsg.author) {
                                 embedText += `*${ticketReplace(welcomeMsg.author, interaction.user, interaction.guild, ticketChannel)}*\n`;
                             }
@@ -5743,7 +5967,7 @@ client.on('interactionCreate', async (interaction) => {
                             const container = new ContainerBuilder()
                                 .setAccentColor(0xCAD7E6)
                                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                                    `# 🎫 ${emojiDisplay}${labelClean}\n**Category:** ${labelClean} | **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n${customContent}`
+                                    `# <:Document:1473039496995143731> ${emojiDisplay}${labelClean}\n**Category:** ${labelClean} • **Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n${customContent}`
                                 ))
                                 .addActionRowComponents(ticketButtons);
                             await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
@@ -5756,14 +5980,18 @@ client.on('interactionCreate', async (interaction) => {
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
                                     .setContent(
-                                        `# 🎫 ${emojiDisplay}${labelClean}\n\n` +
-                                        `Welcome ${interaction.user}! Thank you for reaching out.\n\n` +
-                                        `**Category:** ${labelClean}\n` +
-                                        `**Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
-                                        `Please describe your issue in detail. A support team member will assist you shortly.\n\n` +
-                                        `Use the buttons below or commands:\n` +
-                                        `• \`/ticket-add @user\` - Add someone to ticket\n` +
-                                        `• \`/ticket-remove @user\` - Remove someone`
+                                        `# <:Document:1473039496995143731> ${emojiDisplay}${labelClean}\n\n` +
+                                        `Welcome ${interaction.user} — thanks for reaching out.\n\n` +
+                                        `### <:Clipboard:1473039573037617162> Ticket Details\n` +
+                                        `<:Pin:1473038806612447500> **Category:** ${labelClean}\n` +
+                                        `<:Pin:1473038806612447500> **Ticket Number:** \`#${ticketNumber}\`\n` +
+                                        `<:Pin:1473038806612447500> **Opened:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
+                                        `### <:Lightbulbalt:1473038470787240009> What to do next\n` +
+                                        `Please describe your issue in detail — include screenshots, error messages, or links if you have them. A support team member will be with you shortly.\n\n` +
+                                        `### <:Settings:1473037894703779851> Useful Commands\n` +
+                                        `\`/ticket-add @user\` — invite someone into the ticket\n` +
+                                        `\`/ticket-remove @user\` — remove someone\n` +
+                                        `\`/ticket-close\` — close this ticket`
                                     )
                             )
                             .addActionRowComponents(ticketButtons);
@@ -5774,15 +6002,34 @@ client.on('interactionCreate', async (interaction) => {
 
                     // Send a separate plain message so role + user actually get pinged
                     const pingParts = [];
-                    if (guildConfig.supportRoleId) pingParts.push(`<@&${guildConfig.supportRoleId}>`);
+                    if (effectiveSupportRole) pingParts.push(`<@&${effectiveSupportRole}>`);
                     pingParts.push(`${interaction.user}`);
-                    await ticketChannel.send(`${pingParts.join(' ')} — A new **${labelClean}** ticket has been opened!`).catch(() => { });
+                    await ticketChannel.send({
+                        content: `${pingParts.join(' ')}`,
+                        allowedMentions: { roles: effectiveSupportRole ? [effectiveSupportRole] : [], users: [interaction.user.id] }
+                    }).catch(() => { });
 
-                    await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Ticket created! ${ticketChannel}`, flags: MessageFlags.Ephemeral });
+                    // Best-effort DM to the opener with a jump link
+                    interaction.user.send({
+                        content: `<:Checkedbox:1473038547165384804> Your **${labelClean}** ticket has been opened in **${interaction.guild.name}**.\n` +
+                                 `Jump to it: ${ticketChannel.url}`
+                    }).catch(() => { /* DMs closed */ });
+
+                    const successContainer = new ContainerBuilder()
+                        .setAccentColor(0x57F287)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# <:Checkedbox:1473038547165384804> Ticket Created\n\n` +
+                            `Your **${labelClean}** ticket is ready: ${ticketChannel}\n` +
+                            `Ticket Number: \`#${ticketNumber}\``
+                        ));
+                    await interaction.editReply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
                 } catch (error) {
                     log.error(`Ticket creation: ${error.message}`, error);
-                    if (!interaction.replied) {
-                        await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error creating the ticket! Please try again.', flags: MessageFlags.Ephemeral });
+                    const errMsg = '<:Cancel:1473037949187657818> There was an error creating the ticket! Please try again.';
+                    if (interaction.deferred) {
+                        await interaction.editReply({ content: errMsg }).catch(() => {});
+                    } else if (!interaction.replied) {
+                        await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
                     }
                 }
                 return;
@@ -7141,7 +7388,7 @@ client.on('messageCreate', async (message) => {
             if (guildBlock?.enabled !== false) {
                 const blockedChannels = guildBlock?.channels || [];
                 if (guildBlock && blockedChannels.includes(message.channel.id)) {
-                    await message.delete().catch(() => { });
+                    await safeDeleteMessage(message, 'botblock');
                     return;
                 }
             }
@@ -7234,7 +7481,7 @@ client.on('messageCreate', async (message) => {
     const panelChannelId = musicPanelChannelCache.get(message.guild.id);
     if (panelChannelId && message.channel.id === panelChannelId) {
         setTimeout(() => {
-            message.delete().catch(() => { });
+            safeDeleteMessage(message, 'music-panel');
         }, 3000); // Delete after 3 seconds so user can see their message briefly
     }
 
@@ -7346,7 +7593,7 @@ client.on('messageCreate', async (message) => {
 
                         // Auto-delete source message (keeps the channel clean)
                         if (result?.ok && (sshotCfg.autoDelete !== false)) {
-                            message.delete().catch(() => {});
+                            safeDeleteMessage(message, 'screenshot-verify:autoDelete');
                         }
 
                         // Re-float the user panel so it's always at the bottom
@@ -7359,7 +7606,7 @@ client.on('messageCreate', async (message) => {
                     // ── Path B: non-staff member posted chatter / non-image ──
                     // Submission channel is "screenshots only". Delete the
                     // message and post a short tip that auto-deletes.
-                    message.delete().catch(() => {});
+                    safeDeleteMessage(message, 'screenshot-verify:non-image');
                     message.channel.send({
                         content: `<:Infotriangle:1473038460456800459> <@${message.author.id}> this channel is for verification screenshots only. Post a screenshot or use \`/screenshot-verify submit\`.`,
                         allowedMentions: { users: [message.author.id] }
@@ -7619,7 +7866,7 @@ client.on('messageCreate', async (message) => {
                 try {
                     // Delete message for all destructive actions
                     if (action === 'delete' || action === 'timeout' || action === 'kick' || action === 'ban') {
-                        await message.delete().catch(() => { });
+                        await safeDeleteMessage(message, `automod:${action}:${violations.map(v => v.filter).join(',')}`);
                         automodBlocked = true; // Block further message processing
                     }
 
@@ -7860,7 +8107,7 @@ client.on('messageCreate', async (message) => {
                         if (triggered) {
                             const action = spamCfg.action || 'timeout';
                             const fullReason = `Anti-Spam [${triggered}]: ${reason}`;
-                            await message.delete().catch(() => { });
+                            await safeDeleteMessage(message, `antispam:${triggered}`);
 
                             if (action === 'timeout' && message.member) {
                                 const duration = spamCfg.timeoutDuration || 60000;
@@ -8142,7 +8389,7 @@ client.on('messageCreate', async (message) => {
 
                     if (!hasAttachments && !isModerator) {
                         try {
-                            await message.delete();
+                            await safeDeleteMessage(message, 'media-only');
                             const warningMsg = await message.channel.send(
                                 `**${message.author.username}**, this is a media-only channel. Please only post messages with images, videos, or files.`
                             );
@@ -8376,7 +8623,7 @@ client.on('messageCreate', async (message) => {
                         const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|net|org|io|gg|tv|me|co|xyz|info|online|site|tech)[^\s]*)/gi;
                         if (urlRegex.test(message.content)) {
                             try {
-                                await message.delete();
+                                await safeDeleteMessage(message, 'antilink');
                                 const warnMsg = await message.channel.send(`<:Cancel:1473037949187657818> **${message.author.username}**, links are not allowed in this server!`).catch(() => null);
                                 if (warnMsg) {
                                     setTimeout(() => warnMsg.delete().catch(() => { }), 5000);
@@ -8587,6 +8834,7 @@ client.on('messageCreate', async (message) => {
                 if (message.author.bot && message.author.id !== client.user.id) {
                     try {
                         await message.delete();
+                        log.info(`[auto-delete:music-panel:other-bot] removed bot=${message.author.tag} guild=${message.guild.id} channel=#${message.channel.name || message.channel.id}`);
                     } catch (err) {
                         log.error('Failed to delete bot message in music panel: ' + err.message);
                     }
@@ -8605,11 +8853,14 @@ client.on('messageCreate', async (message) => {
                                 }
 
                                 await message.delete();
+                                if (process.env.DEBUG_AUTO_DELETE === 'verbose') {
+                                    log.info(`[auto-delete:music-panel] ok user=${message.author.tag} guild=${message.guild.id} channel=#${message.channel.name || message.channel.id}`);
+                                }
                                 return; // Success
                             } catch (err) {
                                 retries--;
                                 if (retries === 0) {
-                                    log.error('Failed to delete message in music panel after retries: ' + err.message);
+                                    log.warning(`[auto-delete:music-panel] FAILED user=${message.author.tag} guild=${message.guild.id} channel=#${message.channel.name || message.channel.id} — ${err?.code || ''} ${err.message}`);
                                 } else {
                                     // Wait before retry
                                     await new Promise(resolve => setTimeout(resolve, 200));
@@ -8834,7 +9085,7 @@ client.on('messageCreate', async (message) => {
 
         // Delete command message if enabled
         if (botCustomConfig.deleteCommands && message.deletable) {
-            message.delete().catch(() => { });
+            safeDeleteMessage(message, 'bot-customize:deleteCommands');
             // Message will be deleted — replace reply with channel.send to avoid MESSAGE_REFERENCE_UNKNOWN_MESSAGE
             message.reply = _sendWithoutRef;
         }
@@ -10111,6 +10362,19 @@ client.on('messageDelete', async (message) => {
 client.on('messageUpdate', async (oldMessage, newMessage) => {
     await logMessageUpdate(oldMessage, newMessage);
 
+    // Pin / Unpin detection — Discord exposes the change as a `pinned` flag flip
+    // on messageUpdate. The dedicated `channelPinsUpdate` event only tells us
+    // *which channel* changed, not *which message*, so this is the only path
+    // that gives a useful log line with author + content + executor.
+    try {
+        if (oldMessage && newMessage && oldMessage.pinned !== newMessage.pinned) {
+            const { logMessagePinChange } = require('./utils/logger');
+            await logMessagePinChange(newMessage, !!newMessage.pinned);
+        }
+    } catch (e) {
+        log.debug('logMessagePinChange: ' + e.message);
+    }
+
     const editsnipeCommand = client.commands.get('editsnipe');
     if (editsnipeCommand && editsnipeCommand.saveEditedMessage) {
         editsnipeCommand.saveEditedMessage(oldMessage, newMessage);
@@ -10211,7 +10475,7 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
 
                     try {
                         if (action === 'delete' || action === 'timeout' || action === 'kick' || action === 'ban') {
-                            await newMessage.delete().catch(() => { });
+                            await safeDeleteMessage(newMessage, `automod:edit:${action}:${violations.map(v => v.filter).join(',')}`);
                         }
 
                         if (action === 'warn') {
@@ -10889,6 +11153,11 @@ client.on('stickerDelete', async (sticker) => {
     await logStickerDelete(sticker);
 });
 
+client.on('stickerUpdate', async (oldSticker, newSticker) => {
+    try { await require('./utils/logger').logStickerUpdate(oldSticker, newSticker); }
+    catch (e) { log.debug('logStickerUpdate: ' + e.message); }
+});
+
 // ═══════ Thread Logs ═══════
 client.on('threadCreate', async (thread) => {
     await logThreadCreate(thread);
@@ -10898,6 +11167,11 @@ client.on('threadCreate', async (thread) => {
 client.on('threadDelete', async (thread) => {
     await logThreadDelete(thread);
     if (thread.guild) { try { await updateServerStats(thread.guild); } catch { } }
+});
+
+client.on('threadUpdate', async (oldThread, newThread) => {
+    try { await require('./utils/logger').logThreadUpdate(oldThread, newThread); }
+    catch (e) { log.debug('logThreadUpdate: ' + e.message); }
 });
 
 client.on('guildMemberRemove', async (member) => {
@@ -11162,6 +11436,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
         }
     }
 
+    // Log reaction add (best-effort, never throws)
+    try { await require('./utils/logger').logReactionAdd(reaction, user); } catch (e) { log.debug('logReactionAdd: ' + e.message); }
+
     // Reaction Roles System
     try {
         if (reaction.message.partial) {
@@ -11261,6 +11538,9 @@ client.on('messageReactionRemove', async (reaction, user) => {
     if (reaction.message.partial) {
         try { await reaction.message.fetch(); } catch { return; }
     }
+
+    // Log reaction remove (best-effort)
+    try { await require('./utils/logger').logReactionRemove(reaction, user); } catch (e) { log.debug('logReactionRemove: ' + e.message); }
 
     try {
         if (!jsonStore.has('reactionroles')) return;

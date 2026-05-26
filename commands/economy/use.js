@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 const { ITEMS, itemDisplay } = require('../../utils/shopItems');
@@ -225,7 +225,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         return {
           success: true,
           title: '<:Box:1473039115581915256> Mystery Box Opened',
-          result: `${coinIcon(guildId)} You found **${formatCoins(coins, guildId)}** inside!`,
+          result: `${coinIcon(guildId)} You found **${formatCoinsAmount(coins, guildId)}** inside!`,
           extra: `💼 New balance: **${formatCoins(userData.coins, guildId)}**`,
         };
       } else if (roll < 0.80) {
@@ -277,7 +277,7 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         return {
           success: true,
           title: '💠 Crystal Box Opened',
-          result: `${coinIcon(guildId)} You found **${formatCoins(coins, guildId)}** sparkling inside!`,
+          result: `${coinIcon(guildId)} You found **${formatCoinsAmount(coins, guildId)}** sparkling inside!`,
           extra: `💼 New balance: **${formatCoins(userData.coins, guildId)}**`,
         };
       } else if (roll < 0.75) {

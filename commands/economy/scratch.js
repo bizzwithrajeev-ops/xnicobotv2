@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort, formatCoinsAmount, coinIcon } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -125,9 +125,9 @@ async function handleScratch(reply, userId, count, guildId) {
     ticketLines.join('\n\n'),
     '',
     `🎫 **Cost:** -${formatCoins(totalCost, guildId)}`,
-    `${EMOJIS.sketch} **Prize:** +${formatCoins(totalPrize, guildId)}`,
+    `${EMOJIS.sketch} **Prize:** +${formatCoinsAmount(totalPrize, guildId)}`,
     `<:transfer:1479780506718437396> **Net:** ${netStr} coins`,
-    `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+    `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
   ].join('\n'));
   return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 }
@@ -138,7 +138,7 @@ module.exports = {
     .setDescription(`Buy scratch cards (${TICKET_COST} coins each) and try your luck!`)
     .addIntegerOption(o => o.setName('tickets').setDescription('Number of tickets to scratch (1–5)').setRequired(false).setMinValue(1).setMaxValue(5)),
   prefix: 'scratch',
-  aliases: ['scratchcard', 'ticket'],
+  aliases: ['scratchcard'],
   category: 'economy',
   description: 'Buy scratch cards and try your luck',
   usage: 'scratch [1-5]',

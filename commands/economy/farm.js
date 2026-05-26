@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -81,8 +81,8 @@ async function handleFarm(reply, userId, subcommand, seedId, guildId) {
       '',
       ...harvestLines,
       '',
-      `${EMOJIS.sketch} **Total Earned:** +${formatCoins(totalEarned, guildId)}`,
-      `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+      `${EMOJIS.sketch} **Total Earned:** +${formatCoinsAmount(totalEarned, guildId)}`,
+      `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }

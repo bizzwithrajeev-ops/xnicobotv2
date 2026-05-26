@@ -4,7 +4,7 @@ const {
     ActionRowBuilder,
 } = require('discord.js');
 const fs = require('fs');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort, coinIcon } = require('../../utils/currencyHelper');
 const path = require('path');
 const {
     createContainer,
@@ -178,11 +178,14 @@ module.exports = {
         .setName('lottery')
         .setDescription('Join the server lottery and win big prizes'),
     prefix: 'lottery',
+    aliases: ['ticket', 'tickets'],
     category: 'economy',
 
     async executePrefix(message) {
         const guildId = message.guild?.id;
-        if (await gamblingGuard(message)) return;
+        // Slash entrypoint pre-runs the guard; skip the second pass to avoid
+        // duplicate "gambling disabled" replies if the setting flips between calls.
+        if (!message._skipGuard && await gamblingGuard(message)) return;
         const winners = await tryDraw();
         if (winners) {
             let text = '# <:Present:1473038450465706076> Lottery Winners\n\n';
@@ -275,12 +278,24 @@ module.exports = {
     },
 
     async execute(interaction) {
-        await interaction.deferReply({ flags: 1 << 15 });
         if (await gamblingGuard(interaction)) return;
-        const fakeMessage = {
+        // Defer non-ephemeral so the panel stays interactive for the whole guild.
+        await interaction.deferReply();
+
+        // Build a Message-shaped shim so the prefix flow keeps working.
+        // The previous shim dropped `guild` (custom currency fell back to
+        // the default emoji) and `client` (some downstream helpers expect
+        // them). `interaction.editReply` returns a real Message, so the
+        // `msg.edit(...)` and `msg.createMessageComponentCollector(...)`
+        // calls inside executePrefix work transparently.
+        const shim = {
             author: interaction.user,
-            reply: (opts) => interaction.editReply(opts),
+            guild:  interaction.guild,
+            client: interaction.client,
+            reply:  (opts) => interaction.editReply(opts),
+            _skipGuard: true,
         };
-        return module.exports.executePrefix(fakeMessage);
+
+        return module.exports.executePrefix(shim);
     },
 };

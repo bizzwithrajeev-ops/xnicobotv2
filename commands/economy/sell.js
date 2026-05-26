@@ -4,7 +4,7 @@ const {
     ButtonStyle,
 } = require('discord.js');
 const { createContainer, addTextDisplay, formatNumber, MessageFlags } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 
@@ -95,7 +95,7 @@ module.exports = {
       `🐾 Type: **${type.toUpperCase()}**\n` +
       `<:Box:1473039115581915256> Pets to sell: **${sellable.length}**\n` +
       `🐶 Pets remaining: **${remaining}**\n\n` +
-      `${coinIcon(guildId)} You will receive: **${formatCoins(totalCoins, guildId)}**`);
+      `${coinIcon(guildId)} You will receive: **${formatCoinsAmount(totalCoins, guildId)}**`);
 
     const sessId = `sell_${Date.now()}_${userId}`;
     const row = new ActionRowBuilder().addComponents(
@@ -155,7 +155,7 @@ module.exports = {
         addTextDisplay(c, `# <:Checkedbox:1473038547165384804> Pets Sold\n\n` +
           `<:Box:1473039115581915256> Sold: **${sellable.length} pets**\n` +
           `🐶 Remaining: **${freshPets[userId].animals.length}**\n` +
-          `${coinIcon(guildId)} Earned: **${formatCoins(totalCoins, guildId)}**`);
+          `${coinIcon(guildId)} Earned: **${formatCoinsAmount(totalCoins, guildId)}**`);
 
         return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       }

@@ -187,7 +187,7 @@ async function createBalanceCard({ username, avatarURL, wallet, bank, total, lev
   // Balance cards
   const cards = [
     { label: 'WALLET', value: wallet, icon: '💵', color: COLORS.green },
-    { label: 'BANK', value: bank, icon: '🏦', color: COLORS.blue },
+    { label: 'BANK', value: bank, icon: '<:Bank:1473039150927319192>', color: COLORS.blue },
     { label: 'NET WORTH', value: total, icon: '<:Sketch:1473038248493453352>', color: COLORS.gold },
   ];
 
@@ -498,7 +498,7 @@ async function createEconomyProfileCard({ username, avatarURL, tag, wallet, bank
   const wealthY = 115;
   const wCards = [
     { label: 'WALLET', value: wallet, color: COLORS.green, icon: '💵' },
-    { label: 'BANK', value: bank, color: COLORS.blue, icon: '🏦' },
+    { label: 'BANK', value: bank, color: COLORS.blue, icon: '<:Bank:1473039150927319192>' },
     { label: 'NET WORTH', value: total, color: COLORS.gold, icon: '<:Sketch:1473038248493453352>' },
     { label: 'RANK', value: rank ? `#${rank}` : '—', color: COLORS.purple, icon: '🏆' },
   ];
@@ -1114,7 +1114,7 @@ async function createLeaderboardCard({ entries, type, title: lbTitle }) {
     // Wallet / Bank
     ctx.font = getFont(10);
     ctx.fillStyle = COLORS.dim;
-    await drawTextWithEmoji(ctx, `💵 ${formatNum(entry.wallet)} | 🏦 ${formatNum(entry.bank)}`, padding + 95, ry + 36, 10);
+    await drawTextWithEmoji(ctx, `💵 ${formatNum(entry.wallet)} | <:Bank:1473039150927319192> ${formatNum(entry.bank)}`, padding + 95, ry + 36, 10);
   }
 
   // Border

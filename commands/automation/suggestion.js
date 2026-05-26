@@ -1006,21 +1006,39 @@ module.exports = {
     async handleMessage(message) {
         if (!message.guild || message.author.bot) return false;
 
+        // Lightweight pre-check: skip everything when this guild has no
+        // suggestion channel configured. Avoids both unnecessary work AND
+        // the side-effect of `getGuildData` seeding an empty record for
+        // every guild that ever sends a message.
+        const store = loadStore();
+        const cfg = store?.[message.guildId];
+        if (!cfg?.channelId || message.channel.id !== cfg.channelId) return false;
+
         // Server premium re-validation — if premium expired, stop the
         // message-listener flow. The user's plain message would still
         // be deleted to honour the channel's "no chatter" contract,
         // but no suggestion gets created.
         const premiumManager = require('../../utils/premiumManager');
         if (!premiumManager.hasPremiumAccess(message.author.id, message.guildId)) {
-            await message.delete().catch(() => null);
+            try {
+                await message.delete();
+                log.info(`[auto-delete:suggestion:no-premium] guild=${message.guildId} channel=#${message.channel.name || message.channel.id} user=${message.author.tag}`);
+            } catch (err) {
+                log.warning(`[auto-delete:suggestion:no-premium] FAILED guild=${message.guildId} channel=#${message.channel.name || message.channel.id} user=${message.author.tag} — ${err?.code || ''} ${err.message}`);
+            }
             return true;
         }
 
+        // Now safe to call getGuildData — guild already has the channel set.
         const { guildData } = getGuildData(message.guildId);
-        if (!guildData.channelId || message.channel.id !== guildData.channelId) return false;
 
         const text = message.content?.trim();
-        await message.delete().catch(() => null);
+        try {
+            await message.delete();
+            log.info(`[auto-delete:suggestion:plain-message] guild=${message.guildId} channel=#${message.channel.name || message.channel.id} user=${message.author.tag} content="${(message.content || '').slice(0, 80).replace(/\n/g, ' ')}"`);
+        } catch (err) {
+            log.warning(`[auto-delete:suggestion:plain-message] FAILED guild=${message.guildId} channel=#${message.channel.name || message.channel.id} user=${message.author.tag} — ${err?.code || ''} ${err.message}`);
+        }
         if (!text) return true;
 
         // Cooldown check

@@ -3,7 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 
 const COOLDOWN = 7 * 24 * 60 * 60 * 1000;
 
@@ -68,7 +68,7 @@ async function handleWeekly(reply, userId, guildId) {
 
     let rewardText = `# 🎁 Weekly Reward Claimed!\n\n`;
     rewardText += `### ${coinIcon(guildId)} Reward Breakdown\n`;
-    rewardText += `> ${coinIcon(guildId)} **Base Reward:** ${formatCoins(baseReward, guildId)}\n`;
+    rewardText += `> ${coinIcon(guildId)} **Base Reward:** ${formatCoinsAmount(baseReward, guildId)}\n`;
     if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatCoins(streakBonus, guildId)}\n`;
     if (globalBonus > 0) rewardText += `> <:Crown:1506010837368963142> **Global Bonus:** +${formatCoins(globalBonus, guildId)}\n`;
     if (loyaltyBonus > 0) rewardText += `> <:Star:1473038501766369300> **Loyalty Bonus** (Week ${weeklyClaimCount}): +${formatCoins(loyaltyBonus, guildId)}\n`;
@@ -78,8 +78,8 @@ async function handleWeekly(reply, userId, guildId) {
 
     addTextDisplay(container, [
         `### <:transfer:1479780506718437396> Summary`,
-        `> ${coinIcon(guildId)} **Total Received:** ${formatCoins(totalReward, guildId)}`,
-        `> ${coinIcon(guildId)} **New Balance:** ${formatCoins(userData.coins, guildId)}`,
+        `> ${coinIcon(guildId)} **Total Received:** ${formatCoinsAmount(totalReward, guildId)}`,
+        `> ${coinIcon(guildId)} **New Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
         `> <:Bookopen:1473038576391557130> **Weeks Claimed:** ${weeklyClaimCount}`,
         '',
         `-# Come back next week for another reward!`,

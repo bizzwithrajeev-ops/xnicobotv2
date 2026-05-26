@@ -3,7 +3,7 @@
 const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 
 function buildCooldownBar(elapsed, total, length = 20) {
     const progress = Math.min(Math.floor((elapsed / total) * length), length);
@@ -63,7 +63,7 @@ async function handleDaily(reply, userId, guildId) {
 
     let rewardText = `# 🎁 Daily Reward Claimed!\n\n`;
     rewardText += `### ${coinIcon(guildId)} Reward Breakdown\n`;
-    rewardText += `> ${coinIcon(guildId)} **Base Reward:** ${formatCoins(baseReward, guildId)}\n`;
+    rewardText += `> ${coinIcon(guildId)} **Base Reward:** ${formatCoinsAmount(baseReward, guildId)}\n`;
     if (streakBonus > 0) rewardText += `> <:Fire:1473038604812161218> **Streak Bonus** (${streak} days): +${formatCoins(streakBonus, guildId)}\n`;
     if (bonusAmount > 0) rewardText += `> <:Crown:1506010837368963142> **Daily Bonus:** +${formatCoins(bonusAmount, guildId)}\n`;
 
@@ -72,8 +72,8 @@ async function handleDaily(reply, userId, guildId) {
 
     addTextDisplay(container, [
         `### <:transfer:1479780506718437396> Summary`,
-        `> ${coinIcon(guildId)} **Total Received:** ${formatCoins(totalReward, guildId)}`,
-        `> ${coinIcon(guildId)} **New Balance:** ${formatCoins(user.coins, guildId)}`,
+        `> ${coinIcon(guildId)} **Total Received:** ${formatCoinsAmount(totalReward, guildId)}`,
+        `> ${coinIcon(guildId)} **New Balance:** ${formatCoinsAmount(user.coins, guildId)}`,
         `> <:Fire:1473038604812161218> **Current Streak:** ${streak} day${streak !== 1 ? 's' : ''} ${streak >= 7 ? '<:Fire:1473038604812161218>' : streak >= 3 ? '<:Star:1473038501766369300>' : ''}`,
         '',
         `-# Come back tomorrow to keep your streak going!`,

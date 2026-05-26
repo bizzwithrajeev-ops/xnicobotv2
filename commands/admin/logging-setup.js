@@ -15,6 +15,129 @@ function saveLogs(data) {
     jsonStore.write('logs', data);
 }
 
+/**
+ * Toggle membership of an id in an array. Returns the new array and the
+ * action taken ('added' | 'removed'). Used by the filter subcommands
+ * so `ignore-user @x` toggles instead of pushing duplicates.
+ */
+function toggleInList(list, id) {
+    const arr = Array.isArray(list) ? [...list] : [];
+    const idx = arr.indexOf(id);
+    if (idx >= 0) {
+        arr.splice(idx, 1);
+        return { list: arr, action: 'removed' };
+    }
+    arr.push(id);
+    return { list: arr, action: 'added' };
+}
+
+/**
+ * Slash-side handler for the `/logging filter ...` subcommand group.
+ * Splitting this out keeps the main `execute` switch readable.
+ */
+async function handleFilterSlash(interaction, logs, guildId) {
+    const sub = interaction.options.getSubcommand();
+    if (!logs[guildId].filters) logs[guildId].filters = {};
+    const filters = logs[guildId].filters;
+
+    const replyContainer = (color, body) => new ContainerBuilder()
+        .setAccentColor(color)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+
+    if (sub === 'ignore-user') {
+        const user = interaction.options.getUser('user', true);
+        const r = toggleInList(filters.ignoredUsers, user.id);
+        filters.ignoredUsers = r.list;
+        saveLogs(logs); invalidateCache();
+        return interaction.reply({
+            components: [replyContainer(0xCAD7E6,
+                `# <:Checkedbox:1473038547165384804> Filter Updated\n\n` +
+                `<:User:1473038971398520977> **${user.tag || user.username}** (\`${user.id}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
+                `Total ignored users: \`${filters.ignoredUsers.length}\`\n\n` +
+                `*Events from this user will ${r.action === 'added' ? 'no longer' : 'now'} appear in any log channel.*`
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    }
+
+    if (sub === 'ignore-channel') {
+        const ch = interaction.options.getChannel('channel', true);
+        const r = toggleInList(filters.ignoredChannels, ch.id);
+        filters.ignoredChannels = r.list;
+        saveLogs(logs); invalidateCache();
+        return interaction.reply({
+            components: [replyContainer(0xCAD7E6,
+                `# <:Checkedbox:1473038547165384804> Filter Updated\n\n` +
+                `<:Pin:1473038806612447500> ${ch} (\`${ch.id}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
+                `Total ignored channels: \`${filters.ignoredChannels.length}\``
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    }
+
+    if (sub === 'ignore-role') {
+        const role = interaction.options.getRole('role', true);
+        const r = toggleInList(filters.ignoredRoles, role.id);
+        filters.ignoredRoles = r.list;
+        saveLogs(logs); invalidateCache();
+        return interaction.reply({
+            components: [replyContainer(0xCAD7E6,
+                `# <:Checkedbox:1473038547165384804> Filter Updated\n\n` +
+                `<:Shield:1473038669831995494> ${role} (\`${role.id}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
+                `Total ignored roles: \`${filters.ignoredRoles.length}\`\n\n` +
+                `*Members holding this role will be skipped in member/voice/moderation logs.*`
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    }
+
+    if (sub === 'ignore-bots') {
+        const mode = interaction.options.getString('mode', true);
+        filters.ignoreBots = mode === 'on';
+        saveLogs(logs); invalidateCache();
+        return interaction.reply({
+            components: [replyContainer(filters.ignoreBots ? 0x57F287 : 0xED4245,
+                `# <:Checkedbox:1473038547165384804> Bot Filter ${filters.ignoreBots ? 'Enabled' : 'Disabled'}\n\n` +
+                (filters.ignoreBots
+                    ? `<:bots:1473368718120849500> Bot-authored events will no longer appear in member, voice, or moderation logs.`
+                    : `<:bots:1473368718120849500> Bot-authored events will appear in logs again.`)
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    }
+
+    if (sub === 'view') {
+        const f = filters || {};
+        const userList = (f.ignoredUsers || []).slice(0, 20).map(id => `<@${id}> (\`${id}\`)`).join('\n') || '*None*';
+        const chList = (f.ignoredChannels || []).slice(0, 20).map(id => `<#${id}> (\`${id}\`)`).join('\n') || '*None*';
+        const roleList = (f.ignoredRoles || []).slice(0, 20).map(id => `<@&${id}> (\`${id}\`)`).join('\n') || '*None*';
+        return interaction.reply({
+            components: [replyContainer(0xCAD7E6,
+                `# <:Inforect:1473038624172937287> Logging Filters\n\n` +
+                `<:bots:1473368718120849500> **Ignore Bots:** ${f.ignoreBots ? 'On' : 'Off'}\n\n` +
+                `### <:User:1473038971398520977> Ignored Users (${(f.ignoredUsers || []).length})\n${userList}\n\n` +
+                `### <:Pin:1473038806612447500> Ignored Channels (${(f.ignoredChannels || []).length})\n${chList}\n\n` +
+                `### <:Shield:1473038669831995494> Ignored Roles (${(f.ignoredRoles || []).length})\n${roleList}`
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    }
+
+    if (sub === 'clear') {
+        delete logs[guildId].filters;
+        saveLogs(logs); invalidateCache();
+        return interaction.reply({
+            components: [replyContainer(0xED4245,
+                `# <:Toggleoff:1473038582813032590> All Filters Cleared\n\n` +
+                `<:Checkedbox:1473038547165384804> All ignore lists have been removed. Logs will record all events again.`
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    }
+}
+
 // Single source of truth for log categories so slash + prefix paths stay aligned.
 const logTypeNames = {
     message:    { name: 'Message',    emoji: '<:Chat:1473038936241864865>',     desc: 'message edits, deletions, and reactions' },
@@ -26,6 +149,8 @@ const logTypeNames = {
     security:   { name: 'Security',   emoji: '<:Shield:1473038669831995494>',   desc: 'Anti-Nuke / Anti-Raid / Vanity Guard / threat-mode events' },
     boost:      { name: 'Boost',      emoji: '<:Sketch:1473038248493453352>',   desc: 'server boost / unboost events' },
     commands:   { name: 'Commands',   emoji: '<:Gamepad:1473039216429498409>',  desc: 'slash and prefix command usage' },
+    reactions:  { name: 'Reactions',  emoji: '<:Fire:1473038604812161218>',     desc: 'reaction adds & removes (with target message + author)' },
+    pins:       { name: 'Pins',       emoji: '<:Pin:1473038806612447500>',      desc: 'message pin & unpin events with executor attribution' },
 };
 const ALL_LOG_KEYS = Object.keys(logTypeNames);
 
@@ -41,15 +166,17 @@ function buildLoggingPanel(config, guild) {
     content += `### <:Fire:1473038604812161218> Log Channels Configuration\n`;
 
     const rows = [
-        { key: 'message',    emoji: '<:Chat:1473038936241864865>',         name: 'Message Logs',     desc: 'Message edits, deletions, bulk deletes, reactions' },
-        { key: 'member',     emoji: '<:User:1473038971398520977>',         name: 'Member Logs',      desc: 'Joins, leaves, role changes, nickname updates, bans' },
-        { key: 'voice',      emoji: '<:Volumeup:1473039290136002844>',     name: 'Voice Logs',       desc: 'VC joins, leaves, moves, mutes, deafens, streaming' },
-        { key: 'server',     emoji: '<:Settings:1473037894703779851>',     name: 'Server Logs',      desc: 'Channel/role creates, settings changes, emoji updates' },
-        { key: 'moderation', emoji: '<:banhammer:1473367388597780592>',    name: 'Moderation Logs',  desc: 'Warns, kicks, bans, timeouts, mod actions' },
+        { key: 'message',    emoji: '<:Chat:1473038936241864865>',         name: 'Message Logs',     desc: 'Message edits, deletions, bulk deletes' },
+        { key: 'member',     emoji: '<:User:1473038971398520977>',         name: 'Member Logs',      desc: 'Joins, leaves, role changes, nickname updates, kicks (auto-detected)' },
+        { key: 'voice',      emoji: '<:Volumeup:1473039290136002844>',     name: 'Voice Logs',       desc: 'VC joins/leaves with duration, moves, mutes, deafens, streaming, forced disconnects' },
+        { key: 'server',     emoji: '<:Settings:1473037894703779851>',     name: 'Server Logs',      desc: 'Channel/role creates, settings changes, emoji updates, threads, stickers (with executor)' },
+        { key: 'moderation', emoji: '<:banhammer:1473367388597780592>',    name: 'Moderation Logs',  desc: 'Warns, kicks, bans, timeouts, mod actions (with executor + reason)' },
         { key: 'automod',    emoji: '<:Shield:1473038669831995494>',       name: 'AutoMod Logs',     desc: 'Filter triggers (spam, links, words, mentions)' },
         { key: 'security',   emoji: '<:Shield:1473038669831995494>',       name: 'Security Logs',    desc: 'Anti-Nuke, Anti-Raid, Anti-Alt, Vanity Guard, Threat mode' },
         { key: 'boost',      emoji: '<:Sketch:1473038248493453352>',       name: 'Boost Logs',       desc: 'Server boost / unboost events' },
         { key: 'commands',   emoji: '<:Gamepad:1473039216429498409>',      name: 'Command Logs',     desc: 'Slash and prefix command usage' },
+        { key: 'reactions',  emoji: '<:Fire:1473038604812161218>',         name: 'Reaction Logs',    desc: 'Reaction adds & removes with target author + jump link' },
+        { key: 'pins',       emoji: '<:Pin:1473038806612447500>',          name: 'Pin Logs',         desc: 'Message pin / unpin events (with executor from audit log)' },
     ];
 
     for (const row of rows) {
@@ -60,14 +187,26 @@ function buildLoggingPanel(config, guild) {
 
     content += `### <:Edit:1473037903625191580> Quick Setup Guide\n`;
     content += `**Slash:** \`/logging set-<type> #channel\` · \`/logging set-all #channel\` · \`/logging disable <type>\` · \`/logging set-mode <bot|webhook>\` · \`/logging set-webhook <type> <url>\`\n`;
+    content += `**Filters:** \`/logging filter ignore-user @user\` · \`/logging filter ignore-channel #ch\` · \`/logging filter ignore-bots <on|off>\` · \`/logging filter view\` · \`/logging filter clear\`\n`;
     content += `**Prefix:** \`-logging <type> #channel\` · \`-logging all #channel\` · \`-logging disable <type>\` · \`-logging mode <bot|webhook>\` · \`-logging webhook <type> <url>\`\n`;
-    content += `**Types:** message · member · voice · server · moderation · automod · security · boost · commands`;
+    content += `**Types:** message · member · voice · server · moderation · automod · security · boost · commands · reactions · pins\n\n`;
+
+    // Show active filter summary if any are set
+    const filters = config.filters || {};
+    const filterSummary = [];
+    if (filters.ignoreBots) filterSummary.push('🤖 Bots ignored');
+    if (filters.ignoredUsers?.length) filterSummary.push(`👤 ${filters.ignoredUsers.length} users ignored`);
+    if (filters.ignoredChannels?.length) filterSummary.push(`📌 ${filters.ignoredChannels.length} channels ignored`);
+    if (filters.ignoredRoles?.length) filterSummary.push(`🛡 ${filters.ignoredRoles.length} roles ignored`);
+    if (filterSummary.length > 0) {
+        content += `### <:Inforect:1473038624172937287> Active Filters\n${filterSummary.map(s => `> ${s}`).join('\n')}`;
+    }
 
     return content;
 }
 
 function buildLoggingContainer(config, guild) {
-    const trackedKeys = ['message', 'member', 'voice', 'server', 'moderation', 'automod', 'security', 'boost', 'commands'];
+    const trackedKeys = ['message', 'member', 'voice', 'server', 'moderation', 'automod', 'security', 'boost', 'commands', 'reactions', 'pins'];
     const configuredCount = trackedKeys.filter(k => config[k]).length;
 
     return new ContainerBuilder()
@@ -125,6 +264,14 @@ module.exports = {
                 .addChannelOption(option =>
                     option.setName('channel').setDescription('The channel for command usage logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
         .addSubcommand(subcommand =>
+            subcommand.setName('set-reactions').setDescription('Set channel for reaction add / remove logs')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel for reaction logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand.setName('set-pins').setDescription('Set channel for message pin / unpin logs')
+                .addChannelOption(option =>
+                    option.setName('channel').setDescription('The channel for pin logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+        .addSubcommand(subcommand =>
             subcommand.setName('set-all').setDescription('Set all log types to a single channel')
                 .addChannelOption(option =>
                     option.setName('channel').setDescription('The channel for all logs').addChannelTypes(ChannelType.GuildText).setRequired(true)))
@@ -144,6 +291,8 @@ module.exports = {
                             { name: 'Security Logs', value: 'security' },
                             { name: 'Boost Logs', value: 'boost' },
                             { name: 'Command Logs', value: 'commands' },
+                            { name: 'Reaction Logs', value: 'reactions' },
+                            { name: 'Pin Logs', value: 'pins' },
                             { name: 'All Logs', value: 'all' }
                         )))
         .addSubcommand(subcommand =>
@@ -168,10 +317,39 @@ module.exports = {
                             { name: 'Security Logs', value: 'security' },
                             { name: 'Boost Logs', value: 'boost' },
                             { name: 'Command Logs', value: 'commands' },
+                            { name: 'Reaction Logs', value: 'reactions' },
+                            { name: 'Pin Logs', value: 'pins' },
                             { name: 'All Logs', value: 'all' }
                         ))
                 .addStringOption(option =>
-                    option.setName('url').setDescription('The webhook URL (from channel settings > Integrations > Webhooks)').setRequired(true))),
+                    option.setName('url').setDescription('The webhook URL (from channel settings > Integrations > Webhooks)').setRequired(true)))
+        // ─── Filter subcommand group: ignore users / channels / roles / bots ───
+        .addSubcommandGroup(group =>
+            group.setName('filter')
+                .setDescription('Manage logging filters (ignore users, channels, roles, or bots)')
+                .addSubcommand(sub =>
+                    sub.setName('ignore-user')
+                        .setDescription('Toggle a user on/off the logging ignore list')
+                        .addUserOption(opt => opt.setName('user').setDescription('User to ignore in all log channels').setRequired(true)))
+                .addSubcommand(sub =>
+                    sub.setName('ignore-channel')
+                        .setDescription('Toggle a channel on/off the logging ignore list')
+                        .addChannelOption(opt => opt.setName('channel').setDescription('Channel to ignore in all log channels').setRequired(true)))
+                .addSubcommand(sub =>
+                    sub.setName('ignore-role')
+                        .setDescription('Toggle a role on/off the logging ignore list (members holding it are skipped)')
+                        .addRoleOption(opt => opt.setName('role').setDescription('Role to ignore').setRequired(true)))
+                .addSubcommand(sub =>
+                    sub.setName('ignore-bots')
+                        .setDescription('Skip events caused by bots in member/voice/moderation logs')
+                        .addStringOption(opt => opt.setName('mode').setDescription('on or off').setRequired(true)
+                            .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })))
+                .addSubcommand(sub =>
+                    sub.setName('view')
+                        .setDescription('View the current filter configuration'))
+                .addSubcommand(sub =>
+                    sub.setName('clear')
+                        .setDescription('Remove all filters (logs everything again)'))),
     
     async execute(interaction) {
         try {
@@ -180,6 +358,13 @@ module.exports = {
         
         if (!logs[guildId]) {
             logs[guildId] = {};
+        }
+
+        // Subcommand groups (e.g. `filter ignore-user`) report group via getSubcommandGroup;
+        // route them before the flat subcommand switch to keep the existing code untouched.
+        const group = interaction.options.getSubcommandGroup(false);
+        if (group === 'filter') {
+            return handleFilterSlash(interaction, logs, guildId);
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -378,10 +563,119 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
+        // Filter management — mirrors the slash subcommand group.
+        // Usage examples (case-insensitive):
+        //   -logging filter ignore-user @user
+        //   -logging filter ignore-channel #ch
+        //   -logging filter ignore-bots on|off
+        //   -logging filter view
+        //   -logging filter clear
+        if (action === 'filter') {
+            const sub = args[1]?.toLowerCase();
+            if (!logs[guildId].filters) logs[guildId].filters = {};
+            const filters = logs[guildId].filters;
+
+            const reply = (color, body) => {
+                const container = new ContainerBuilder()
+                    .setAccentColor(color)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            };
+
+            if (!sub || sub === 'view') {
+                const f = filters;
+                const userList = (f.ignoredUsers || []).slice(0, 20).map(id => `<@${id}> (\`${id}\`)`).join('\n') || '*None*';
+                const chList = (f.ignoredChannels || []).slice(0, 20).map(id => `<#${id}> (\`${id}\`)`).join('\n') || '*None*';
+                const roleList = (f.ignoredRoles || []).slice(0, 20).map(id => `<@&${id}> (\`${id}\`)`).join('\n') || '*None*';
+                return reply(0xCAD7E6,
+                    `# <:Inforect:1473038624172937287> Logging Filters\n\n` +
+                    `<:bots:1473368718120849500> **Ignore Bots:** ${f.ignoreBots ? 'On' : 'Off'}\n\n` +
+                    `### <:User:1473038971398520977> Ignored Users (${(f.ignoredUsers || []).length})\n${userList}\n\n` +
+                    `### <:Pin:1473038806612447500> Ignored Channels (${(f.ignoredChannels || []).length})\n${chList}\n\n` +
+                    `### <:Shield:1473038669831995494> Ignored Roles (${(f.ignoredRoles || []).length})\n${roleList}`
+                );
+            }
+
+            if (sub === 'clear') {
+                delete logs[guildId].filters;
+                saveLogs(logs); invalidateCache();
+                return reply(0xED4245, `# <:Toggleoff:1473038582813032590> All Filters Cleared\n\nLogs will record all events again.`);
+            }
+
+            if (sub === 'ignore-user') {
+                const u = message.mentions.users.first();
+                const targetId = u?.id || args[2];
+                if (!targetId) return reply(0xED4245, `<:Cancel:1473037949187657818> Mention a user or pass a user ID. Usage: \`-logging filter ignore-user @user\``);
+                const r = toggleInList(filters.ignoredUsers, targetId);
+                filters.ignoredUsers = r.list;
+                saveLogs(logs); invalidateCache();
+                return reply(0xCAD7E6,
+                    `# <:Checkedbox:1473038547165384804> Filter Updated\n\n` +
+                    `<:User:1473038971398520977> <@${targetId}> (\`${targetId}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
+                    `Total ignored users: \`${filters.ignoredUsers.length}\``
+                );
+            }
+
+            if (sub === 'ignore-channel') {
+                const c = message.mentions.channels.first();
+                const targetId = c?.id || args[2];
+                if (!targetId) return reply(0xED4245, `<:Cancel:1473037949187657818> Mention a channel or pass a channel ID. Usage: \`-logging filter ignore-channel #channel\``);
+                const r = toggleInList(filters.ignoredChannels, targetId);
+                filters.ignoredChannels = r.list;
+                saveLogs(logs); invalidateCache();
+                return reply(0xCAD7E6,
+                    `# <:Checkedbox:1473038547165384804> Filter Updated\n\n` +
+                    `<:Pin:1473038806612447500> <#${targetId}> (\`${targetId}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
+                    `Total ignored channels: \`${filters.ignoredChannels.length}\``
+                );
+            }
+
+            if (sub === 'ignore-role') {
+                const role = message.mentions.roles.first();
+                const targetId = role?.id || args[2];
+                if (!targetId) return reply(0xED4245, `<:Cancel:1473037949187657818> Mention a role or pass a role ID. Usage: \`-logging filter ignore-role @role\``);
+                const r = toggleInList(filters.ignoredRoles, targetId);
+                filters.ignoredRoles = r.list;
+                saveLogs(logs); invalidateCache();
+                return reply(0xCAD7E6,
+                    `# <:Checkedbox:1473038547165384804> Filter Updated\n\n` +
+                    `<:Shield:1473038669831995494> <@&${targetId}> (\`${targetId}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
+                    `Total ignored roles: \`${filters.ignoredRoles.length}\``
+                );
+            }
+
+            if (sub === 'ignore-bots') {
+                const mode = args[2]?.toLowerCase();
+                if (mode !== 'on' && mode !== 'off') {
+                    return reply(0xED4245, `<:Cancel:1473037949187657818> Usage: \`-logging filter ignore-bots <on|off>\``);
+                }
+                filters.ignoreBots = mode === 'on';
+                saveLogs(logs); invalidateCache();
+                return reply(filters.ignoreBots ? 0x57F287 : 0xED4245,
+                    `# <:Checkedbox:1473038547165384804> Bot Filter ${filters.ignoreBots ? 'Enabled' : 'Disabled'}\n\n` +
+                    (filters.ignoreBots
+                        ? `<:bots:1473368718120849500> Bot-authored events will no longer appear in logs.`
+                        : `<:bots:1473368718120849500> Bot-authored events will appear in logs again.`)
+                );
+            }
+
+            return reply(0xED4245,
+                `<:Cancel:1473037949187657818> Unknown filter subcommand. Use:\n` +
+                `\`-logging filter ignore-user @user\`\n` +
+                `\`-logging filter ignore-channel #channel\`\n` +
+                `\`-logging filter ignore-role @role\`\n` +
+                `\`-logging filter ignore-bots <on|off>\`\n` +
+                `\`-logging filter view\`\n` +
+                `\`-logging filter clear\``
+            );
+        }
+
         if (action === 'disable') {
             const type = args[1]?.toLowerCase();
             if (!type) {
-                return message.reply('<:Cancel:1473037949187657818> Please specify a log type to disable: `message`, `member`, `voice`, `server`, `moderation`, or `all`');
+                return message.reply(`<:Cancel:1473037949187657818> Please specify a log type to disable: ${ALL_LOG_KEYS.map(k => '\`' + k + '\`').join(', ')}, or \`all\``);
             }
             
             if (type === 'all') {
@@ -422,7 +716,7 @@ module.exports = {
                     return message.reply(`<:Cancel:1473037949187657818> ${logTypeNames[type].name} logging is not currently enabled!`);
                 }
             } else {
-                return message.reply('<:Cancel:1473037949187657818> Invalid log type! Use: `message`, `member`, `voice`, `server`, `moderation`, or `all`');
+                return message.reply(`<:Cancel:1473037949187657818> Invalid log type! Use: ${ALL_LOG_KEYS.map(k => '\`' + k + '\`').join(', ')}, or \`all\``);
             }
         }
 
@@ -457,7 +751,7 @@ module.exports = {
             const url = args[2];
             
             if (!type || !url) {
-                return message.reply('<:Cancel:1473037949187657818> Usage: `-logging webhook <type> <url>`\nTypes: `message`, `member`, `voice`, `server`, `moderation`, `all`');
+                return message.reply(`<:Cancel:1473037949187657818> Usage: \`-logging webhook <type> <url>\`\nTypes: ${ALL_LOG_KEYS.map(k => '\`' + k + '\`').join(', ')}, or \`all\``);
             }
             
             const allTypes = ALL_LOG_KEYS;
@@ -506,11 +800,7 @@ module.exports = {
         }
 
         if (action === 'all') {
-            logs[guildId].message = channel.id;
-            logs[guildId].member = channel.id;
-            logs[guildId].voice = channel.id;
-            logs[guildId].server = channel.id;
-            logs[guildId].moderation = channel.id;
+            for (const key of ALL_LOG_KEYS) logs[guildId][key] = channel.id;
             saveLogs(logs);
             invalidateCache();
             
@@ -519,7 +809,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> All Logging Channels Configured\n\n` +
-                        `All 5 log types have been set to ${channel}`
+                        `All ${ALL_LOG_KEYS.length} log types have been set to ${channel}`
                     )
                 )
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
@@ -546,7 +836,7 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        return message.reply('<:Cancel:1473037949187657818> Invalid usage! Use:\n`-logging <type> #channel` — Set log channel\n`-logging mode <bot|webhook>` — Set delivery mode\n`-logging webhook <type> <url>` — Set webhook URL\n`-logging disable <type>` — Disable a log type');
+        return message.reply('<:Cancel:1473037949187657818> Invalid usage! Use:\n`-logging <type> #channel` — Set log channel\n`-logging mode <bot|webhook>` — Set delivery mode\n`-logging webhook <type> <url>` — Set webhook URL\n`-logging disable <type>` — Disable a log type\n`-logging filter ignore-user @user` — Manage filters');
         } catch (error) {
             console.error('[LoggingSetup] Error:', error);
             const { buildErrorResponse } = require('../../utils/responseBuilder');

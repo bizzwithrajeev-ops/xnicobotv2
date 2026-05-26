@@ -3,7 +3,7 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 
 const JOBS = [
     { name: 'Software Developer', emoji: '💻', messages: ['You built a new feature for a client', 'You fixed a critical bug', 'You deployed code to production'] },
@@ -76,16 +76,16 @@ async function handleWork(reply, userId, guildId) {
     let earningsText = `# ${job.emoji} Work Complete!\n\n`;
     earningsText += `> *${jobMessage}*\n\n`;
     earningsText += `### ${coinIcon(guildId)} Earnings\n`;
-    earningsText += `> ${coinIcon(guildId)} **Base Pay:** ${formatCoins(baseEarned, guildId)}\n`;
+    earningsText += `> ${coinIcon(guildId)} **Base Pay:** ${formatCoinsAmount(baseEarned, guildId)}\n`;
     if (bonusAmount > 0) earningsText += `> <:Crown:1506010837368963142> **Work Bonus:** +${formatCoins(bonusAmount, guildId)}\n`;
-    if (tipAmount > 0) earningsText += `> <:Sketch:1473038248493453352> **Tip Received:** +${formatCoins(tipAmount, guildId)}\n`;
+    if (tipAmount > 0) earningsText += `> <:Sketch:1473038248493453352> **Tip Received:** +${formatCoinsAmount(tipAmount, guildId)}\n`;
 
     addTextDisplay(container, earningsText);
     addSeparator(container, SeparatorSpacingSize.Small);
 
     addTextDisplay(container, [
-        `> ${coinIcon(guildId)} **Total Earned:** ${formatCoins(totalEarned, guildId)}`,
-        `> ${coinIcon(guildId)} **Balance:** ${formatCoins(user.coins, guildId)}`,
+        `> ${coinIcon(guildId)} **Total Earned:** ${formatCoinsAmount(totalEarned, guildId)}`,
+        `> ${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(user.coins, guildId)}`,
         `> 📋 **Shifts Completed:** ${formatNumber(user.workCount)}`,
         '',
         `-# You can work again in 1 hour`,

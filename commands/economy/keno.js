@@ -26,7 +26,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsAmount } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -112,7 +112,7 @@ function buildPresetContainer(userId) {
     const lines = [
         `# ${E.title} Keno — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         '',
         `${E.info} First, pick **how many numbers** you'll bet on. The picker board appears next.`,
     ];
@@ -162,7 +162,7 @@ function buildPickerContainer(userId) {
     const lines = [
         `# ${E.title} Keno — Pick ${game.pickCount} Numbers`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.pick} **Picked:** ${game.picks.size} / ${game.pickCount}`,
     ];
     if (game.picks.size > 0) {
@@ -262,7 +262,7 @@ function buildResultContainer(game, draw, matches, mult, payout) {
     const lines = [
         `# ${E.title} Keno`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.chart} **Matches:** ${matches} / ${game.pickCount}  ·  multiplier \`${mult}x\``,
         '',
         won

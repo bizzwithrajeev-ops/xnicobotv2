@@ -1,6 +1,7 @@
 
 const jsonStore = require('./jsonStore');
 const log = require('./logger-styled');
+const { renderMessage, getDefaultMessages } = require('./inviteMessageBuilder');
 const inviteCache = new Map();
 
 function loadConfig() {
@@ -22,8 +23,13 @@ function ensureGuildConfig(config, guildId) {
             members: {},
             rewards: [],
             totals: {},
-            enabled: true  // enabled by default
+            enabled: true,  // enabled by default
+            messages: getDefaultMessages()
         };
+    }
+    // Backfill messages for guilds created before this feature shipped.
+    if (!config[guildId].messages) {
+        config[guildId].messages = getDefaultMessages();
     }
     return config[guildId];
 }
@@ -123,48 +129,88 @@ function analyzeAccount(member) {
 }
 
 /**
- * Send alt detection alert to the configured invite log channel
+ * Resolve the configured invite-log channel for a guild.
+ * Returns null if no channel configured or it isn't sendable.
+ */
+function getInviteLogChannel(guild) {
+    const config = loadConfig();
+    const guildConfig = config[guild.id];
+    const channelId = guildConfig?.channel;
+    if (!channelId) return null;
+    const channel = guild.channels.cache.get(channelId);
+    if (!channel || typeof channel.send !== 'function') return null;
+    return channel;
+}
+
+/**
+ * Send a custom invite event message (join / leave / vanity / fake).
+ * Reads the guild's `messages.<type>` template, resolves variables,
+ * and ships a Components V2 container to the configured log channel.
+ *
+ * Failures are swallowed — invite logging must never break member
+ * join/leave handling.
+ */
+async function sendInviteMessage(type, member, guild, ctxExtras = {}) {
+    try {
+        const config = loadConfig();
+        const guildConfig = config[guild.id];
+        if (!guildConfig) return;
+
+        const messages = guildConfig.messages || getDefaultMessages();
+        const messageConfig = messages[type];
+        if (!messageConfig || messageConfig.enabled === false) return;
+
+        const channel = getInviteLogChannel(guild);
+        if (!channel) return;
+
+        const ctx = { member, guild, ...ctxExtras };
+        const container = renderMessage(messageConfig, ctx);
+        if (!container) return;
+
+        const { MessageFlags } = require('discord.js');
+        await channel.send({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+    } catch (err) {
+        log.error(`[InviteManager] Failed to send ${type} message:`, err.message);
+    }
+}
+
+/**
+ * Send alt detection alert to the configured invite log channel.
+ * Uses the user-configured `fake` template when available.
  */
 async function sendAltAlert(member, analysis, inviterData) {
     try {
         const config = loadConfig();
         const guildConfig = config[member.guild.id];
-        const logChannelId = guildConfig?.channel;
-        if (!logChannelId) return;
+        if (!guildConfig) return;
 
-        const channel = member.guild.channels.cache.get(logChannelId);
-        if (!channel) return;
-
-        const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, SectionBuilder, ThumbnailBuilder } = require('discord.js');
-
-        const riskEmoji = analysis.riskScore >= 60 ? '🔴' : analysis.riskScore >= 30 ? '🟡' : '🟢';
-        const riskLabel = analysis.riskScore >= 60 ? 'HIGH RISK' : analysis.riskScore >= 30 ? 'MEDIUM RISK' : 'LOW RISK';
-
-        let content = `# <:Shield:1473038669831995494> Alt Account Detection\n\n`;
-        content += `${riskEmoji} **${riskLabel}** — Risk Score: **${analysis.riskScore}/100**\n\n`;
-        content += `### <:User:1473038971398520977> Member Info\n`;
-        content += `> **User:** ${member.user.tag} (${member.id})\n`;
-        content += `> **Account Age:** ${analysis.accountAgeDays} days\n`;
-        content += `> **Created:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>\n`;
-
-        if (inviterData) {
-            content += `> **Invited By:** <@${inviterData.inviterId}> (Code: \`${inviterData.inviteCode}\`)\n`;
+        // Resolve inviter user object if we know who it was
+        let inviterUser = null;
+        let totalForInviter = 0;
+        let inviterCodeCount = 0;
+        if (inviterData?.inviterId) {
+            inviterUser = await member.guild.client.users.fetch(inviterData.inviterId).catch(() => null);
+            const totals = guildConfig.totals?.[inviterData.inviterId];
+            if (totals) totalForInviter = (totals.regular || 0) + (totals.bonus || 0);
+            try {
+                const allInvites = await member.guild.invites.fetch();
+                inviterCodeCount = allInvites.filter(inv => inv.inviter?.id === inviterData.inviterId).size;
+            } catch { /* ignore */ }
         }
 
-        if (analysis.flags.length > 0) {
-            content += `\n### <:Infotriangle:1473038460456800459> Suspicious Indicators\n`;
-            for (const flag of analysis.flags) {
-                content += `> <:Cancel:1473037949187657818> ${flag}\n`;
-            }
-        }
-
-        const container = new ContainerBuilder()
-            .setAccentColor(analysis.riskScore >= 60 ? 0xED4245 : analysis.riskScore >= 30 ? 0xFEE75C : 0x57F287)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico Invite Tracker — Alt Detection'));
-
-        await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        await sendInviteMessage('fake', member, member.guild, {
+            inviter: inviterUser,
+            invite: inviterData ? {
+                code: inviterData.inviteCode,
+                url: inviterData.inviteCode ? `https://discord.gg/${inviterData.inviteCode}` : null,
+                totalForInviter,
+                inviterCodeCount,
+            } : null,
+            alt: analysis,
+        });
     } catch (err) {
         log.error('Error sending alt alert:', err.message);
     }
@@ -221,6 +267,19 @@ async function handleMemberJoin(member) {
             saveConfig(config);
             const totalInvites = guildConfig.totals[inviterId].regular + guildConfig.totals[inviterId].bonus;
             await checkRewards(member.guild, inviterId, totalInvites, guildConfig.rewards);
+
+            // Send custom join message
+            const inviterCodeCount = newInvites.filter(inv => inv.inviter?.id === inviterId).size;
+            await sendInviteMessage('join', member, member.guild, {
+                inviter: usedInvite.inviter,
+                invite: {
+                    code: usedInvite.code,
+                    url: `https://discord.gg/${usedInvite.code}`,
+                    uses: usedInvite.uses,
+                    totalForInviter: totalInvites,
+                    inviterCodeCount,
+                },
+            });
         } else {
             guildConfig.members[member.id] = {
                 inviterId: 'unknown',
@@ -229,6 +288,12 @@ async function handleMemberJoin(member) {
                 left: false
             };
             saveConfig(config);
+
+            // Send vanity / unknown source message
+            await sendInviteMessage('vanity', member, member.guild, {
+                inviter: null,
+                invite: { code: 'Unknown', url: null, totalForInviter: 0, inviterCodeCount: 0 },
+            });
         }
 
         // Alt/fake account detection
@@ -278,7 +343,32 @@ async function handleMemberLeave(member) {
             saveConfig(config);
             const totalInvites = guildConfig.totals[inviterId].regular + guildConfig.totals[inviterId].bonus;
             await checkRewards(member.guild, inviterId, totalInvites, guildConfig.rewards);
+
+            // Send custom leave message
+            const inviterUser = await member.guild.client.users.fetch(inviterId).catch(() => null);
+            let inviterCodeCount = 0;
+            try {
+                const allInvites = await member.guild.invites.fetch();
+                inviterCodeCount = allInvites.filter(inv => inv.inviter?.id === inviterId).size;
+            } catch { /* ignore */ }
+
+            await sendInviteMessage('leave', member, member.guild, {
+                inviter: inviterUser,
+                invite: {
+                    code: memberData.inviteCode,
+                    url: memberData.inviteCode && memberData.inviteCode !== 'unknown'
+                        ? `https://discord.gg/${memberData.inviteCode}` : null,
+                    totalForInviter: totalInvites,
+                    inviterCodeCount,
+                },
+            });
         }
+    } else {
+        // Unknown-source leave — still post a leave message if the template is enabled
+        await sendInviteMessage('leave', member, member.guild, {
+            inviter: null,
+            invite: { code: 'Unknown', url: null, totalForInviter: 0, inviterCodeCount: 0 },
+        });
     }
 
     // Refresh invite cache after leave
@@ -557,5 +647,6 @@ module.exports = {
     isTrackingEnabled,
     getInviteAnalytics,
     analyzeAccount,
+    sendInviteMessage,
     inviteCache
 };

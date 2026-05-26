@@ -1,7 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
-const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { CATEGORIES, getItems } = require('../../utils/shopItems');
 const economyManager = require('../../utils/economyManager');
@@ -92,7 +92,7 @@ function buildShopPage(category, userId, guildId) {
   // ── Header card ──────────────────────────────────────────────
   addTextDisplay(container, [
     `# <:Shoppingcart:1473039092198412371> Economy Shop`,
-    `-# Browsing **${cat.emoji} ${cat.label}**  ·  ${icon} Your Wallet: **${formatCoins(wallet, guildId)}**`
+    `-# Browsing **${cat.emoji} ${cat.label}**  ·  ${icon} Your Wallet: **${formatCoinsAmount(wallet, guildId)}**`
   ].join('\n'));
 
   addSeparator(container, SeparatorSpacingSize.Small);
@@ -117,7 +117,7 @@ function buildShopPage(category, userId, guildId) {
       const card = [
         `### ${action.emoji} ${item.name} ${affordBadge(affordable, false)}`,
         item.description ? `> ${item.description}` : `> *${action.label}*`,
-        `-# ${icon} **${formatCoins(item.price, guildId)}**  ·  ${action.emoji} ${action.label}  ·  Index \`#${i + 1}\``
+        `-# ${icon} **${formatCoinsAmount(item.price, guildId)}**  ·  ${action.emoji} ${action.label}  ·  Index \`#${i + 1}\``
       ].join('\n');
       addTextDisplay(container, card);
       if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);
@@ -132,7 +132,7 @@ function buildShopPage(category, userId, guildId) {
       const card = [
         `### ${item.emoji} ${item.name} ${affordBadge(affordable, atMax)}`,
         `> ${item.description}`,
-        `-# ${icon} **${formatCoins(item.price, guildId)}**  ·  <:Box:1473039115581915256> Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
+        `-# ${icon} **${formatCoinsAmount(item.price, guildId)}**  ·  <:Box:1473039115581915256> Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
       ].join('\n');
       addTextDisplay(container, card);
       if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);

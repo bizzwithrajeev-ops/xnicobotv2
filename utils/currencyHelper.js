@@ -181,6 +181,23 @@ function formatCoins(amount, guildId) {
     return `${cfg.currency} ${formatted} ${cfg.currencyName}`;
 }
 
+/**
+ * Returns just the number + currency name, **without** the icon.
+ *
+ * Use this whenever the caller already prints `${coinIcon(...)}` on the
+ * same line — otherwise the icon is rendered twice. Example:
+ *   `${coinIcon(g)} **Balance:** ${formatCoinsAmount(amt, g)}`
+ *   →  💰 **Balance:** 1,000 coins
+ *
+ * `formatCoins(...)` (with the icon baked in) stays available for code
+ * that doesn't want to manage the icon separately.
+ */
+function formatCoinsAmount(amount, guildId) {
+    const cfg = getEconomySettings(guildId);
+    const formatted = Number(amount || 0).toLocaleString();
+    return `${formatted} ${cfg.currencyName}`;
+}
+
 function formatCoinsShort(amount, guildId) {
     const cfg = getEconomySettings(guildId);
     return `${cfg.currency} ${Number(amount || 0).toLocaleString()}`;
@@ -195,6 +212,7 @@ module.exports = {
     coinIcon,
     coinEmoji,
     formatCoins,
+    formatCoinsAmount,
     formatCoinsShort,
     getGuildSettings,
     getEconomySettings,

@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags, StringSelectMenuBuilder, ActionRowBuilder, SeparatorBuilder, SeparatorSpacingSize, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
+const { ensureMigrated } = require('../../utils/ticketPanels');
 
 function loadConfig() {
     if (!jsonStore.has('tickets')) {
@@ -19,153 +20,28 @@ function saveConfig(config) {
     jsonStore.write('tickets', config);
 }
 
-async function updateTicketPanel(client, guildId, guildConfig) {
-    try {
-        const channel = await client.channels.fetch(guildConfig.channelId);
-        if (!channel) return false;
+/**
+ * Refreshes every panel known to the multi-panel registry.
+ * Returns the count of panels successfully refreshed (or `null` when none configured).
+ */
+async function updateTicketPanels(client, guildId) {
+    // Lazy-require to avoid a circular import (ticket-setup → ticketPanels → ticket-categories).
+    const { updatePanelMessage } = require('./ticket-setup');
+    const config = loadConfig();
+    const guildConfig = ensureMigrated(config[guildId]);
+    if (!guildConfig?.panels || Object.keys(guildConfig.panels).length === 0) return null;
 
-        // Try to fetch the panel message by stored ID
-        let panelMessage = null;
-        if (guildConfig.panelMessageId) {
-            try {
-                panelMessage = await channel.messages.fetch(guildConfig.panelMessageId);
-            } catch (error) {
-                // Panel message was deleted or ID is invalid
-            }
-        }
-
-        // Fallback: search for the panel message by customId if we don't have a stored ID
-        if (!panelMessage) {
-            const messages = await channel.messages.fetch({ limit: 50 });
-            panelMessage = messages.find(m => 
-                m.author.id === client.user.id && 
-                m.components?.length > 0 &&
-                m.components[0]?.components?.[0]?.customId === 'ticket_category_select'
-            );
-            
-            // If we found the panel via fallback, persist its ID for future updates (backwards compatibility)
-            if (panelMessage) {
-                const config = loadConfig();
-                if (config[guildId]) {
-                    config[guildId].panelMessageId = panelMessage.id;
-                    saveConfig(config);
-                }
-            }
-        }
-
-        if (!panelMessage) return false;
-
-        // Safely fetch support role
-        let supportRole = null;
-        try {
-            if (guildConfig.supportRoleId) {
-                const guild = client.guilds.cache.get(guildId);
-                if (guild) {
-                    supportRole = await guild.roles.fetch(guildConfig.supportRoleId).catch(() => null);
-                }
-            }
-        } catch (error) {
-            // Role doesn't exist or can't be fetched
-            supportRole = null;
-        }
-        
-        // Check if we have categories
-        if (!guildConfig.categories || guildConfig.categories.length === 0) {
-            // No categories - use disabled placeholder select menu so panel remains discoverable
-            const disabledMenu = new StringSelectMenuBuilder()
-                .setCustomId('ticket_category_select')
-                .setPlaceholder('<:Inforect:1473038624172937287> No categories configured')
-                .setDisabled(true)
-                .addOptions([{
-                    label: 'No categories available',
-                    value: 'none',
-                    description: 'Administrators need to add categories'
-                }]);
-
-            const row = new ActionRowBuilder().addComponents(disabledMenu);
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# 🎫 Support Tickets\n\n<:Inforect:1473038624172937287> **No ticket categories configured!**\n\nAdministrators can add categories using:\n\`/ticket-categories add <id> <label> <emoji> <description>\`\n\n**Support Team:** ${supportRole || 'Not Set'}`)
-                )
-                .addActionRowComponents(row);
-
-            await panelMessage.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
-            return true;
-        }
-
-        // Build panel content using custom config or default
-        const panelConfig = guildConfig.panelMessage || null;
-        let panelContent;
-
-        if (panelConfig && panelConfig.mode) {
-            // Custom panel — use stored config
-            const { replacePlaceholders: msgReplace, buildComponentsV2Message } = require('../../utils/actionMessageBuilder');
-            const guild = client.guilds.cache.get(guildId);
-            if (panelConfig.mode === 'components') {
-                const container = buildComponentsV2Message(panelConfig, null, guild, null);
-                panelContent = { type: 'components', container };
-            } else if (panelConfig.mode === 'embed') {
-                                const embed = new EmbedBuilder();
-                if (panelConfig.title) embed.setTitle(msgReplace(panelConfig.title, null, guild));
-                if (panelConfig.description) embed.setDescription(msgReplace(panelConfig.description, null, guild));
-                if (panelConfig.color) embed.setColor(panelConfig.color);
-                if (panelConfig.image) embed.setImage(panelConfig.image);
-                if (panelConfig.thumbnail) embed.setThumbnail(panelConfig.thumbnail);
-                if (panelConfig.author) embed.setAuthor({ name: msgReplace(panelConfig.author, null, guild), iconURL: panelConfig.authorIcon || undefined });
-                if (panelConfig.footer) embed.setFooter({ text: msgReplace(panelConfig.footer, null, guild), iconURL: panelConfig.footerIcon || undefined });
-                if (panelConfig.fields?.length) {
-                    for (const f of panelConfig.fields.slice(0, 25)) {
-                        embed.addFields({ name: msgReplace(f.name, null, guild), value: msgReplace(f.value, null, guild), inline: f.inline || false });
-                    }
-                }
-                panelContent = { type: 'embed', embed };
-            } else {
-                panelContent = { type: 'simple', content: msgReplace(panelConfig.content, null, guild) };
-            }
-        } else {
-            // Default panel
-            let categoriesDesc = '';
-            guildConfig.categories.forEach(cat => {
-                categoriesDesc += `${cat.emoji} ${cat.label} - ${cat.description}\n`;
-            });
-            panelContent = { type: 'default', content: `# 🎫 Support Tickets\n\nNeed help? Select a category below to create a support ticket!\n\n**Categories:**\n${categoriesDesc}\n**Support Team:** ${supportRole || 'Not Set'}` };
-        }
-
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('ticket_category_select')
-            .setPlaceholder('Select a ticket category')
-            .addOptions(
-                guildConfig.categories.map(cat => ({
-                    label: cat.label,
-                    value: cat.id,
-                    description: cat.description,
-                    emoji: cat.emoji
-                }))
-            );
-
-        const row = new ActionRowBuilder().addComponents(selectMenu);
-
-        if (panelContent.type === 'embed') {
-            await panelMessage.edit({ embeds: [panelContent.embed], components: [row] });
-        } else if (panelContent.type === 'components') {
-            panelContent.container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-            panelContent.container.addActionRowComponents(row);
-            await panelMessage.edit({ components: [panelContent.container], flags: MessageFlags.IsComponentsV2 });
-        } else {
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(panelContent.content)
-                )
-                .addActionRowComponents(row);
-            await panelMessage.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-        return true;
-    } catch (error) {
-        console.error('Error updating ticket panel:', error);
-        return false;
+    let refreshed = 0;
+    for (const panelId of Object.keys(guildConfig.panels)) {
+        if (await updatePanelMessage(client, guildId, panelId)) refreshed++;
     }
+    return refreshed;
+}
+
+// Back-compat shim — older code calls `updateTicketPanel(client, guildId, guildConfig)`.
+async function updateTicketPanel(client, guildId /*, guildConfig */) {
+    const refreshed = await updateTicketPanels(client, guildId);
+    return refreshed !== null && refreshed > 0;
 }
 
 module.exports = {

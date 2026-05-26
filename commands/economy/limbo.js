@@ -32,7 +32,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsAmount } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -111,11 +111,11 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Limbo — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (target) {
         lines.push(`> ${target.emoji} **Target:** \`${target.mult}x\``);
-        lines.push(`> ${E.coin} **Win pays:** ${formatCoins(Math.floor(game.bet * target.mult), game.guildId)}`);
+        lines.push(`> ${E.coin} **Win pays:** ${formatCoinsAmount(Math.floor(game.bet * target.mult), game.guildId)}`);
     }
 
     lines.push('');
@@ -166,7 +166,7 @@ function buildResultContainer(game, rolled, target) {
     const lines = [
         `# ${E.title} Limbo`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${target.emoji} **Target:** \`${target.mult}x\``,
         `> ${E.chart} **Rolled:** \`${rolled.toFixed(2)}x\``,
         '',

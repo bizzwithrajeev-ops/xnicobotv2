@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -12,7 +12,7 @@ const cooldowns = new Map();
 const activeHeists = new Map();
 
 const TARGETS = [
-  { id: 'bank',    name: 'Bank Job',        emoji: '🏦', baseSuccessRate: 0.55, rewardBase: [1000, 5000],   riskFine: 0.10 },
+  { id: 'bank',    name: 'Bank Job',        emoji: '<:Bank:1473039150927319192>', baseSuccessRate: 0.55, rewardBase: [1000, 5000],   riskFine: 0.10 },
   { id: 'museum',  name: 'Museum Heist',    emoji: '🏛', baseSuccessRate: 0.45, rewardBase: [3000, 8000],   riskFine: 0.12 },
   { id: 'casino',  name: 'Casino Robbery',  emoji: '🎰', baseSuccessRate: 0.35, rewardBase: [5000, 15000],  riskFine: 0.15 },
   { id: 'vault',   name: 'Royal Vault',     emoji: '👑', baseSuccessRate: 0.25, rewardBase: [10000, 30000], riskFine: 0.20 },
@@ -86,7 +86,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       '',
       `✅ *${flavor}*`,
       '',
-      `${coinIcon(guildId)} **Total stolen:** ${formatCoins(totalReward, guildId)}`,
+      `${coinIcon(guildId)} **Total stolen:** ${formatCoinsAmount(totalReward, guildId)}`,
       `👥 **Split between ${allParticipants.length} crew member(s):**`,
       ...shareLines,
       '',

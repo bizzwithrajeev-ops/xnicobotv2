@@ -32,7 +32,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins, formatCoinsShort, coinIcon, coinEmoji } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort, coinIcon, coinEmoji, formatCoinsAmount } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -55,7 +55,7 @@ const E = {
     star:     '<:Star:1473038501766369300>',
     skipnext: '<:Skipnext:1473039269726785737>',
     sandwatch:'<:Sandwatch:1473038580094861545>',
-    riskSafe: '<:Toggleon:1473038585501581312>',
+    riskSafe: '<:Caretright:1473038207221502106>',
     riskLow:  '<:Caretright:1473038207221502106>',
     riskMed:  '<:Caretright:1473038207221502106>',
     riskHigh: '<:Caretright:1473038207221502106>',
@@ -161,7 +161,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Crash — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.risk) {
         const r = RISKS[game.risk];
@@ -251,7 +251,7 @@ function buildLiveContainer(game, status = 'rising') {
         `# ${E.title} Crash`,
         `-# ${r.emoji} ${r.label} risk  ·  cap ${r.cap}×`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         game.autoMult ? `> ${E.auto} **Auto-cashout:** \`${game.autoMult}x\`` : null,
         '',
         header,

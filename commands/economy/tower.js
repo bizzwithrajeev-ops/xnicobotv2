@@ -20,7 +20,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins, coinIcon, coinEmoji } = require('../../utils/currencyHelper');
+const { formatCoins, coinIcon, coinEmoji, formatCoinsAmount } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -119,7 +119,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Tower — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.difficulty) {
         const d = DIFFICULTIES[game.difficulty];
@@ -197,7 +197,7 @@ function buildLiveContainer(game, status, info = {}) {
         `# ${E.title} Tower of Risk`,
         `-# ${d.emoji} ${d.label}  ·  ${d.tiles} tiles · ${d.mines} mine${d.mines > 1 ? 's' : ''} per floor`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoins(game.bet, game.guildId)}`,
+        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.chart} **Current multiplier:** \`${currentMult}x\`  ·  potential ${formatCoins(potential, game.guildId)}`,
         currentFloor < TOTAL_FLOORS && status === 'climbing' ? `> ${E.success} **Next floor pays:** \`${nextMult}x\`` : null,
         '',

@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -96,9 +96,9 @@ async function handleMine(reply, userId, guildId) {
     '',
     oreLines,
     '',
-    `${EMOJIS.sketch} **Earned:** +${formatCoins(totalValue, guildId)}`,
+    `${EMOJIS.sketch} **Earned:** +${formatCoinsAmount(totalValue, guildId)}`,
     `💼 **Total mines:** ${formatNumber(userData.miningCount)}`,
-    `${coinIcon(guildId)} **Wallet:** ${formatCoins(userData.coins, guildId)}`,
+    `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
     `${pickaxeLine}${boostLine}`,
     `-# Cooldown: 30 minutes`,
   ].join('\n'));

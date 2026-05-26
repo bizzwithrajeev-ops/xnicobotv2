@@ -1,7 +1,7 @@
 'use strict';
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
@@ -142,7 +142,7 @@ async function handleSlots(reply, userId, args, guildId) {
 
   resultLines.push(
     '',
-    `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
+    `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
     '',
     `-# ${won ? 'Spin again for more wins!' : 'Better luck next spin!'}`,
   );

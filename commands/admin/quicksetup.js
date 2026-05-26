@@ -192,7 +192,7 @@ const THREAT_LIMITS = {
     botAdd:         { action: 'kick_bot' }
 };
 
-const LOG_TYPES = ['message', 'member', 'voice', 'server', 'moderation', 'automod', 'security', 'boost', 'commands'];
+const LOG_TYPES = ['message', 'member', 'voice', 'server', 'moderation', 'automod', 'security', 'boost', 'commands', 'reactions', 'pins'];
 
 /* ═══════════════════════════════════════════════════════════════════
    APPLY ENGINE

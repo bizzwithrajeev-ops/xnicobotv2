@@ -1,7 +1,7 @@
 'use strict';
 
 const { MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -60,7 +60,7 @@ module.exports = {
             '',
             `<:Checkedbox:1473038547165384804> **${formatCoins(amount, guildId)}** added to **${target.username}**`,
             '',
-            `${coinIcon(guildId)} **New Balance:** ${formatCoins(user.coins, guildId)}`,
+            `${coinIcon(guildId)} **New Balance:** ${formatCoinsAmount(user.coins, guildId)}`,
         ].join('\n'));
 
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

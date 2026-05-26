@@ -58,7 +58,7 @@ const ACHIEVEMENTS = {
   adventurer: { emoji: '🗺', name: 'Explorer', desc: 'Complete 25 adventures' },
   first_mine: { emoji: '⛏', name: 'First Strike', desc: 'Mine for the first time' },
   master_miner: { emoji: '<:Sketch:1473038248493453352>', name: 'Master Miner', desc: 'Mine 100 times' },
-  first_heist: { emoji: '🏦', name: 'Heist Initiate', desc: 'Complete your first heist' },
+  first_heist: { emoji: '<:Bank:1473039150927319192>', name: 'Heist Initiate', desc: 'Complete your first heist' },
   master_crafter: { emoji: '🔨', name: 'Master Crafter', desc: 'Craft 25 items' },
   first_farm: { emoji: '🌾', name: 'Green Thumb', desc: 'Harvest your first crop' },
   generous: { emoji: '🎁', name: 'Generous Soul', desc: 'Gift 10 items to other players' },

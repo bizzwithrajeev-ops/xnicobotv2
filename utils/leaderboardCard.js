@@ -379,7 +379,7 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.restore();
         }
 
-        /* ── Stat line (contains emoji like 💵 🏦) — use drawTextWithEmoji ── */
+        /* ── Stat line (contains emoji like 💵 <:Bank:1473039150927319192>) — use drawTextWithEmoji ── */
         ctx.font         = FT(12);
         ctx.fillStyle    = TEXT_MUTED;
         ctx.textAlign    = 'left';

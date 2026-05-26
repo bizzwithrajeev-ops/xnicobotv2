@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { ButtonBuilder, ActionRowBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
@@ -148,7 +148,7 @@ async function runAdventure(message, biomeData) {
         const coins = rand(event.coinRange[0], event.coinRange[1]);
         totalCoins.value += coins;
         totalExp.value += 10;
-        stageText += `${coinIcon(guildId)} Found **${formatCoins(coins, guildId)}**!`;
+        stageText += `${coinIcon(guildId)} Found **${formatCoinsAmount(coins, guildId)}**!`;
         break;
       }
       case 'treasure': {

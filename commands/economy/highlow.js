@@ -1,7 +1,7 @@
 'use strict';
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
@@ -124,7 +124,7 @@ async function handleHighLowButton(interaction, guildId) {
             `## ${firstNumber} → **${secondNumber}**`,
             '',
             `🤝 **Same number! Push — no coins lost.**`,
-            `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
+            `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
         ].join('\n'));
 
         return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -144,7 +144,7 @@ async function handleHighLowButton(interaction, guildId) {
             ? `<:Checkedbox:1473038547165384804> **Won ${formatCoins(winAmount, guildId)}!** ${multiplier > 1 ? `(${multiplier}x)` : ''}`
             : `<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`,
         '',
-        `${coinIcon(guildId)} **Balance:** ${formatCoins(userData.coins, guildId)}`,
+        `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
     ].join('\n'));
 
     return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });

@@ -118,6 +118,154 @@ function getLogWebhook(guild, type) {
     return guildLogs.webhooks[type];
 }
 
+/* ═══════════════════════════════════════════════════════
+   FILTERS — per-guild ignore lists (users/channels/bots) and
+   per-type toggles. Stored under `logs[guildId].filters`.
+   Layout:
+     filters: {
+       ignoredUsers:    [userId, ...],
+       ignoredChannels: [channelId, ...],
+       ignoredRoles:    [roleId, ...],
+       ignoreBots:      true|false,
+       disabledTypes:   [type, ...],   // soft-disable a log type without deleting its channel
+     }
+   ═══════════════════════════════════════════════════════ */
+function getFilters(guild) {
+    if (!guild) return null;
+    const logs = loadLogs();
+    const g = logs[guild.id];
+    return g?.filters || null;
+}
+
+/**
+ * Should this event be skipped due to per-guild filters?
+ *
+ * @param {import('discord.js').Guild} guild
+ * @param {string} type      log category key
+ * @param {Object} subject   { user?, channel?, member? } — any combination
+ * @returns {boolean} true if the event should be skipped
+ */
+function isFiltered(guild, type, subject = {}) {
+    const f = getFilters(guild);
+    if (!f) return false;
+
+    if (Array.isArray(f.disabledTypes) && f.disabledTypes.includes(type)) return true;
+
+    const userId = subject.user?.id || subject.member?.id || subject.member?.user?.id;
+    if (userId && Array.isArray(f.ignoredUsers) && f.ignoredUsers.includes(userId)) return true;
+
+    if (f.ignoreBots && (subject.user?.bot || subject.member?.user?.bot)) return true;
+
+    const channelId = subject.channel?.id;
+    if (channelId && Array.isArray(f.ignoredChannels) && f.ignoredChannels.includes(channelId)) return true;
+
+    if (Array.isArray(f.ignoredRoles) && f.ignoredRoles.length > 0) {
+        const roles = subject.member?.roles?.cache;
+        if (roles) {
+            for (const id of f.ignoredRoles) if (roles.has(id)) return true;
+        }
+    }
+    return false;
+}
+
+/* ═══════════════════════════════════════════════════════
+   AUDIT-LOG EXECUTOR LOOKUP
+   ═══════════════════════════════════════════════════════ */
+const _auditCache = new Map();        // key: `${guildId}:${type}:${targetId}` -> { entry, time }
+const AUDIT_CACHE_TTL = 5_000;
+
+/**
+ * Best-effort lookup of who performed an audit-log-worthy action.
+ * Returns `{ executor, reason, entry } | null`. Falls back to `null`
+ * silently if the bot lacks ViewAuditLog or the entry is too old.
+ *
+ * Why filter by createdTimestamp: audit log entries are kept forever, so
+ * matching by target id alone would attribute future moderation events
+ * to whoever last touched that user (false positives).
+ *
+ * @param {import('discord.js').Guild} guild
+ * @param {number} type        AuditLogEvent.* enum value
+ * @param {string} [targetId]  filter to a specific target id
+ * @param {number} [maxAgeMs=10000]  reject entries older than this
+ */
+async function fetchExecutor(guild, type, targetId, maxAgeMs = 10_000) {
+    if (!guild) return null;
+    const cacheKey = `${guild.id}:${type}:${targetId || '*'}`;
+    const cached = _auditCache.get(cacheKey);
+    if (cached && (Date.now() - cached.time) < AUDIT_CACHE_TTL) return cached.value;
+
+    try {
+        const auditLogs = await guild.fetchAuditLogs({ type, limit: 4 });
+        for (const entry of auditLogs.entries.values()) {
+            if (targetId && entry.target?.id !== targetId) continue;
+            if ((Date.now() - entry.createdTimestamp) > maxAgeMs) continue;
+            const value = { executor: entry.executor, reason: entry.reason || null, entry };
+            _auditCache.set(cacheKey, { value, time: Date.now() });
+            return value;
+        }
+    } catch {
+        // Bot likely missing ViewAuditLog — fail soft.
+    }
+    _auditCache.set(cacheKey, { value: null, time: Date.now() });
+    return null;
+}
+
+/* ═══════════════════════════════════════════════════════
+   VOICE DURATION TRACKING
+   Tracks join timestamps per (guildId, userId) so leave/switch
+   events can render "spent 23m 14s in #vc-name".
+   ═══════════════════════════════════════════════════════ */
+const _voiceJoinTimes = new Map();     // `${guildId}:${userId}` -> { channelId, joinedAt }
+
+function _voiceKey(guildId, userId) { return `${guildId}:${userId}`; }
+
+function _formatDuration(ms) {
+    if (!ms || ms < 0) return 'less than a second';
+    const sec = Math.floor(ms / 1000);
+    if (sec < 60) return `${sec}s`;
+    const min = Math.floor(sec / 60);
+    const remSec = sec % 60;
+    if (min < 60) return remSec ? `${min}m ${remSec}s` : `${min}m`;
+    const hr = Math.floor(min / 60);
+    const remMin = min % 60;
+    if (hr < 24) return remMin ? `${hr}h ${remMin}m` : `${hr}h`;
+    const day = Math.floor(hr / 24);
+    const remHr = hr % 24;
+    return remHr ? `${day}d ${remHr}h` : `${day}d`;
+}
+
+/**
+ * Format a "by whom" footer line for moderation logs. Always returns a
+ * single string — never null — so callers can interpolate freely.
+ */
+function _byLine(executor, reason) {
+    if (!executor) return `${E.shield} **Moderator:** *Unknown* (no audit-log entry within 10s)`;
+    const tag = executor.tag || executor.username || executor.id;
+    let line = `${E.shield} **Moderator:** ${tag} (\`${executor.id}\`)`;
+    if (reason) line += `\n${E.read} **Reason:** ${reason}`;
+    else line += `\n${E.read} **Reason:** *No reason provided*`;
+    return line;
+}
+
+/**
+ * Format a user identity line consistently across all logs.
+ * Includes username, mention, and id.
+ */
+function _userLine(user, label = 'User') {
+    if (!user) return `${E.user} **${label}:** *Unknown*`;
+    const tag = user.tag || user.username || user.id;
+    return `${E.user} **${label}:** ${tag} (<@${user.id}>) \`${user.id}\``;
+}
+
+/**
+ * Format a channel identity line (mention + name + id).
+ */
+function _channelLine(channel, label = 'Channel') {
+    if (!channel) return `${E.pin} **${label}:** *Unknown*`;
+    const mention = channel.toString?.() || `<#${channel.id}>`;
+    return `${E.pin} **${label}:** ${mention} (\`${channel.id}\`)`;
+}
+
 /* Webhook client cache to avoid recreating clients repeatedly */
 const _webhookClients = new Map();
 const WEBHOOK_CACHE_TTL = 300_000; // 5 minutes
@@ -222,7 +370,11 @@ async function sendLog(channel, container, guild, logType) {
    ═══════════════════════════════════════════════════════ */
 
 async function logMessageDelete(message) {
-    if (!message.guild || message.author?.bot) return;
+    if (!message.guild || message.author?.bot && getFilters(message.guild)?.ignoreBots !== false) {
+        // Default: skip bot-author deletions unless filter explicitly allows them
+        if (message.author?.bot) return;
+    }
+    if (isFiltered(message.guild, 'message', { user: message.author, channel: message.channel, member: message.member })) return;
     const channel = getLogChannel(message.guild, 'message');
     if (!channel) return;
 
@@ -236,13 +388,25 @@ async function logMessageDelete(message) {
         if (message.attachments.size > 5) attachments += `\n> *...and ${message.attachments.size - 5} more*`;
     }
 
+    // Best-effort executor lookup (admin/mod deleting another user's message
+    // shows up in audit logs as MessageDelete; self-deletes don't).
+    const audit = await fetchExecutor(message.guild, AuditLogEvent.MessageDelete, message.author?.id);
+    const deletedBy = audit?.executor && audit.executor.id !== message.author?.id
+        ? `\n${E.shield} **Deleted by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : `\n${E.shield} **Deleted by:** Author (self-delete)`;
+
+    const messageAge = message.createdTimestamp
+        ? `\n${E.clock} **Sent:** ${tsR(message.createdAt)}`
+        : '';
+
     const c = buildLogContainer(Colors.error);
     c.addSectionComponents(
         section(
             `# ${E.error} Message Deleted\n` +
-            `${E.messages} **Author:** ${message.author?.username || 'Unknown'} (\`${message.author?.id || 'Unknown'}\`)\n` +
-            `${E.pin} **Channel:** ${message.channel}\n` +
-            `${E.discord} **User ID:** \`${message.author?.id || 'Unknown'}\``,
+            `${_userLine(message.author, 'Author')}\n` +
+            `${_channelLine(message.channel)}` +
+            deletedBy +
+            messageAge,
             message.author?.displayAvatarURL?.({ size: 128 }) || undefined
         )
     );
@@ -257,6 +421,11 @@ async function logMessageDelete(message) {
         c.addTextDisplayComponents(text(`### ${E.link} Attachments\n${attachments}`));
     }
 
+    if (audit?.reason) {
+        c.addSeparatorComponents(separator());
+        c.addTextDisplayComponents(text(`### ${E.info} Audit Reason\n> ${audit.reason}`));
+    }
+
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Message ID: ${message.id} • ${tsR(new Date())}`));
 
@@ -266,6 +435,7 @@ async function logMessageDelete(message) {
 async function logMessageUpdate(oldMessage, newMessage) {
     if (!newMessage.guild || newMessage.author?.bot) return;
     if (oldMessage.content === newMessage.content) return;
+    if (isFiltered(newMessage.guild, 'message', { user: newMessage.author, channel: newMessage.channel, member: newMessage.member })) return;
     const channel = getLogChannel(newMessage.guild, 'message');
     if (!channel) return;
 
@@ -276,12 +446,17 @@ async function logMessageUpdate(oldMessage, newMessage) {
         ? (newMessage.content.length > 500 ? newMessage.content.substring(0, 497) + '...' : newMessage.content)
         : '*No content*';
 
+    const editedAfter = oldMessage.createdTimestamp
+        ? `${E.clock} **Edited after:** ${_formatDuration(Date.now() - oldMessage.createdTimestamp)}\n`
+        : '';
+
     const c = buildLogContainer(Colors.warning);
     c.addSectionComponents(
         section(
             `# ${E.settings} Message Edited\n` +
-            `${E.messages} **Author:** ${newMessage.author.username} (\`${newMessage.author.id}\`)\n` +
-            `${E.pin} **Channel:** ${newMessage.channel}\n` +
+            `${_userLine(newMessage.author, 'Author')}\n` +
+            `${_channelLine(newMessage.channel)}\n` +
+            editedAfter +
             `${E.link} **[Jump to Message](${newMessage.url})**`,
             newMessage.author.displayAvatarURL({ size: 128 })
         )
@@ -295,13 +470,14 @@ async function logMessageUpdate(oldMessage, newMessage) {
         `### ${E.success} After\n>>> ${after}`
     ));
     c.addSeparatorComponents(separator());
-    c.addTextDisplayComponents(text(`-# ${E.wdot} Message ID: ${newMessage.id} • User ID: ${newMessage.author.id}`));
+    c.addTextDisplayComponents(text(`-# ${E.wdot} Message ID: ${newMessage.id} • User ID: ${newMessage.author.id} • ${tsR(new Date())}`));
 
     await sendLog(channel, c, newMessage.guild, 'message');
 }
 
 async function logMessageBulkDelete(messages, ch) {
     if (!ch.guild) return;
+    if (isFiltered(ch.guild, 'message', { channel: ch })) return;
     const logChannel = getLogChannel(ch.guild, 'message');
     if (!logChannel) return;
 
@@ -313,12 +489,20 @@ async function logMessageBulkDelete(messages, ch) {
         .map(m => `> **${m.author?.username || 'Unknown'}:** ${m.content.substring(0, 80)}${m.content.length > 80 ? '...' : ''}`)
         .join('\n');
 
+    // Best-effort moderator lookup — bulk-delete is audit-logged.
+    const audit = await fetchExecutor(ch.guild, AuditLogEvent.MessageBulkDelete);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Performed by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
+
     const c = buildLogContainer(Colors.error);
     c.addTextDisplayComponents(text(
         `# ${E.error} Bulk Message Delete\n` +
         `${E.messages} **Messages Deleted:** ${messages.size}\n` +
-        `${E.pin} **Channel:** ${ch}\n` +
-        `${E.discord} **Unique Authors:** ${uniqueAuthors.length}`
+        `${_channelLine(ch)}\n` +
+        `${E.discord} **Unique Authors:** ${uniqueAuthors.length}` +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     if (preview) {
         c.addSeparatorComponents(separator());
@@ -335,31 +519,46 @@ async function logMessageBulkDelete(messages, ch) {
    ═══════════════════════════════════════════════════════ */
 
 async function logMemberJoin(member) {
+    if (isFiltered(member.guild, 'member', { user: member.user, member })) return;
     const channel = getLogChannel(member.guild, 'member');
     if (!channel) return;
 
     const accountAge = Date.now() - member.user.createdTimestamp;
     const days = Math.floor(accountAge / (1000 * 60 * 60 * 24));
-    const risk = days < 1 ? `${E.error} **Very New (< 1 day)**` :
-                 days < 7 ? `${E.info} **New Account (${days}d)**` :
-                 `${E.success} **Established (${days}d)**`;
+    const risk = days < 1 ? `${E.error} **Very New (< 1 day)** — possible alt`
+              : days < 7 ? `${E.info} **New Account (${days}d)**`
+              : days < 30 ? `${E.success} **Recent (${days}d)**`
+              :              `${E.success} **Established (${days}d)**`;
+
+    // Best-effort invite-tracker lookup — see utils/inviteManager for the
+    // before/after diff. This shows which invite link they came in through.
+    let inviteLine = '';
+    try {
+        const { inviteCache } = require('./inviteManager');
+        const cached = inviteCache.get(member.guild.id);
+        if (cached?.lastUsedInvite?.userId === member.id && cached.lastUsedInvite.code) {
+            const inv = cached.lastUsedInvite;
+            inviteLine = `\n${E.link} **Invite:** \`${inv.code}\` by ${inv.inviterId ? `<@${inv.inviterId}>` : '*Unknown*'} (${inv.uses || '?'} uses)`;
+        }
+    } catch { /* invite manager optional */ }
 
     const c = buildLogContainer(Colors.join);
     c.addSectionComponents(
         section(
             `# ${E.success} Member Joined\n` +
-            `${E.shine} **User:** ${member.user.username} (\`${member.user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${member.id}\`\n` +
-            `${E.stats} **Member #${member.guild.memberCount}**`,
+            `${_userLine(member.user, 'User')}\n` +
+            `${E.stats} **Member #${member.guild.memberCount}**` +
+            inviteLine,
             member.user.displayAvatarURL({ size: 256 })
         )
     );
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(
         `### ${E.info} Account Info\n` +
-        `> ${E.read} **Created:** ${tsR(member.user.createdAt)}\n` +
+        `> ${E.read} **Created:** ${tsR(member.user.createdAt)} (\`${days}d ago\`)\n` +
         `> ${E.shield} **Risk Level:** ${risk}\n` +
-        `> ${E.moderate} **Bot:** ${member.user.bot ? 'Yes' : 'No'}`
+        `> ${E.moderate} **Bot:** ${member.user.bot ? 'Yes' : 'No'}\n` +
+        `> ${E.discord} **System User:** ${member.user.system ? 'Yes' : 'No'}`
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} User ID: ${member.id} • ${tsR(new Date())}`));
@@ -368,6 +567,7 @@ async function logMemberJoin(member) {
 }
 
 async function logMemberLeave(member) {
+    if (isFiltered(member.guild, 'member', { user: member.user, member })) return;
     const channel = getLogChannel(member.guild, 'member');
     if (!channel) return;
     if (!member.user) return;
@@ -382,16 +582,31 @@ async function logMemberLeave(member) {
     if (rolesDisplay.length > 900) rolesDisplay = rolesDisplay.substring(0, 897) + '...';
 
     const memberDuration = member.joinedAt
-        ? Math.floor((Date.now() - member.joinedAt.getTime()) / (1000 * 60 * 60 * 24))
-        : null;
+        ? _formatDuration(Date.now() - member.joinedAt.getTime())
+        : 'Unknown';
 
-    const c = buildLogContainer(Colors.leave);
+    // Best-effort kick detection. If the audit log has a recent
+    // MemberKick entry for this user, surface it here instead of
+    // showing a generic "left" event so mods see the cause.
+    const kickAudit = await fetchExecutor(member.guild, AuditLogEvent.MemberKick, member.id);
+    const isKick = !!kickAudit?.executor;
+
+    const headerEmoji = isKick ? E.moderate : E.error;
+    const headerLabel = isKick ? 'Member Kicked' : 'Member Left';
+    const accent = isKick ? Colors.moderation : Colors.leave;
+
+    const causeBlock = isKick
+        ? `\n${E.shield} **Kicked by:** ${kickAudit.executor.tag || kickAudit.executor.username} (<@${kickAudit.executor.id}>) \`${kickAudit.executor.id}\`` +
+          `\n${E.read} **Reason:** ${kickAudit.reason || '*No reason provided*'}`
+        : '';
+
+    const c = buildLogContainer(accent);
     c.addSectionComponents(
         section(
-            `# ${E.error} Member Left\n` +
-            `${E.shine} **User:** ${member.user.username || 'Unknown'} (\`${member.user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${member.id}\`\n` +
-            `${E.stats} **Members Now:** ${member.guild.memberCount}`,
+            `# ${headerEmoji} ${headerLabel}\n` +
+            `${_userLine(member.user, 'User')}\n` +
+            `${E.stats} **Members Now:** ${member.guild.memberCount}` +
+            causeBlock,
             member.user.displayAvatarURL?.({ size: 256 }) || undefined
         )
     );
@@ -399,39 +614,57 @@ async function logMemberLeave(member) {
     c.addTextDisplayComponents(text(
         `### ${E.info} Membership Info\n` +
         `> ${E.read} **Joined:** ${member.joinedAt ? tsR(member.joinedAt) : 'Unknown'}\n` +
-        `> ${E.moderate} **Time in Server:** ${memberDuration !== null ? `${memberDuration} days` : 'Unknown'}\n` +
+        `> ${E.clock} **Time in Server:** ${memberDuration}\n` +
         `> ${E.palette} **Roles Had:** ${rolesDisplay}`
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} User ID: ${member.id} • ${tsR(new Date())}`));
 
+    // Kicks should also reach the moderation log if configured.
     await sendLog(channel, c, member.guild, 'member');
+    if (isKick) {
+        const modChannel = getLogChannel(member.guild, 'moderation');
+        if (modChannel && modChannel.id !== channel.id) {
+            await sendLog(modChannel, c, member.guild, 'moderation');
+        }
+    }
 }
 
 async function logMemberUpdate(oldMember, newMember) {
+    if (isFiltered(newMember.guild, 'member', { user: newMember.user, member: newMember })) return;
     const channel = getLogChannel(newMember.guild, 'member');
     if (!channel) return;
 
     const changes = [];
 
-    // Nickname change
+    // Nickname change — attribute via audit log when changed by another user.
     if (oldMember.nickname !== newMember.nickname) {
+        const audit = await fetchExecutor(newMember.guild, AuditLogEvent.MemberUpdate, newMember.id);
+        const by = audit?.executor && audit.executor.id !== newMember.id
+            ? ` *by ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)*`
+            : ' *(self)*';
         changes.push(
-            `### ${E.settings} Nickname Changed\n` +
+            `### ${E.settings} Nickname Changed${by}\n` +
             `> ${E.error} **Before:** ${oldMember.nickname || '*None*'}\n` +
             `> ${E.success} **After:** ${newMember.nickname || '*None*'}`
         );
     }
 
-    // Role changes
+    // Role changes — also audit-attributed.
     const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
     const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
 
-    if (addedRoles.size > 0) {
-        changes.push(`### ${E.success} Roles Added\n> ${addedRoles.map(r => r.toString()).join(' ')}`);
-    }
-    if (removedRoles.size > 0) {
-        changes.push(`### ${E.error} Roles Removed\n> ${removedRoles.map(r => r.toString()).join(' ')}`);
+    if (addedRoles.size > 0 || removedRoles.size > 0) {
+        const audit = await fetchExecutor(newMember.guild, AuditLogEvent.MemberRoleUpdate, newMember.id);
+        const by = audit?.executor
+            ? ` *by ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)*`
+            : '';
+        if (addedRoles.size > 0) {
+            changes.push(`### ${E.success} Roles Added${by}\n> ${addedRoles.map(r => r.toString()).join(' ')}`);
+        }
+        if (removedRoles.size > 0) {
+            changes.push(`### ${E.error} Roles Removed${by}\n> ${removedRoles.map(r => r.toString()).join(' ')}`);
+        }
     }
 
     // Server-specific avatar change
@@ -445,16 +678,22 @@ async function logMemberUpdate(oldMember, newMember) {
         );
     }
 
-    // Timeout change
+    // Timeout change — surface moderator + reason via MemberUpdate audit entry.
     if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
+        const audit = await fetchExecutor(newMember.guild, AuditLogEvent.MemberUpdate, newMember.id);
+        const by = audit?.executor
+            ? `\n> ${E.shield} **Moderator:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)`
+            : '';
+        const reason = audit?.reason ? `\n> ${E.read} **Reason:** ${audit.reason}` : '';
         if (newMember.communicationDisabledUntilTimestamp && newMember.communicationDisabledUntilTimestamp > Date.now()) {
             changes.push(
                 `### ${E.mute} Member Timed Out\n` +
-                `> ${E.moderate} **Timeout Until:** <t:${Math.floor(newMember.communicationDisabledUntilTimestamp / 1000)}:F>\n` +
-                `> ${E.read} **Expires:** ${tsR(new Date(newMember.communicationDisabledUntilTimestamp))}`
+                `> ${E.moderate} **Until:** <t:${Math.floor(newMember.communicationDisabledUntilTimestamp / 1000)}:F>\n` +
+                `> ${E.clock} **Expires:** ${tsR(new Date(newMember.communicationDisabledUntilTimestamp))}` +
+                by + reason
             );
         } else if (oldMember.communicationDisabledUntilTimestamp && (!newMember.communicationDisabledUntilTimestamp || newMember.communicationDisabledUntilTimestamp <= Date.now())) {
-            changes.push(`### ${E.success} Timeout Removed\n> ${E.shine} Member can speak again`);
+            changes.push(`### ${E.success} Timeout Removed\n> ${E.shine} Member can speak again` + by + reason);
         }
     }
 
@@ -476,8 +715,7 @@ async function logMemberUpdate(oldMember, newMember) {
     c.addSectionComponents(
         section(
             `# ${E.settings} Member Updated\n` +
-            `${E.shine} **User:** ${newMember.user.username} (\`${newMember.user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${newMember.id}\``,
+            `${_userLine(newMember.user, 'User')}`,
             newMember.user.displayAvatarURL({ size: 128 })
         )
     );
@@ -577,6 +815,7 @@ async function logUserUpdate(oldUser, newUser, client) {
    ═══════════════════════════════════════════════════════ */
 
 async function logVoiceStateUpdate(oldState, newState) {
+    if (isFiltered(newState.guild, 'voice', { user: newState.member?.user, member: newState.member, channel: newState.channel || oldState.channel })) return;
     const channel = getLogChannel(newState.guild, 'voice');
     if (!channel) return;
 
@@ -586,51 +825,82 @@ async function logVoiceStateUpdate(oldState, newState) {
     const avatar = member.user.displayAvatarURL?.({ size: 128 }) || undefined;
     const tag = member.user.username || 'Unknown User';
 
-    // Voice Join
+    // Voice Join — record time so leave/switch can show duration.
     if (!oldState.channel && newState.channel) {
+        _voiceJoinTimes.set(_voiceKey(newState.guild.id, member.id), {
+            channelId: newState.channel.id,
+            joinedAt: Date.now(),
+        });
         const memberCount = newState.channel.members?.size || 1;
         const c = buildLogContainer(Colors.join);
         c.addSectionComponents(
             section(
                 `# ${E.success} Voice Channel Join\n` +
-                `${E.shine} **User:** ${tag} (\`${member.user.id}\`)\n` +
-                `${E.volume} **Channel:** ${newState.channel.name}\n` +
+                `${_userLine(member.user, 'User')}\n` +
+                `${E.volume} **Channel:** ${newState.channel} (\`${newState.channel.id}\`)\n` +
                 `${E.discord} **Members in VC:** ${memberCount}`,
                 avatar
             )
         );
         c.addSeparatorComponents(separator());
-        c.addTextDisplayComponents(text(`-# ${E.wdot} Channel ID: ${newState.channel.id} • User ID: ${member.id}`));
+        c.addTextDisplayComponents(text(`-# ${E.wdot} Channel ID: ${newState.channel.id} • User ID: ${member.id} • ${tsR(new Date())}`));
         return sendLog(channel, c, newState.guild, 'voice');
     }
 
-    // Voice Leave
+    // Voice Leave — compute duration since join (if we tracked it).
     if (oldState.channel && !newState.channel) {
+        const k = _voiceKey(newState.guild.id, member.id);
+        const tracked = _voiceJoinTimes.get(k);
+        const duration = tracked ? _formatDuration(Date.now() - tracked.joinedAt) : 'Unknown';
+        _voiceJoinTimes.delete(k);
         const remaining = oldState.channel.members?.size || 0;
+
+        // Detect forced disconnect by a moderator via audit log.
+        const audit = await fetchExecutor(newState.guild, AuditLogEvent.MemberDisconnect);
+        const forcedBy = audit?.executor && audit.executor.id !== member.id
+            ? `\n${E.shield} **Disconnected by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)` +
+              (audit.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
+            : '';
+
         const c = buildLogContainer(Colors.leave);
         c.addSectionComponents(
             section(
                 `# ${E.error} Voice Channel Leave\n` +
-                `${E.shine} **User:** ${tag} (\`${member.user.id}\`)\n` +
-                `${E.mute} **Channel:** ${oldState.channel.name}\n` +
-                `${E.discord} **Remaining:** ${remaining === 0 ? 'Channel empty' : `${remaining} members`}`,
+                `${_userLine(member.user, 'User')}\n` +
+                `${E.mute} **Channel:** ${oldState.channel.name} (\`${oldState.channel.id}\`)\n` +
+                `${E.clock} **Time in VC:** ${duration}\n` +
+                `${E.discord} **Remaining:** ${remaining === 0 ? 'Channel empty' : `${remaining} members`}` +
+                forcedBy,
                 avatar
             )
         );
         c.addSeparatorComponents(separator());
-        c.addTextDisplayComponents(text(`-# ${E.wdot} Channel ID: ${oldState.channel.id} • User ID: ${member.id}`));
+        c.addTextDisplayComponents(text(`-# ${E.wdot} Channel ID: ${oldState.channel.id} • User ID: ${member.id} • ${tsR(new Date())}`));
         return sendLog(channel, c, newState.guild, 'voice');
     }
 
     // Voice Switch
     if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+        const k = _voiceKey(newState.guild.id, member.id);
+        const tracked = _voiceJoinTimes.get(k);
+        const duration = tracked ? _formatDuration(Date.now() - tracked.joinedAt) : null;
+        _voiceJoinTimes.set(k, { channelId: newState.channel.id, joinedAt: Date.now() });
+
+        // Forced move? MemberMove audit entry.
+        const audit = await fetchExecutor(newState.guild, AuditLogEvent.MemberMove);
+        const forcedBy = audit?.executor
+            ? `\n${E.shield} **Moved by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)`
+            : '';
+
         const c = buildLogContainer(Colors.voice);
         c.addSectionComponents(
             section(
                 `# ${E.voice} Voice Channel Switch\n` +
-                `${E.shine} **User:** ${tag} (\`${member.user.id}\`)\n` +
-                `${E.error} **From:** ${oldState.channel.name}\n` +
-                `${E.success} **To:** ${newState.channel.name}`,
+                `${_userLine(member.user, 'User')}\n` +
+                `${E.error} **From:** ${oldState.channel.name}` +
+                (duration ? ` (${duration})` : '') + `\n` +
+                `${E.success} **To:** ${newState.channel.name}` +
+                forcedBy,
                 avatar
             )
         );
@@ -648,10 +918,14 @@ async function logVoiceStateUpdate(oldState, newState) {
         voiceChanges.push(`> ${newState.selfDeaf ? E.mute : E.volume} **Self Deaf:** ${newState.selfDeaf ? 'Deafened' : 'Undeafened'}`);
     }
     if (oldState.serverMute !== newState.serverMute) {
-        voiceChanges.push(`> ${newState.serverMute ? E.error : E.success} **Server Mute:** ${newState.serverMute ? 'Muted' : 'Unmuted'}`);
+        const audit = await fetchExecutor(newState.guild, AuditLogEvent.MemberUpdate, member.id);
+        const by = audit?.executor && audit.executor.id !== member.id ? ` *by ${audit.executor.tag || audit.executor.username}*` : '';
+        voiceChanges.push(`> ${newState.serverMute ? E.error : E.success} **Server Mute:** ${newState.serverMute ? 'Muted' : 'Unmuted'}${by}`);
     }
     if (oldState.serverDeaf !== newState.serverDeaf) {
-        voiceChanges.push(`> ${newState.serverDeaf ? E.error : E.success} **Server Deaf:** ${newState.serverDeaf ? 'Deafened' : 'Undeafened'}`);
+        const audit = await fetchExecutor(newState.guild, AuditLogEvent.MemberUpdate, member.id);
+        const by = audit?.executor && audit.executor.id !== member.id ? ` *by ${audit.executor.tag || audit.executor.username}*` : '';
+        voiceChanges.push(`> ${newState.serverDeaf ? E.error : E.success} **Server Deaf:** ${newState.serverDeaf ? 'Deafened' : 'Undeafened'}${by}`);
     }
     if (oldState.streaming !== newState.streaming) {
         voiceChanges.push(`> ${newState.streaming ? E.bolt : E.wdot} **Streaming:** ${newState.streaming ? 'Started' : 'Stopped'}`);
@@ -668,8 +942,8 @@ async function logVoiceStateUpdate(oldState, newState) {
         c.addSectionComponents(
             section(
                 `# ${E.settings} Voice State Update\n` +
-                `${E.shine} **User:** ${tag} (\`${member.user.id}\`)\n` +
-                `${E.volume} **Channel:** ${newState.channel.name}`,
+                `${_userLine(member.user, 'User')}\n` +
+                `${E.volume} **Channel:** ${newState.channel.name} (\`${newState.channel.id}\`)`,
                 avatar
             )
         );
@@ -700,18 +974,24 @@ const CHANNEL_TYPE_NAMES = {
 
 async function logChannelCreate(ch) {
     if (!ch.guild) return;
+    if (isFiltered(ch.guild, 'server', { channel: ch })) return;
     const logChannel = getLogChannel(ch.guild, 'server');
     if (!logChannel) return;
 
     const typeName = CHANNEL_TYPE_NAMES[ch.type] || `Type ${ch.type}`;
+    const audit = await fetchExecutor(ch.guild, AuditLogEvent.ChannelCreate, ch.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Created by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
 
     const c = buildLogContainer(Colors.success);
     c.addTextDisplayComponents(text(
         `# ${E.success} Channel Created\n` +
-        `${E.pin} **Channel:** ${ch}\n` +
-        `${E.read} **Type:** ${typeName}\n` +
-        `${E.discord} **Channel ID:** \`${ch.id}\`` +
-        (ch.parent ? `\n${E.folder} **Category:** ${ch.parent.name}` : '')
+        `${_channelLine(ch)}\n` +
+        `${E.read} **Type:** ${typeName}` +
+        (ch.parent ? `\n${E.folder} **Category:** ${ch.parent.name}` : '') +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Channel ID: ${ch.id} • ${tsR(new Date())}`));
@@ -721,18 +1001,24 @@ async function logChannelCreate(ch) {
 
 async function logChannelDelete(ch) {
     if (!ch.guild) return;
+    if (isFiltered(ch.guild, 'server', { channel: ch })) return;
     const logChannel = getLogChannel(ch.guild, 'server');
     if (!logChannel) return;
 
     const typeName = CHANNEL_TYPE_NAMES[ch.type] || `Type ${ch.type}`;
+    const audit = await fetchExecutor(ch.guild, AuditLogEvent.ChannelDelete, ch.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Deleted by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
 
     const c = buildLogContainer(Colors.error);
     c.addTextDisplayComponents(text(
         `# ${E.error} Channel Deleted\n` +
-        `${E.pin} **Channel:** #${ch.name}\n` +
-        `${E.read} **Type:** ${typeName}\n` +
-        `${E.discord} **Channel ID:** \`${ch.id}\`` +
-        (ch.parent ? `\n${E.folder} **Was in:** ${ch.parent.name}` : '')
+        `${E.pin} **Channel:** #${ch.name} (\`${ch.id}\`)\n` +
+        `${E.read} **Type:** ${typeName}` +
+        (ch.parent ? `\n${E.folder} **Was in:** ${ch.parent.name}` : '') +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Channel ID: ${ch.id} • ${tsR(new Date())}`));
@@ -773,11 +1059,17 @@ async function logChannelUpdate(oldChannel, newChannel) {
 
     if (changes.length === 0) return;
 
+    const audit = await fetchExecutor(newChannel.guild, AuditLogEvent.ChannelUpdate, newChannel.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Updated by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
+
     const c = buildLogContainer(Colors.update);
     c.addTextDisplayComponents(text(
         `# ${E.settings} Channel Updated\n` +
-        `${E.pin} **Channel:** ${newChannel}\n` +
-        `${E.discord} **Channel ID:** \`${newChannel.id}\``
+        `${_channelLine(newChannel)}` +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`### ${E.info} Changes\n${changes.join('\n')}`));
@@ -795,14 +1087,20 @@ async function logRoleCreate(role) {
     const channel = getLogChannel(role.guild, 'server');
     if (!channel) return;
 
+    const audit = await fetchExecutor(role.guild, AuditLogEvent.RoleCreate, role.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Created by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
+
     const c = buildLogContainer(role.color || Colors.success);
     c.addTextDisplayComponents(text(
         `# ${E.success} Role Created\n` +
-        `${E.shield} **Role:** ${role}\n` +
-        `${E.discord} **Role ID:** \`${role.id}\`\n` +
+        `${E.shield} **Role:** ${role} (\`${role.id}\`)\n` +
         `${E.palette} **Color:** ${role.hexColor}\n` +
         `${E.stats} **Position:** #${role.position}\n` +
-        `${E.moderate} **Hoisted:** ${role.hoist ? 'Yes' : 'No'} • **Mentionable:** ${role.mentionable ? 'Yes' : 'No'}`
+        `${E.moderate} **Hoisted:** ${role.hoist ? 'Yes' : 'No'} • **Mentionable:** ${role.mentionable ? 'Yes' : 'No'}` +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Role ID: ${role.id} • ${tsR(new Date())}`));
@@ -814,14 +1112,20 @@ async function logRoleDelete(role) {
     const channel = getLogChannel(role.guild, 'server');
     if (!channel) return;
 
+    const audit = await fetchExecutor(role.guild, AuditLogEvent.RoleDelete, role.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Deleted by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
+
     const c = buildLogContainer(Colors.error);
     c.addTextDisplayComponents(text(
         `# ${E.error} Role Deleted\n` +
-        `${E.shield} **Role:** @${role.name}\n` +
-        `${E.discord} **Role ID:** \`${role.id}\`\n` +
+        `${E.shield} **Role:** @${role.name} (\`${role.id}\`)\n` +
         `${E.palette} **Color:** ${role.hexColor}\n` +
         `${E.stats} **Had Position:** #${role.position}\n` +
-        `${E.discord} **Had Members:** ${role.members?.size || 0}`
+        `${E.discord} **Had Members:** ${role.members?.size || 0}` +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Role ID: ${role.id} • ${tsR(new Date())}`));
@@ -859,11 +1163,17 @@ async function logRoleUpdate(oldRole, newRole) {
 
     if (changes.length === 0) return;
 
+    const audit = await fetchExecutor(newRole.guild, AuditLogEvent.RoleUpdate, newRole.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Updated by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
+
     const c = buildLogContainer(newRole.color || Colors.update);
     c.addTextDisplayComponents(text(
         `# ${E.settings} Role Updated\n` +
-        `${E.shield} **Role:** ${newRole}\n` +
-        `${E.discord} **Role ID:** \`${newRole.id}\``
+        `${E.shield} **Role:** ${newRole} (\`${newRole.id}\`)` +
+        byLine +
+        (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : '')
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`### ${E.info} Changes\n${changes.join('\n')}`));
@@ -958,27 +1268,20 @@ async function logGuildUpdate(oldGuild, newGuild) {
    ═══════════════════════════════════════════════════════ */
 
 async function logBan(guild, user) {
+    if (isFiltered(guild, 'moderation', { user })) return;
     const channel = getLogChannel(guild, 'moderation');
     if (!channel) return;
 
-    let moderator = null, reason = null;
-    try {
-        const auditLogs = await guild.fetchAuditLogs({ type: AuditLogEvent.MemberBanAdd, limit: 1 });
-        const entry = auditLogs.entries.first();
-        if (entry && entry.target.id === user.id && (Date.now() - entry.createdTimestamp) < 10_000) {
-            moderator = entry.executor;
-            reason = entry.reason;
-        }
-    } catch {}
+    const audit = await fetchExecutor(guild, AuditLogEvent.MemberBanAdd, user.id);
+    const accountAge = user.createdTimestamp ? _formatDuration(Date.now() - user.createdTimestamp) : 'Unknown';
 
     const c = buildLogContainer(Colors.error);
     c.addSectionComponents(
         section(
-            `# ${E.error} Member Banned\n` +
-            `${E.shine} **User:** ${user.username} (\`${user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${user.id}\`` +
-            (moderator ? `\n${E.shield} **Moderator:** ${moderator.username} (\`${moderator.id}\`)` : '') +
-            `\n${E.read} **Reason:** ${reason || '*No reason provided*'}`,
+            `# ${E.moderate} Member Banned\n` +
+            `${_userLine(user, 'User')}\n` +
+            `${E.clock} **Account Age:** ${accountAge}\n` +
+            _byLine(audit?.executor, audit?.reason),
             user.displayAvatarURL({ size: 256 })
         )
     );
@@ -989,25 +1292,21 @@ async function logBan(guild, user) {
 }
 
 async function logUnban(guild, user) {
+    if (isFiltered(guild, 'moderation', { user })) return;
     const channel = getLogChannel(guild, 'moderation');
     if (!channel) return;
 
-    let moderator = null;
-    try {
-        const auditLogs = await guild.fetchAuditLogs({ type: AuditLogEvent.MemberBanRemove, limit: 1 });
-        const entry = auditLogs.entries.first();
-        if (entry && entry.target.id === user.id && (Date.now() - entry.createdTimestamp) < 10_000) {
-            moderator = entry.executor;
-        }
-    } catch {}
+    const audit = await fetchExecutor(guild, AuditLogEvent.MemberBanRemove, user.id);
 
     const c = buildLogContainer(Colors.success);
     c.addSectionComponents(
         section(
             `# ${E.success} Member Unbanned\n` +
-            `${E.shine} **User:** ${user.username} (\`${user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${user.id}\`` +
-            (moderator ? `\n${E.shield} **Moderator:** ${moderator.username} (\`${moderator.id}\`)` : ''),
+            `${_userLine(user, 'User')}\n` +
+            (audit?.executor
+                ? `${E.shield} **Unbanned by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+                : `${E.shield} **Unbanned by:** *Unknown*`) +
+            (audit?.reason ? `\n${E.read} **Reason:** ${audit.reason}` : ''),
             user.displayAvatarURL({ size: 256 })
         )
     );
@@ -1018,6 +1317,7 @@ async function logUnban(guild, user) {
 }
 
 async function logMemberKick(member, executor, reason) {
+    if (isFiltered(member.guild, 'moderation', { user: member.user, member })) return;
     const channel = getLogChannel(member.guild, 'moderation');
     if (!channel) return;
 
@@ -1025,10 +1325,8 @@ async function logMemberKick(member, executor, reason) {
     c.addSectionComponents(
         section(
             `# ${E.moderate} Member Kicked\n` +
-            `${E.shine} **User:** ${member.user.username} (\`${member.user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${member.id}\`\n` +
-            `${E.shield} **Moderator:** ${executor ? `${executor.username} (\`${executor.id}\`)` : '*Unknown*'}\n` +
-            `${E.read} **Reason:** ${reason || '*No reason provided*'}`,
+            `${_userLine(member.user, 'User')}\n` +
+            _byLine(executor, reason),
             member.user.displayAvatarURL({ size: 256 })
         )
     );
@@ -1039,6 +1337,7 @@ async function logMemberKick(member, executor, reason) {
 }
 
 async function logTimeout(member, executor, duration, reason) {
+    if (isFiltered(member.guild, 'moderation', { user: member.user, member })) return;
     const channel = getLogChannel(member.guild, 'moderation');
     if (!channel) return;
 
@@ -1046,11 +1345,9 @@ async function logTimeout(member, executor, duration, reason) {
     c.addSectionComponents(
         section(
             `# ${E.mute} Member Timed Out\n` +
-            `${E.shine} **User:** ${member.user.username} (\`${member.user.id}\`)\n` +
-            `${E.discord} **User ID:** \`${member.id}\`\n` +
-            `${E.shield} **Moderator:** ${executor ? `${executor.username} (\`${executor.id}\`)` : '*Unknown*'}\n` +
-            `${E.moderate} **Duration:** ${duration || 'Unknown'}\n` +
-            `${E.read} **Reason:** ${reason || '*No reason provided*'}`,
+            `${_userLine(member.user, 'User')}\n` +
+            `${E.clock} **Duration:** ${duration || 'Unknown'}\n` +
+            _byLine(executor, reason),
             member.user.displayAvatarURL({ size: 256 })
         )
     );
@@ -1068,12 +1365,17 @@ async function logEmojiCreate(emoji) {
     const channel = getLogChannel(emoji.guild, 'server');
     if (!channel) return;
 
+    const audit = await fetchExecutor(emoji.guild, AuditLogEvent.EmojiCreate, emoji.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Added by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)`
+        : '';
+
     const c = buildLogContainer(Colors.success);
     c.addTextDisplayComponents(text(
         `# ${E.success} Emoji Added\n` +
-        `${E.shine} **Emoji:** ${emoji} \`:${emoji.name}:\`\n` +
-        `${E.discord} **Emoji ID:** \`${emoji.id}\`\n` +
-        `${E.read} **Animated:** ${emoji.animated ? 'Yes' : 'No'}`
+        `${E.shine} **Emoji:** ${emoji} \`:${emoji.name}:\` (\`${emoji.id}\`)\n` +
+        `${E.read} **Animated:** ${emoji.animated ? 'Yes' : 'No'}` +
+        byLine
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Emoji ID: ${emoji.id} • ${tsR(new Date())}`));
@@ -1085,12 +1387,17 @@ async function logEmojiDelete(emoji) {
     const channel = getLogChannel(emoji.guild, 'server');
     if (!channel) return;
 
+    const audit = await fetchExecutor(emoji.guild, AuditLogEvent.EmojiDelete, emoji.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Removed by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)`
+        : '';
+
     const c = buildLogContainer(Colors.error);
     c.addTextDisplayComponents(text(
         `# ${E.error} Emoji Removed\n` +
-        `${E.shine} **Name:** :${emoji.name}:\n` +
-        `${E.discord} **Emoji ID:** \`${emoji.id}\`\n` +
-        `${E.read} **Was Animated:** ${emoji.animated ? 'Yes' : 'No'}`
+        `${E.shine} **Name:** :${emoji.name}: (\`${emoji.id}\`)\n` +
+        `${E.read} **Was Animated:** ${emoji.animated ? 'Yes' : 'No'}` +
+        byLine
     ));
     c.addSeparatorComponents(separator());
     c.addTextDisplayComponents(text(`-# ${E.wdot} Emoji ID: ${emoji.id} • ${tsR(new Date())}`));
@@ -1581,6 +1888,205 @@ async function logSecurityConfigChange(guild, payload) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   <:Chat:1473038936241864865> REACTION LOGS
+   ═══════════════════════════════════════════════════════ */
+
+async function logReactionAdd(reaction, user) {
+    if (!reaction || !user || user.bot) return;
+    const guild = reaction.message?.guild;
+    if (!guild) return;
+    if (isFiltered(guild, 'reactions', { user, channel: reaction.message?.channel })) return;
+    const channel = getLogChannel(guild, 'reactions');
+    if (!channel) return;
+
+    // Try to surface the message author so we can show "X reacted to Y's message"
+    let author = reaction.message?.author;
+    try {
+        if (!author && reaction.message.partial) await reaction.message.fetch();
+        author = reaction.message?.author;
+    } catch {}
+
+    const emojiDisplay = reaction.emoji?.id
+        ? `<${reaction.emoji.animated ? 'a' : ''}:${reaction.emoji.name}:${reaction.emoji.id}>`
+        : reaction.emoji?.toString() || '?';
+
+    const c = buildLogContainer(Colors.success);
+    c.addSectionComponents(
+        section(
+            `# ${E.success} Reaction Added\n` +
+            `${_userLine(user, 'User')}\n` +
+            `${E.shine} **Emoji:** ${emojiDisplay} \`:${reaction.emoji?.name || '?'}:\`\n` +
+            `${_channelLine(reaction.message.channel)}` +
+            (author ? `\n${E.user} **On message by:** ${author.tag || author.username} (<@${author.id}>)` : '') +
+            `\n${E.link} **[Jump to Message](${reaction.message.url})**`,
+            user.displayAvatarURL?.({ size: 128 }) || undefined
+        )
+    );
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} Message ID: ${reaction.message.id} • ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'reactions');
+}
+
+async function logReactionRemove(reaction, user) {
+    if (!reaction || !user || user.bot) return;
+    const guild = reaction.message?.guild;
+    if (!guild) return;
+    if (isFiltered(guild, 'reactions', { user, channel: reaction.message?.channel })) return;
+    const channel = getLogChannel(guild, 'reactions');
+    if (!channel) return;
+
+    const emojiDisplay = reaction.emoji?.id
+        ? `<${reaction.emoji.animated ? 'a' : ''}:${reaction.emoji.name}:${reaction.emoji.id}>`
+        : reaction.emoji?.toString() || '?';
+
+    const c = buildLogContainer(Colors.muted);
+    c.addSectionComponents(
+        section(
+            `# ${E.error} Reaction Removed\n` +
+            `${_userLine(user, 'User')}\n` +
+            `${E.shine} **Emoji:** ${emojiDisplay} \`:${reaction.emoji?.name || '?'}:\`\n` +
+            `${_channelLine(reaction.message.channel)}` +
+            `\n${E.link} **[Jump to Message](${reaction.message.url})**`,
+            user.displayAvatarURL?.({ size: 128 }) || undefined
+        )
+    );
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} Message ID: ${reaction.message.id} • ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'reactions');
+}
+
+/* ═══════════════════════════════════════════════════════
+   <:Pin:1473038806612447500> PIN / UNPIN LOGS
+   ═══════════════════════════════════════════════════════ */
+
+/**
+ * Called from `messageUpdate` when only the `pinned` flag changed.
+ * Discord doesn't fire a dedicated pin event, but the audit log
+ * carries the executor for both pin and unpin.
+ */
+async function logMessagePinChange(message, pinned) {
+    if (!message?.guild) return;
+    if (isFiltered(message.guild, 'pins', { user: message.author, channel: message.channel })) return;
+    const channel = getLogChannel(message.guild, 'pins');
+    if (!channel) return;
+
+    const auditType = pinned ? AuditLogEvent.MessagePin : AuditLogEvent.MessageUnpin;
+    const audit = await fetchExecutor(message.guild, auditType);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **${pinned ? 'Pinned' : 'Unpinned'} by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>) \`${audit.executor.id}\``
+        : '';
+
+    const preview = message.content
+        ? (message.content.length > 200 ? message.content.substring(0, 197) + '...' : message.content)
+        : '*No text content*';
+
+    const c = buildLogContainer(pinned ? Colors.success : Colors.muted);
+    c.addTextDisplayComponents(text(
+        `# ${pinned ? E.pin : E.unlock} Message ${pinned ? 'Pinned' : 'Unpinned'}\n` +
+        (message.author ? `${_userLine(message.author, 'Author')}\n` : '') +
+        `${_channelLine(message.channel)}\n` +
+        `${E.link} **[Jump to Message](${message.url})**` +
+        byLine
+    ));
+    if (message.content) {
+        c.addSeparatorComponents(separator());
+        c.addTextDisplayComponents(text(`### ${E.read} Content\n>>> ${preview}`));
+    }
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} Message ID: ${message.id} • ${tsR(new Date())}`));
+
+    await sendLog(channel, c, message.guild, 'pins');
+}
+
+/* ═══════════════════════════════════════════════════════
+   <:Sketch:1473038248493453352> STICKER UPDATE
+   ═══════════════════════════════════════════════════════ */
+
+async function logStickerUpdate(oldSticker, newSticker) {
+    if (!newSticker.guild) return;
+    const channel = getLogChannel(newSticker.guild, 'server');
+    if (!channel) return;
+
+    const changes = [];
+    if (oldSticker.name !== newSticker.name) {
+        changes.push(`> ${E.settings} **Name:** \`${oldSticker.name}\` → \`${newSticker.name}\``);
+    }
+    if (oldSticker.description !== newSticker.description) {
+        changes.push(`> ${E.read} **Description:** \`${oldSticker.description || '*None*'}\` → \`${newSticker.description || '*None*'}\``);
+    }
+    if (oldSticker.tags !== newSticker.tags) {
+        changes.push(`> ${E.shine} **Tags:** \`${oldSticker.tags || '*None*'}\` → \`${newSticker.tags || '*None*'}\``);
+    }
+    if (changes.length === 0) return;
+
+    const audit = await fetchExecutor(newSticker.guild, AuditLogEvent.StickerUpdate, newSticker.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Updated by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)`
+        : '';
+
+    const c = buildLogContainer(Colors.update);
+    c.addTextDisplayComponents(text(
+        `# ${E.settings} Sticker Updated\n` +
+        `${E.shine} **Sticker:** ${newSticker.name} (\`${newSticker.id}\`)` + byLine
+    ));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`### ${E.info} Changes\n${changes.join('\n')}`));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} Sticker ID: ${newSticker.id} • ${tsR(new Date())}`));
+
+    await sendLog(channel, c, newSticker.guild, 'server');
+}
+
+/* ═══════════════════════════════════════════════════════
+   🧵 THREAD UPDATE
+   ═══════════════════════════════════════════════════════ */
+
+async function logThreadUpdate(oldThread, newThread) {
+    if (!newThread.guild) return;
+    const channel = getLogChannel(newThread.guild, 'server');
+    if (!channel) return;
+
+    const changes = [];
+    if (oldThread.name !== newThread.name) {
+        changes.push(`> ${E.settings} **Name:** \`${oldThread.name}\` → \`${newThread.name}\``);
+    }
+    if (oldThread.archived !== newThread.archived) {
+        changes.push(`> ${newThread.archived ? E.lock : E.unlock} **Archived:** ${oldThread.archived ? 'Yes' : 'No'} → ${newThread.archived ? 'Yes' : 'No'}`);
+    }
+    if (oldThread.locked !== newThread.locked) {
+        changes.push(`> ${newThread.locked ? E.lock : E.unlock} **Locked:** ${oldThread.locked ? 'Yes' : 'No'} → ${newThread.locked ? 'Yes' : 'No'}`);
+    }
+    if (oldThread.rateLimitPerUser !== newThread.rateLimitPerUser) {
+        changes.push(`> ${E.moderate} **Slowmode:** ${oldThread.rateLimitPerUser || 0}s → ${newThread.rateLimitPerUser || 0}s`);
+    }
+    if (oldThread.autoArchiveDuration !== newThread.autoArchiveDuration) {
+        changes.push(`> ${E.clock} **Auto-Archive:** ${oldThread.autoArchiveDuration || '?'}min → ${newThread.autoArchiveDuration || '?'}min`);
+    }
+    if (changes.length === 0) return;
+
+    const audit = await fetchExecutor(newThread.guild, AuditLogEvent.ThreadUpdate, newThread.id);
+    const byLine = audit?.executor
+        ? `\n${E.shield} **Updated by:** ${audit.executor.tag || audit.executor.username} (<@${audit.executor.id}>)`
+        : '';
+
+    const c = buildLogContainer(Colors.thread);
+    c.addTextDisplayComponents(text(
+        `# ${E.settings} Thread Updated\n` +
+        `${E.pin} **Thread:** ${newThread} (\`${newThread.id}\`)\n` +
+        `${E.folder} **Parent:** ${newThread.parent || '*Unknown*'}` +
+        byLine
+    ));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`### ${E.info} Changes\n${changes.join('\n')}`));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} Thread ID: ${newThread.id} • ${tsR(new Date())}`));
+
+    await sendLog(channel, c, newThread.guild, 'server');
+}
+
+/* ═══════════════════════════════════════════════════════
    EXPORTS
    ═══════════════════════════════════════════════════════ */
 
@@ -1589,6 +2095,10 @@ module.exports = {
     logMessageDelete,
     logMessageUpdate,
     logMessageBulkDelete,
+    logMessagePinChange,
+    // Reactions
+    logReactionAdd,
+    logReactionRemove,
     // Member
     logMemberJoin,
     logMemberLeave,
@@ -1618,9 +2128,11 @@ module.exports = {
     logEmojiUpdate,
     logStickerCreate,
     logStickerDelete,
+    logStickerUpdate,
     // Threads
     logThreadCreate,
     logThreadDelete,
+    logThreadUpdate,
     // Invites
     logInviteCreate,
     logInviteDelete,
@@ -1642,12 +2154,13 @@ module.exports = {
     invalidateCache,
     getLogChannel,
     sendLog,
+    fetchExecutor,
+    isFiltered,
+    getFilters,
     // Webhooks
     logWebhookUpdate,
     // Config helpers
     loadLogs,
-    getLogChannel,
     getLogMode,
     getLogWebhook,
-    invalidateCache,
 };
