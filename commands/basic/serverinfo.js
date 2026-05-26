@@ -114,7 +114,7 @@ async function buildServerInfo(guild) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `### ${E.user} Members · ${guild.memberCount.toLocaleString()}\n` +
         `${E.userPlus} **Humans:** ${humans.toLocaleString()}  ·  ${E.bots} **Bots:** ${counts.bots.toLocaleString()}\n` +
-        `${E.online} **${counts.online.toLocaleString()}**  ·  <:idle:1473370064718827715> **${counts.idle.toLocaleString()}**  ·  <:dnd:1485248263857639424> **${counts.dnd.toLocaleString()}**  ·  ${E.offline} **${counts.offline.toLocaleString()}**`
+        `${E.online} **${counts.online.toLocaleString()}**  ·  <:idle:1485248283768262676> **${counts.idle.toLocaleString()}**  ·  <:dnd:1485248263857639424> **${counts.dnd.toLocaleString()}**  ·  ${E.offline} **${counts.offline.toLocaleString()}**`
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));

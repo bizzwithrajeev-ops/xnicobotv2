@@ -323,7 +323,7 @@ module.exports = {
         .addStringOption(o => o.setName('bet').setDescription('Bet amount (max 100k) or "all"').setRequired(true)),
 
     prefix: 'wheel',
-    aliases: ['fortune', 'spin'],
+    aliases: ['spin'],
     description: 'Spin the Fortune Wheel — small to mega presets, jackpots up to 100×.',
     usage: 'wheel <bet>',
     category: 'economy',

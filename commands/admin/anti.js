@@ -18,6 +18,7 @@ const { loadConfig, saveConfig, getDefaultConfig } = require('../../utils/panels
 const { checkAndExpire } = require('../../utils/panelExpiration');
 const { buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
 const { THEME, formatCheck } = require('../../utils/theme');
+const { ACTIONS_FOR, isValidActionFor, commonActions, v2InvalidReply } = require('../../utils/securityUI');
 const trust = require('../../utils/trustManager');
 
 // --- Protection category metadata ---
@@ -32,7 +33,7 @@ const CATEGORIES = {
     bot_add:        { key: 'botAdd',         label: 'Bot Add Protection', emoji: '<:bots:1473368718120849500>', hasLimit: false, defaultAction: 'kick_bot' }
 };
 
-const VALID_ACTIONS = ['remove_roles', 'kick', 'ban', 'kick_bot'];
+const VALID_ACTIONS = ['remove_roles', 'kick', 'ban', 'kick_bot', 'kick_both', 'ban_bot', 'timeout']; // exhaustive set; per-module validation uses ACTIONS_FOR
 const LIMIT_MIN = 1;
 const LIMIT_MAX = 10;
 const WINDOW_MIN = 10;
@@ -216,7 +217,7 @@ module.exports = {
             }
             rows.push(
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('action').setLabel('Action (remove_roles / kick / ban / kick_bot)')
+                    new TextInputBuilder().setCustomId('action').setLabel(`Action: ${ACTIONS_FOR[cat.key].join(' / ')}`)
                         .setStyle(TextInputStyle.Short).setValue(guildConfig[cat.key]?.action || cat.defaultAction).setRequired(true)
                 )
             );
@@ -231,8 +232,14 @@ module.exports = {
             if (!cat) return;
 
             const action = interaction.fields.getTextInputValue('action').toLowerCase().trim();
-            if (!VALID_ACTIONS.includes(action)) {
-                return interaction.reply({ content: `<:Cancel:1473037949187657818> Invalid action. Valid: \`${VALID_ACTIONS.join('`, `')}\``, flags: MessageFlags.Ephemeral });
+            // Validate the action is allowed for THIS specific module —
+            // saving e.g. `kick_bot` on `banProtection` would silently no-op
+            // because the engine routes `kick_bot` to bot-add only.
+            if (!isValidActionFor(cat.key, action)) {
+                const allowed = ACTIONS_FOR[cat.key].map(a => `\`${a}\``).join(', ');
+                return interaction.reply(v2InvalidReply(
+                    `Invalid action for **${cat.label}**. Allowed: ${allowed}`,
+                ));
             }
 
             if (!guildConfig[cat.key]) guildConfig[cat.key] = {};
@@ -242,10 +249,14 @@ module.exports = {
                 const limit = parseInt(interaction.fields.getTextInputValue('limit'));
                 const timeWindow = parseInt(interaction.fields.getTextInputValue('timewindow'));
                 if (isNaN(limit) || limit < LIMIT_MIN || limit > LIMIT_MAX) {
-                    return interaction.reply({ content: `<:Cancel:1473037949187657818> Limit must be between **${LIMIT_MIN}** and **${LIMIT_MAX}**.`, flags: MessageFlags.Ephemeral });
+                    return interaction.reply(v2InvalidReply(
+                        `Limit must be between **${LIMIT_MIN}** and **${LIMIT_MAX}**.`,
+                    ));
                 }
                 if (isNaN(timeWindow) || timeWindow < WINDOW_MIN || timeWindow > WINDOW_MAX) {
-                    return interaction.reply({ content: `<:Cancel:1473037949187657818> Time window must be between **${WINDOW_MIN}** and **${WINDOW_MAX}** seconds.`, flags: MessageFlags.Ephemeral });
+                    return interaction.reply(v2InvalidReply(
+                        `Time window must be between **${WINDOW_MIN}** and **${WINDOW_MAX}** seconds.`,
+                    ));
                 }
                 guildConfig[cat.key].limit = limit;
                 guildConfig[cat.key].timeWindow = timeWindow * 1000;
@@ -292,10 +303,15 @@ module.exports = {
 
         // --- Set All Actions (modal) ---
         if (customId === 'anti_set_all_actions') {
+            // Note: botAdd has its own action set (kick_bot/kick_both/ban_bot)
+            // and isn't covered by this bulk apply — its action is only
+            // configurable via the per-category modal.
+            const bulkKeys = Object.values(CATEGORIES).filter(c => c.hasLimit).map(c => c.key);
+            const allowed = commonActions(bulkKeys);
             const modal = new ModalBuilder().setCustomId('anti_modal_all_actions').setTitle('Set All Protection Actions');
             modal.addComponents(
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('action').setLabel('Action (remove_roles / kick / ban)')
+                    new TextInputBuilder().setCustomId('action').setLabel(`Action — ${allowed.join(' / ')}`)
                         .setStyle(TextInputStyle.Short).setPlaceholder('e.g. remove_roles').setRequired(true)
                 )
             );
@@ -303,12 +319,19 @@ module.exports = {
         }
 
         if (customId === 'anti_modal_all_actions') {
+            const bulkKeys = Object.values(CATEGORIES).filter(c => c.hasLimit).map(c => c.key);
+            const allowed = commonActions(bulkKeys);
             const action = interaction.fields.getTextInputValue('action').toLowerCase().trim();
-            if (!VALID_ACTIONS.includes(action)) {
-                return interaction.reply({ components: [buildErrorResponse('Invalid Action', `Valid actions: \`${VALID_ACTIONS.join('\`, \`')}\``)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            if (!allowed.includes(action)) {
+                return interaction.reply({
+                    components: [buildErrorResponse('Invalid Action', `Allowed actions for bulk apply: \`${allowed.join('`, `')}\`\n\n*Note: \`kick_bot\` / \`ban_bot\` only apply to the **Bot Add** module — set those individually.*`)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                });
             }
             for (const cat of Object.values(CATEGORIES)) {
-                if (guildConfig[cat.key]) guildConfig[cat.key].action = action;
+                if (cat.hasLimit && guildConfig[cat.key]) {
+                    guildConfig[cat.key].action = action;
+                }
             }
             saveConfig(config);
             return interaction.update({ components: [buildAntiPanel(guildConfig, interaction.guild.name)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
@@ -322,13 +345,18 @@ module.exports = {
                 logChannel: guildConfig.logChannel || null
             };
             config[guildId] = { ...getDefaultConfig(), ...preserved, enabled: guildConfig.enabled };
-            // Clear any threat mode state
+            // Clear all threat-mode tracking state. Without this, a future
+            // threat-mode toggle could try to "restore" stale saved limits
+            // that no longer match the new defaults.
             delete config[guildId].threatMode;
             delete config[guildId].superThreatMode;
             delete config[guildId]._savedLimits;
             delete config[guildId]._savedThreatLimits;
+            delete config[guildId]._preThreatEnabled;
+            delete config[guildId]._preSuperEnabled;
             saveConfig(config);
             return interaction.update({ components: [buildAntiPanel(config[guildId], interaction.guild.name)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
+        return false;
     }
 };

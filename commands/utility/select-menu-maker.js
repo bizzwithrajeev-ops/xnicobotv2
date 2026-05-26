@@ -188,6 +188,14 @@ module.exports = {
             .setName('list')
             .setDescription('View all created select menus'))
         .addSubcommand(sub => sub
+            .setName('view')
+            .setDescription('View detailed information for a single select menu')
+            .addStringOption(opt => opt
+                .setName('menu-id')
+                .setDescription('Menu ID to view')
+                .setRequired(true)
+                .setAutocomplete(true)))
+        .addSubcommand(sub => sub
             .setName('delete')
             .setDescription('Delete a select menu')
             .addStringOption(opt => opt
@@ -272,6 +280,7 @@ module.exports = {
             case 'send': return this.handleSend(interaction);
             case 'attach': return this.handleAttach(interaction);
             case 'list': return this.handleList(interaction);
+            case 'view': return this.handleView(interaction);
             case 'delete': return this.handleDelete(interaction);
             case 'edit': return this.handleEdit(interaction);
             case 'help': return this.handleHelp(interaction);
@@ -284,6 +293,25 @@ module.exports = {
         const minValues = interaction.options.getInteger('min-values') ?? 1;
         const maxValues = interaction.options.getInteger('max-values') ?? 1;
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? true;
+
+        if (!/^[a-z0-9_-]{1,64}$/i.test(menuId)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Menu ID must be 1–64 chars, only letters, numbers, underscore and dash.',
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+        if (placeholder.length > 150) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Placeholder must be 150 characters or less (Discord limit).',
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+        if (maxValues < minValues) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> `max-values` must be greater than or equal to `min-values`.',
+                flags: MessageFlags.Ephemeral,
+            });
+        }
 
         const config = loadMenusConfig();
         const guildId = interaction.guild.id;
@@ -303,6 +331,7 @@ module.exports = {
             maxValues,
             ephemeral,
             options: [],
+            uses: 0,
             createdAt: Date.now(),
             createdBy: interaction.user.id
         };
@@ -448,18 +477,37 @@ module.exports = {
             { emoji: '<:Document:1473039496995143731>', label: 'Send Embed', value: 'send_embed', desc: 'Send a custom embed' }
         ];
 
+        // Mirror button-maker's helpers so each action gets a friendly summary
+        const actionEmojiOf = t => actionTypes.find(a => a.value === t)?.emoji || '<:Settings:1473037894703779851>';
+        const describe = (a) => {
+            switch (a.type) {
+                case 'add_role':       return `Add role <@&${a.roleId}>`;
+                case 'remove_role':    return `Remove role <@&${a.roleId}>`;
+                case 'toggle_role':    return `Toggle role <@&${a.roleId}>`;
+                case 'send_message':
+                    if (a.mode === 'embed')      return `Send embed: "${(a.embed?.title || 'Custom Embed').slice(0, 30)}"`;
+                    if (a.mode === 'components') return `Send V2 message`;
+                    return `Send: "${(a.message || '').slice(0, 40)}${(a.message || '').length > 40 ? '…' : ''}"`;
+                case 'send_dm':        return `DM: "${(a.message || '').slice(0, 40)}${(a.message || '').length > 40 ? '…' : ''}"`;
+                case 'create_ticket':  return `Create ticket${a.categoryId ? ` in category` : ''}`;
+                case 'create_channel': return `Create channel: ${a.channelName || 'new-channel'}`;
+                case 'send_embed':     return `Send embed: ${a.title || 'Custom Embed'}`;
+                default:               return a.type;
+            }
+        };
+
         let content = `# <:Bookmark:1473038643492028517> Edit Actions for Option\n\n`;
         content += `**Menu:** \`${menuId}\`\n`;
         content += `**Option:** ${option.label} (\`${option.value}\`)\n\n`;
         content += `### Current Actions (${option.actions?.length || 0})\n`;
 
-        if (option.actions && option.actions.length > 0) {
-            option.actions.forEach((action, i) => {
-                const typeEmoji = actionTypes.find(a => a.value === action.type)?.emoji || '<:Settings:1473037894703779851>';
-                content += `${i + 1}. ${typeEmoji} **${action.type}**\n`;
+        const actions = option.actions || [];
+        if (actions.length > 0) {
+            actions.forEach((action, i) => {
+                content += `**${i + 1}.** ${actionEmojiOf(action.type)} ${describe(action)}\n`;
             });
         } else {
-            content += `*No actions configured*\n`;
+            content += `*No actions configured.*\n`;
         }
 
         content += `\n### <:Pin:1473038806612447500> Add Action\nSelect an action type to add:`;
@@ -467,7 +515,7 @@ module.exports = {
         const actionMenu = new StringSelectMenuBuilder()
             .setCustomId(`select_action_add:${guildId}:${menuId}:${option.value}`)
             .setPlaceholder('Choose action type to add...')
-            .addOptions(actionTypes.map(a => 
+            .addOptions(actionTypes.map(a =>
                 new StringSelectMenuOptionBuilder()
                     .setLabel(a.label)
                     .setValue(a.value)
@@ -481,6 +529,55 @@ module.exports = {
             .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
             .addActionRowComponents(actionRow);
+
+        // Edit/delete rows for existing actions (max 5 buttons per row, max
+        // 5 visible at once; users with >5 actions can still re-create them).
+        if (actions.length > 0) {
+            const editableTypes = new Set(['send_message']);
+            const editable = actions
+                .map((a, i) => ({ a, i }))
+                .filter(({ a }) => editableTypes.has(a.type))
+                .slice(0, 5);
+            if (editable.length > 0) {
+                const editRow = new ActionRowBuilder();
+                for (const { i } of editable) {
+                    editRow.addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`sel_edit_action:${guildId}:${menuId}:${option.value}:${i}`)
+                            .setLabel(`Edit #${i + 1}`)
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('<:Editalt:1473038138577256670>')
+                    );
+                }
+                container.addActionRowComponents(editRow);
+            }
+
+            const delRow = new ActionRowBuilder();
+            actions.slice(0, 5).forEach((a, i) => {
+                delRow.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`sel_del_action:${guildId}:${menuId}:${option.value}:${i}`)
+                        .setLabel(`Del #${i + 1}`)
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('<:Trash:1473038090074591293>')
+                );
+            });
+            container.addActionRowComponents(delRow);
+        }
+
+        // Clear-all + done row, mirroring button-maker
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`sel_clear_actions:${guildId}:${menuId}:${option.value}`)
+                .setLabel('Clear All')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('<:Trash:1473038090074591293>'),
+            new ButtonBuilder()
+                .setCustomId(`sel_action_done:${guildId}:${menuId}:${option.value}`)
+                .setLabel('Save & Exit')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('<:Checkedbox:1473038547165384804>'),
+        ));
 
         return container;
     },
@@ -540,6 +637,19 @@ module.exports = {
         if (!menuData.options || menuData.options.length === 0) {
             return interaction.reply({
                 content: `<:Cancel:1473037949187657818> Menu \`${menuId}\` has no options! Add some with \`/select-menu-maker add-option\``,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        // Preflight permissions on target channel
+        const me = interaction.guild.members.me;
+        const required = ['ViewChannel', 'SendMessages'];
+        if (useContainer) required.push('EmbedLinks');
+        const perms = channel.permissionsFor(me);
+        const missing = required.filter(p => !perms?.has(p));
+        if (missing.length) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> I'm missing **${missing.join(', ')}** in ${channel}. Grant those and try again.`,
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -806,6 +916,51 @@ module.exports = {
         });
     },
 
+    async handleView(interaction) {
+        const menuId = interaction.options.getString('menu-id');
+        const config = loadMenusConfig();
+        const menuData = config[interaction.guild.id]?.[menuId];
+
+        if (!menuData) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> Menu \`${menuId}\` not found.`,
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
+        const created = menuData.createdAt ? `<t:${Math.floor(menuData.createdAt / 1000)}:R>` : 'unknown';
+        const creator = menuData.createdBy ? `<@${menuData.createdBy}>` : 'unknown';
+
+        let content = `# <:Document:1473039496995143731> Select Menu: \`${menuId}\`\n\n`;
+        content += `### <:Settings:1473037894703779851> Configuration\n`;
+        content += `<:Pin:1473038806612447500> **Placeholder:** ${menuData.placeholder}\n`;
+        content += `<:Pin:1473038806612447500> **Min / Max:** ${menuData.minValues || 1} / ${menuData.maxValues || 1}\n`;
+        content += `<:Pin:1473038806612447500> **Response:** ${menuData.ephemeral !== false ? 'Ephemeral (private)' : 'Public'}\n`;
+        content += `<:Pin:1473038806612447500> **Created:** ${created} by ${creator}\n`;
+        content += `<:Pin:1473038806612447500> **Total Uses:** \`${menuData.uses || 0}\`\n\n`;
+
+        const options = menuData.options || [];
+        content += `### <:Bookopen:1473038576391557130> Options (${options.length}/25)\n`;
+        if (!options.length) {
+            content += `*No options yet. Add some with* \`/select-menu-maker add-option\`.`;
+        } else {
+            options.forEach((opt, i) => {
+                const actionCount = opt.actions?.length || 0;
+                content += `**${i + 1}.** ${opt.emoji ? opt.emoji + ' ' : ''}**${opt.label}** \`${opt.value}\` — *${actionCount} action${actionCount === 1 ? '' : 's'}*\n`;
+                if (opt.description) content += `> ${opt.description}\n`;
+            });
+        }
+
+        const container = new ContainerBuilder()
+            .setAccentColor(0xCAD7E6)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+
+        return interaction.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        });
+    },
+
     async handleEdit(interaction) {
         const menuId = interaction.options.getString('menu-id');
         const newPlaceholder = interaction.options.getString('placeholder');
@@ -963,7 +1118,104 @@ module.exports = {
     async handleInteraction(interaction) {
         const self = this;
         if (await checkAndExpire(interaction, 'builder')) return true;
-        
+
+        // Edit / delete / clear / done buttons spawned by buildActionPanel
+        if (interaction.customId.startsWith('sel_edit_action:') ||
+            interaction.customId.startsWith('sel_del_action:') ||
+            interaction.customId.startsWith('sel_clear_actions:') ||
+            interaction.customId.startsWith('sel_action_done:'))
+        {
+            const [head, ...rest] = interaction.customId.split(':');
+            const guildId = rest[0];
+            const menuId  = rest[1];
+            const optionValue = rest[2];
+            const idx = head === 'sel_edit_action' || head === 'sel_del_action' ? parseInt(rest[3], 10) : null;
+
+            const config = loadMenusConfig();
+            const menuData = config[guildId]?.[menuId];
+            const option   = menuData?.options?.find(o => o.value === optionValue);
+            if (!menuData || !option) {
+                await interaction.reply({
+                    content: '<:Cancel:1473037949187657818> Menu or option no longer exists.',
+                    flags: MessageFlags.Ephemeral,
+                });
+                return true;
+            }
+            option.actions = option.actions || [];
+
+            if (head === 'sel_clear_actions') {
+                option.actions = [];
+                saveMenusConfig(config);
+                const container = self.buildActionPanel(menuId, option, guildId);
+                await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                return true;
+            }
+
+            if (head === 'sel_action_done') {
+                const container = new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Option Saved\n\n` +
+                        `**Menu:** \`${menuId}\`\n` +
+                        `**Option:** ${option.label}\n` +
+                        `**Actions:** ${option.actions.length} configured`
+                    ));
+                await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                return true;
+            }
+
+            if (head === 'sel_del_action') {
+                if (Number.isInteger(idx) && option.actions[idx]) {
+                    option.actions.splice(idx, 1);
+                    saveMenusConfig(config);
+                }
+                const container = self.buildActionPanel(menuId, option, guildId);
+                await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                return true;
+            }
+
+            // sel_edit_action — open the message-builder pre-populated with
+            // the saved data so the admin can tweak it.
+            if (head === 'sel_edit_action') {
+                const action = option.actions[idx];
+                if (!action || action.type !== 'send_message') {
+                    await interaction.reply({
+                        content: '<:Cancel:1473037949187657818> Only send-message actions are editable inline.',
+                        flags: MessageFlags.Ephemeral,
+                    });
+                    return true;
+                }
+                const context = `Menu: \`${menuId}\` Option: \`${optionValue}\` (edit action #${idx + 1})`;
+                const sessionId = `${menuId}:${optionValue}`;
+                const existing = {
+                    mode: action.mode || 'simple',
+                    content: action.message || action.content || '',
+                    channelId: action.channelId || '',
+                    title: action.embed?.title || '',
+                    description: action.embed?.description || '',
+                    color: action.embed?.color || action.color || '#bcf1e4',
+                    image: action.embed?.image || action.image || '',
+                    thumbnail: action.embed?.thumbnail || action.thumbnail || '',
+                    author: action.embed?.author || '',
+                    authorIcon: action.embed?.authorIcon || '',
+                    footer: action.embed?.footer || action.footer || '',
+                    footerIcon: action.embed?.footerIcon || '',
+                    fields: action.embed?.fields || [],
+                };
+                const sessionKey = `${interaction.user.id}:select:${guildId}:${sessionId}`;
+                actionMsgBuilder.messageBuilderSessions.set(sessionKey, existing);
+
+                if (!global.selectEditActionIndex) global.selectEditActionIndex = new Map();
+                global.selectEditActionIndex.set(`${interaction.user.id}:${guildId}:${menuId}:${optionValue}`, idx);
+
+                const prefix = `selmsg:${guildId}:${menuId}:${optionValue}`;
+                const container = actionMsgBuilder.buildMessageBuilderPanel(existing, prefix, context);
+                await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                return true;
+            }
+            return true;
+        }
+
         if (interaction.customId.startsWith('selmsg:')) {
             const baseId = actionMsgBuilder.extractPrefixFromCustomId(interaction.customId);
             const parts = baseId.split(':');
@@ -1018,8 +1270,17 @@ module.exports = {
                     } else {
                         actionData.message = data.content;
                     }
-                    
-                    option.actions.push(actionData);
+
+                    // If we were editing an existing action (sel_edit_action),
+                    // replace it in-place; otherwise append a fresh action.
+                    const editKey = `${inter.user.id}:${guildId}:${menuId}:${optionValue}`;
+                    const editIdx = global.selectEditActionIndex?.get(editKey);
+                    if (Number.isInteger(editIdx) && option.actions[editIdx]) {
+                        option.actions[editIdx] = actionData;
+                        global.selectEditActionIndex.delete(editKey);
+                    } else {
+                        option.actions.push(actionData);
+                    }
                     saveMenusConfig(config);
                     
                     const updatedOption = config[guildId][menuId].options.find(o => o.value === optionValue);

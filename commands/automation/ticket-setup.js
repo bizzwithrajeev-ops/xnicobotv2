@@ -62,22 +62,127 @@ const TICKET_PRESETS = {
 
 /* ─────────────────────── panel rendering ───────────────────────── */
 
+/* ─────────────────────── safe coercers ─────────────────────────── */
+
+// Discord.js builders throw "Received one or more errors" when given
+// invalid colors or URLs. The values we feed them come from the V2
+// message builder which is user-editable, so we sanitize aggressively
+// — the alternative is that `/ticket-setup` (and any path that calls
+// `buildPanelMessage`) crashes for the whole guild.
+
+function safeColor(raw, fallback = 0xCAD7E6) {
+    if (raw === null || raw === undefined || raw === '') return fallback;
+    if (typeof raw === 'number') {
+        return Number.isInteger(raw) && raw >= 0 && raw <= 0xFFFFFF ? raw : fallback;
+    }
+    const hex = String(raw).replace(/^#|^0x/i, '');
+    if (!/^[0-9a-f]{6}$/i.test(hex) && !/^[0-9a-f]{3}$/i.test(hex)) return fallback;
+    const expanded = hex.length === 3
+        ? hex.split('').map(c => c + c).join('')
+        : hex;
+    const parsed = parseInt(expanded, 16);
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 0xFFFFFF ? parsed : fallback;
+}
+
+function safeUrl(raw) {
+    if (!raw || typeof raw !== 'string') return undefined;
+    try {
+        const u = new URL(raw);
+        return (u.protocol === 'http:' || u.protocol === 'https:') ? raw : undefined;
+    } catch { return undefined; }
+}
+
+function safeFooter(opts) {
+    if (!opts) return null;
+    const text = (opts.text ?? '').toString().slice(0, 2048);
+    if (!text) return null;
+    const out = { text };
+    const icon = safeUrl(opts.iconURL);
+    if (icon) out.iconURL = icon;
+    return out;
+}
+
+function safeAuthor(opts) {
+    if (!opts) return null;
+    const name = (opts.name ?? '').toString().slice(0, 256);
+    if (!name) return null;
+    const out = { name };
+    const icon = safeUrl(opts.iconURL);
+    if (icon) out.iconURL = icon;
+    return out;
+}
+
+/**
+ * Build a clean, validated select-menu option for a stored category.
+ * Returns `null` if the category is unusable (missing id/label) so the
+ * caller can skip it instead of letting discord.js throw a bulk validation
+ * error that takes the whole panel down.
+ */
+function buildCategoryOption(cat) {
+    if (!cat || typeof cat !== 'object') return null;
+    const id = typeof cat.id === 'string' ? cat.id.trim() : '';
+    const label = typeof cat.label === 'string' ? cat.label.trim() : '';
+    if (!id || !label) return null;
+
+    const opt = {
+        label: label.slice(0, 100),
+        value: id.slice(0, 100),
+    };
+
+    // Description is optional. Empty strings ARE rejected by Discord, so we
+    // omit the field entirely when there's nothing meaningful to show.
+    const description = typeof cat.description === 'string' ? cat.description.trim() : '';
+    if (description) opt.description = description.slice(0, 100);
+
+    const parsed = parseEmoji(cat.emoji);
+    if (parsed) opt.emoji = parsed;
+
+    return opt;
+}
+
 /**
  * Render the panel message body. Used for both initial send and live updates.
  * Returns a discord.js send/edit payload (with components + flags).
+ *
+ * Wrapped in a fallback so a corrupt user-saved `panelMessage` or category
+ * never bricks the whole `/ticket-setup` flow: if the custom builder fails
+ * for any reason, we strip the customizations and try again with the
+ * default panel body.
  */
-function buildPanelMessage({ guildConfig, panel, panelId, supportRole, guild }) {
+function buildPanelMessage(args) {
+    try {
+        return _buildPanelMessageInner(args);
+    } catch (err) {
+        console.error(`[ticket-setup] buildPanelMessage failed, falling back to default: ${err.message}`);
+        const fallbackArgs = {
+            ...args,
+            panel:        { ...(args.panel || {}), panelMessage: null },
+            guildConfig:  { ...args.guildConfig,   panelMessage: null },
+        };
+        return _buildPanelMessageInner(fallbackArgs);
+    }
+}
+
+function _buildPanelMessageInner({ guildConfig, panel, panelId, supportRole, guild }) {
     const categories = resolvePanelCategories(guildConfig, panel);
 
     // Custom-id encodes the panel id so a single bot can host many panels.
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId(`ticket_select:${panelId}`);
 
-    if (categories.length === 0) {
-        // Fresh setup — no categories yet. Surface a clear placeholder so the
-        // panel still renders, but block ticket creation until admins add some.
+    // Sanitize every category up-front. Anything malformed is dropped so we
+    // never hand discord.js an option it will reject.
+    const validOptions = categories
+        .slice(0, 25)
+        .map(buildCategoryOption)
+        .filter(Boolean);
+
+    if (validOptions.length === 0) {
+        // Either no categories yet, or every category we have is corrupt.
+        // Surface a clear placeholder so the panel still renders, but block
+        // ticket creation until admins add some.
         selectMenu
-            .setPlaceholder('<:Inforect:1473038624172937287> Please create new categories to add here')
+            .setPlaceholder('Please create new categories to add here')
             .setDisabled(true)
             .addOptions([{
                 label: 'No categories available',
@@ -87,14 +192,7 @@ function buildPanelMessage({ guildConfig, panel, panelId, supportRole, guild }) 
     } else {
         selectMenu
             .setPlaceholder('Select a ticket category to get help')
-            .addOptions(
-                categories.slice(0, 25).map(cat => {
-                    const opt = { label: cat.label.slice(0, 100), value: cat.id, description: (cat.description || '').slice(0, 100) };
-                    const parsed = parseEmoji(cat.emoji);
-                    if (parsed) opt.emoji = parsed;
-                    return opt;
-                })
-            );
+            .addOptions(validOptions);
     }
 
     const row = new ActionRowBuilder().addComponents(selectMenu);
@@ -111,19 +209,25 @@ function buildPanelMessage({ guildConfig, panel, panelId, supportRole, guild }) 
 
     if (panelConfig?.mode === 'embed') {
         const embed = new EmbedBuilder();
-        if (panelConfig.title)       embed.setTitle(msgReplace(panelConfig.title, null, guild));
-        if (panelConfig.description) embed.setDescription(msgReplace(panelConfig.description, null, guild));
-        if (panelConfig.color)       embed.setColor(panelConfig.color);
-        if (panelConfig.image)       embed.setImage(panelConfig.image);
-        if (panelConfig.thumbnail)   embed.setThumbnail(panelConfig.thumbnail);
-        if (panelConfig.author)      embed.setAuthor({ name: msgReplace(panelConfig.author, null, guild), iconURL: panelConfig.authorIcon || undefined });
-        if (panelConfig.footer)      embed.setFooter({ text: msgReplace(panelConfig.footer, null, guild), iconURL: panelConfig.footerIcon || undefined });
+        if (panelConfig.title)       embed.setTitle(String(msgReplace(panelConfig.title, null, guild) || '').slice(0, 256));
+        if (panelConfig.description) embed.setDescription(String(msgReplace(panelConfig.description, null, guild) || '').slice(0, 4096));
+        embed.setColor(safeColor(panelConfig.color));
+        const img   = safeUrl(panelConfig.image);     if (img)   embed.setImage(img);
+        const thumb = safeUrl(panelConfig.thumbnail); if (thumb) embed.setThumbnail(thumb);
+        if (panelConfig.author) {
+            const author = safeAuthor({ name: msgReplace(panelConfig.author, null, guild), iconURL: panelConfig.authorIcon });
+            if (author) embed.setAuthor(author);
+        }
+        if (panelConfig.footer) {
+            const footer = safeFooter({ text: msgReplace(panelConfig.footer, null, guild), iconURL: panelConfig.footerIcon });
+            if (footer) embed.setFooter(footer);
+        }
         if (panelConfig.fields?.length) {
             for (const f of panelConfig.fields.slice(0, 25)) {
                 embed.addFields({
-                    name:  msgReplace(f.name, null, guild),
-                    value: msgReplace(f.value, null, guild),
-                    inline: f.inline || false,
+                    name:  String(msgReplace(f.name, null, guild) || '\u200b').slice(0, 256),
+                    value: String(msgReplace(f.value, null, guild) || '\u200b').slice(0, 1024),
+                    inline: !!f.inline,
                 });
             }
         }
@@ -131,8 +235,10 @@ function buildPanelMessage({ guildConfig, panel, panelId, supportRole, guild }) 
     }
 
     if (panelConfig?.mode === 'simple' && panelConfig.content) {
+        // Honor a custom panel color if the admin set one in the V2 builder.
+        const accent = safeColor(panelConfig.color);
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
+            .setAccentColor(accent)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(msgReplace(panelConfig.content, null, guild)))
             .addActionRowComponents(row);
         return { components: [container], flags: MessageFlags.IsComponentsV2 };
@@ -165,14 +271,14 @@ function buildDefaultPanelContent({ supportRole, categories, panelLabel }) {
     content += `### <:Bookopen:1473038576391557130> Available Categories\n`;
     for (const cat of categories) {
         const cleanLabel = cat.label.replace(/<:[^>]+>/g, '').trim();
-        const showEmoji  = cat.emoji && !cat.emoji.startsWith('<') ? cat.emoji : '<:Pin:1473038806612447500>';
+        const showEmoji  = cat.emoji && !cat.emoji.startsWith('<') ? cat.emoji : '<:Caretright:1473038207221502106>';
         content += `${showEmoji} **${cleanLabel}**\n`;
         content += `> *${cat.description}*\n\n`;
     }
     content += `### <:Lightbulbalt:1473038470787240009> How It Works\n`;
-    content += `<:Pin:1473038806612447500> **1.** Select a category from the dropdown menu below\n`;
-    content += `<:Pin:1473038806612447500> **2.** A private channel is created — only you and staff can see it\n`;
-    content += `<:Pin:1473038806612447500> **3.** Describe your issue and our team will assist you\n\n`;
+    content += `<:Caretright:1473038207221502106> **1.** Select a category from the dropdown menu below\n`;
+    content += `<:Caretright:1473038207221502106> **2.** A private channel is created — only you and staff can see it\n`;
+    content += `<:Caretright:1473038207221502106> **3.** Describe your issue and our team will assist you\n\n`;
     if (supportRole) content += `**Support Team:** ${supportRole}`;
     return content;
 }
@@ -180,14 +286,37 @@ function buildDefaultPanelContent({ supportRole, categories, panelLabel }) {
 /**
  * Parse a stored emoji string into a Discord select-option emoji shape.
  * Accepts unicode strings ("🐛"), custom emojis ("<:Name:123>" / "<a:Name:123>"),
- * or raw IDs ("123"). Returns `null` if nothing usable is found so callers can omit.
+ * or raw snowflake IDs ("123…"). Returns `null` for anything else so the
+ * option is built without an emoji rather than with a value Discord will
+ * reject (e.g. ":bug:", random text, empty string).
+ *
+ * Discord's restrictions:
+ *   - Custom emojis MUST come with a snowflake `id`.
+ *   - Built-in unicode emojis go in `name` only — but `name` for a custom
+ *     emoji name without an `id` will throw "Invalid Form Body".
  */
 function parseEmoji(raw) {
     if (!raw || typeof raw !== 'string') return null;
-    const m = raw.match(/^<(a)?:([\w~]+):(\d+)>$/);
-    if (m) return { id: m[3], name: m[2], animated: !!m[1] };
-    if (/^\d{15,}$/.test(raw)) return { id: raw };
-    return { name: raw };
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    // Custom emoji `<:name:id>` or animated `<a:name:id>`
+    const customMatch = trimmed.match(/^<(a)?:([A-Za-z0-9_~]+):(\d{15,})>$/);
+    if (customMatch) {
+        return { id: customMatch[3], name: customMatch[2], animated: !!customMatch[1] };
+    }
+
+    // Bare snowflake id
+    if (/^\d{15,}$/.test(trimmed)) return { id: trimmed };
+
+    // Unicode emoji — accept anything that contains at least one char outside
+    // the basic ASCII range (covers virtually every emoji codepoint), but
+    // reject text-only strings like "bug" or ":bug:" which Discord rejects.
+    if (/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{1F900}-\u{1F9FF}]/u.test(trimmed)) {
+        return { name: trimmed };
+    }
+
+    return null;
 }
 
 /* ────────────────── confirmation / status messages ───────────────── */
@@ -196,18 +325,18 @@ function buildSetupConfirmation({ panelChannel, ticketCategory, supportRole, pan
     return `# <:Checkedbox:1473038547165384804> Ticket Panel Created\n\n` +
         `Your panel is live. Users can open tickets from it as soon as you add categories.\n\n` +
         `### <:Document:1473039496995143731> Panel Summary\n` +
-        `<:Pin:1473038806612447500> **Panel Label:** \`${panelLabel}\`\n` +
-        `<:Pin:1473038806612447500> **Panel Channel:** ${panelChannel}\n` +
-        `<:Pin:1473038806612447500> **Ticket Category:** ${ticketCategory}\n` +
-        `<:Pin:1473038806612447500> **Support Role:** ${supportRole}\n\n` +
+        `<:Caretright:1473038207221502106> **Panel Label:** \`${panelLabel}\`\n` +
+        `<:Caretright:1473038207221502106> **Panel Channel:** ${panelChannel}\n` +
+        `<:Caretright:1473038207221502106> **Ticket Category:** ${ticketCategory}\n` +
+        `<:Caretright:1473038207221502106> **Support Role:** ${supportRole}\n\n` +
         `### <:Star:1473038501766369300> Next Steps\n` +
-        `<:Pin:1473038806612447500> Add categories: \`/ticket-categories add <id> <label> <emoji> <description>\`\n` +
-        `<:Pin:1473038806612447500> Or apply a preset: \`/ticket-setup style preset:purchase\`\n` +
-        `<:Pin:1473038806612447500> Configure transcripts: \`/ticket-setup transcript mode:auto log-channel:#logs\`\n\n` +
+        `<:Caretright:1473038207221502106> Add categories: \`/ticket-categories add <id> <label> <emoji> <description>\`\n` +
+        `<:Caretright:1473038207221502106> Or apply a preset: \`/ticket-setup style preset:purchase\`\n` +
+        `<:Caretright:1473038207221502106> Configure transcripts: \`/ticket-setup transcript mode:auto log-channel:#logs\`\n\n` +
         `### <:Bookopen:1473038576391557130> Multiple Panels\n` +
-        `<:Pin:1473038806612447500> Add another panel: \`/ticket-setup panel-add channel:#sales label:Sales\`\n` +
-        `<:Pin:1473038806612447500> List panels: \`/ticket-setup panel-list\`\n` +
-        `<:Pin:1473038806612447500> Tie panel to specific categories: \`/ticket-setup panel-categories\``;
+        `<:Caretright:1473038207221502106> Add another panel: \`/ticket-setup panel-add channel:#sales label:Sales\`\n` +
+        `<:Caretright:1473038207221502106> List panels: \`/ticket-setup panel-list\`\n` +
+        `<:Caretright:1473038207221502106> Tie panel to specific categories: \`/ticket-setup panel-categories\``;
 }
 
 /* ─────────────────────── command builder ──────────────────────── */
@@ -326,6 +455,26 @@ module.exports = {
             });
         }
 
+        // Preflight permission check — bail early before we mutate config.
+        // Avoids the "old panel deleted, new panel never posted" trap when the
+        // bot can't actually send messages in the target channel.
+        const me = interaction.guild.members.me;
+        const panelPerms = channel.permissionsFor(me);
+        const required = ['ViewChannel', 'SendMessages', 'EmbedLinks'];
+        const missing = required.filter(p => !panelPerms?.has(p));
+        if (missing.length) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> I'm missing **${missing.join(', ')}** in ${channel}. Grant those and try again.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> I need server-wide **Manage Channels** permission to create ticket channels.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
         const config = readAll();
         const existing = ensureMigrated(config[interaction.guild.id]);
 
@@ -368,17 +517,27 @@ module.exports = {
             guild: interaction.guild,
         };
 
-        // Tear down the old default panel if there was one
+        // Send the *new* panel before tearing down the old one. If sending
+        // fails, the old panel is still live and we can show an error.
+        let panelMessage;
+        try {
+            panelMessage = await channel.send(buildPanelMessage(renderArgs));
+        } catch (err) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> Failed to post the panel in ${channel}: ${err.message}`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        // Now tear down the old default panel (if any) — best-effort.
         const old = guildConfig.panels[panelId];
-        if (old?.channelId && old?.messageId) {
+        if (old?.channelId && old?.messageId && old.messageId !== panelMessage.id) {
             try {
                 const oldChan = await interaction.guild.channels.fetch(old.channelId).catch(() => null);
                 const oldMsg  = oldChan ? await oldChan.messages.fetch(old.messageId).catch(() => null) : null;
                 if (oldMsg) await oldMsg.delete().catch(() => null);
             } catch { /* non-fatal */ }
         }
-
-        const panelMessage = await channel.send(buildPanelMessage(renderArgs));
 
         guildConfig.panels[panelId] = {
             channelId: channel.id,
@@ -428,6 +587,18 @@ module.exports = {
             });
         }
 
+        // Preflight permissions in the panel channel
+        const me = interaction.guild.members.me;
+        const panelPerms = channel.permissionsFor(me);
+        const required = ['ViewChannel', 'SendMessages', 'EmbedLinks'];
+        const missing = required.filter(p => !panelPerms?.has(p));
+        if (missing.length) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> I'm missing **${missing.join(', ')}** in ${channel}. Grant those and try again.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
         const config = readAll();
         const guildConfig = ensureMigrated(config[interaction.guild.id]);
         if (!guildConfig) {
@@ -457,19 +628,21 @@ module.exports = {
         const guildSupportRole = guildConfig.supportRoleId ? interaction.guild.roles.cache.get(guildConfig.supportRoleId) : null;
         const panelSupportRole = supportRole || guildSupportRole;
 
-        const sent = await channel.send(buildPanelMessage({
-            guildConfig,
-            panel,
-            panelId,
-            supportRole: panelSupportRole,
-            guild: interaction.guild,
-        })).catch(err => {
+        let sent;
+        try {
+            sent = await channel.send(buildPanelMessage({
+                guildConfig,
+                panel,
+                panelId,
+                supportRole: panelSupportRole,
+                guild: interaction.guild,
+            }));
+        } catch (err) {
             return interaction.reply({
-                content: `<:Cancel:1473037949187657818> Failed to send panel: ${err.message}`,
+                content: `<:Cancel:1473037949187657818> Failed to send panel in ${channel}: ${err.message}`,
                 flags: MessageFlags.Ephemeral
-            }).then(() => null);
-        });
-        if (!sent) return;
+            });
+        }
 
         panel.messageId = sent.id;
         guildConfig.panels = guildConfig.panels || {};
@@ -482,16 +655,16 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Checkedbox:1473038547165384804> Panel Added\n\n` +
                 `### <:Document:1473039496995143731> Panel Details\n` +
-                `<:Pin:1473038806612447500> **ID:** \`${panelId}\`\n` +
-                `<:Pin:1473038806612447500> **Label:** \`${label}\`\n` +
-                `<:Pin:1473038806612447500> **Channel:** ${channel}\n` +
-                `<:Pin:1473038806612447500> **Categories:** ${categoryIds.length ? categoryIds.map(c => `\`${c}\``).join(', ') : '*all*'}\n` +
-                `<:Pin:1473038806612447500> **Support Role Override:** ${supportRole || '*none (uses default)*'}\n` +
-                `<:Pin:1473038806612447500> **Ticket Category Override:** ${ticketCategory || '*none (uses default)*'}\n` +
+                `<:Caretright:1473038207221502106> **ID:** \`${panelId}\`\n` +
+                `<:Caretright:1473038207221502106> **Label:** \`${label}\`\n` +
+                `<:Caretright:1473038207221502106> **Channel:** ${channel}\n` +
+                `<:Caretright:1473038207221502106> **Categories:** ${categoryIds.length ? categoryIds.map(c => `\`${c}\``).join(', ') : '*all*'}\n` +
+                `<:Caretright:1473038207221502106> **Support Role Override:** ${supportRole || '*none (uses default)*'}\n` +
+                `<:Caretright:1473038207221502106> **Ticket Category Override:** ${ticketCategory || '*none (uses default)*'}\n` +
                 (unknown.length ? `\n<:Inforect:1473038624172937287> Skipped unknown category IDs: ${unknown.map(c => `\`${c}\``).join(', ')}\n` : '') +
                 `\n### <:Lightbulbalt:1473038470787240009> Next\n` +
-                `<:Pin:1473038806612447500> Edit which categories show: \`/ticket-setup panel-categories panel-id:${panelId}\`\n` +
-                `<:Pin:1473038806612447500> Remove panel: \`/ticket-setup panel-remove panel-id:${panelId}\``
+                `<:Caretright:1473038207221502106> Edit which categories show: \`/ticket-setup panel-categories panel-id:${panelId}\`\n` +
+                `<:Caretright:1473038207221502106> Remove panel: \`/ticket-setup panel-remove panel-id:${panelId}\``
             ));
         await interaction.reply({ components: [summary], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     },
@@ -509,20 +682,34 @@ module.exports = {
         }
 
         const panels = Object.entries(guildConfig.panels || {});
+        const pool = guildConfig.categories || [];
         let body = `# <:Bookopen:1473038576391557130> Ticket Panels (${panels.length})\n\n`;
 
         if (!panels.length) {
             body += `*No panels yet. Run \`/ticket-setup create\` to add the first one.*`;
         } else {
+            body += `*Each panel can show **all** categories or a curated subset. Use* \`/ticket-categories assign\` *to scope categories.*\n\n`;
             for (const [id, p] of panels) {
-                const cats = (p.categoryIds && p.categoryIds.length)
-                    ? p.categoryIds.map(c => `\`${c}\``).join(', ')
-                    : '*all*';
-                body += `### <:Pin:1473038806612447500> ${p.label || 'Untitled'}  \`${id}\`\n`;
-                body += `<:Pin:1473038806612447500> **Channel:** <#${p.channelId}>\n`;
-                body += `<:Pin:1473038806612447500> **Categories:** ${cats}\n`;
-                if (p.supportRoleId)     body += `<:Pin:1473038806612447500> **Role Override:** <@&${p.supportRoleId}>\n`;
-                if (p.channelCategoryId) body += `<:Pin:1473038806612447500> **Ticket Category Override:** <#${p.channelCategoryId}>\n`;
+                // Resolve which categories are actually visible on this panel
+                const visibleIds = (p.categoryIds && p.categoryIds.length)
+                    ? p.categoryIds
+                    : pool.map(c => c.id);
+                const visibleCats = visibleIds
+                    .map(cid => pool.find(c => c.id === cid))
+                    .filter(Boolean);
+
+                body += `### <:Caretright:1473038207221502106> ${p.label || 'Untitled'} \`${id}\`\n`;
+                body += `<:Caretright:1473038207221502106> **Channel:** <#${p.channelId}>\n`;
+                body += `<:Caretright:1473038207221502106> **Scope:** ${(p.categoryIds && p.categoryIds.length) ? `Custom (${p.categoryIds.length})` : '*All categories*'}\n`;
+                if (visibleCats.length) {
+                    body += `<:Caretright:1473038207221502106> **Showing:**\n`;
+                    body += visibleCats.map(c => `  • ${c.emoji} **${c.label}** \`${c.id}\``).join('\n');
+                    body += `\n`;
+                } else {
+                    body += `<:Inforect:1473038624172937287> *No categories visible — add some via* \`/ticket-categories add\` *or* \`/ticket-categories assign\`.\n`;
+                }
+                if (p.supportRoleId)     body += `<:Caretright:1473038207221502106> **Role Override:** <@&${p.supportRoleId}>\n`;
+                if (p.channelCategoryId) body += `<:Caretright:1473038207221502106> **Ticket Category Override:** <#${p.channelCategoryId}>\n`;
                 body += `\n`;
             }
         }
@@ -561,9 +748,17 @@ module.exports = {
         config[interaction.guild.id] = guildConfig;
         saveAll(config);
 
+        const removedContainer = new ContainerBuilder()
+            .setAccentColor(0xED4245)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# <:Checkedbox:1473038547165384804> Panel Removed\n\n` +
+                `<:Caretright:1473038207221502106> **Label:** \`${panel.label || 'Untitled'}\`\n` +
+                `<:Caretright:1473038207221502106> **ID:** \`${panelId}\`\n` +
+                `<:Caretright:1473038207221502106> **Channel:** <#${panel.channelId}>`
+            ));
         await interaction.reply({
-            content: `<:Checkedbox:1473038547165384804> Removed panel \`${panel.label || panelId}\` (\`${panelId}\`).`,
-            flags: MessageFlags.Ephemeral
+            components: [removedContainer],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         });
     },
 
@@ -594,12 +789,25 @@ module.exports = {
         // Live update
         const updated = await updatePanelMessage(interaction.client, interaction.guild.id, panelId);
 
+        const exposing = categoryIds.length
+            ? categoryIds.map(c => `\`${c}\``).join(', ')
+            : '**all categories**';
+        const lines = [
+            `# <:Checkedbox:1473038547165384804> Panel Categories Updated\n`,
+            `<:Caretright:1473038207221502106> **Panel:** \`${panelId}\``,
+            `<:Caretright:1473038207221502106> **Now Exposing:** ${exposing}`,
+        ];
+        if (unknown.length) {
+            lines.push(`\n<:Inforect:1473038624172937287> Ignored unknown IDs: ${unknown.map(c => `\`${c}\``).join(', ')}`);
+        }
+        if (!updated) {
+            lines.push(`\n<:Inforect:1473038624172937287> *Couldn't auto-refresh the panel message — re-run \`/ticket-setup create\` if it looks stale.*`);
+        }
         await interaction.reply({
-            content:
-                `<:Checkedbox:1473038547165384804> Panel \`${panelId}\` now exposes ${categoryIds.length ? categoryIds.map(c => `\`${c}\``).join(', ') : '**all categories**'}.` +
-                (unknown.length ? `\n<:Inforect:1473038624172937287> Ignored unknown IDs: ${unknown.map(c => `\`${c}\``).join(', ')}` : '') +
-                (updated ? `` : `\n<:Inforect:1473038624172937287> Could not auto-refresh the panel message.`),
-            flags: MessageFlags.Ephemeral
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         });
     },
 
@@ -621,6 +829,17 @@ module.exports = {
         }
 
         guildConfig.categories = JSON.parse(JSON.stringify(preset.categories));
+
+        // Drop any per-panel category-ID whitelist entries that no longer
+        // exist in the pool. Otherwise panels keep referencing dead IDs
+        // and silently render an empty dropdown.
+        const newPoolIds = new Set(guildConfig.categories.map(c => c.id));
+        for (const panel of Object.values(guildConfig.panels || {})) {
+            if (panel.categoryIds?.length) {
+                panel.categoryIds = panel.categoryIds.filter(id => newPoolIds.has(id));
+            }
+        }
+
         config[interaction.guild.id] = guildConfig;
         saveAll(config);
 
@@ -666,11 +885,39 @@ module.exports = {
                 flags: MessageFlags.Ephemeral
             });
         }
-        if ((mode === 'auto' || mode === 'both') && !logChannel && !guildConfig.transcriptChannelId) {
-            return interaction.reply({
-                content: '<:Cancel:1473037949187657818> Auto-transcript needs a `log-channel`. Pass one with `log-channel:#channel`.',
-                flags: MessageFlags.Ephemeral
-            });
+
+        // Validate channel + permissions for auto/both modes BEFORE saving.
+        // Otherwise admins enable auto-transcripts that silently fail on
+        // every close because the bot can't send/attach in the log channel.
+        const wantsAuto = mode === 'auto' || mode === 'both';
+        if (wantsAuto) {
+            // No new channel passed AND no existing one set
+            if (!logChannel && !guildConfig.transcriptChannelId) {
+                return interaction.reply({
+                    content: '<:Cancel:1473037949187657818> Auto-transcript needs a `log-channel`. Pass one with `log-channel:#channel`.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // Verify the channel we're about to use is reachable + permissioned
+            const targetId = logChannel?.id || guildConfig.transcriptChannelId;
+            const target = await interaction.guild.channels.fetch(targetId).catch(() => null);
+            if (!target) {
+                return interaction.reply({
+                    content: `<:Cancel:1473037949187657818> The configured transcript channel (\`${targetId}\`) was not found. Pass a fresh \`log-channel:\` to fix it.`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+            const me = interaction.guild.members.me;
+            const perms = target.permissionsFor(me);
+            const required = ['ViewChannel', 'SendMessages', 'AttachFiles', 'EmbedLinks'];
+            const missing = required.filter(p => !perms?.has(p));
+            if (missing.length) {
+                return interaction.reply({
+                    content: `<:Cancel:1473037949187657818> I'm missing **${missing.join(', ')}** in ${target}. Grant those before enabling auto-transcripts.`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
         }
 
         guildConfig.transcriptMode = mode;
@@ -713,25 +960,41 @@ module.exports = {
             });
         }
 
+        // Resolve once so we can flag deleted/missing channels and roles
+        const resolveChannel = (id) => {
+            if (!id) return '*missing*';
+            const ch = interaction.guild.channels.cache.get(id);
+            return ch ? `<#${id}>` : `\`${id}\` *(deleted)*`;
+        };
+        const resolveRole = (id) => {
+            if (!id) return '*missing*';
+            const r = interaction.guild.roles.cache.get(id);
+            return r ? `<@&${id}>` : `\`${id}\` *(deleted)*`;
+        };
+
         const panels = Object.entries(guildConfig.panels || {});
         const panelLines = panels.length
-            ? panels.map(([id, p]) =>
-                `<:Pin:1473038806612447500> **${p.label || 'Untitled'}** \`${id}\` → <#${p.channelId}> · ${(p.categoryIds?.length ? p.categoryIds.length + ' cats' : 'all cats')}`
-            ).join('\n')
+            ? panels.map(([id, p]) => {
+                const ch = interaction.guild.channels.cache.get(p.channelId);
+                const chRef = ch ? `<#${p.channelId}>` : `\`${p.channelId}\` *(deleted)*`;
+                const catCount = p.categoryIds?.length ? `${p.categoryIds.length} cats` : 'all cats';
+                return `<:Caretright:1473038207221502106> **${p.label || 'Untitled'}** \`${id}\` → ${chRef} · ${catCount}`;
+            }).join('\n')
             : '*none*';
 
-        const cat        = guildConfig.categoryId    ? `<#${guildConfig.categoryId}>`     : '*missing*';
-        const role       = guildConfig.supportRoleId ? `<@&${guildConfig.supportRoleId}>` : '*missing*';
+        const cat        = resolveChannel(guildConfig.categoryId);
+        const role       = resolveRole(guildConfig.supportRoleId);
         const tMode      = guildConfig.transcriptMode || 'manual';
-        const tLog       = guildConfig.transcriptChannelId ? `<#${guildConfig.transcriptChannelId}>` : '*not set*';
+        const tLog       = guildConfig.transcriptChannelId ? resolveChannel(guildConfig.transcriptChannelId) : '*not set*';
         const openTickets = Object.keys(guildConfig.tickets || {}).length;
         const totalIssued = guildConfig.nextTicketNumber || 0;
 
         const categoriesList = (guildConfig.categories || [])
-            .map(c => `<:Pin:1473038806612447500> ${c.emoji} **${c.label}** \`${c.id}\``)
+            .map(c => `<:Caretright:1473038207221502106> ${c.emoji} **${c.label}** \`${c.id}\``)
             .join('\n') || '*none — add some with /ticket-categories add*';
 
         const welcomeStatus = guildConfig.welcomeMessage ? '<:Checkedbox:1473038547165384804> Custom' : '<:Edit:1473037903625191580> Default';
+        const panelMsgStatus = guildConfig.panelMessage ? '<:Checkedbox:1473038547165384804> Custom' : '<:Edit:1473037903625191580> Default';
 
         await interaction.reply({
             components: [new ContainerBuilder()
@@ -739,18 +1002,19 @@ module.exports = {
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Document:1473039496995143731> Ticket System Status\n\n` +
                     `### <:Settings:1473037894703779851> Defaults\n` +
-                    `<:Pin:1473038806612447500> **Ticket Category:** ${cat}\n` +
-                    `<:Pin:1473038806612447500> **Support Role:** ${role}\n\n` +
+                    `<:Caretright:1473038207221502106> **Ticket Category:** ${cat}\n` +
+                    `<:Caretright:1473038207221502106> **Support Role:** ${role}\n\n` +
                     `### <:Bookopen:1473038576391557130> Panels (${panels.length})\n${panelLines}\n\n` +
                     `### <:Star:1473038501766369300> Category Pool (${(guildConfig.categories || []).length})\n${categoriesList}\n\n` +
                     `### <:Clipboardalt:1473039555190849598> Transcripts\n` +
-                    `<:Pin:1473038806612447500> **Mode:** \`${tMode}\`\n` +
-                    `<:Pin:1473038806612447500> **Log Channel:** ${tLog}\n\n` +
+                    `<:Caretright:1473038207221502106> **Mode:** \`${tMode}\`\n` +
+                    `<:Caretright:1473038207221502106> **Log Channel:** ${tLog}\n\n` +
                     `### <:Edit:1473037903625191580> Customization\n` +
-                    `<:Pin:1473038806612447500> **Welcome Message:** ${welcomeStatus}\n\n` +
+                    `<:Caretright:1473038207221502106> **Welcome Message:** ${welcomeStatus}\n` +
+                    `<:Caretright:1473038207221502106> **Panel Message:** ${panelMsgStatus}\n\n` +
                     `### <:Chat:1473038936241864865> Activity\n` +
-                    `<:Pin:1473038806612447500> **Open Tickets:** \`${openTickets}\`\n` +
-                    `<:Pin:1473038806612447500> **Total Issued:** \`${totalIssued}\``
+                    `<:Caretright:1473038207221502106> **Open Tickets:** \`${openTickets}\`\n` +
+                    `<:Caretright:1473038207221502106> **Total Issued:** \`${totalIssued}\``
                 ))],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
@@ -825,12 +1089,18 @@ module.exports = {
         delete guildConfig.panelMessage;
         config[interaction.guild.id] = guildConfig;
         saveAll(config);
+        let refreshed = 0;
         for (const panelId of Object.keys(guildConfig.panels || {})) {
-            await updatePanelMessage(interaction.client, interaction.guild.id, panelId);
+            if (await updatePanelMessage(interaction.client, interaction.guild.id, panelId)) refreshed++;
         }
         await interaction.reply({
-            content: '<:Checkedbox:1473038547165384804> Panel message reset to default. All panels refreshed.',
-            flags: MessageFlags.Ephemeral
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# <:Checkedbox:1473038547165384804> Panel Message Reset\n\n` +
+                    `Panel message reverted to default. Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.`
+                ))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
     },
 
@@ -844,8 +1114,13 @@ module.exports = {
         config[interaction.guild.id] = guildConfig;
         saveAll(config);
         await interaction.reply({
-            content: '<:Checkedbox:1473038547165384804> Welcome message reset to default.',
-            flags: MessageFlags.Ephemeral
+            components: [new ContainerBuilder()
+                .setAccentColor(0xCAD7E6)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# <:Checkedbox:1473038547165384804> Welcome Message Reset\n\n` +
+                    `Default welcome will be used for all new tickets.`
+                ))],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
     },
 
@@ -934,32 +1209,37 @@ module.exports = {
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Clipboard:1473039573037617162> Ticket System — Complete Guide\n\n` +
-                    `Multi-panel ticket support with category presets, customizable messages, and full transcripts.\n\n` +
+                    `Multi-panel ticket support with per-panel category scoping, presets, customizable messages, and full transcripts.\n\n` +
                     `### <:Settings:1473037894703779851> First-Time Setup\n` +
-                    `<:Pin:1473038806612447500> **1.** \`/ticket-setup create channel:#tickets category:Tickets support-role:@Support\`\n` +
-                    `<:Pin:1473038806612447500> **2.** Add categories: \`/ticket-categories add <id> <label> <emoji> <description>\`\n` +
-                    `<:Pin:1473038806612447500>      *(or)* \`/ticket-setup style preset:purchase\`\n` +
-                    `<:Pin:1473038806612447500> **3.** *(optional)* \`/ticket-setup transcript mode:auto log-channel:#logs\`\n\n` +
+                    `<:Caretright:1473038207221502106> **1.** \`/ticket-setup create channel:#tickets category:Tickets support-role:@Support\`\n` +
+                    `<:Caretright:1473038207221502106> **2.** Add categories: \`/ticket-categories add <id> <label> <emoji> <description>\`\n` +
+                    `<:Caretright:1473038207221502106>      *(or)* \`/ticket-setup style preset:purchase\`\n` +
+                    `<:Caretright:1473038207221502106> **3.** *(optional)* \`/ticket-setup transcript mode:auto log-channel:#logs\`\n\n` +
                     `### <:Bookopen:1473038576391557130> Multiple Panels\n` +
-                    `<:Pin:1473038806612447500> Add a second panel: \`/ticket-setup panel-add channel:#sales label:Sales categories:purchase,billing\`\n` +
-                    `<:Pin:1473038806612447500> List all panels: \`/ticket-setup panel-list\`\n` +
-                    `<:Pin:1473038806612447500> Edit panel categories: \`/ticket-setup panel-categories panel-id:<id> categories:billing,product\`\n` +
-                    `<:Pin:1473038806612447500> Remove a panel: \`/ticket-setup panel-remove panel-id:<id>\`\n\n` +
+                    `<:Caretright:1473038207221502106> Add a second panel: \`/ticket-setup panel-add channel:#sales label:Sales categories:purchase,billing\`\n` +
+                    `<:Caretright:1473038207221502106> List all panels (with their categories): \`/ticket-setup panel-list\`\n` +
+                    `<:Caretright:1473038207221502106> Edit panel categories: \`/ticket-setup panel-categories panel-id:<id> categories:billing,product\`\n` +
+                    `<:Caretright:1473038207221502106> Remove a panel: \`/ticket-setup panel-remove panel-id:<id>\`\n\n` +
+                    `### <:Star:1473038501766369300> Per-Panel Category Scoping\n` +
+                    `By default, every category in the pool is shown on **every** panel. To make a category appear only on a specific panel:\n` +
+                    `<:Caretright:1473038207221502106> **Add to one panel only:** \`/ticket-categories add <id> <label> <emoji> <desc> panel-id:<id>\`\n` +
+                    `<:Caretright:1473038207221502106> **Show existing on a panel:** \`/ticket-categories assign category-id:<cat> panel-id:<panel>\`\n` +
+                    `<:Caretright:1473038207221502106> **Hide on a panel:** \`/ticket-categories unassign category-id:<cat> panel-id:<panel>\`\n` +
+                    `<:Caretright:1473038207221502106> **See where each category appears:** \`/ticket-categories list\`\n\n` +
                     `### <:Star:1473038501766369300> Customize\n` +
                     `\`/ticket-setup style preset:<purchase|general|random|minimal>\`\n` +
                     `\`/ticket-setup panel\` — design the panel body (V2 builder)\n` +
                     `\`/ticket-setup message\` — design the in-ticket welcome\n` +
-                    `\`/ticket-setup status\` — current configuration\n` +
-                    `\`/ticket-categories add|edit|remove|list\` — fine-tune the category pool\n\n` +
+                    `\`/ticket-setup status\` — current configuration\n\n` +
                     `### <:Chat:1473038936241864865> User Flow\n` +
-                    `<:Pin:1473038806612447500> Pick a category from the dropdown\n` +
-                    `<:Pin:1473038806612447500> Get a private channel named \`category-username-N\` (e.g. \`general-rajeev-1\`)\n` +
-                    `<:Pin:1473038806612447500> Discuss with staff, share screenshots, etc.\n` +
-                    `<:Pin:1473038806612447500> Close → transcript saves automatically (if enabled)\n\n` +
+                    `<:Caretright:1473038207221502106> Pick a category from the dropdown\n` +
+                    `<:Caretright:1473038207221502106> Get a private channel named \`category-username-N\` (e.g. \`general-rajeev-1\`)\n` +
+                    `<:Caretright:1473038207221502106> Discuss with staff, share screenshots, etc.\n` +
+                    `<:Caretright:1473038207221502106> Close → transcript saves automatically (if enabled)\n\n` +
                     `### <:Document:1473039496995143731> In-Ticket Commands\n` +
                     `\`/ticket-add @user\` — invite someone\n` +
                     `\`/ticket-remove @user\` — remove someone\n` +
-                    `\`/ticket-close\` — close the ticket\n\n` +
+                    `\`/ticket-close [reason]\` — close the ticket\n\n` +
                     `### <:Infotriangle:1473038460456800459> Required Bot Permissions\n` +
                     `Manage Channels • Manage Roles • Send Messages • Embed Links • Attach Files • Read Message History`
                 ))],
@@ -983,7 +1263,15 @@ module.exports = {
             if (!guildConfig) return message.reply('<:Cancel:1473037949187657818> Ticket system is not set up.');
             delete guildConfig.welcomeMessage;
             config[message.guild.id] = guildConfig; saveAll(config);
-            return message.reply('<:Checkedbox:1473038547165384804> Welcome message reset to default.');
+            return message.reply({
+                components: [new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Welcome Message Reset\n\n` +
+                        `Default welcome will be used for all new tickets.`
+                    ))],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
         if (sub === 'reset-panel') {
             const config = readAll();
@@ -991,10 +1279,19 @@ module.exports = {
             if (!guildConfig) return message.reply('<:Cancel:1473037949187657818> Ticket system is not set up.');
             delete guildConfig.panelMessage;
             config[message.guild.id] = guildConfig; saveAll(config);
+            let refreshed = 0;
             for (const panelId of Object.keys(guildConfig.panels || {})) {
-                await updatePanelMessage(message.client, message.guild.id, panelId);
+                if (await updatePanelMessage(message.client, message.guild.id, panelId)) refreshed++;
             }
-            return message.reply('<:Checkedbox:1473038547165384804> Panel reset to default. Refreshed all panels.');
+            return message.reply({
+                components: [new ContainerBuilder()
+                    .setAccentColor(0xCAD7E6)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Panel Message Reset\n\n` +
+                        `Panel reverted to default. Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.`
+                    ))],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
         if (!args.length || sub === 'help') {
             return message.reply({
@@ -1020,6 +1317,22 @@ module.exports = {
         if (category.type !== ChannelType.GuildCategory) {
             return message.reply('<:Cancel:1473037949187657818> The second channel must be a **category** (folder icon).');
         }
+        if (![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+            return message.reply('<:Cancel:1473037949187657818> The first channel must be a **text** channel.');
+        }
+
+        // Same preflight as the slash version: bail before mutating config
+        // if the bot can't actually post in the panel channel.
+        const me = message.guild.members.me;
+        const panelPerms = channel.permissionsFor(me);
+        const required = ['ViewChannel', 'SendMessages', 'EmbedLinks'];
+        const missing = required.filter(p => !panelPerms?.has(p));
+        if (missing.length) {
+            return message.reply(`<:Cancel:1473037949187657818> I'm missing **${missing.join(', ')}** in ${channel}.`);
+        }
+        if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+            return message.reply('<:Cancel:1473037949187657818> I need server-wide **Manage Channels** permission to create ticket channels.');
+        }
 
         const config = readAll();
         const existing = ensureMigrated(config[message.guild.id]);
@@ -1036,15 +1349,8 @@ module.exports = {
             panels:            existing?.panels || {},
         };
 
-        const old = guildConfig.panels.default;
-        if (old?.channelId && old?.messageId) {
-            try {
-                const oldChan = await message.guild.channels.fetch(old.channelId).catch(() => null);
-                const oldMsg  = oldChan ? await oldChan.messages.fetch(old.messageId).catch(() => null) : null;
-                if (oldMsg) await oldMsg.delete().catch(() => null);
-            } catch {}
-        }
-
+        // Send the new panel BEFORE deleting the old one, same trap-avoidance
+        // as the slash-create handler.
         const renderArgs = {
             guildConfig,
             panel: { channelId: channel.id, label: 'Default', categoryIds: [], supportRoleId: null, channelCategoryId: null, panelMessage: null },
@@ -1052,7 +1358,21 @@ module.exports = {
             supportRole: role,
             guild: message.guild,
         };
-        const sent = await channel.send(buildPanelMessage(renderArgs));
+        let sent;
+        try {
+            sent = await channel.send(buildPanelMessage(renderArgs));
+        } catch (err) {
+            return message.reply(`<:Cancel:1473037949187657818> Failed to post the panel in ${channel}: ${err.message}`);
+        }
+
+        const old = guildConfig.panels.default;
+        if (old?.channelId && old?.messageId && old.messageId !== sent.id) {
+            try {
+                const oldChan = await message.guild.channels.fetch(old.channelId).catch(() => null);
+                const oldMsg  = oldChan ? await oldChan.messages.fetch(old.messageId).catch(() => null) : null;
+                if (oldMsg) await oldMsg.delete().catch(() => null);
+            } catch {}
+        }
 
         guildConfig.panels.default = {
             channelId: channel.id,
@@ -1102,6 +1422,11 @@ function sanitizePanelMessageData(data) {
  * Re-render a specific panel's message with the latest config + categories.
  * Returns true on success. Stale or deleted panel messages are dropped from
  * the config so we don't keep retrying forever.
+ *
+ * Discord refuses `edit()` when a message changes shape (e.g. switching from
+ * IsComponentsV2 to a regular embed message, or vice versa). In that case we
+ * detect the API error, delete the stale panel, repost the new one, and
+ * persist the new message id.
  */
 async function updatePanelMessage(client, guildId, panelId) {
     const config = readAll();
@@ -1113,27 +1438,81 @@ async function updatePanelMessage(client, guildId, panelId) {
 
     try {
         const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
-        if (!guild) return false;
+        if (!guild) {
+            console.warn(`[ticket-setup] updatePanelMessage: guild ${guildId} unavailable`);
+            return false;
+        }
         const channel = await guild.channels.fetch(panel.channelId).catch(() => null);
-        if (!channel || !channel.isTextBased()) return false;
+        if (!channel || !channel.isTextBased()) {
+            console.warn(`[ticket-setup] updatePanelMessage: channel ${panel.channelId} missing or non-text in guild ${guildId}`);
+            return false;
+        }
+
+        // Editing the bot's own message only needs ViewChannel.
+        // (SendMessages is checked separately when we have to delete+repost.)
+        const me = guild.members.me;
+        const perms = me ? channel.permissionsFor(me) : null;
+        if (!perms?.has('ViewChannel')) {
+            console.warn(`[ticket-setup] updatePanelMessage: missing ViewChannel in #${channel.name} (${guildId})`);
+            return false;
+        }
+
         const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
         if (!msg) {
-            // Message was deleted. Drop it from config so next /ticket-setup create
-            // doesn't try to delete a ghost.
+            // Message was deleted — clean up and tell the caller so the
+            // admin can be informed and re-run /ticket-setup create.
             delete guildConfig.panels[panelId];
             config[guildId] = guildConfig;
             saveAll(config);
+            console.warn(`[ticket-setup] updatePanelMessage: panel message ${panel.messageId} was deleted, dropping panel ${panelId}`);
             return false;
         }
 
         const supportRoleId = panel.supportRoleId || guildConfig.supportRoleId;
         const supportRole = supportRoleId ? await guild.roles.fetch(supportRoleId).catch(() => null) : null;
 
-        await msg.edit(buildPanelMessage({
-            guildConfig, panel, panelId, supportRole, guild,
-        }));
-        return true;
+        const payload = buildPanelMessage({ guildConfig, panel, panelId, supportRole, guild });
+
+        try {
+            await msg.edit(payload);
+            return true;
+        } catch (editErr) {
+            // Discord rejects edit() when the message changes shape between
+            // IsComponentsV2 and a classic embed/content message. Detect
+            // those error codes and fall back to delete+repost.
+            const code = editErr?.code;
+            const ml = String(editErr?.message || '').toLowerCase();
+            const isShapeChange =
+                code === 50006 || code === 50083 ||
+                code === 200000 || code === 200001 ||
+                ml.includes('components_v2') ||
+                ml.includes('cannot edit') ||
+                ml.includes('immutable');
+
+            if (!isShapeChange) {
+                console.error(`[ticket-setup] updatePanelMessage: edit failed in guild ${guildId} panel ${panelId}: ${editErr.message}`);
+                return false;
+            }
+
+            // Re-post requires SendMessages too
+            if (!perms?.has('SendMessages')) {
+                console.warn(`[ticket-setup] updatePanelMessage: shape change required in guild ${guildId} but missing SendMessages in #${channel.name}`);
+                return false;
+            }
+
+            await msg.delete().catch(() => null);
+            const sent = await channel.send(payload).catch(err => {
+                console.error(`[ticket-setup] updatePanelMessage: re-post failed in guild ${guildId} panel ${panelId}: ${err.message}`);
+                return null;
+            });
+            if (!sent) return false;
+            panel.messageId = sent.id;
+            config[guildId] = guildConfig;
+            saveAll(config);
+            return true;
+        }
     } catch (err) {
+        console.error(`[ticket-setup] updatePanelMessage: unexpected error in guild ${guildId} panel ${panelId}: ${err.message}`);
         return false;
     }
 }

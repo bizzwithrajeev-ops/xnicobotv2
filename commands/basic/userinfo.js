@@ -37,7 +37,7 @@ const E = {
 
 const STATUS_EMOJI = {
     online: E.online,
-    idle:   '<:idle:1473370064718827715>',
+    idle:   '<:idle:1485248283768262676>',
     dnd:    '<:dnd:1485248263857639424>',
     offline: E.offline,
     invisible: E.offline,

@@ -173,7 +173,7 @@ const CATEGORY_GROUP_RULES = {
     games: [
         { name: 'Word & Puzzle',       emoji: '<:Bookopen:1473038576391557130>',   cmds: ['wordle', 'scramble', 'wordchain', 'trivia'] },
         { name: 'Skill & Speed',       emoji: '<:Lightningalt:1473038679906844824>', cmds: ['fasttype', 'reactionspeed', 'mathgame', 'counting', 'emojiguess'] },
-        { name: 'AI & Interactive',    emoji: '<:Inforect:1473038624172937287>',   cmds: ['akinator', '8ball', 'truthordare', 'truthdare', 'wouldyourather'] },
+        { name: 'AI & Interactive',    emoji: '<:Inforect:1473038624172937287>',   cmds: ['akinator', '8ball', 'truthdare', 'wouldyourather'] },
     ],
 
     // ── 18. Fun ───────────────────────────────────────────────
@@ -232,7 +232,7 @@ const CATEGORY_GROUP_RULES = {
     // ── Owner ─────────────────────────────────────────────────
     owner: [
         { name: 'Runtime Control',     emoji: '<:Settings:1473037894703779851>',   cmds: ['shutdown', 'restart', 'maintenance', 'reload', 'eval', 'exec', 'emit', 'system'] },
-        { name: 'Shard & Deploy',      emoji: '<:Refresh:1473037911581528165>',    cmds: ['force-sync', 'shard-status', 'deploycommands', 'command-stats'] },
+        { name: 'Shard & Deploy',      emoji: '<:Refresh:1473037911581528165>',    cmds: ['force-sync', 'shard-status', 'command-stats'] },
         { name: 'Configuration',       emoji: '<:banhammer:1473367388597780592>',  cmds: ['apikeys', 'globalconfig', 'configview', 'configreset', 'lavalinkconfig', 'lavalinkinfo', 'setavatar', 'fetchmsg'] },
         { name: 'Premium & Keys',      emoji: '<:Money:1473377877239140529>',      cmds: ['addpremium', 'removepremium', 'premiumstats', 'premiums', 'transferpremium', 'createkey', 'deletekey', 'listkeys', 'createserverkey', 'addserverpremium', 'removeserverpremium', 'activateserverpremium', 'syncpremium'] },
         { name: 'Guild Management',    emoji: '<:Pin:1473038806612447500>',        cmds: ['serverlist', 'leaveguild', 'serverinfo-owner', 'guild-search', 'getinvite'] },

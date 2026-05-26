@@ -90,8 +90,8 @@ module.exports = {
     prefix: 'truthdare',
     description: 'Play Truth or Dare',
     usage: 'truthdare [truth|dare]',
-    category: 'fun',
-    aliases: [],
+    category: 'games',
+    aliases: ['truthordare', 'tod', 'truth', 'dare'],
 
     async execute(interaction) {
         let type = interaction.options.getString('type') || 'random';

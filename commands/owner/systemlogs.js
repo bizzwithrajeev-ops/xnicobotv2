@@ -6,7 +6,7 @@ const path = require('path');
 module.exports = {
     name: 'systemlogs',
     prefix: 'systemlogs',
-    aliases: ['logs', 'syslogs', 'syslog'],
+    aliases: ['syslogs', 'syslog'],
     description: 'View bot system logs and errors',
     usage: 'systemlogs [lines] [error|warn|info|all]',
     category: 'owner',

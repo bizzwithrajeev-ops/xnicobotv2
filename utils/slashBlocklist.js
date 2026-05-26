@@ -9,9 +9,8 @@
  * filtered out before any payload is pushed to Discord's API.
  *
  * Use it from:
- *   • index.js                       — startup slash registration
- *   • commands/owner/deploycommands  — manual redeploy
- *   • utils/slashRegistrar.js        — auto-registration cache
+ *   • index.js                — startup slash registration (loads commands)
+ *   • utils/slashRegistrar.js — auto-registration cache & REST push
  *
  * © xNico
  */
@@ -58,7 +57,6 @@ const SLASH_BLOCKLIST = new Set([
     'blacklist',
     'botinvite',
     'command-stats',
-    'deploycommands',
     'dmuser',
     'eval',
     'fetchmsg',
@@ -88,6 +86,131 @@ const SLASH_BLOCKLIST = new Set([
     'upside-down',
     'urbanrandom',
     'uuid',
+
+    // ── Per-user request: keep these as prefix-only ──
+    // (info / role / server inspection commands)
+    'inrole',
+    'joined',
+    'member-join-position',
+    'newest-member',
+    'oldest-member',
+    'permissions',
+    'pinned-messages',
+    'rolecount',
+    'roleinfo',
+    'server-boost-info',
+    'serverroles',
+    'snowflake',
+    'stockprice',
+    'user-flags',
+    // (admin role / channel / message tools)
+    'channelclone',
+    'embed-say',
+    'members-without-role',
+    'role-hoist',
+    'role-mentionable',
+    'role-rename',
+
+    // ── Action commands (kept as prefix-only) ──
+    'bite',
+    'blush',
+    'bonk',
+    'celebrate',
+    'cry',
+    'cuddle',
+    'dance',
+    'facepalm',
+    'feed',
+    'handhold',
+    'highfive',
+    'hug',
+    'kiss',
+    'laugh',
+    'pat',
+    'peck',
+    'pet',
+    'poke',
+    'praise',
+    'punch',
+    'salute',
+    'slap',
+    'smile',
+    'stare',
+    'stretch',
+    'tickle',
+    'wave',
+    'wink',
+    'yawn',
+
+    // ──────────────────────────────────────────────────────────────
+    // User-requested prefix-only conversion (slash data kept in source
+    // for the prefix loader, but never registered with Discord).
+    // ──────────────────────────────────────────────────────────────
+
+    // ── backup ──
+    'backup-create',
+    'backup-delete',
+    'backup-list',
+    'backup-load',
+
+    // ── basic ──
+    'suggest',
+
+    // ── economy ──
+    '2048',
+    'addcoins',
+
+    // ── fun ──
+    '8ball',
+    'advice',
+    'akinator',
+    'choose',
+    'compliment',
+    'emojiguess',
+    'fact',
+    'iq',
+    'joke',
+    'magicnumber',
+    'mathgame',
+    'mock',
+    'nitro',
+    'pickupline',
+    'pp',
+    'quote',
+    'rate',
+    'reactionspeed',
+    'reverse',
+    'riddle',
+    'roast',
+    'roll',
+    'scramble',
+    'ship',
+    'trivia',
+    'truthdare',
+    'wordchain',
+    'wordle',
+    'wouldyourather',
+    'yesno',
+
+    // ── utility ──
+    'abbreviate',
+    'activities',
+    'announce',
+    'ascii-convert',
+    'base64',
+    'color',
+    'define',
+    'hash',
+    'hexconvert',
+    'image',
+    'wordcount',
+    'word-frequency',
+    'vaporwave',
+    'remove-duplicates',
+    'repeat',
+    'reddit',
+    'qrcode',
+    'randomcase',
 ]);
 
 /**

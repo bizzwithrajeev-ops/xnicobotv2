@@ -1,5 +1,6 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { buildErrorResponse, buildPermissionDenied, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { checkAndExpire } = require('../../utils/panelExpiration');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -17,26 +18,63 @@ function saveConfig(config) {
 
 function ensureGuildConfig(config, guildId) {
     if (!config[guildId]) {
-        config[guildId] = { enabled: false, minAge: 7 };
+        config[guildId] = { enabled: false, minAge: 7, action: 'kick', logChannel: null };
     }
+    // Backfill fields added after initial schema (action / logChannel)
+    if (!config[guildId].action) config[guildId].action = 'kick';
+    if (config[guildId].logChannel === undefined) config[guildId].logChannel = null;
     return config[guildId];
 }
 
+const VALID_ACTIONS = ['kick', 'ban', 'log_only'];
+
 function buildStatusPanel(guildConfig) {
+    const isOn = guildConfig.enabled;
+    const log = guildConfig.logChannel ? `<#${guildConfig.logChannel}>` : '`Not configured`';
+
+    const text =
+        `# <:Shield:1473038669831995494> Anti-Alt Account Detection\n` +
+        `-# Block accounts younger than your minimum age threshold\n\n` +
+        (isOn
+            ? `${EMOJIS.SUCCESS} **System Armed** — Detecting alts on join`
+            : `${EMOJIS.ERROR} **System Offline** — Alt detection disabled`) +
+        `\n\n### <:Settings:1473037894703779851> Configuration\n` +
+        `<:Alarm:1473039068546732214> **Minimum Account Age:** \`${guildConfig.minAge}\` day${guildConfig.minAge === 1 ? '' : 's'}\n` +
+        `<:banhammer:1473367388597780592> **Action on Detection:** \`${guildConfig.action || 'kick'}\`\n` +
+        `<:Document:1473039496995143731> **Log Channel:** ${log}\n\n` +
+        `### <:Lightbulbalt:1473038470787240009> What It Does\n` +
+        `When a member joins, their account creation date is compared against your minimum age. ` +
+        `Accounts younger than the threshold trigger the configured action.`;
+
+    const toggle = new ButtonBuilder()
+        .setCustomId('antialt_toggle')
+        .setLabel(isOn ? 'Disable' : 'Enable')
+        .setStyle(isOn ? ButtonStyle.Danger : ButtonStyle.Success)
+        .setEmoji(isOn ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>');
+
+    const setAge = new ButtonBuilder()
+        .setCustomId('antialt_set_age')
+        .setLabel('Set Minimum Age')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('<:Alarm:1473039068546732214>');
+
+    const setAction = new ButtonBuilder()
+        .setCustomId('antialt_set_action')
+        .setLabel('Set Action')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('<:banhammer:1473367388597780592>');
+
+    const setLog = new ButtonBuilder()
+        .setCustomId('antialt_set_log')
+        .setLabel('Set Log Channel')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('<:Document:1473039496995143731>');
+
     return new ContainerBuilder()
-        .setAccentColor(COLORS.PRIMARY)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `# <:Shield:1473038669831995494> Anti-Alt Configuration\n\n` +
-                `### <:Invoice:1473039492217835550> Current Settings\n` +
-                `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n` +
-                `**Minimum Age:** ${guildConfig.minAge} days\n\n` +
-                `### <:Edit:1473037903625191580> Commands\n` +
-                `\`/antialt enable\` - Enable anti-alt\n` +
-                `\`/antialt disable\` - Disable anti-alt\n` +
-                `\`/antialt age <days>\` - Set minimum account age`
-            )
-        )
+        .setAccentColor(isOn ? 0x57F287 : 0xED4245)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addActionRowComponents(new ActionRowBuilder().addComponents(toggle, setAge, setAction, setLog))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
@@ -209,5 +247,137 @@ module.exports = {
             const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
-    }
+    },
+
+    /* ──────────────────── interactive panel handler ────────────── */
+
+    async handleInteraction(interaction) {
+        if (!interaction.customId?.startsWith('antialt_')) return false;
+        if (await checkAndExpire(interaction, 'config')) return true;
+
+        if (!interaction.member?.permissions?.has(PermissionFlagsBits.Administrator)) {
+            await interaction.reply({
+                components: [buildPermissionDenied('Administrator')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            });
+            return true;
+        }
+
+        const config = loadConfig();
+        const guildId = interaction.guild.id;
+        const guildConfig = ensureGuildConfig(config, guildId);
+        const id = interaction.customId;
+
+        if (interaction.isButton()) {
+            if (id === 'antialt_toggle') {
+                guildConfig.enabled = !guildConfig.enabled;
+                saveConfig(config);
+                if (global.updateAntialtCache) global.updateAntialtCache(guildId, guildConfig);
+                await interaction.update({ components: [buildStatusPanel(guildConfig)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return true;
+            }
+            if (id === 'antialt_set_age') {
+                const modal = new ModalBuilder()
+                    .setCustomId('antialt_modal_age')
+                    .setTitle('Set Minimum Account Age')
+                    .addComponents(new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('days')
+                            .setLabel('Minimum age in days (1–365)')
+                            .setStyle(TextInputStyle.Short)
+                            .setValue(String(guildConfig.minAge || 7))
+                            .setPlaceholder('e.g. 7')
+                            .setRequired(true)
+                            .setMinLength(1).setMaxLength(3),
+                    ));
+                await interaction.showModal(modal);
+                return true;
+            }
+            if (id === 'antialt_set_action') {
+                const modal = new ModalBuilder()
+                    .setCustomId('antialt_modal_action')
+                    .setTitle('Set Action on Detection')
+                    .addComponents(new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('action')
+                            .setLabel(`Action: ${VALID_ACTIONS.join(' / ')}`)
+                            .setStyle(TextInputStyle.Short)
+                            .setValue(guildConfig.action || 'kick')
+                            .setRequired(true),
+                    ));
+                await interaction.showModal(modal);
+                return true;
+            }
+            if (id === 'antialt_set_log') {
+                const modal = new ModalBuilder()
+                    .setCustomId('antialt_modal_log')
+                    .setTitle('Set Log Channel')
+                    .addComponents(new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('channel')
+                            .setLabel('Channel ID or #mention (empty to clear)')
+                            .setStyle(TextInputStyle.Short)
+                            .setValue(guildConfig.logChannel || '')
+                            .setRequired(false),
+                    ));
+                await interaction.showModal(modal);
+                return true;
+            }
+        }
+
+        if (interaction.isModalSubmit()) {
+            if (id === 'antialt_modal_age') {
+                const days = parseInt(interaction.fields.getTextInputValue('days'), 10);
+                if (isNaN(days) || days < 1 || days > 365) {
+                    await interaction.reply({
+                        components: [buildErrorResponse('Invalid Age', 'Minimum age must be between **1** and **365** days.')],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                    });
+                    return true;
+                }
+                guildConfig.minAge = days;
+                saveConfig(config);
+                if (global.updateAntialtCache) global.updateAntialtCache(guildId, guildConfig);
+                await interaction.update({ components: [buildStatusPanel(guildConfig)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return true;
+            }
+            if (id === 'antialt_modal_action') {
+                const action = interaction.fields.getTextInputValue('action').toLowerCase().trim();
+                if (!VALID_ACTIONS.includes(action)) {
+                    await interaction.reply({
+                        components: [buildErrorResponse('Invalid Action', `Allowed: \`${VALID_ACTIONS.join('`, `')}\``)],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                    });
+                    return true;
+                }
+                guildConfig.action = action;
+                saveConfig(config);
+                if (global.updateAntialtCache) global.updateAntialtCache(guildId, guildConfig);
+                await interaction.update({ components: [buildStatusPanel(guildConfig)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return true;
+            }
+            if (id === 'antialt_modal_log') {
+                const raw = interaction.fields.getTextInputValue('channel').trim();
+                if (!raw) {
+                    guildConfig.logChannel = null;
+                } else {
+                    const channelId = raw.replace(/[<#>]/g, '');
+                    const channel = interaction.guild.channels.cache.get(channelId);
+                    if (!channel) {
+                        await interaction.reply({
+                            components: [buildErrorResponse('Invalid Channel', 'Channel not found in this server.')],
+                            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                        });
+                        return true;
+                    }
+                    guildConfig.logChannel = channelId;
+                }
+                saveConfig(config);
+                if (global.updateAntialtCache) global.updateAntialtCache(guildId, guildConfig);
+                await interaction.update({ components: [buildStatusPanel(guildConfig)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return true;
+            }
+        }
+        return false;
+    },
 };

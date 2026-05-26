@@ -17,7 +17,7 @@ module.exports = {
     description: 'Attempt to steal coins from another user',
     usage: 'rob <@user>',
     category: 'economy',
-    aliases: ['steal'],
+    aliases: [],
 
     async executePrefix(message, args) {
         const guildId = message.guild?.id;

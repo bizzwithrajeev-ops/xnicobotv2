@@ -473,7 +473,7 @@ async function handleInteraction(interaction) {
                 .setCustomId('live_message')
                 .setLabel('Notification message for livestreams')
                 .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('<:YoutubeLive:1507444089292066907> {channel} is LIVE! {title}\n{url}')
+                .setPlaceholder('{channel} is LIVE! {title}\n{url}')
                 .setValue(gc.youtube.liveMessage || '')
                 .setRequired(true)
                 .setMaxLength(1000)

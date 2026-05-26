@@ -3,7 +3,7 @@ const { isOwner } = require('../../utils/helpers');
 module.exports = {
     name: 'globalunban',
     prefix: 'globalunban',
-    aliases: ['gunban', 'unbanall'],
+    aliases: ['gunban'],
     description: 'Unban a user from every guild the bot is in',
     usage: 'globalunban <userId>',
     category: 'owner',

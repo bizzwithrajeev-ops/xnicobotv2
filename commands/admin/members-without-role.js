@@ -1,102 +1,101 @@
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+'use strict';
+
+const {
+    SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder,
+    SeparatorBuilder, SeparatorSpacingSize, PermissionFlagsBits
+} = require('discord.js');
+const {
+    buildErrorResponse, buildPermissionDenied, COLORS, BRANDING
+} = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
+
+async function loadRoleless(guild) {
+    await guild.members.fetch();
+    return [...guild.members.cache.values()]
+        .filter(m => !m.user.bot && m.roles.cache.size === 1)
+        .sort((a, b) => a.joinedTimestamp - b.joinedTimestamp);
+}
+
+function buildEmpty() {
+    return new ContainerBuilder()
+        .setAccentColor(0x57F287)
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                `# <:Checkedbox:1473038547165384804> No Roleless Members\n\n` +
+                `Every member already has at least one role. Nice and tidy.`
+            )
+        )
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
+
+function buildPagedList(members, guildName) {
+    const lines = members.map((m, i) => {
+        const joined = Math.floor(m.joinedTimestamp / 1000);
+        return `\`${String(i + 1).padStart(3, '0')}.\` ${m.user} \`@${m.user.username}\` — joined <t:${joined}:R>`;
+    });
+
+    return paginate({
+        header:
+            `# <:Bookopen:1473038576391557130> Members Without Roles — ${guildName}\n` +
+            `-# **${members.length}** human member${members.length === 1 ? '' : 's'} have no assigned roles`,
+        lines,
+        perPage: 15,
+        accentColor: COLORS.WARNING || 0xFEE75C,
+        footer: BRANDING,
+    });
+}
 
 module.exports = {
     name: 'members-without-role',
     prefix: 'members-without-role',
-    description: 'List members without any roles',
+    description: 'List human members who have no roles assigned',
     category: 'admin',
     usage: 'members-without-role',
     permissions: ['ManageRoles'],
     data: new SlashCommandBuilder()
         .setName('members-without-role')
-        .setDescription('List members without any roles')
+        .setDescription('List human members who have no roles assigned')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction) {
+        await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
         try {
-            const membersWithoutRoles = interaction.guild.members.cache.filter(m => 
-                m.roles.cache.size === 1 && !m.user.bot
-            );
-
-            if (membersWithoutRoles.size === 0) {
-                const container = new ContainerBuilder()
-                    .setAccentColor(COLORS.PRIMARY)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> No Roleless Members\n\nAll members have at least one role.`
-                    ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const members = await loadRoleless(interaction.guild);
+            if (members.length === 0) {
+                return interaction.editReply({ components: [buildEmpty()], flags: MessageFlags.IsComponentsV2 });
             }
-
-            const allLines = [...membersWithoutRoles.values()].map((m, i) =>
-                `**${i + 1}.** ${m.user.username} — Joined: ${new Date(m.joinedTimestamp).toLocaleDateString()}`
-            );
-
-            const result = paginate({
-                header: `# <:Bookopen:1473038576391557130> Members Without Roles (${membersWithoutRoles.size})`,
-                lines: allLines,
-                perPage: 20,
-                accentColor: COLORS.PRIMARY,
-                footer: BRANDING
-            });
-
-            const reply = await interaction.reply({ ...result, fetchReply: true });
+            const result = buildPagedList(members, interaction.guild.name);
+            const reply = await interaction.editReply(result);
             setupPaginationCollector(reply, result._pageData, interaction.user.id);
         } catch (error) {
-            console.error('[MembersWithoutRole] Slash Error:', error);
-            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-            } else {
-                await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-            }
+            console.error('[MEMBERS-WITHOUT-ROLE] Slash error:', error);
+            const container = buildErrorResponse('Failed', 'Could not load member list.', error.message);
+            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     },
 
-    async executePrefix(message, args) {
-        if (!message.guild) return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+    async executePrefix(message) {
+        if (!message.guild) {
+            return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+        }
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             const container = buildPermissionDenied('Manage Roles');
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         try {
-            const membersWithoutRoles = message.guild.members.cache.filter(m => 
-                m.roles.cache.size === 1 && !m.user.bot
-            );
-
-            if (membersWithoutRoles.size === 0) {
-                const container = new ContainerBuilder()
-                    .setAccentColor(COLORS.PRIMARY)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> No Roleless Members\n\nAll members have at least one role.`
-                    ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const members = await loadRoleless(message.guild);
+            if (members.length === 0) {
+                return message.reply({ components: [buildEmpty()], flags: MessageFlags.IsComponentsV2 });
             }
-
-            const allLines = [...membersWithoutRoles.values()].map((m, i) =>
-                `**${i + 1}.** ${m.user.username} — Joined: ${new Date(m.joinedTimestamp).toLocaleDateString()}`
-            );
-
-            const result = paginate({
-                header: `# <:Bookopen:1473038576391557130> Members Without Roles (${membersWithoutRoles.size})`,
-                lines: allLines,
-                perPage: 20,
-                accentColor: COLORS.PRIMARY,
-                footer: BRANDING
-            });
-
+            const result = buildPagedList(members, message.guild.name);
             const reply = await message.reply(result);
             setupPaginationCollector(reply, result._pageData, message.author.id);
         } catch (error) {
-            console.error('[MembersWithoutRole] Error:', error);
-            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            console.error('[MEMBERS-WITHOUT-ROLE] Prefix error:', error);
+            const container = buildErrorResponse('Failed', 'Could not load member list.', error.message);
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };

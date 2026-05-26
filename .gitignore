@@ -53,3 +53,8 @@ build/
 # ── OCR / TTS runtime caches (downloaded models, no need to commit) ─────────
 .ocr-cache/
 .tts-cache/
+
+# ── Temp / scratch files (preview renders, ad-hoc test scripts) ─────────────
+_tmp_*
+tmp_*
+*.tmp.*

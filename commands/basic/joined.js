@@ -1,60 +1,108 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS } = require('../../utils/responseBuilder');
+'use strict';
+
+const {
+    SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
+    ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
+} = require('discord.js');
+const { buildErrorResponse, buildUserNotFound, COLORS, BRANDING } = require('../../utils/responseBuilder');
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+function formatDuration(ms) {
+    const days = Math.floor(ms / MS_PER_DAY);
+    if (days < 30) return `${days} day${days === 1 ? '' : 's'}`;
+    const months = Math.floor(days / 30);
+    if (months < 12) {
+        const remDays = days - months * 30;
+        return `${months}mo${remDays ? ` ${remDays}d` : ''}`;
+    }
+    const years = Math.floor(days / 365);
+    const remDays = days - years * 365;
+    const remMonths = Math.floor(remDays / 30);
+    return `${years}y${remMonths ? ` ${remMonths}mo` : ''}`;
+}
 
 function buildJoined(member) {
     const joinedAt = Math.floor(member.joinedTimestamp / 1000);
     const createdAt = Math.floor(member.user.createdTimestamp / 1000);
+    const ageOnServer = formatDuration(Date.now() - member.joinedTimestamp);
+    const accountAge = formatDuration(Date.now() - member.user.createdTimestamp);
 
-    let content = `# <:Bookopen:1473038576391557130> Join Date\n\n`;
-    content += `<:User:1473038971398520977> **Member:** ${member.user.username}\n\n`;
-    content += `### Server Join\n`;
-    content += `<:Caretright:1473038207221502106> <t:${joinedAt}:F>\n`;
-    content += `<:Caretright:1473038207221502106> <t:${joinedAt}:R>\n\n`;
-    content += `### Account Created\n`;
-    content += `<:Caretright:1473038207221502106> <t:${createdAt}:F>\n`;
-    content += `<:Caretright:1473038207221502106> <t:${createdAt}:R>`;
+    const headerContent =
+        `# <:Clock:1473039102113878056> Member Timeline\n` +
+        `**${member.user.username}** ${member.nickname ? `\`(${member.nickname})\`` : ''}\n` +
+        `${member.user}`;
 
-    const section = new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+    const headerSection = new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(headerContent))
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: member.user.displayAvatarURL({ size: 256 }) } }));
+
+    const joinBlock =
+        `### <:Userplus:1473038912212435086> Joined Server\n` +
+        `<:Caretright:1473038207221502106> **Date:** <t:${joinedAt}:F>\n` +
+        `<:Caretright:1473038207221502106> **Relative:** <t:${joinedAt}:R>\n` +
+        `<:Caretright:1473038207221502106> **On server for:** \`${ageOnServer}\``;
+
+    const accountBlock =
+        `### <:Bookopen:1473038576391557130> Account Created\n` +
+        `<:Caretright:1473038207221502106> **Date:** <t:${createdAt}:F>\n` +
+        `<:Caretright:1473038207221502106> **Relative:** <t:${createdAt}:R>\n` +
+        `<:Caretright:1473038207221502106> **Account age:** \`${accountAge}\``;
 
     return new ContainerBuilder()
         .setAccentColor(member.displayColor || COLORS.INFO)
-        .addSectionComponents(section)
+        .addSectionComponents(headerSection)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(joinBlock))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(accountBlock))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('joined')
-        .setDescription('View when a member joined the server')
-        .addUserOption(opt => opt.setName('user').setDescription('User to check')),
+        .setDescription('See when a member joined the server and how long they have been around')
+        .addUserOption(opt => opt.setName('user').setDescription('Member to inspect').setRequired(false)),
 
     prefix: 'joined',
-    description: 'View when a member joined the server',
+    description: 'See when a member joined the server',
     usage: 'joined [@user]',
     category: 'basic',
     aliases: ['joindate', 'whenjoined'],
 
     async execute(interaction) {
-        const user = interaction.options.getUser('user');
-        const member = user ? await interaction.guild.members.fetch(user.id).catch(() => null) : interaction.member;
-        if (!member) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Could not find that member.', flags: MessageFlags.Ephemeral });
+        try {
+            const user = interaction.options.getUser('user');
+            const member = user
+                ? await interaction.guild.members.fetch(user.id).catch(() => null)
+                : interaction.member;
+            if (!member) {
+                const container = buildUserNotFound(user?.tag);
+                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            }
+            await interaction.reply({ components: [buildJoined(member)], flags: MessageFlags.IsComponentsV2 });
+        } catch (error) {
+            console.error('[JOINED] Slash error:', error);
+            const container = buildErrorResponse('Failed', 'Could not fetch join info.', error.message);
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
         }
-        const container = buildJoined(member);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message, args) {
         try {
-            const member = message.mentions.members.first() || message.member;
-            const container = buildJoined(member);
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            let member = message.mentions.members.first();
+            if (!member && args[0]) {
+                member = await message.guild.members.fetch(args[0]).catch(() => null);
+            }
+            if (!member) member = message.member;
+
+            await message.reply({ components: [buildJoined(member)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error(`[JOINED] Error:`, error);
-            await message.reply('<:Cancel:1473037949187657818> An error occurred while running this command.').catch(() => {});
+            console.error('[JOINED] Prefix error:', error);
+            const container = buildErrorResponse('Failed', 'Could not fetch join info.', error.message);
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };

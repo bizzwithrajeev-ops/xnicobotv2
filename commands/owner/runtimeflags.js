@@ -16,7 +16,7 @@ try { premiumManager = require('../../utils/premiumManager'); } catch {}
 module.exports = {
     name: 'runtimeflags',
     prefix: 'runtimeflags',
-    aliases: ['rflags', 'flags', 'runtime'],
+    aliases: ['rflags', 'runtime'],
     description: 'Owner-only: dump key runtime feature flags & state',
     usage: 'runtimeflags',
     category: 'owner',

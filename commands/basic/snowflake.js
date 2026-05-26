@@ -1,32 +1,52 @@
-const { SnowflakeUtil, SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { buildErrorResponse, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
+'use strict';
 
-function buildSnowflake(snowflake) {
+const {
+    SnowflakeUtil, SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder,
+    SeparatorBuilder, SeparatorSpacingSize, MessageFlags
+} = require('discord.js');
+const { buildErrorResponse, buildInvalidUsage, COLORS, BRANDING } = require('../../utils/responseBuilder');
+
+const SNOWFLAKE_REGEX = /^\d{17,19}$/;
+const DISCORD_EPOCH = 1420070400000;
+
+function classifySnowflake(client, snowflake, ts) {
+    if (ts < DISCORD_EPOCH) return 'Pre-Discord epoch (likely invalid)';
+    const guesses = [];
+    if (client.guilds?.cache?.has(snowflake)) guesses.push('Guild');
+    if (client.users?.cache?.has(snowflake)) guesses.push('User');
+    if (client.channels?.cache?.has(snowflake)) guesses.push('Channel');
+    return guesses.length > 0 ? guesses.join(' / ') : 'Generic Discord ID';
+}
+
+function buildSnowflake(client, snowflake) {
     const timestamp = SnowflakeUtil.timestampFrom(snowflake);
-    const workerId = (BigInt(snowflake) >> 17n) & 0x1Fn;
-    const processId = (BigInt(snowflake) >> 12n) & 0x1Fn;
-    const increment = BigInt(snowflake) & 0xFFFn;
+    const big = BigInt(snowflake);
+    const workerId = (big >> 17n) & 0x1Fn;
+    const processId = (big >> 12n) & 0x1Fn;
+    const increment = big & 0xFFFn;
+    const inferred = classifySnowflake(client, snowflake, timestamp);
 
     return new ContainerBuilder()
         .setAccentColor(COLORS.INFO)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Search:1473038053219106847> Snowflake Decoder`))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### <:Bookopen:1473038576391557130> Information\n` +
-            `<:Fileuser:1473039570630348810> **ID:** \`${snowflake}\`\n` +
-            `<:Clock:1473039102113878056> **Created:** <t:${Math.floor(timestamp / 1000)}:F>\n` +
+            `### <:Invoice:1473039492217835550> Identification\n` +
+            `<:Caretright:1473038207221502106> **ID:** \`${snowflake}\`\n` +
+            `<:Caretright:1473038207221502106> **Likely type:** \`${inferred}\`\n` +
+            `<:Caretright:1473038207221502106> **Created:** <t:${Math.floor(timestamp / 1000)}:F>\n` +
             `<:Caretright:1473038207221502106> **Relative:** <t:${Math.floor(timestamp / 1000)}:R>`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### <:Settings:1473037894703779851> Technical Details\n` +
-            `<:Caretright:1473038207221502106> **Timestamp:** ${timestamp}\n` +
-            `<:Caretright:1473038207221502106> **Worker ID:** ${workerId}\n` +
-            `<:Caretright:1473038207221502106> **Process ID:** ${processId}\n` +
-            `<:Caretright:1473038207221502106> **Increment:** ${increment}`
+            `### <:Settings:1473037894703779851> Technical Breakdown\n` +
+            `<:Caretright:1473038207221502106> **Unix timestamp:** \`${timestamp}\`\n` +
+            `<:Caretright:1473038207221502106> **Worker ID:** \`${workerId}\`\n` +
+            `<:Caretright:1473038207221502106> **Process ID:** \`${processId}\`\n` +
+            `<:Caretright:1473038207221502106> **Increment:** \`${increment}\``
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {
@@ -42,25 +62,27 @@ module.exports = {
     aliases: ['sf', 'decode'],
 
     async execute(interaction) {
-        const snowflake = interaction.options.getString('id');
-        if (!/^\d{17,19}$/.test(snowflake)) {
-            const container = buildErrorResponse('Invalid ID', 'Please provide a valid Discord snowflake ID (17-19 digits).');
+        const snowflake = interaction.options.getString('id').trim();
+        if (!SNOWFLAKE_REGEX.test(snowflake)) {
+            const container = buildErrorResponse(
+                'Invalid Snowflake',
+                'A valid Discord snowflake is **17-19 digits** of pure numbers.',
+                'Tip: enable Developer Mode in Discord, then right-click anything to copy its ID.'
+            );
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
         try {
-            const container = buildSnowflake(snowflake);
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({ components: [buildSnowflake(interaction.client, snowflake)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error('Snowflake Error:', error);
-            const container = buildErrorResponse('Decode Failed', 'Could not decode the snowflake ID.', 'Make sure you provided a valid Discord ID.');
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            console.error('[SNOWFLAKE] Slash error:', error);
+            const container = buildErrorResponse('Decode Failed', 'Could not decode the snowflake ID.', error.message);
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     },
 
     async executePrefix(message, args) {
-        const snowflake = args[0];
-        
-        if (!snowflake || !/^\d{17,19}$/.test(snowflake)) {
+        const snowflake = (args[0] || '').trim();
+        if (!SNOWFLAKE_REGEX.test(snowflake)) {
             const container = buildInvalidUsage(
                 'snowflake',
                 '-snowflake <id>',
@@ -68,18 +90,12 @@ module.exports = {
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
-
         try {
-            const container = buildSnowflake(snowflake);
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [buildSnowflake(message.client, snowflake)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error('Snowflake Error:', error);
-            const container = buildErrorResponse(
-                'Decode Failed',
-                'Could not decode the snowflake ID.',
-                'Make sure you provided a valid Discord ID.'
-            );
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            console.error('[SNOWFLAKE] Prefix error:', error);
+            const container = buildErrorResponse('Decode Failed', 'Could not decode the snowflake ID.', error.message);
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };

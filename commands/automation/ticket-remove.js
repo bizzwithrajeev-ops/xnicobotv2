@@ -1,6 +1,15 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+const {
+    SlashCommandBuilder, PermissionFlagsBits, MessageFlags,
+    ContainerBuilder, TextDisplayBuilder,
+} = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
+const { ensureMigrated } = require('../../utils/ticketPanels');
+const {
+    E, COLOR, errorContainer, v2Reply, canManageTicket,
+} = require('../../utils/ticketUI');
+
+/* ───────────────────────── store helpers ───────────────────────── */
 
 function loadConfig() {
     if (!jsonStore.has('tickets')) {
@@ -15,126 +24,130 @@ function loadConfig() {
     return data;
 }
 
+function resolveTicketContext(guild, channelId) {
+    const config = loadConfig();
+    const guildConfig = ensureMigrated(config[guild.id]);
+    if (!guildConfig) return null;
+    const ticket = guildConfig.tickets?.[channelId];
+    if (!ticket) return null;
+    return { config, guildConfig, ticket };
+}
+
+/* ─────────────────────────── shared logic ──────────────────────── */
+
+async function removeUserFromTicket({ guild, channel, member, targetUser }) {
+    const ctx = resolveTicketContext(guild, channel.id);
+    if (!ctx) return { ok: false, message: 'This is not a ticket channel.' };
+
+    const { config, guildConfig, ticket } = ctx;
+
+    // Removing other people is a staff action only — owners shouldn't be able
+    // to evict staff or other invitees from their own ticket.
+    if (!canManageTicket(member, guildConfig, ticket, { level: 'staff' })) {
+        return { ok: false, message: 'Only the support team or admins can remove users from tickets.' };
+    }
+    if (!targetUser) {
+        return { ok: false, message: 'Please specify a user to remove.' };
+    }
+    if (targetUser.id === ticket.userId) {
+        return { ok: false, message: 'You cannot remove the ticket owner. Close the ticket instead.' };
+    }
+    if (targetUser.id === guild.members.me.id) {
+        return { ok: false, message: 'You cannot remove the bot from this ticket.' };
+    }
+    if (!guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+        return { ok: false, message: 'I need **Manage Channels** permission to update this ticket.' };
+    }
+
+    try {
+        await channel.permissionOverwrites.delete(targetUser);
+    } catch (err) {
+        return { ok: false, message: `Failed to update channel permissions: ${err.message}` };
+    }
+
+    if (ticket.members) {
+        ticket.members = ticket.members.filter(id => id !== targetUser.id);
+    }
+    jsonStore.write('tickets', config);
+
+    const text =
+        `# ${E.cancel} User Removed\n\n` +
+        `${targetUser} has been removed from this ticket by ${member}.\n\n` +
+        `${E.pin} They can no longer read or reply in this channel.`;
+
+    const container = new ContainerBuilder()
+        .setAccentColor(COLOR.WARNING)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
+
+    return { ok: true, container };
+}
+
+/* ─────────────────────────── command ──────────────────────────── */
+
 module.exports = {
     category: 'automation',
     data: new SlashCommandBuilder()
         .setName('ticket-remove')
-        .setDescription('Remove a user from the ticket')
+        .setDescription('Remove a user from the current ticket channel')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('User to remove from the ticket')
-                .setRequired(true)),
-    
+                .setDescription('User to remove from this ticket')
+                .setRequired(true))
+        .setDMPermission(false),
+
     async execute(interaction) {
         try {
-            const config = loadConfig();
-            const guildConfig = config[interaction.guild.id];
-            
-            if (!guildConfig) {
-                return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not configured!', flags: MessageFlags.Ephemeral });
-            }
-            
-            const ticketEntry = Object.entries(guildConfig.tickets || {}).find(([channelId]) => channelId === interaction.channel.id);
-            
-            if (!ticketEntry) {
-                return interaction.reply({ content: '<:Cancel:1473037949187657818> This is not a ticket channel!', flags: MessageFlags.Ephemeral });
-            }
+            const targetUser = interaction.options.getUser('user');
+            const result = await removeUserFromTicket({
+                guild:   interaction.guild,
+                channel: interaction.channel,
+                member:  interaction.member,
+                targetUser,
+            });
 
-            const [ticketChannelId, ticketData] = ticketEntry;
-
-            // Allow: support role or admin only (ticket owner cannot remove others arbitrarily)
-            const isSupport = guildConfig.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-            const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-            if (!isSupport && !isAdmin) {
-                return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the support team can remove users from tickets!', flags: MessageFlags.Ephemeral });
+            if (!result.ok) {
+                return interaction.reply({
+                    ...v2Reply(errorContainer(result.message), true),
+                });
             }
-            
-            const user = interaction.options.getUser('user');
-
-            // Guard: cannot remove ticket owner or the bot
-            if (user.id === ticketData.userId) {
-                return interaction.reply({ content: '<:Cancel:1473037949187657818> You cannot remove the ticket owner!', flags: MessageFlags.Ephemeral });
-            }
-            if (user.id === interaction.guild.members.me.id) {
-                return interaction.reply({ content: '<:Cancel:1473037949187657818> You cannot remove the bot from the ticket!', flags: MessageFlags.Ephemeral });
-            }
-            
-            await interaction.channel.permissionOverwrites.delete(user);
-
-            // Update members list for transcript accuracy
-            if (ticketData.members) {
-                ticketData.members = ticketData.members.filter(id => id !== user.id);
-            }
-            jsonStore.write('tickets', config);
-            
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Cancel:1473037949187657818> User Removed\n\n**${user.username}** has been removed from this ticket!`)
-                );
-            
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({
+                components: [result.container],
+                flags: MessageFlags.IsComponentsV2,
+            });
         } catch (error) {
-            console.error(`Ticket remove error: ${error.message}`, error);
+            console.error(`[ticket-remove] ${error.message}`, error);
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to remove user from ticket!', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({
+                    ...v2Reply(errorContainer('Failed to remove user from ticket.'), true),
+                }).catch(() => {});
             }
         }
     },
 
     async executePrefix(message) {
         try {
-            const config = loadConfig();
-            const guildConfig = config[message.guild.id];
-            
-            if (!guildConfig) {
-                return message.reply('<:Cancel:1473037949187657818> Ticket system is not configured!');
+            const targetUser = message.mentions.users.first();
+            if (!targetUser) {
+                return message.reply({
+                    ...v2Reply(errorContainer('Mention the user to remove. Example: `-ticket-remove @user`')),
+                });
             }
-            
-            const ticketEntry = Object.entries(guildConfig.tickets || {}).find(([channelId]) => channelId === message.channel.id);
-            
-            if (!ticketEntry) {
-                return message.reply('<:Cancel:1473037949187657818> This is not a ticket channel!');
-            }
+            const result = await removeUserFromTicket({
+                guild:   message.guild,
+                channel: message.channel,
+                member:  message.member,
+                targetUser,
+            });
 
-            const [ticketChannelId, ticketData] = ticketEntry;
-
-            // Allow: support role or admin only
-            const isSupport = guildConfig.supportRoleId ? message.member.roles.cache.has(guildConfig.supportRoleId) : false;
-            const isAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator);
-            if (!isSupport && !isAdmin) {
-                return message.reply('<:Cancel:1473037949187657818> Only the support team can remove users from tickets!');
+            if (!result.ok) {
+                return message.reply({ ...v2Reply(errorContainer(result.message)) });
             }
-            
-            const user = message.mentions.users.first();
-            if (!user) {
-                return message.reply('<:Cancel:1473037949187657818> Please mention a user! Example: `-ticket-remove @user`');
-            }
-
-            if (user.id === ticketData.userId) {
-                return message.reply('<:Cancel:1473037949187657818> You cannot remove the ticket owner!');
-            }
-            if (user.id === message.guild.members.me.id) {
-                return message.reply('<:Cancel:1473037949187657818> You cannot remove the bot from the ticket!');
-            }
-            
-            await message.channel.permissionOverwrites.delete(user);
-
-            // Update members list for transcript accuracy
-            if (ticketData.members) {
-                ticketData.members = ticketData.members.filter(id => id !== user.id);
-            }
-            jsonStore.write('tickets', config);
-            
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Cancel:1473037949187657818> User Removed\n\n**${user.username}** has been removed from this ticket!`)
-                );
-            
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({
+                components: [result.container],
+                flags: MessageFlags.IsComponentsV2,
+            });
         } catch (error) {
-            console.error(`Ticket remove error: ${error.message}`, error);
+            console.error(`[ticket-remove] ${error.message}`, error);
         }
-    }
+    },
 };

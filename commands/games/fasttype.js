@@ -124,7 +124,7 @@ module.exports = {
     aliases: ['type', 'typingtest', 'typerace', 'typinggame'],
     description: 'Test your typing speed - type the phrase as fast as you can!',
     usage: 'fasttype [easy|medium|hard]',
-    category: 'fun',
+    category: 'games',
 
     async executePrefix(message, args) {
         const difficulty = ['easy', 'medium', 'hard'].includes(args[0]?.toLowerCase()) ? args[0].toLowerCase() : 'medium';

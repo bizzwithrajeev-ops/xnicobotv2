@@ -108,7 +108,8 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('button-ids')
                         .setDescription('Button IDs to send (comma separated, e.g., verify,support)')
-                        .setRequired(true))
+                        .setRequired(true)
+                        .setAutocomplete(true))
                 .addStringOption(option =>
                     option.setName('message')
                         .setDescription('Message to display above the buttons')
@@ -140,7 +141,8 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('button-ids')
                         .setDescription('Button IDs to attach (comma separated)')
-                        .setRequired(true))
+                        .setRequired(true)
+                        .setAutocomplete(true))
                 .addChannelOption(option =>
                     option.setName('channel')
                         .setDescription('Channel containing the message')
@@ -149,6 +151,28 @@ module.exports = {
             subcommand
                 .setName('list')
                 .setDescription('View all created buttons and their configurations'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('view')
+                .setDescription('View detailed information for a single button')
+                .addStringOption(option =>
+                    option.setName('id')
+                        .setDescription('Button ID to view')
+                        .setRequired(true)
+                        .setAutocomplete(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('clone')
+                .setDescription('Duplicate an existing button under a new ID')
+                .addStringOption(option =>
+                    option.setName('source')
+                        .setDescription('Source button ID')
+                        .setRequired(true)
+                        .setAutocomplete(true))
+                .addStringOption(option =>
+                    option.setName('new-id')
+                        .setDescription('New button ID')
+                        .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('delete')
@@ -219,13 +243,41 @@ module.exports = {
         const focusedOption = interaction.options.getFocused(true);
         const config = loadButtonsConfig();
         const guildButtons = config[interaction.guild.id] || {};
+        const allIds = Object.keys(guildButtons);
 
-        const choices = Object.keys(guildButtons).map(id => ({
-            name: `${id} - ${guildButtons[id].label}`,
-            value: id
+        // For comma-separated `button-ids`, autocomplete the LAST token so the
+        // admin can build "verify,support,rules" without retyping each piece.
+        if (focusedOption.name === 'button-ids') {
+            const raw = focusedOption.value || '';
+            const tokens = raw.split(',');
+            const lastToken = (tokens.pop() || '').trim().toLowerCase();
+            const prefix = tokens.map(t => t.trim()).filter(Boolean).join(',');
+            const prefixWithComma = prefix ? `${prefix},` : '';
+
+            const filtered = allIds
+                .filter(id => id.toLowerCase().includes(lastToken))
+                .map(id => {
+                    const candidate = `${prefixWithComma}${id}`;
+                    return {
+                        name: candidate.length > 100 ? candidate.slice(0, 97) + '…' : candidate,
+                        value: candidate.length > 100 ? candidate.slice(0, 100) : candidate,
+                    };
+                });
+            return interaction.respond(filtered.slice(0, 25));
+        }
+
+        // The `new-id` field on /clone is a fresh name — don't suggest existing IDs.
+        if (focusedOption.name === 'new-id') {
+            return interaction.respond([]);
+        }
+
+        // Default: single-id autocomplete (for delete / edit / edit-actions / view / clone source)
+        const choices = allIds.map(id => ({
+            name: `${id} - ${guildButtons[id].label}`.slice(0, 100),
+            value: id,
         }));
 
-        const filtered = choices.filter(choice => 
+        const filtered = choices.filter(choice =>
             choice.name.toLowerCase().includes(focusedOption.value.toLowerCase())
         );
 
@@ -243,6 +295,10 @@ module.exports = {
             await this.handleAttach(interaction);
         } else if (subcommand === 'list') {
             await this.handleList(interaction);
+        } else if (subcommand === 'view') {
+            await this.handleView(interaction);
+        } else if (subcommand === 'clone') {
+            await this.handleClone(interaction);
         } else if (subcommand === 'delete') {
             await this.handleDelete(interaction);
         } else if (subcommand === 'edit-actions') {
@@ -261,6 +317,22 @@ module.exports = {
         const emoji = interaction.options.getString('emoji');
         const url = interaction.options.getString('url');
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? true;
+
+        // Validate button id — Discord custom_id has a 100-char limit and we
+        // already prepend "btn_cmd_<guildId>_" (~30 chars) so cap user-supplied
+        // IDs at 64 chars. Also lock characters to safe set.
+        if (!/^[a-z0-9_-]{1,64}$/i.test(buttonId)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Button ID must be 1–64 chars, only letters, numbers, underscore and dash.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        if (label.length > 80) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Button label must be 80 characters or less (Discord limit).',
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
         const config = loadButtonsConfig();
         const guildId = interaction.guild.id;
@@ -294,7 +366,10 @@ module.exports = {
             emoji: emoji || null,
             url: url || null,
             ephemeral: ephemeral,
-            actions: []
+            actions: [],
+            createdAt: Date.now(),
+            createdBy: interaction.user.id,
+            uses: 0,
         };
 
         saveButtonsConfig(config);
@@ -344,13 +419,20 @@ module.exports = {
         const title = interaction.options.getString('title');
         const colorHex = interaction.options.getString('color');
 
-        const buttonIds = buttonIdsInput.split(',').map(id => id.trim());
+        const buttonIds = buttonIdsInput.split(',').map(id => id.trim()).filter(Boolean);
         const config = loadButtonsConfig();
         const guildId = interaction.guild.id;
 
         if (!config[guildId]) {
             return interaction.reply({
                 content: '<:Cancel:1473037949187657818> No buttons configured for this server! Create one with `/button-maker create`',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        if (!buttonIds.length) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Please provide at least one button ID.',
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -363,7 +445,26 @@ module.exports = {
             });
         }
 
+        // Preflight permission check so we don't show a generic Discord error
+        const me = interaction.guild.members.me;
+        const required = ['ViewChannel', 'SendMessages'];
+        if (useContainer) required.push('EmbedLinks');
+        const perms = channel.permissionsFor(me);
+        const missingPerms = required.filter(p => !perms?.has(p));
+        if (missingPerms.length) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> I'm missing **${missingPerms.join(', ')}** in ${channel}. Grant those and try again.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
         const rows = createButtonComponents(buttonIds, config, guildId);
+        if (!rows.length) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> No valid buttons to send.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
         try {
             if (useContainer) {
@@ -834,6 +935,95 @@ module.exports = {
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     },
 
+    async handleView(interaction) {
+        const buttonId = interaction.options.getString('id');
+        const config = loadButtonsConfig();
+        const btnData = config[interaction.guild.id]?.[buttonId];
+
+        if (!btnData) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> Button \`${buttonId}\` not found. Use \`/button-maker list\` to see available buttons.`,
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
+        const styleEmoji = { primary: '🔵', secondary: '⚪', success: '🟢', danger: '🔴', link: '🔗' }[btnData.style] || '🔵';
+        const created = btnData.createdAt ? `<t:${Math.floor(btnData.createdAt / 1000)}:R>` : 'unknown';
+        const creator = btnData.createdBy ? `<@${btnData.createdBy}>` : 'unknown';
+
+        let content = `# <:Document:1473039496995143731> Button: \`${buttonId}\`\n\n`;
+        content += `### <:Settings:1473037894703779851> Configuration\n`;
+        content += `<:Pin:1473038806612447500> **Label:** ${btnData.label}\n`;
+        content += `<:Pin:1473038806612447500> **Style:** ${styleEmoji} ${btnData.style}\n`;
+        if (btnData.emoji)  content += `<:Pin:1473038806612447500> **Emoji:** ${btnData.emoji}\n`;
+        if (btnData.url)    content += `<:Pin:1473038806612447500> **URL:** <${btnData.url}>\n`;
+        content += `<:Pin:1473038806612447500> **Response:** ${btnData.ephemeral !== false ? 'Ephemeral (private)' : 'Public'}\n`;
+        content += `<:Pin:1473038806612447500> **Created:** ${created} by ${creator}\n`;
+        content += `<:Pin:1473038806612447500> **Total Uses:** \`${btnData.uses || 0}\`\n\n`;
+
+        const actions = btnData.actions || [];
+        content += `### <:Bookmark:1473038643492028517> Actions (${actions.length})\n`;
+        if (!actions.length) {
+            content += `*No actions configured. Add some with* \`/button-maker edit-actions id:${buttonId}\`.`;
+        } else {
+            actions.forEach((a, i) => {
+                content += `**${i + 1}.** ${this.getActionEmoji(a.type)} ${this.getActionDescription(a)}\n`;
+            });
+        }
+
+        const container = new ContainerBuilder()
+            .setAccentColor(0xCAD7E6)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+
+        return interaction.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        });
+    },
+
+    async handleClone(interaction) {
+        const sourceId = interaction.options.getString('source');
+        const newId    = interaction.options.getString('new-id');
+
+        if (!/^[a-z0-9_-]{1,64}$/i.test(newId)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> New button ID must be 1–64 chars, only letters, numbers, underscore and dash.',
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
+        const config = loadButtonsConfig();
+        const guildId = interaction.guild.id;
+
+        if (!config[guildId]?.[sourceId]) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> Source button \`${sourceId}\` not found.`,
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+        if (config[guildId][newId]) {
+            return interaction.reply({
+                content: `<:Cancel:1473037949187657818> Button \`${newId}\` already exists. Pick a different new id.`,
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
+        // Deep-clone source data, reset usage counters & creation metadata
+        const cloned = JSON.parse(JSON.stringify(config[guildId][sourceId]));
+        cloned.uses = 0;
+        cloned.createdAt = Date.now();
+        cloned.createdBy = interaction.user.id;
+        config[guildId][newId] = cloned;
+        saveButtonsConfig(config);
+
+        return interaction.reply({
+            content:
+                `<:Checkedbox:1473038547165384804> Button \`${sourceId}\` cloned to \`${newId}\` ` +
+                `(${cloned.actions?.length || 0} actions copied). Use \`/button-maker edit-actions id:${newId}\` to customize.`,
+            flags: MessageFlags.Ephemeral,
+        });
+    },
+
     async handleHelp(interaction) {
         const helpContainer = new ContainerBuilder()
             .setAccentColor(0xCAD7E6)
@@ -1131,6 +1321,16 @@ module.exports = {
                 return message.reply('<:Cancel:1473037949187657818> **Usage:** `-button-maker create <id> <label> [style] [emoji] [url]`\n**Example:** `-button-maker create verify Verify success <:Checkedbox:1473038547165384804>`');
             }
 
+            // Validate button id (Discord custom_id legal chars + reasonable length)
+            if (!/^[a-z0-9_-]{1,64}$/i.test(buttonId)) {
+                return message.reply('<:Cancel:1473037949187657818> Button ID must be 1–64 chars, only letters/numbers/underscore/dash.');
+            }
+
+            const validStyles = ['primary', 'secondary', 'success', 'danger', 'link'];
+            if (!validStyles.includes(style)) {
+                return message.reply(`<:Cancel:1473037949187657818> Invalid style. Use one of: ${validStyles.join(', ')}`);
+            }
+
             if (style === 'link' && !url) {
                 return message.reply('<:Cancel:1473037949187657818> Link-style buttons require a URL!');
             }
@@ -1153,7 +1353,7 @@ module.exports = {
                 style: style,
                 emoji: emoji || null,
                 url: url || null,
-                flags: MessageFlags.Ephemeral,
+                ephemeral: true,
                 actions: []
             };
 
@@ -1170,8 +1370,8 @@ module.exports = {
                             `**Style:** ${style}\n` +
                             `${emoji ? `**Emoji:** ${emoji}\n` : ''}` +
                             `${url ? `**URL:** ${url}\n` : ''}\n` +
-                            `${style === 'link' ? 
-                                `*Link buttons redirect users to the URL*` : 
+                            `${style === 'link' ?
+                                `*Link buttons redirect users to the URL*` :
                                 `Use \`/button-maker edit-actions id:${buttonId}\` to add actions!`
                             }`
                         )

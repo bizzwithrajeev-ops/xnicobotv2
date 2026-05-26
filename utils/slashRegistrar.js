@@ -78,6 +78,7 @@ const GLOBAL_PRIORITY = new Set([
     // ── Builders & tools ──
     'button-maker', 'select-menu-maker', 'message-builder', 'translate', 'calculate',
     'premium', 'customcmd', 'github', 'serverstats', 'suggestion',
+    'globalemoji', 'globalsticker', 'steal',
 
     // ── Economy ──
     'balance', 'daily', 'weekly', 'shop', 'profile', 'pay', 'deposit', 'withdraw',
@@ -146,16 +147,26 @@ function splitCommands(commands) {
         if (GLOBAL_PRIORITY.has(cmd.name)) priorityCmds.push(cmd);
         else overflowCmds.push(cmd);
     }
-    const globalCmds = priorityCmds.slice(0, DISCORD_GLOBAL_LIMIT);
-    if (globalCmds.length < DISCORD_GLOBAL_LIMIT) {
-        globalCmds.push(...overflowCmds.splice(0, DISCORD_GLOBAL_LIMIT - globalCmds.length));
-    }
-    const globalNames = new Set(globalCmds.map(c => c.name));
-    const guildCmds = commands
-        .filter(c => !globalNames.has(c.name))
-        .slice(0, DISCORD_GUILD_LIMIT);
 
-    return { globalCmds, guildCmds };
+    // Globals get filled from the priority list first, then any leftover slots
+    // are topped up from the overflow pool.
+    const globalCmds = priorityCmds.slice(0, DISCORD_GLOBAL_LIMIT);
+    const overflowAfterGlobal = [
+        ...priorityCmds.slice(DISCORD_GLOBAL_LIMIT), // priority items that didn't fit globally
+        ...overflowCmds,
+    ];
+    if (globalCmds.length < DISCORD_GLOBAL_LIMIT) {
+        const need = DISCORD_GLOBAL_LIMIT - globalCmds.length;
+        globalCmds.push(...overflowAfterGlobal.splice(0, need));
+    }
+
+    // Whatever's left becomes guild-specific, capped at Discord's per-guild limit.
+    const guildCmds = overflowAfterGlobal.slice(0, DISCORD_GUILD_LIMIT);
+
+    // Anything beyond 100 + 100 cannot be registered on Discord.
+    const droppedCmds = overflowAfterGlobal.slice(DISCORD_GUILD_LIMIT);
+
+    return { globalCmds, guildCmds, droppedCmds };
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────────
@@ -199,7 +210,27 @@ async function autoRegister({ client, token, clientId, commands, force = false }
     log.warning(`[Slash] Registration required → ${reason}. Pushing to Discord...`);
 
     const rest = new REST({ version: '10' }).setToken(token);
-    const { globalCmds, guildCmds } = splitCommands(commands);
+    const { globalCmds, guildCmds, droppedCmds } = splitCommands(commands);
+
+    // ── Loud warning when commands exceed Discord's hard limit ──
+    // Discord allows at most 100 global + 100 guild slash commands per guild
+    // (200 total visible to any user). Anything beyond is silently invisible.
+    if (droppedCmds.length > 0) {
+        log.error(
+            `[Slash] ${commands.length} slash commands found but Discord allows max 200 per guild ` +
+            `(100 global + 100 guild). ${droppedCmds.length} command(s) WILL NOT BE REGISTERED.`
+        );
+        const droppedNames = droppedCmds.map(c => c.name).sort();
+        // Print in chunks so the log stays readable.
+        const CHUNK = 12;
+        for (let i = 0; i < droppedNames.length; i += CHUNK) {
+            log.warning(`[Slash] Dropped: ${droppedNames.slice(i, i + CHUNK).join(', ')}`);
+        }
+        log.warning('[Slash] Fix options:');
+        log.warning('[Slash]   1. Add overflow names to utils/slashBlocklist.js (keeps them as prefix-only)');
+        log.warning('[Slash]   2. Group related commands as subcommands of one parent');
+        log.warning('[Slash]   3. Add the overflow command names to GLOBAL_PRIORITY in utils/slashRegistrar.js');
+    }
 
     // ── Global commands (preserve any entry-point command type=4) ──
     let entryPoints = [];
@@ -254,6 +285,8 @@ async function autoRegister({ client, token, clientId, commands, force = false }
         guild: guildCmds.length,
         guildSuccess,
         commandCount: commands.length,
+        dropped: droppedCmds.length,
+        droppedNames: droppedCmds.map(c => c.name).sort(),
     });
 
     return {
@@ -261,6 +294,8 @@ async function autoRegister({ client, token, clientId, commands, force = false }
         reason,
         global: globalCmds.length,
         guild: guildCmds.length,
+        dropped: droppedCmds.length,
+        droppedNames: droppedCmds.map(c => c.name).sort(),
     };
 }
 

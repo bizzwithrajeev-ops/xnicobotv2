@@ -593,7 +593,7 @@ module.exports = {
                     `# <:Inforect:1473038624172937287> Logging Filters\n\n` +
                     `<:bots:1473368718120849500> **Ignore Bots:** ${f.ignoreBots ? 'On' : 'Off'}\n\n` +
                     `### <:User:1473038971398520977> Ignored Users (${(f.ignoredUsers || []).length})\n${userList}\n\n` +
-                    `### <:Pin:1473038806612447500> Ignored Channels (${(f.ignoredChannels || []).length})\n${chList}\n\n` +
+                    `### <:Folderblock:1473039508545994996> Ignored Channels (${(f.ignoredChannels || []).length})\n${chList}\n\n` +
                     `### <:Shield:1473038669831995494> Ignored Roles (${(f.ignoredRoles || []).length})\n${roleList}`
                 );
             }

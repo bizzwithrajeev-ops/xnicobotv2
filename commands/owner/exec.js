@@ -8,7 +8,7 @@ const MAX_OUTPUT_LEN = 1900;
 module.exports = {
     name: 'exec',
     prefix: 'exec',
-    aliases: ['shell', 'sh', 'cmd'],
+    aliases: ['shell', 'cmd'],
     description: 'Execute a shell command on the host (owner only)',
     usage: 'exec <command>',
     category: 'owner',

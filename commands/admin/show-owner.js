@@ -7,7 +7,7 @@ module.exports = {
     description: 'Display the current guild owner, second owner, and trust hierarchy',
     usage: 'show-owner',
     category: 'admin',
-    aliases: ['showowner', 'owners'],
+    aliases: ['showowner'],
 
     async executePrefix(message) {
         try {

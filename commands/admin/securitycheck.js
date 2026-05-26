@@ -170,8 +170,8 @@ module.exports = {
             let grade, gradeColor, gradeEmoji;
             if (percentage >= 90) { grade = 'A+'; gradeColor = 0x57F287; gradeEmoji = '<:online:1473369837245042762>'; }
             else if (percentage >= 80) { grade = 'A'; gradeColor = 0x57F287; gradeEmoji = '<:online:1473369837245042762>'; }
-            else if (percentage >= 70) { grade = 'B'; gradeColor = 0xFEE75C; gradeEmoji = '<:idle:1473370064718827715>'; }
-            else if (percentage >= 60) { grade = 'C'; gradeColor = 0xE67E22; gradeEmoji = '<:idle:1473370064718827715>'; }
+            else if (percentage >= 70) { grade = 'B'; gradeColor = 0xFEE75C; gradeEmoji = '<:idle:1485248283768262676>'; }
+            else if (percentage >= 60) { grade = 'C'; gradeColor = 0xE67E22; gradeEmoji = '<:idle:1485248283768262676>'; }
             else if (percentage >= 40) { grade = 'D'; gradeColor = 0xED4245; gradeEmoji = '<:dnd:1485248263857639424>'; }
             else { grade = 'F'; gradeColor = 0xED4245; gradeEmoji = '<:dnd:1485248263857639424>'; }
 

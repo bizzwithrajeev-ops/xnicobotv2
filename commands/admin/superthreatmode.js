@@ -133,14 +133,15 @@ module.exports = {
     },
 
     async handleInteraction(interaction) {
-        if (interaction.customId !== 'superthreat_toggle') return;
+        if (interaction.customId !== 'superthreat_toggle') return false;
         // Re-validate server premium — the dispatcher only fires at
         // command entry, not on later panel button presses.
         const { requirePremium } = require('../../utils/interactionGuards');
         if (await requirePremium(interaction, { commandName: '/superthreatmode' })) return true;
         if (await checkAndExpire(interaction, 'config')) return true;
         if (!trust.isServerOwner(interaction.guild, interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the **server owner** can use this panel.', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the **server owner** can use this panel.', flags: MessageFlags.Ephemeral });
+            return true;
         }
 
         const config = loadConfig();
@@ -181,5 +182,6 @@ module.exports = {
 
         saveConfig(config);
         await interaction.update({ components: [buildSuperThreatPanel(gc, interaction.guild.name)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        return true;
     }
 };

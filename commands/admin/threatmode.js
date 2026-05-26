@@ -142,10 +142,11 @@ module.exports = {
     },
 
     async handleInteraction(interaction) {
-        if (interaction.customId !== 'threat_toggle') return;
+        if (interaction.customId !== 'threat_toggle') return false;
         if (await checkAndExpire(interaction, 'config')) return true;
         if (!trust.isServerOwner(interaction.guild, interaction.user.id)) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the **server owner** can use this panel.', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the **server owner** can use this panel.', flags: MessageFlags.Ephemeral });
+            return true;
         }
 
         const config = loadConfig();
@@ -154,7 +155,8 @@ module.exports = {
         const gc = config[guildId];
 
         if (gc.superThreatMode) {
-            return interaction.reply({ content: '<:Toggleoff:1473038582813032590> **Super Threat Mode** is active. Disable it first before using Threat Mode.', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: '<:Toggleoff:1473038582813032590> **Super Threat Mode** is active. Disable it first before using Threat Mode.', flags: MessageFlags.Ephemeral });
+            return true;
         }
 
         const willEnable = !gc.threatMode;
@@ -189,5 +191,6 @@ module.exports = {
 
         saveConfig(config);
         await interaction.update({ components: [buildThreatPanel(gc, interaction.guild.name)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        return true;
     }
 };

@@ -175,7 +175,7 @@ module.exports = {
         ),
 
     prefix: 'leaderboard',
-    aliases: ['lb', 'top', 'board', 'rankings'],
+    aliases: ['top', 'board', 'rankings'],
     description: 'View the unified leaderboard with dropdown selection',
     usage: 'leaderboard [leveling|messages|voice|invites|economy] [server|global]',
     category: 'leveling',

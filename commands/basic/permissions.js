@@ -1,76 +1,153 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS } = require('../../utils/responseBuilder');
+'use strict';
 
-function buildPermissions(member) {
-    const permissions = member.permissions.toArray();
-    const keyPerms = ['Administrator', 'ManageGuild', 'ManageRoles', 'ManageChannels',
-                     'KickMembers', 'BanMembers', 'ModerateMembers', 'ManageMessages',
-                     'ManageWebhooks', 'ManageNicknames', 'MentionEveryone'];
-    const hasAdmin = permissions.includes('Administrator');
+const {
+    SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
+    ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
+} = require('discord.js');
+const { buildErrorResponse, buildUserNotFound, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
-    let content = `# <:Key:1473038690606649375> Permissions\n\n`;
-    content += `**Member:** ${member.user.username}\n`;
-    content += `**Role Count:** ${member.roles.cache.size - 1}\n`;
-    content += `**Highest Role:** ${member.roles.highest}\n\n`;
+// Higher-impact permissions surfaced first in the spotlight section.
+const KEY_PERMS = new Set([
+    'Administrator', 'ManageGuild', 'ManageRoles', 'ManageChannels',
+    'ManageMessages', 'ManageWebhooks', 'ManageNicknames', 'ManageEmojisAndStickers',
+    'KickMembers', 'BanMembers', 'ModerateMembers', 'MentionEveryone',
+    'ViewAuditLog', 'ManageEvents', 'ManageThreads',
+]);
 
-    if (hasAdmin) {
-        content += `### <:Crown:1506010837368963142> Administrator\n`;
-        content += `> This user has all permissions.\n`;
-    } else {
-        const memberKeyPerms = permissions.filter(p => keyPerms.includes(p));
-        if (memberKeyPerms.length > 0) {
-            content += `### <:Lightningalt:1473038679906844824> Key Permissions\n`;
-            content += memberKeyPerms.map(p => `> \`${p}\``).join('\n');
-            content += `\n\n`;
-        }
-        content += `### <:Document:1473039496995143731> All Permissions (${permissions.length})\n`;
-        content += `> ${permissions.slice(0, 15).map(p => `\`${p}\``).join(', ')}`;
-        if (permissions.length > 15) {
-            content += `\n> ...and ${permissions.length - 15} more`;
-        }
-    }
+function buildSpotlight(member, allPerms) {
+    const hasAdmin = allPerms.includes('Administrator');
+    const keyPerms = allPerms.filter(p => KEY_PERMS.has(p));
+    const totalRoles = member.roles.cache.size - 1;
 
-    const section = new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+    const headerSection = new SectionBuilder()
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                `# <:Key:1473038690606649375> Permissions Overview\n` +
+                `**${member.user.username}** ${member.nickname ? `\`(${member.nickname})\`` : ''}\n` +
+                `${member.user}`
+            )
+        )
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: member.user.displayAvatarURL({ size: 256 }) } }));
+
+    const meta =
+        `### <:Invoice:1473039492217835550> Member Snapshot\n` +
+        `<:Caretright:1473038207221502106> **Roles:** \`${totalRoles}\`\n` +
+        `<:Caretright:1473038207221502106> **Highest role:** ${member.roles.highest}\n` +
+        `<:Caretright:1473038207221502106> **Total permissions:** \`${allPerms.length}\`\n` +
+        `<:Caretright:1473038207221502106> **Administrator:** ${hasAdmin ? '<:Checkedbox:1473038547165384804> Yes' : '<:Cancel:1473037949187657818> No'}`;
+
+    const keyBlock = hasAdmin
+        ? `### <:Crown:1506010837368963142> Administrator\n*This member has every permission via the Administrator flag.*`
+        : keyPerms.length > 0
+            ? `### <:Lightningalt:1473038679906844824> Key Permissions (${keyPerms.length})\n` +
+              keyPerms.map(p => `> <:Checkedbox:1473038547165384804> \`${p}\``).join('\n')
+            : `### <:Lightningalt:1473038679906844824> Key Permissions\n*No moderation-tier permissions.*`;
 
     return new ContainerBuilder()
         .setAccentColor(member.displayColor || COLORS.INFO)
-        .addSectionComponents(section)
+        .addSectionComponents(headerSection)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(meta))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(keyBlock))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                `-# Run \`permissions @user list\` to browse every granted permission`
+            )
+        )
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
+
+function buildFullList(member, allPerms) {
+    const lines = allPerms.sort().map((p, i) => {
+        const tier = KEY_PERMS.has(p) ? '<:Lightningalt:1473038679906844824>' : '<:Checkedbox:1473038547165384804>';
+        return `\`${String(i + 1).padStart(2, '0')}.\` ${tier} \`${p}\``;
+    });
+
+    return paginate({
+        header:
+            `# <:Key:1473038690606649375> All Permissions — ${member.user.username}\n` +
+            `-# **${allPerms.length}** total permission${allPerms.length === 1 ? '' : 's'} (key permissions highlighted)`,
+        lines,
+        perPage: 15,
+        accentColor: member.displayColor || COLORS.INFO,
+        footer: BRANDING,
+    });
+}
+
+async function send(replyFn, member, userId, args) {
+    const allPerms = member.permissions.toArray();
+    const wantList = (args || []).some(a => /^(list|all|full)$/i.test(a));
+
+    if (wantList) {
+        const result = buildFullList(member, allPerms);
+        const reply = await replyFn({ ...result, fetchReply: true });
+        setupPaginationCollector(reply, result._pageData, userId);
+        return;
+    }
+
+    return replyFn({ components: [buildSpotlight(member, allPerms)], flags: MessageFlags.IsComponentsV2 });
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('permissions')
-        .setDescription('View a member\'s permissions')
-        .addUserOption(opt => opt.setName('user').setDescription('User to check permissions for')),
+        .setDescription("View a member's Discord permissions")
+        .addUserOption(opt => opt.setName('user').setDescription('Member to inspect').setRequired(false))
+        .addBooleanOption(opt => opt.setName('list').setDescription('Show every granted permission with pagination').setRequired(false)),
 
     prefix: 'permissions',
-    description: 'View a member\'s permissions',
-    usage: 'permissions [@user]',
+    description: "View a member's Discord permissions",
+    usage: 'permissions [@user] [list]',
     category: 'basic',
     aliases: ['perms'],
 
     async execute(interaction) {
-        const user = interaction.options.getUser('user');
-        const member = user ? await interaction.guild.members.fetch(user.id).catch(() => null) : interaction.member;
-        if (!member) {
-            return interaction.reply({ content: '<:Cancel:1473037949187657818> Could not find that member.', flags: MessageFlags.Ephemeral });
+        try {
+            const user = interaction.options.getUser('user');
+            const list = interaction.options.getBoolean('list');
+            const member = user
+                ? await interaction.guild.members.fetch(user.id).catch(() => null)
+                : interaction.member;
+            if (!member) {
+                const container = buildUserNotFound(user?.tag);
+                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            }
+            await send(
+                (payload) => interaction.reply(payload),
+                member,
+                interaction.user.id,
+                list ? ['list'] : []
+            );
+        } catch (error) {
+            console.error('[PERMISSIONS] Slash error:', error);
+            const container = buildErrorResponse('Failed', 'Could not load permissions.', error.message);
+            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
         }
-        const container = buildPermissions(member);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message, args) {
         try {
-            const member = message.mentions.members.first() || message.member;
-            const container = buildPermissions(member);
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            let member = message.mentions.members.first();
+            const cleanArgs = args.filter(a => !/^<@/.test(a));
+            if (!member && cleanArgs[0] && /^\d{17,19}$/.test(cleanArgs[0])) {
+                member = await message.guild.members.fetch(cleanArgs.shift()).catch(() => null);
+            }
+            if (!member) member = message.member;
+
+            await send(
+                (payload) => message.reply(payload),
+                member,
+                message.author.id,
+                cleanArgs
+            );
         } catch (error) {
-            console.error(`[PERMISSIONS] Error:`, error);
-            await message.reply('<:Cancel:1473037949187657818> An error occurred while running this command.').catch(() => {});
+            console.error('[PERMISSIONS] Prefix error:', error);
+            const container = buildErrorResponse('Failed', 'Could not load permissions.', error.message);
+            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };

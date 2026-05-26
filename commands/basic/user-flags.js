@@ -1,98 +1,131 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
+'use strict';
 
-const FLAGS_MAP = {
-    Staff: '<:Shield:1473038669831995494> Discord Staff',
-    Partner: '<:Attach:1473037923979886694> Partnered Server Owner',
-    Hypesquad: '<:Money:1473377877239140529> HypeSquad Events',
-    BugHunterLevel1: '<:Search:1473038053219106847> Bug Hunter Level 1',
-    BugHunterLevel2: '<:Search:1473038053219106847> Bug Hunter Level 2',
-    HypeSquadOnlineHouse1: '<:Lightningalt:1473038679906844824> HypeSquad Bravery',
-    HypeSquadOnlineHouse2: '<:Lightningalt:1473038679906844824> HypeSquad Brilliance',
-    HypeSquadOnlineHouse3: '<:Heart:1473038659514007616> HypeSquad Balance',
-    PremiumEarlySupporter: '<:Fire:1473038604812161218> Early Supporter',
-    VerifiedBot: '<:Checkedbox:1473038547165384804> Verified Bot',
-    VerifiedDeveloper: '<:Settings:1473037894703779851> Early Verified Bot Developer',
-    CertifiedModerator: '<:Shield:1473038669831995494> Certified Moderator',
-    ActiveDeveloper: '<:Settings:1473037894703779851> Active Developer',
-    TeamPseudoUser: '<:Userplus:1473038912212435086> Team User',
-    Spammer: '<:Infotriangle:1473038460456800459> Flagged as Spammer',
-    Quarantined: '<:Commentblock:1473370739351490794> Quarantined',
-    BotHTTPInteractions: '<:Bookopen:1473038576391557130> HTTP Interactions Bot',
+const {
+    SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
+    ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
+} = require('discord.js');
+const { buildErrorResponse, buildUserNotFound, COLORS, BRANDING } = require('../../utils/responseBuilder');
+
+// Each entry: emoji, display label, short description.
+const FLAG_DETAILS = {
+    Staff:                    { emoji: '<:Shield:1473038669831995494>', label: 'Discord Staff', desc: 'Official member of the Discord team' },
+    Partner:                  { emoji: '<:Attach:1473037923979886694>', label: 'Partnered Server Owner', desc: 'Owns a Discord-partnered server' },
+    Hypesquad:                { emoji: '<:Money:1473377877239140529>', label: 'HypeSquad Events', desc: 'Active member of HypeSquad Events' },
+    BugHunterLevel1:          { emoji: '<:Search:1473038053219106847>', label: 'Bug Hunter Level 1', desc: 'Verified bug hunter (tier 1)' },
+    BugHunterLevel2:          { emoji: '<:Search:1473038053219106847>', label: 'Bug Hunter Level 2', desc: 'Verified bug hunter (gold tier)' },
+    HypeSquadOnlineHouse1:    { emoji: '<:Lightningalt:1473038679906844824>', label: 'HypeSquad Bravery', desc: 'House Bravery member' },
+    HypeSquadOnlineHouse2:    { emoji: '<:Lightning:1473038797540298792>', label: 'HypeSquad Brilliance', desc: 'House Brilliance member' },
+    HypeSquadOnlineHouse3:    { emoji: '<:Heart:1473038659514007616>', label: 'HypeSquad Balance', desc: 'House Balance member' },
+    PremiumEarlySupporter:    { emoji: '<:Fire:1473038604812161218>', label: 'Early Supporter', desc: 'Subscribed to Nitro before Oct 10, 2018' },
+    VerifiedBot:              { emoji: '<:Checkedbox:1473038547165384804>', label: 'Verified Bot', desc: 'Officially verified Discord bot' },
+    VerifiedDeveloper:        { emoji: '<:Settings:1473037894703779851>', label: 'Early Verified Bot Developer', desc: 'Verified developer before Aug 2019' },
+    CertifiedModerator:       { emoji: '<:Shield:1473038669831995494>', label: 'Moderator Programs Alumni', desc: 'Discord Certified Moderator alumnus' },
+    ActiveDeveloper:          { emoji: '<:Settings:1473037894703779851>', label: 'Active Developer', desc: 'Owns a recently active application' },
+    TeamPseudoUser:           { emoji: '<:Userplus:1473038912212435086>', label: 'Team User', desc: 'Pseudo account belonging to a Team' },
+    Spammer:                  { emoji: '<:Infotriangle:1473038460456800459>', label: 'Flagged as Spammer', desc: 'Discord has flagged this account' },
+    Quarantined:              { emoji: '<:Commentblock:1473370739351490794>', label: 'Quarantined', desc: 'Account temporarily restricted' },
+    BotHTTPInteractions:      { emoji: '<:Bookopen:1473038576391557130>', label: 'HTTP Interactions Bot', desc: 'Bot that uses HTTP-only interactions' },
 };
 
-function buildFlagsContainer(user, flags) {
-    const container = new ContainerBuilder().setAccentColor(COLORS.INFO);
+function buildContainer(user, flags) {
+    const sorted = flags.slice().sort();
+    const isBot = user.bot;
+    const created = Math.floor(user.createdTimestamp / 1000);
 
     const headerSection = new SectionBuilder()
         .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# 🏳️ User Flags`)
+            new TextDisplayBuilder().setContent(
+                `# <:Award:1473038391632203887> Profile Badges & Flags\n` +
+                `**${user.username}** ${isBot ? '`[BOT]`' : ''}\n` +
+                `${user}`
+            )
         )
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: user.displayAvatarURL({ size: 256 }) } }));
-    container.addSectionComponents(headerSection);
 
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    const meta =
+        `### <:Invoice:1473039492217835550> Account Snapshot\n` +
+        `<:Caretright:1473038207221502106> **User ID:** \`${user.id}\`\n` +
+        `<:Caretright:1473038207221502106> **Created:** <t:${created}:F> (<t:${created}:R>)\n` +
+        `<:Caretright:1473038207221502106> **Total badges:** \`${sorted.length}\``;
 
-    const flagsList = flags.length > 0
-        ? flags.map(flag => `> ${FLAGS_MAP[flag] || `\`${flag}\``}`).join('\n')
-        : '*No flags found*';
+    let badges;
+    if (sorted.length === 0) {
+        badges = `### <:Award:1473038391632203887> Badges\n*This account has no public profile flags.*`;
+    } else {
+        const formatted = sorted.map(flag => {
+            const meta = FLAG_DETAILS[flag];
+            if (!meta) return `> <:Checkedbox:1473038547165384804> \`${flag}\``;
+            return `> ${meta.emoji} **${meta.label}**\n> -# ${meta.desc}`;
+        }).join('\n');
+        badges = `### <:Award:1473038391632203887> Badges (${sorted.length})\n${formatted}`;
+    }
 
-    container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-            `**User:** ${user.username}\n` +
-            `**Flags:** ${flags.length}\n\n` +
-            flagsList
-        )
-    );
+    return new ContainerBuilder()
+        .setAccentColor(user.accentColor || COLORS.INFO)
+        .addSectionComponents(headerSection)
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(meta))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(badges))
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
 
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
-
-    return container;
+async function resolveUser(client, target) {
+    if (!target) return null;
+    if (typeof target === 'object') {
+        try { return await target.fetch(true); } catch { return target; }
+    }
+    if (typeof target === 'string') {
+        try { return await client.users.fetch(target, { force: true }); } catch { return null; }
+    }
+    return null;
 }
 
 module.exports = {
     prefix: 'user-flags',
-    description: 'View a user\'s Discord profile badges and flags',
-    usage: 'user-flags [@user]',
+    description: 'View a user’s Discord profile badges and flags',
+    usage: 'user-flags [@user | id]',
     category: 'basic',
-    aliases: ['flags', 'userflags'],
+    aliases: ['flags', 'userflags', 'badges-of'],
 
     data: new SlashCommandBuilder()
         .setName('user-flags')
-        .setDescription('View a user\'s Discord profile badges and flags')
+        .setDescription('View a user’s Discord profile badges and flags')
         .addUserOption(opt => opt.setName('user').setDescription('Target user').setRequired(false)),
 
     async execute(interaction) {
         try {
             const user = interaction.options.getUser('user') || interaction.user;
-            const fetched = await user.fetch(true);
-            const flags = fetched.flags?.toArray() || [];
-            const container = buildFlagsContainer(fetched, flags);
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const fetched = await resolveUser(interaction.client, user) || user;
+            const flags = fetched.flags?.toArray?.() || [];
+            await interaction.reply({ components: [buildContainer(fetched, flags)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            const err = buildErrorResponse('Error', 'Failed to fetch user flags.', error.message);
-            await interaction.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
+            console.error('[USER-FLAGS] Slash error:', error);
+            const err = buildErrorResponse('Lookup Failed', 'Could not fetch user flags.', error.message);
+            const fn = interaction.replied || interaction.deferred ? interaction.editReply : interaction.reply;
+            await fn.call(interaction, { components: [err], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     },
 
     async executePrefix(message, args) {
         try {
-            let user = message.mentions.users.first() || message.author;
-            if (!message.mentions.users.size && args[0]) {
-                user = await message.client.users.fetch(args[0]).catch(() => null);
+            let user = message.mentions.users.first();
+            if (!user && args[0] && /^\d{17,19}$/.test(args[0])) {
+                user = await resolveUser(message.client, args[0]);
                 if (!user) {
-                    const err = buildErrorResponse('User Not Found', `Could not find user with ID \`${args[0]}\`.`);
-                    return message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
+                    const container = buildUserNotFound(args[0]);
+                    return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
             }
-            const fetched = await user.fetch(true);
-            const flags = fetched.flags?.toArray() || [];
-            const container = buildFlagsContainer(fetched, flags);
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            user = user || message.author;
+            const fetched = await resolveUser(message.client, user) || user;
+            const flags = fetched.flags?.toArray?.() || [];
+            await message.reply({ components: [buildContainer(fetched, flags)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            const err = buildErrorResponse('Error', 'Failed to fetch user flags.', error.message);
-            await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
+            console.error('[USER-FLAGS] Prefix error:', error);
+            const err = buildErrorResponse('Lookup Failed', 'Could not fetch user flags.', error.message);
+            await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };

@@ -77,7 +77,7 @@ module.exports = {
     description: 'List all premium keys',
     usage: 'listkeys [filter]',
     category: 'owner',
-    aliases: ['keys', 'viewkeys'],
+    aliases: ['viewkeys'],
     ownerOnly: true,
     
     async executePrefix(message, args) {

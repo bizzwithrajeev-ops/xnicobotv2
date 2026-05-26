@@ -61,7 +61,7 @@ function buildList(backups, guild, page, uid) {
     if (slice.length) {
         const opts = slice.map(b => ({ label: b.name.slice(0, 100), value: b.name, description: `<:Bookopen:1473038576391557130> ${fmtDate(b.date)} • ${b.configCount} files`, emoji: '<:Box:1473039115581915256>' }));
         ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder().setCustomId(`bkp:sel:${uid}`).setPlaceholder('<:Search:1473038053219106847> Select a backup for details').addOptions(opts.slice(0, 25))
+            new StringSelectMenuBuilder().setCustomId(`bkp:sel:${uid}`).setPlaceholder('Select a backup for details').addOptions(opts.slice(0, 25))
         ));
     }
 

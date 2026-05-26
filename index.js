@@ -936,7 +936,7 @@ client.commands = new Collection();
 client.autoplayStatus = autoplayStatus;
 client.systemLogs = log.store;
 
-const commandFolders = ['music', 'voice', 'basic', 'fun', 'action', 'admin', 'automation', 'utility', 'owner', 'economy', 'leveling', 'image', 'social', 'backup', 'webhook', 'dm', 'stats'];
+const commandFolders = ['music', 'voice', 'basic', 'fun', 'games', 'action', 'admin', 'automation', 'utility', 'owner', 'economy', 'leveling', 'image', 'social', 'backup', 'webhook', 'stats'];
 const commands = [];
 
 // Single source of truth for commands kept as prefix-only.
@@ -1277,10 +1277,10 @@ client.on(Events.ClientReady, async () => {
 
     await initLavalink(client, lavalinkManager);
 
-    // ── Smart slash command auto-registration ──
-    // Only re-registers when TOKEN, CLIENT_ID, or the slash-command set
-    // changes (hash-based). On every other boot this is a no-op.
-    // Run `node register-commands.js` to force a fresh registration.
+    // ── Slash command auto-registration ──
+    // Single source of truth: re-registers only when TOKEN, CLIENT_ID, or
+    // the slash-command set changes (hash-based). Otherwise it's a no-op.
+    // To force a re-register: delete data/.slash-cache.json and restart.
     try {
         const { autoRegister } = require('./utils/slashRegistrar');
         const result = await autoRegister({
@@ -1291,12 +1291,15 @@ client.on(Events.ClientReady, async () => {
         });
         if (result.registered) {
             log.success(`[Slash] Auto-registered (${result.reason}) → ${result.global} global + ${result.guild} guild commands.`);
+            if (result.dropped > 0) {
+                log.error(`[Slash] ${result.dropped} command(s) exceeded Discord's 200-per-guild limit and were NOT registered. Check the warnings above.`);
+            }
         } else {
             log.info(`[Slash] ${commands.length} commands loaded — no registration needed (${result.reason}).`);
         }
     } catch (e) {
         log.error(`[Slash] Auto-registration failed: ${e.message}`);
-        log.warning('[Slash] You can register manually with: node register-commands.js');
+        log.warning('[Slash] Delete data/.slash-cache.json and restart to retry.');
     }
 
     const guilds = Array.from(client.guilds.cache.values());
@@ -1930,6 +1933,17 @@ client.on('interactionCreate', async (interaction) => {
                 if (handled) return;
             } catch (error) {
                 log.error(`Antiraid Modal: ${error.message}`, error);
+            }
+        }
+
+        // Anti-Alt modal submissions (set age / action / log channel)
+        const antialtCmd = client.commands.get('antialt');
+        if (antialtCmd && antialtCmd.handleInteraction && interaction.customId.startsWith('antialt_modal_')) {
+            try {
+                const handled = await antialtCmd.handleInteraction(interaction);
+                if (handled) return;
+            } catch (error) {
+                log.error(`AntiAlt Modal: ${error.message}`, error);
             }
         }
 
@@ -2945,6 +2959,18 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
+            if (interaction.customId.startsWith('antialt_')) {
+                const antialtCmd = client.commands.get('antialt');
+                if (antialtCmd && antialtCmd.handleInteraction) {
+                    try {
+                        const handled = await antialtCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`AntiAlt Interaction: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             // Handle verification panel builder buttons
             if (interaction.customId.startsWith('verifypanel:')) {
                 const verifySetupCmd = client.commands.get('verification-setup');
@@ -3220,6 +3246,14 @@ client.on('interactionCreate', async (interaction) => {
                             );
                         return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
                     }
+
+                    // Bump the usage counter (best-effort, fire-and-forget so a
+                    // stuck write never blocks the action chain).
+                    try {
+                        btnData.uses = (btnData.uses || 0) + 1;
+                        btnData.lastUsedAt = Date.now();
+                        jsonStore.markDirty('button-commands');
+                    } catch { /* non-fatal */ }
 
                     // Check ephemeral setting (default to true for backwards compatibility)
                     isEphemeral = btnData.ephemeral !== false;
@@ -4029,316 +4063,330 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
 
-            // Ticket Claim Button
-            if (interaction.customId === 'ticket_claim') {
-                try {
-                    const config = readTicketsConfig();
-                    const guildConfig = config[interaction.guild.id];
-
-                    if (!guildConfig) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system not configured!', flags: MessageFlags.Ephemeral });
+            // ────────────────── Ticket Categories Picker ──────────────────
+            // The select-menu / button handler that runs when an admin
+            // adds a category and then chooses which panels should show
+            // it. Routes to ticket-categories.handleInteraction.
+            if (interaction.customId?.startsWith('tcat_pick')) {
+                const ticketCatCmd = client.commands.get('ticket-categories');
+                if (ticketCatCmd?.handleInteraction) {
+                    try {
+                        const handled = await ticketCatCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (err) {
+                        log.error(`[ticket-categories picker] ${err.message}`, err);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({
+                                content: '<:Cancel:1473037949187657818> Failed to apply panel scoping.',
+                                flags: MessageFlags.Ephemeral,
+                            }).catch(() => {});
+                        }
+                        return;
                     }
-
-                    const ticketData = guildConfig.tickets?.[interaction.channel.id];
-                    if (!ticketData) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> This is not a ticket channel!', flags: MessageFlags.Ephemeral });
-                    }
-
-                    if (ticketData.claimedBy) {
-                        const claimer = await interaction.guild.members.fetch(ticketData.claimedBy).catch(() => null);
-                        return interaction.reply({
-                            content: `<:Cancel:1473037949187657818> This ticket is already claimed by ${claimer ? claimer.user.username : 'someone'}!`,
-                            flags: MessageFlags.Ephemeral
-                        });
-                    }
-
-                    // Use role ID directly — guild role cache may be incomplete on large servers
-                    const claimSupportRoleId = guildConfig.supportRoleId;
-                    const isClaimAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
-                    if (claimSupportRoleId && !interaction.member.roles.cache.has(claimSupportRoleId) && !isClaimAdmin) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Only support team members can claim tickets!', flags: MessageFlags.Ephemeral });
-                    }
-
-                    ticketData.claimedBy = interaction.user.id;
-                    ticketData.claimedAt = Date.now();
-                    jsonStore.write('tickets', config);
-
-                    const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
-                        .addTextDisplayComponents(
-                            new TextDisplayBuilder()
-                                .setContent(
-                                    `# 🎫 Ticket Claimed\n\n` +
-                                    `This ticket has been claimed by ${interaction.user}.\n\n` +
-                                    `They will be assisting you with your inquiry.`
-                                )
-                        );
-
-                    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-                } catch (error) {
-                    log.error(`Ticket claim error: ${error.message}`, error);
-                    await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to claim ticket!', flags: MessageFlags.Ephemeral });
                 }
-                return;
             }
 
-            // Ticket Close Button
-            if (interaction.customId === 'ticket_close_btn') {
-                try {
-                    const config = readTicketsConfig();
-                    const guildConfig = config[interaction.guild.id];
+            // ─────────────────────────── Ticket Buttons ───────────────────────────
+            // Centralized helpers for all ticket-channel button interactions.
+            // Keeps permission checks, copy and styling consistent across the
+            // claim / close / transcript flow.
+            if (
+                interaction.customId === 'ticket_claim' ||
+                interaction.customId === 'ticket_close_btn' ||
+                interaction.customId === 'ticket_close_confirm' ||
+                interaction.customId === 'ticket_close_cancel' ||
+                interaction.customId === 'ticket_transcript'
+            ) {
+                const ticketUI = require('./utils/ticketUI');
+                const { ensureMigrated } = require('./utils/ticketPanels');
+                const ticketCloseCmd = require('./commands/automation/ticket-close');
 
-                    if (!guildConfig) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system not configured!', flags: MessageFlags.Ephemeral });
+                /* ─────────────── Ticket Claim ─────────────── */
+                if (interaction.customId === 'ticket_claim') {
+                    try {
+                        const config = readTicketsConfig();
+                        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+                        const ticket = guildConfig?.tickets?.[interaction.channel.id];
+
+                        if (!guildConfig || !ticket) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('This is not a ticket channel.'), true),
+                            });
+                        }
+                        if (ticket.claimedBy) {
+                            const claimer = await interaction.guild.members.fetch(ticket.claimedBy).catch(() => null);
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.warnContainer(
+                                    `This ticket is already claimed by **${claimer ? claimer.user.username : 'someone'}**.`
+                                ), true),
+                            });
+                        }
+                        if (!ticketUI.canManageTicket(interaction.member, guildConfig, ticket, { level: 'staff' })) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Only support team members or admins can claim tickets.'), true),
+                            });
+                        }
+
+                        ticket.claimedBy = interaction.user.id;
+                        ticket.claimedAt = Date.now();
+                        jsonStore.write('tickets', config);
+
+                        // Note: we don't try to disable the original welcome's
+                        // Claim button — V2 containers don't allow surgical
+                        // edits of an inline action row, and re-sending a new
+                        // welcome would lose user context. The duplicate-claim
+                        // guard above is what actually prevents double-claims.
+
+                        const container = ticketUI.buildContainer(
+                            `# ${ticketUI.E.ok} Ticket Claimed\n\n` +
+                            `${interaction.user} has claimed this ticket and will assist you shortly.\n\n` +
+                            `${ticketUI.E.pin} **Claimed at:** <t:${Math.floor(Date.now() / 1000)}:F>`,
+                            ticketUI.COLOR.SUCCESS
+                        );
+                        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                    } catch (error) {
+                        log.error(`[ticket_claim] ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to claim ticket.'), true),
+                            }).catch(() => {});
+                        }
                     }
+                    return;
+                }
 
-                    const ticketData = guildConfig.tickets?.[interaction.channel.id];
-                    if (!ticketData) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> This is not a ticket channel!', flags: MessageFlags.Ephemeral });
-                    }
+                /* ─────────────── Ticket Close (open confirm) ─────────────── */
+                if (interaction.customId === 'ticket_close_btn') {
+                    try {
+                        const config = readTicketsConfig();
+                        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+                        const ticket = guildConfig?.tickets?.[interaction.channel.id];
 
-                    const isSupport = guildConfig.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-                    const isCloseAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
-                    const isTicketOwner = ticketData.userId === interaction.user.id;
+                        if (!guildConfig || !ticket) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('This is not a ticket channel.'), true),
+                            });
+                        }
+                        if (!ticketUI.canManageTicket(interaction.member, guildConfig, ticket)) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Only the ticket owner, claimer, support team or admins can close this ticket.'), true),
+                            });
+                        }
 
-                    if (!isSupport && !isCloseAdmin && !isTicketOwner) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the ticket owner or support team can close tickets!', flags: MessageFlags.Ephemeral });
-                    }
-
-                    const confirmButtons = new ActionRowBuilder()
-                        .addComponents(
+                        const confirmRow = new ActionRowBuilder().addComponents(
                             new ButtonBuilder()
                                 .setCustomId('ticket_close_confirm')
                                 .setLabel('Confirm Close')
                                 .setStyle(ButtonStyle.Danger)
-                                .setEmoji('<:Lock:1473038513749491773>'),
+                                .setEmoji(ticketUI.E.lock),
                             new ButtonBuilder()
                                 .setCustomId('ticket_close_cancel')
-                                .setEmoji({ id: '1473037949187657818', name: 'Cancel' })
                                 .setLabel('Cancel')
                                 .setStyle(ButtonStyle.Secondary)
+                                .setEmoji(ticketUI.E.cancel),
                         );
 
-                    const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
-                        .addTextDisplayComponents(
-                            new TextDisplayBuilder()
-                                .setContent(
-                                    `# <:Infotriangle:1473038460456800459> Close Ticket?\n\n` +
-                                    `Are you sure you want to close this ticket?\n\n` +
-                                    `This action will delete the channel in 5 seconds after confirmation.`
-                                )
-                        )
-                        .addActionRowComponents(confirmButtons);
+                        const container = new ContainerBuilder()
+                            .setAccentColor(ticketUI.COLOR.WARNING)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                `# ${ticketUI.E.warn} Confirm Ticket Close\n\n` +
+                                `${interaction.user}, please confirm you want to close this ticket.\n\n` +
+                                `${ticketUI.E.pin} **Channel:** ${interaction.channel}\n` +
+                                `${ticketUI.E.pin} **Opened by:** <@${ticket.userId}>\n` +
+                                `${ticketUI.E.pin} **Category:** ${ticket.categoryLabel || 'N/A'}\n\n` +
+                                `*This will delete the channel after a brief delay. Transcripts (if enabled) are sent before deletion.*`
+                            ))
+                            .addActionRowComponents(confirmRow);
 
-                    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-                } catch (error) {
-                    log.error(`Ticket close button error: ${error.message}`, error);
-                    await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to close ticket!', flags: MessageFlags.Ephemeral });
-                }
-                return;
-            }
-
-            // Ticket Close Confirm
-            if (interaction.customId === 'ticket_close_confirm') {
-                try {
-                    const config = readTicketsConfig();
-                    const guildConfig = config[interaction.guild.id];
-                    const ticketData = guildConfig?.tickets?.[interaction.channel.id];
-
-                    // Abort on stale button — prevents unauthorized channel deletion
-                    if (!guildConfig || !ticketData) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket data not found — it may have already been closed!', flags: MessageFlags.Ephemeral });
-                    }
-
-                    // Permission check — use role ID directly, not cache lookup
-                    const isSupport = guildConfig.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-                    const isConfirmAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
-                    const isTicketOwner = ticketData.userId === interaction.user.id;
-                    const isClaimer = ticketData.claimedBy === interaction.user.id;
-
-                    if (!isSupport && !isConfirmAdmin && !isTicketOwner && !isClaimer) {
-                        return interaction.reply({
-                            content: '<:Cancel:1473037949187657818> Only the ticket owner, support team, or claimer can close this ticket!',
-                            flags: MessageFlags.Ephemeral
+                        // Ephemeral so the dialog doesn't clutter the ticket channel
+                        await interaction.reply({
+                            components: [container],
+                            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
                         });
+                    } catch (error) {
+                        log.error(`[ticket_close_btn] ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to open close dialog.'), true),
+                            }).catch(() => {});
+                        }
                     }
-
-                    // Capture state we'll need *before* deleting the entry
-                    const closingChannel = interaction.channel;
-                    const closingGuild   = interaction.guild;
-                    const tMode = guildConfig.transcriptMode || 'manual';
-                    const wantsAuto = (tMode === 'auto' || tMode === 'both') && !!guildConfig.transcriptChannelId;
-
-                    delete guildConfig.tickets[interaction.channel.id];
-                    jsonStore.write('tickets', config);
-
-                    const container = new ContainerBuilder()
-                        .setAccentColor(0xED4245)
-                        .addTextDisplayComponents(
-                            new TextDisplayBuilder()
-                                .setContent(
-                                    `# <:Lock:1473038513749491773> Ticket Closed\n\n` +
-                                    `Closed by ${interaction.user}\n\n` +
-                                    (wantsAuto
-                                        ? `Saving transcript and deleting channel in 8 seconds...`
-                                        : `Channel will be deleted in 5 seconds...`)
-                                )
-                        );
-
-                    await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
-
-                    // Auto-transcript: run *before* deletion so the channel still exists
-                    // while we fetch messages. We use a hard 30s budget so a stuck fetch
-                    // never blocks deletion forever.
-                    if (wantsAuto) {
-                        const transcriptPromise = (async () => {
-                            try {
-                                const { fetchAllMessages, buildTranscriptAttachments, postTranscriptToLogChannel } = require('./utils/ticketTranscript');
-                                const messages = await fetchAllMessages(closingChannel, { limit: 2000 });
-
-                                const opener = ticketData.userId
-                                    ? await client.users.fetch(ticketData.userId).catch(() => null)
-                                    : null;
-                                const claimer = ticketData.claimedBy
-                                    ? await client.users.fetch(ticketData.claimedBy).catch(() => null)
-                                    : null;
-
-                                const meta = {
-                                    channelName:   closingChannel.name,
-                                    guildName:     closingGuild.name,
-                                    openerTag:     opener?.tag || ticketData.userId,
-                                    openerId:      ticketData.userId,
-                                    categoryLabel: ticketData.categoryLabel || 'N/A',
-                                    createdAt:     ticketData.createdAt,
-                                    closedAt:      Date.now(),
-                                    closedBy:      `${interaction.user.tag} (auto on close)`,
-                                    claimedByTag:  claimer?.tag,
-                                    addedMembers:  (ticketData.members || []).map(id => ({ id })),
-                                    messageCount:  messages.length,
-                                };
-
-                                const attachments = buildTranscriptAttachments(messages, meta);
-                                await postTranscriptToLogChannel(closingGuild, guildConfig.transcriptChannelId, attachments, meta);
-
-                                if (opener) {
-                                    try {
-                                        await opener.send({
-                                            content: `<:Clipboardalt:1473039555190849598> Your ticket **${closingChannel.name}** in **${closingGuild.name}** has been closed. A copy of the transcript is attached.`,
-                                            files: attachments
-                                        });
-                                    } catch { /* DMs closed */ }
-                                }
-                            } catch (err) {
-                                log.error(`Auto-transcript on close failed: ${err.message}`, err);
-                            }
-                        })();
-
-                        const TRANSCRIPT_BUDGET_MS = 30_000;
-                        await Promise.race([
-                            transcriptPromise,
-                            new Promise(res => setTimeout(res, TRANSCRIPT_BUDGET_MS))
-                        ]);
-
-                        // Brief delay so the closing message is visible before deletion
-                        setTimeout(() => {
-                            closingChannel.delete().catch(err => log.error(`Failed to delete ticket: ${err.message}`));
-                        }, 2000);
-                    } else {
-                        setTimeout(() => {
-                            closingChannel.delete().catch(err => log.error(`Failed to delete ticket: ${err.message}`));
-                        }, 5000);
-                    }
-                } catch (error) {
-                    log.error(`Ticket close confirm error: ${error.message}`, error);
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to close ticket!', flags: MessageFlags.Ephemeral }).catch(() => { });
-                    }
+                    return;
                 }
-                return;
-            }
 
-            // Ticket Close Cancel
-            if (interaction.customId === 'ticket_close_cancel') {
-                await interaction.deferUpdate().catch(() => { });
-                await interaction.message.delete().catch(() => { });
-                return;
-            }
+                /* ─────────────── Ticket Close (confirm) ─────────────── */
+                if (interaction.customId === 'ticket_close_confirm') {
+                    try {
+                        const config = readTicketsConfig();
+                        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+                        const ticket = guildConfig?.tickets?.[interaction.channel.id];
 
-            // Ticket Transcript Button
-            if (interaction.customId === 'ticket_transcript') {
-                try {
-                    const config = readTicketsConfig();
-                    const guildConfig = config[interaction.guild.id];
-                    const ticketData = guildConfig?.tickets?.[interaction.channel.id];
+                        if (!guildConfig || !ticket) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Ticket data not found — it may have already been closed.'), true),
+                            });
+                        }
+                        if (!ticketUI.canManageTicket(interaction.member, guildConfig, ticket)) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Only the ticket owner, claimer, support team or admins can close this ticket.'), true),
+                            });
+                        }
 
-                    // Permission check — owner, support, or admin only
-                    const isTranscriptOwner = ticketData?.userId === interaction.user.id;
-                    const isTranscriptSupport = guildConfig?.supportRoleId ? interaction.member.roles.cache.has(guildConfig.supportRoleId) : false;
-                    const isTranscriptAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
-                    if (!isTranscriptOwner && !isTranscriptSupport && !isTranscriptAdmin) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Only the ticket owner or support team can save transcripts!', flags: MessageFlags.Ephemeral });
+                        const closingChannel = interaction.channel;
+                        const closingGuild   = interaction.guild;
+                        const tMode = guildConfig.transcriptMode || 'manual';
+                        const wantsAuto = (tMode === 'auto' || tMode === 'both') && !!guildConfig.transcriptChannelId;
+
+                        // Acknowledge the (ephemeral) confirm button. We do this
+                        // *before* mutating the store so a network glitch on the
+                        // ack doesn't leave us with a deleted ticket entry but
+                        // a still-open channel.
+                        try {
+                            await interaction.update({
+                                components: [ticketUI.successContainer('Closing ticket and saving transcript…')],
+                            });
+                        } catch (ackErr) {
+                            log.error(`[ticket_close_confirm] ack failed, ticket left intact: ${ackErr.message}`);
+                            return;
+                        }
+
+                        // Now safe to remove from store
+                        delete guildConfig.tickets[closingChannel.id];
+                        jsonStore.write('tickets', config);
+
+                        const opened = ticket.createdAt ? `<t:${Math.floor(ticket.createdAt / 1000)}:R>` : 'unknown';
+                        const dur = ticket.createdAt ? ticketUI.formatDuration(Date.now() - ticket.createdAt) : 'unknown';
+                        const closingContainer = new ContainerBuilder()
+                            .setAccentColor(ticketUI.COLOR.DANGER)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                `# ${ticketUI.E.lock} Ticket Closed\n\n` +
+                                `Closed by ${interaction.user}.\n\n` +
+                                `### ${ticketUI.E.clipboard} Summary\n` +
+                                `${ticketUI.E.pin} **Channel:** ${closingChannel.name}\n` +
+                                `${ticketUI.E.pin} **Category:** ${ticket.categoryLabel || 'N/A'}\n` +
+                                `${ticketUI.E.pin} **Opened:** ${opened}\n` +
+                                `${ticketUI.E.pin} **Duration:** ${dur}\n\n` +
+                                (wantsAuto
+                                    ? `${ticketUI.E.transcript} *Saving transcript and deleting in **8 seconds**…*`
+                                    : `${ticketUI.E.warn} *This channel will be deleted in **5 seconds**…*`)
+                            ));
+                        await closingChannel.send({
+                            components: [closingContainer],
+                            flags: MessageFlags.IsComponentsV2,
+                        }).catch(() => {});
+
+                        await ticketCloseCmd.performClose({
+                            client,
+                            channel: closingChannel,
+                            guild:   closingGuild,
+                            ticket,
+                            byTag:   `${interaction.user.tag} (button close)`,
+                            guildConfig,
+                        });
+                    } catch (error) {
+                        log.error(`[ticket_close_confirm] ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to close ticket.'), true),
+                            }).catch(() => {});
+                        }
                     }
-
-                    // Honor configured mode — manual button is disabled when mode === 'off' or 'auto'
-                    const tMode = guildConfig?.transcriptMode || 'manual';
-                    if (tMode === 'off') {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Transcripts are disabled on this server. Ask an admin to run `/ticket-setup transcript`.', flags: MessageFlags.Ephemeral });
-                    }
-                    if (tMode === 'auto') {
-                        return interaction.reply({ content: '<:Inforect:1473038624172937287> This server uses **auto** transcripts only — the transcript will be posted to the log channel when the ticket closes.', flags: MessageFlags.Ephemeral });
-                    }
-
-                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-                    const { fetchAllMessages, buildTranscriptAttachments, postTranscriptToLogChannel } = require('./utils/ticketTranscript');
-                    const messages = await fetchAllMessages(interaction.channel, { limit: 2000 });
-
-                    const opener = ticketData?.userId
-                        ? await interaction.client.users.fetch(ticketData.userId).catch(() => null)
-                        : null;
-                    const claimer = ticketData?.claimedBy
-                        ? await interaction.client.users.fetch(ticketData.claimedBy).catch(() => null)
-                        : null;
-
-                    const meta = {
-                        channelName:   interaction.channel.name,
-                        guildName:     interaction.guild.name,
-                        openerTag:     opener?.tag || ticketData?.userId,
-                        openerId:      ticketData?.userId,
-                        categoryLabel: ticketData?.categoryLabel || 'N/A',
-                        createdAt:     ticketData?.createdAt,
-                        closedAt:      Date.now(),
-                        closedBy:      `${interaction.user.tag} (manual save)`,
-                        claimedByTag:  claimer?.tag,
-                        addedMembers:  (ticketData?.members || []).map(id => ({ id })),
-                        messageCount:  messages.length,
-                    };
-
-                    const attachments = buildTranscriptAttachments(messages, meta);
-
-                    // Mirror to the log channel if configured
-                    if (guildConfig?.transcriptChannelId) {
-                        await postTranscriptToLogChannel(interaction.guild, guildConfig.transcriptChannelId, attachments, meta).catch(() => null);
-                    }
-
-                    await interaction.editReply({
-                        content: `<:Checkedbox:1473038547165384804> Transcript generated with **${messages.length}** message(s).`,
-                        files: attachments
-                    });
-                } catch (error) {
-                    log.error(`Ticket transcript error: ${error.message}`, error);
-                    if (interaction.deferred) {
-                        await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate transcript!' });
-                    } else if (!interaction.replied) {
-                        await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to generate transcript!', flags: MessageFlags.Ephemeral });
-                    }
+                    return;
                 }
-                return;
+
+                /* ─────────────── Ticket Close (cancel) ─────────────── */
+                if (interaction.customId === 'ticket_close_cancel') {
+                    await interaction.update({
+                        components: [ticketUI.infoContainer('Close cancelled.')],
+                    }).catch(() => {});
+                    return;
+                }
+
+                /* ─────────────── Ticket Transcript ─────────────── */
+                if (interaction.customId === 'ticket_transcript') {
+                    try {
+                        const config = readTicketsConfig();
+                        const guildConfig = ensureMigrated(config[interaction.guild.id]);
+                        const ticket = guildConfig?.tickets?.[interaction.channel.id];
+
+                        if (!guildConfig || !ticket) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('This is not a ticket channel.'), true),
+                            });
+                        }
+                        if (!ticketUI.canManageTicket(interaction.member, guildConfig, ticket)) {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Only the ticket owner, claimer or support team can save transcripts.'), true),
+                            });
+                        }
+
+                        const tMode = guildConfig.transcriptMode || 'manual';
+                        if (tMode === 'off') {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Transcripts are disabled on this server. Ask an admin to run `/ticket-setup transcript`.'), true),
+                            });
+                        }
+                        if (tMode === 'auto') {
+                            return interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.infoContainer('This server uses **auto** transcripts — the transcript will be posted to the log channel when the ticket closes.'), true),
+                            });
+                        }
+
+                        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+                        const { fetchAllMessages, buildTranscriptAttachments, postTranscriptToLogChannel } = require('./utils/ticketTranscript');
+                        const messages = await fetchAllMessages(interaction.channel, { limit: 2000 });
+
+                        const opener  = ticket.userId    ? await interaction.client.users.fetch(ticket.userId).catch(() => null)    : null;
+                        const claimer = ticket.claimedBy ? await interaction.client.users.fetch(ticket.claimedBy).catch(() => null) : null;
+
+                        const meta = {
+                            channelName:   interaction.channel.name,
+                            guildName:     interaction.guild.name,
+                            openerTag:     opener?.tag || ticket.userId,
+                            openerId:      ticket.userId,
+                            categoryLabel: ticket.categoryLabel || 'N/A',
+                            createdAt:     ticket.createdAt,
+                            closedAt:      Date.now(),
+                            closedBy:      `${interaction.user.tag} (manual save)`,
+                            claimedByTag:  claimer?.tag,
+                            addedMembers:  (ticket.members || []).map(id => ({ id })),
+                            messageCount:  messages.length,
+                        };
+
+                        const attachments = buildTranscriptAttachments(messages, meta);
+                        if (guildConfig.transcriptChannelId) {
+                            await postTranscriptToLogChannel(interaction.guild, guildConfig.transcriptChannelId, attachments, meta).catch(() => null);
+                        }
+
+                        await interaction.editReply({
+                            content: `${ticketUI.E.ok} Transcript generated with **${messages.length}** message(s).`,
+                            files: attachments,
+                        });
+                    } catch (error) {
+                        log.error(`[ticket_transcript] ${error.message}`, error);
+                        if (interaction.deferred) {
+                            await interaction.editReply({ content: `${require('./utils/ticketUI').E.cancel} Failed to generate transcript.` }).catch(() => {});
+                        } else if (!interaction.replied) {
+                            await interaction.reply({
+                                ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to generate transcript.'), true),
+                            }).catch(() => {});
+                        }
+                    }
+                    return;
+                }
             }
 
             // Legacy create_ticket button (keep for backwards compatibility)
             if (interaction.customId === 'create_ticket') {
+                const ticketUI = require('./utils/ticketUI');
+                const lockedNow = ticketUI.lockCreation(interaction.guild.id, interaction.user.id);
+                if (!lockedNow) {
+                    return interaction.reply({
+                        ...ticketUI.v2Reply(ticketUI.warnContainer('You already have a ticket being created — please wait a moment.'), true),
+                    });
+                }
+
                 try {
                     const config = readTicketsConfig();
                     const guildConfig = config[interaction.guild.id];
@@ -4470,8 +4518,8 @@ client.on('interactionCreate', async (interaction) => {
                                         `# <:Document:1473039496995143731> Support Ticket\n\n` +
                                         `Welcome ${interaction.user} — thanks for reaching out.\n\n` +
                                         `### <:Clipboard:1473039573037617162> Ticket Details\n` +
-                                        `<:Pin:1473038806612447500> **Ticket Number:** \`#${ticketNumber}\`\n` +
-                                        `<:Pin:1473038806612447500> **Opened:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
+                                        `<:Caretright:1473038207221502106> **Ticket Number:** \`#${ticketNumber}\`\n` +
+                                        `<:Caretright:1473038207221502106> **Opened:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
                                         `### <:Lightbulbalt:1473038470787240009> What to do next\n` +
                                         `Please describe your issue in detail. A support team member will assist you shortly.\n\n` +
                                         `### <:Settings:1473037894703779851> Useful Commands\n` +
@@ -4516,6 +4564,8 @@ client.on('interactionCreate', async (interaction) => {
                     } else if (!interaction.replied) {
                         await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
                     }
+                } finally {
+                    require('./utils/ticketUI').unlockCreation(interaction.guild.id, interaction.user.id);
                 }
                 return;
             }
@@ -5407,6 +5457,27 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Ticket categories picker — finalize panel scoping after a
+            // category was added with `/ticket-categories add` (no panel-id).
+            if (interaction.customId?.startsWith('tcat_pick')) {
+                const ticketCatCmd = client.commands.get('ticket-categories');
+                if (ticketCatCmd?.handleInteraction) {
+                    try {
+                        const handled = await ticketCatCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (err) {
+                        log.error(`[ticket-categories picker select] ${err.message}`, err);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({
+                                content: '<:Cancel:1473037949187657818> Failed to apply panel scoping.',
+                                flags: MessageFlags.Ephemeral,
+                            }).catch(() => {});
+                        }
+                        return;
+                    }
+                }
+            }
+
             // Invite tracking message-type picker
             if (interaction.customId.startsWith('invite_')) {
                 const inviteCmd = client.commands.get('invite-setup');
@@ -5787,8 +5858,20 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
 
-            // Handle ticket category selection (multi-panel + legacy)
+            // ─────────────── Handle ticket category selection (multi-panel + legacy) ───────────────
+            // The full create-ticket flow: dedupe existing tickets, atomic
+            // ticket-number bump, channel creation, welcome message + ping,
+            // and a graceful "creation lock" so a spamming user can't open
+            // multiple channels in parallel.
             if (interaction.customId === 'ticket_category_select' || interaction.customId.startsWith('ticket_select:')) {
+                const ticketUI = require('./utils/ticketUI');
+                const lockedNow = ticketUI.lockCreation(interaction.guild.id, interaction.user.id);
+                if (!lockedNow) {
+                    return interaction.reply({
+                        ...ticketUI.v2Reply(ticketUI.warnContainer('You already have a ticket being created — please wait a moment.'), true),
+                    });
+                }
+
                 try {
                     const { ensureMigrated, resolvePanelCategories, resolveSupportRoleId, resolveChannelCategoryId, findPanelByMessageId } = require('./utils/ticketPanels');
 
@@ -5796,7 +5879,10 @@ client.on('interactionCreate', async (interaction) => {
                     const guildConfig = ensureMigrated(config[interaction.guild.id]);
 
                     if (!guildConfig) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Ticket system is not configured for this server! Ask an admin to run `/ticket-setup create`', flags: MessageFlags.Ephemeral });
+                        ticketUI.unlockCreation(interaction.guild.id, interaction.user.id);
+                        return interaction.reply({
+                            ...ticketUI.v2Reply(ticketUI.errorContainer('Ticket system is not configured for this server. Ask an admin to run `/ticket-setup create`.'), true),
+                        });
                     }
 
                     // Resolve which panel emitted this interaction
@@ -5807,14 +5893,16 @@ client.on('interactionCreate', async (interaction) => {
                         // Legacy customId — look up panel by the message we replied to
                         const found = findPanelByMessageId(guildConfig, interaction.message?.id);
                         if (found) panelId = found.panelId;
-                        // Fall back to the "default" panel if no match (older deployments)
                         if (!panelId && guildConfig.panels?.default) panelId = 'default';
                     }
                     const panel = panelId ? guildConfig.panels?.[panelId] : null;
 
                     const selectedCategory = interaction.values[0];
                     if (selectedCategory === '__none__') {
-                        return interaction.reply({ content: '<:Inforect:1473038624172937287> No categories are available yet. An admin needs to add some via `/ticket-categories add`.', flags: MessageFlags.Ephemeral });
+                        ticketUI.unlockCreation(interaction.guild.id, interaction.user.id);
+                        return interaction.reply({
+                            ...ticketUI.v2Reply(ticketUI.infoContainer('No categories are available yet. Ask an admin to add some via `/ticket-categories add`.'), true),
+                        });
                     }
 
                     // Restrict to the panel's whitelist when present
@@ -5822,14 +5910,18 @@ client.on('interactionCreate', async (interaction) => {
                     const categoryInfo = allowedCats.find(c => c.id === selectedCategory);
 
                     if (!categoryInfo) {
-                        return interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid category selected for this panel!', flags: MessageFlags.Ephemeral });
+                        ticketUI.unlockCreation(interaction.guild.id, interaction.user.id);
+                        return interaction.reply({
+                            ...ticketUI.v2Reply(ticketUI.errorContainer('Invalid category selected. The panel may have been updated — try again.'), true),
+                        });
                     }
 
                     // Defer immediately — channel creation can take >3s on slow guilds
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => null);
 
                     // Reset the dropdown so the user can re-open another ticket later
-                    // without needing to re-click the same row.
+                    // without needing to re-click the same row. Editing with the same
+                    // components is enough to reset the visual selection state.
                     if (interaction.message?.editable) {
                         interaction.message.edit({ components: interaction.message.components }).catch(() => null);
                     }
@@ -5838,19 +5930,27 @@ client.on('interactionCreate', async (interaction) => {
                     if (existingTicket) {
                         const existingChannel = interaction.guild.channels.cache.get(existingTicket[0]);
                         if (existingChannel) {
-                            return interaction.editReply({ content: `<:Inforect:1473038624172937287> You already have an open ticket: ${existingChannel}` });
-                        } else {
-                            // Clean up stale ticket entry for deleted channel
-                            delete guildConfig.tickets[existingTicket[0]];
-                            jsonStore.write('tickets', config);
+                            ticketUI.unlockCreation(interaction.guild.id, interaction.user.id);
+                            return interaction.editReply({
+                                components: [ticketUI.warnContainer(`You already have an open ticket: ${existingChannel}`)],
+                                flags: MessageFlags.IsComponentsV2,
+                            });
                         }
+                        // Clean up stale ticket entry for deleted channel
+                        delete guildConfig.tickets[existingTicket[0]];
+                        jsonStore.write('tickets', config);
                     }
 
                     if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
-                        return interaction.editReply({ content: '<:Cancel:1473037949187657818> I don\'t have permission to create channels! Please contact an administrator.' });
+                        ticketUI.unlockCreation(interaction.guild.id, interaction.user.id);
+                        return interaction.editReply({
+                            components: [ticketUI.errorContainer('I don\'t have permission to create channels. Please contact an administrator.')],
+                            flags: MessageFlags.IsComponentsV2,
+                        });
                     }
 
-                    // Atomic-ish ticket number bump
+                    // Atomic-ish ticket number bump (re-read the live store so two
+                    // concurrent opens don't get the same number).
                     const liveConfig = readTicketsConfig();
                     const liveGuildConfig = ensureMigrated(liveConfig[interaction.guild.id]) || guildConfig;
                     const ticketCount = Object.keys(liveGuildConfig.tickets || {}).length;
@@ -5871,7 +5971,11 @@ client.on('interactionCreate', async (interaction) => {
 
                     const category = effectiveCategoryId ? interaction.guild.channels.cache.get(effectiveCategoryId) : null;
                     if (!category) {
-                        return interaction.editReply({ content: '<:Cancel:1473037949187657818> Ticket category not found! The Discord category may have been deleted.' });
+                        ticketUI.unlockCreation(interaction.guild.id, interaction.user.id);
+                        return interaction.editReply({
+                            components: [ticketUI.errorContainer('Ticket category not found — the Discord category may have been deleted. Ask an admin to re-run `/ticket-setup create`.')],
+                            flags: MessageFlags.IsComponentsV2,
+                        });
                     }
 
                     const overwrites = [
@@ -5886,12 +5990,25 @@ client.on('interactionCreate', async (interaction) => {
                         });
                     }
 
-                    const ticketChannel = await interaction.guild.channels.create({
-                        name: ticketChannelName,
-                        parent: category.id,
-                        topic: `🎫 ${categoryInfo.label} • Opened by ${interaction.user.tag} • #${ticketNumber}${panel ? ` • Panel: ${panel.label}` : ''}`,
-                        permissionOverwrites: overwrites,
-                    });
+                    let ticketChannel;
+                    try {
+                        ticketChannel = await interaction.guild.channels.create({
+                            name: ticketChannelName,
+                            parent: category.id,
+                            topic: `${categoryInfo.label} • Opened by ${interaction.user.tag} • #${ticketNumber}${panel ? ` • Panel: ${panel.label}` : ''}`,
+                            permissionOverwrites: overwrites,
+                        });
+                    } catch (createErr) {
+                        // Roll back the ticket-number bump so the next user
+                        // doesn't see an unexplained gap in numbering.
+                        const rollback = readTicketsConfig();
+                        const rgc = ensureMigrated(rollback[interaction.guild.id]);
+                        if (rgc?.nextTicketNumber === ticketNumber) {
+                            rgc.nextTicketNumber = Math.max(0, ticketNumber - 1);
+                            jsonStore.write('tickets', rollback);
+                        }
+                        throw createErr;
+                    }
 
                     liveGuildConfig.tickets = liveGuildConfig.tickets || {};
                     liveGuildConfig.tickets[ticketChannel.id] = {
@@ -5901,103 +6018,88 @@ client.on('interactionCreate', async (interaction) => {
                         ticketNumber,
                         panelId,                          // remember which panel opened this ticket
                         supportRoleId: effectiveSupportRole, // pin so close-perm checks survive role rotation
+                        members: [],
                         createdAt: Date.now()
                     };
                     jsonStore.write('tickets', liveConfig);
 
-                    const emojiDisplay = categoryInfo.emoji.startsWith('<') ? '' : categoryInfo.emoji + ' ';
+                    // Use the category's emoji prefix only when it's unicode — custom
+                    // emoji shortcodes display fine inline and don't need duplication.
+                    const emojiDisplay = categoryInfo.emoji && !categoryInfo.emoji.startsWith('<') ? `${categoryInfo.emoji} ` : '';
                     const labelClean = categoryInfo.label.replace(/<:[^>]+>/g, '').trim();
 
-                    const ticketButtons = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('ticket_claim')
-                                .setLabel('Claim Ticket')
-                                .setStyle(ButtonStyle.Primary)
-                                .setEmoji('<:Inforect:1473038624172937287>'),
-                            new ButtonBuilder()
-                                .setCustomId('ticket_close_btn')
-                                .setLabel('Close')
-                                .setStyle(ButtonStyle.Danger)
-                                .setEmoji('<:Lock:1473038513749491773>'),
-                            new ButtonBuilder()
-                                .setCustomId('ticket_transcript')
-                                .setLabel('Save Transcript')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('<:Clipboardalt:1473039555190849598>')
-                        );
+                    const ticketButtons = ticketUI.buildTicketButtons();
 
-                    // Build welcome message - use custom if configured, otherwise default
+                    const headerLine =
+                        `# ${ticketUI.E.document} ${emojiDisplay}${labelClean}\n` +
+                        `${ticketUI.E.pin} **Category:** ${labelClean} ` +
+                        `${ticketUI.E.pin} **Ticket:** \`#${ticketNumber}\` ` +
+                        `${ticketUI.E.pin} **Opened:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
+
+                    // Build the welcome container once, then send it. If sending
+                    // fails we post a minimal fallback so the channel always has
+                    // working ticket buttons (otherwise it'd be a "ghost" channel
+                    // with no way for the user or staff to close it).
                     const welcomeMsg = liveGuildConfig.welcomeMessage;
+                    let welcomeContainer;
                     if (welcomeMsg && ((welcomeMsg.mode === 'embed' && (welcomeMsg.title || welcomeMsg.description)) || (welcomeMsg.mode === 'simple' && welcomeMsg.content))) {
                         const { replacePlaceholders: ticketReplace } = require('./utils/actionMessageBuilder');
+                        let body = headerLine;
                         if (welcomeMsg.mode === 'embed') {
-                            // Build V2-native text from embed data (embeds + IsComponentsV2 cannot coexist)
-                            let embedText = `# <:Document:1473039496995143731> ${emojiDisplay}${labelClean}\n`;
-                            embedText += `**Category:** ${labelClean} • **Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
-                            if (welcomeMsg.author) {
-                                embedText += `*${ticketReplace(welcomeMsg.author, interaction.user, interaction.guild, ticketChannel)}*\n`;
-                            }
-                            if (welcomeMsg.title) {
-                                embedText += `### ${ticketReplace(welcomeMsg.title, interaction.user, interaction.guild, ticketChannel)}\n`;
-                            }
-                            if (welcomeMsg.description) {
-                                embedText += `${ticketReplace(welcomeMsg.description, interaction.user, interaction.guild, ticketChannel)}\n`;
-                            }
+                            if (welcomeMsg.author)      body += `*${ticketReplace(welcomeMsg.author,      interaction.user, interaction.guild, ticketChannel)}*\n`;
+                            if (welcomeMsg.title)       body += `### ${ticketReplace(welcomeMsg.title,    interaction.user, interaction.guild, ticketChannel)}\n`;
+                            if (welcomeMsg.description) body += `${ticketReplace(welcomeMsg.description, interaction.user, interaction.guild, ticketChannel)}\n`;
                             if (welcomeMsg.fields?.length) {
-                                embedText += '\n';
+                                body += '\n';
                                 for (const field of welcomeMsg.fields.slice(0, 25)) {
-                                    const fName = ticketReplace(field.name, interaction.user, interaction.guild, ticketChannel);
-                                    const fValue = ticketReplace(field.value, interaction.user, interaction.guild, ticketChannel);
-                                    embedText += `**${fName}**\n${fValue}\n\n`;
+                                    body += `**${ticketReplace(field.name, interaction.user, interaction.guild, ticketChannel)}**\n${ticketReplace(field.value, interaction.user, interaction.guild, ticketChannel)}\n\n`;
                                 }
                             }
-                            if (welcomeMsg.footer) {
-                                embedText += `\n-# ${ticketReplace(welcomeMsg.footer, interaction.user, interaction.guild, ticketChannel)}`;
-                            }
-                            const container = new ContainerBuilder()
-                                .setAccentColor(parseInt((welcomeMsg.color || '#5865F2').replace('#', ''), 16))
-                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(embedText))
-                                .addActionRowComponents(ticketButtons);
-                            await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
-                                log.error(`Error sending ticket message: ${err.message}`, err);
-                            });
+                            if (welcomeMsg.footer) body += `\n-# ${ticketReplace(welcomeMsg.footer, interaction.user, interaction.guild, ticketChannel)}`;
                         } else {
-                            const customContent = ticketReplace(welcomeMsg.content, interaction.user, interaction.guild, ticketChannel);
-                            const container = new ContainerBuilder()
-                                .setAccentColor(0xCAD7E6)
-                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                                    `# <:Document:1473039496995143731> ${emojiDisplay}${labelClean}\n**Category:** ${labelClean} • **Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n${customContent}`
-                                ))
-                                .addActionRowComponents(ticketButtons);
-                            await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
-                                log.error(`Error sending ticket message: ${err.message}`, err);
-                            });
+                            body += ticketReplace(welcomeMsg.content, interaction.user, interaction.guild, ticketChannel);
                         }
-                    } else {
-                        const container = new ContainerBuilder()
-                            .setAccentColor(0xCAD7E6)
-                            .addTextDisplayComponents(
-                                new TextDisplayBuilder()
-                                    .setContent(
-                                        `# <:Document:1473039496995143731> ${emojiDisplay}${labelClean}\n\n` +
-                                        `Welcome ${interaction.user} — thanks for reaching out.\n\n` +
-                                        `### <:Clipboard:1473039573037617162> Ticket Details\n` +
-                                        `<:Pin:1473038806612447500> **Category:** ${labelClean}\n` +
-                                        `<:Pin:1473038806612447500> **Ticket Number:** \`#${ticketNumber}\`\n` +
-                                        `<:Pin:1473038806612447500> **Opened:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
-                                        `### <:Lightbulbalt:1473038470787240009> What to do next\n` +
-                                        `Please describe your issue in detail — include screenshots, error messages, or links if you have them. A support team member will be with you shortly.\n\n` +
-                                        `### <:Settings:1473037894703779851> Useful Commands\n` +
-                                        `\`/ticket-add @user\` — invite someone into the ticket\n` +
-                                        `\`/ticket-remove @user\` — remove someone\n` +
-                                        `\`/ticket-close\` — close this ticket`
-                                    )
-                            )
+                        const accent = welcomeMsg.mode === 'embed'
+                            ? (parseInt((welcomeMsg.color || '#5865F2').replace('#', ''), 16) || ticketUI.COLOR.BRAND)
+                            : ticketUI.COLOR.BRAND;
+                        welcomeContainer = new ContainerBuilder()
+                            .setAccentColor(accent)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
                             .addActionRowComponents(ticketButtons);
-                        await ticketChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(err => {
-                            log.error(`Error sending ticket message: ${err.message}`, err);
-                        });
+                    } else {
+                        welcomeContainer = new ContainerBuilder()
+                            .setAccentColor(ticketUI.COLOR.BRAND)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                headerLine +
+                                `Welcome ${interaction.user} — thanks for reaching out.\n\n` +
+                                `### ${ticketUI.E.bulb} What to do next\n` +
+                                `Describe your issue in detail. Include screenshots, error messages or links if you have them — the more context, the faster we can help.\n\n` +
+                                `### ${ticketUI.E.settings} Useful Commands\n` +
+                                `${ticketUI.E.pin} \`/ticket-add @user\` — invite someone into the ticket\n` +
+                                `${ticketUI.E.pin} \`/ticket-remove @user\` — remove someone\n` +
+                                `${ticketUI.E.pin} \`/ticket-close [reason]\` — close this ticket\n\n` +
+                                (effectiveSupportRole ? `${ticketUI.E.pin} **Support Team:** <@&${effectiveSupportRole}>` : '')
+                            ))
+                            .addActionRowComponents(ticketButtons);
+                    }
+
+                    let welcomeSent = true;
+                    await ticketChannel.send({
+                        components: [welcomeContainer],
+                        flags: MessageFlags.IsComponentsV2,
+                    }).catch(err => {
+                        welcomeSent = false;
+                        log.error(`[ticket_select] welcome send failed: ${err.message}`, err);
+                    });
+
+                    // Fallback: if the welcome couldn't be posted (rare — channel
+                    // perms got revoked between create + send), post a minimal
+                    // close button row so the channel isn't a black hole.
+                    if (!welcomeSent) {
+                        await ticketChannel.send({
+                            content: `${ticketUI.E.warn} Welcome message couldn't be rendered. Use the buttons below.`,
+                            components: [ticketUI.buildTicketButtons()],
+                        }).catch(() => {});
                     }
 
                     // Send a separate plain message so role + user actually get pinged
@@ -6005,32 +6107,41 @@ client.on('interactionCreate', async (interaction) => {
                     if (effectiveSupportRole) pingParts.push(`<@&${effectiveSupportRole}>`);
                     pingParts.push(`${interaction.user}`);
                     await ticketChannel.send({
-                        content: `${pingParts.join(' ')}`,
-                        allowedMentions: { roles: effectiveSupportRole ? [effectiveSupportRole] : [], users: [interaction.user.id] }
-                    }).catch(() => { });
+                        content: pingParts.join(' '),
+                        allowedMentions: {
+                            roles: effectiveSupportRole ? [effectiveSupportRole] : [],
+                            users: [interaction.user.id],
+                        },
+                    }).catch(() => {});
 
                     // Best-effort DM to the opener with a jump link
                     interaction.user.send({
-                        content: `<:Checkedbox:1473038547165384804> Your **${labelClean}** ticket has been opened in **${interaction.guild.name}**.\n` +
-                                 `Jump to it: ${ticketChannel.url}`
+                        content:
+                            `${ticketUI.E.ok} Your **${labelClean}** ticket has been opened in **${interaction.guild.name}**.\n` +
+                            `Jump to it: ${ticketChannel.url}`,
                     }).catch(() => { /* DMs closed */ });
 
-                    const successContainer = new ContainerBuilder()
-                        .setAccentColor(0x57F287)
-                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                            `# <:Checkedbox:1473038547165384804> Ticket Created\n\n` +
-                            `Your **${labelClean}** ticket is ready: ${ticketChannel}\n` +
-                            `Ticket Number: \`#${ticketNumber}\``
-                        ));
-                    await interaction.editReply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
+                    await interaction.editReply({
+                        components: [new ContainerBuilder()
+                            .setAccentColor(ticketUI.COLOR.SUCCESS)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                `# ${ticketUI.E.ok} Ticket Created\n\n` +
+                                `Your **${labelClean}** ticket is ready: ${ticketChannel}\n` +
+                                `${ticketUI.E.pin} **Ticket Number:** \`#${ticketNumber}\``
+                            ))],
+                        flags: MessageFlags.IsComponentsV2,
+                    });
                 } catch (error) {
-                    log.error(`Ticket creation: ${error.message}`, error);
-                    const errMsg = '<:Cancel:1473037949187657818> There was an error creating the ticket! Please try again.';
+                    log.error(`[ticket_select] creation failed: ${error.message}`, error);
+                    const ticketUI = require('./utils/ticketUI');
+                    const errPayload = ticketUI.v2Reply(ticketUI.errorContainer(`There was an error creating the ticket: ${error.message?.slice(0, 200) || 'unknown'}`), true);
                     if (interaction.deferred) {
-                        await interaction.editReply({ content: errMsg }).catch(() => {});
+                        await interaction.editReply({ components: errPayload.components, flags: MessageFlags.IsComponentsV2 }).catch(() => {});
                     } else if (!interaction.replied) {
-                        await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
+                        await interaction.reply(errPayload).catch(() => {});
                     }
+                } finally {
+                    require('./utils/ticketUI').unlockCreation(interaction.guild.id, interaction.user.id);
                 }
                 return;
             }
@@ -6215,6 +6326,13 @@ client.on('interactionCreate', async (interaction) => {
                             flags: MessageFlags.Ephemeral
                         });
                     }
+
+                    // Bump usage counter (best-effort)
+                    try {
+                        menuData.uses = (menuData.uses || 0) + 1;
+                        menuData.lastUsedAt = Date.now();
+                        jsonStore.markDirty('select-menus');
+                    } catch { /* non-fatal */ }
 
                     const selectedValues = interaction.values;
                     isSelectEphemeral = menuData.ephemeral !== false;

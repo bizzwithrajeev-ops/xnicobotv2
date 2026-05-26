@@ -1,56 +1,141 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
+'use strict';
+
+const {
+    SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ContainerBuilder,
+    TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ChannelType
+} = require('discord.js');
+const {
+    buildErrorResponse, buildPermissionDenied, buildInvalidUsage, BRANDING
+} = require('../../utils/responseBuilder');
+
+const MAX_LENGTH = 2000;
+
+function buildSentReceipt(channel, actorName, sentMessage, original) {
+    const truncated = original.length > 200 ? `${original.slice(0, 200)}…` : original;
+
+    return new ContainerBuilder()
+        .setAccentColor(0x57F287)
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Message Sent`)
+        )
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                `### <:Document:1473039496995143731> Delivery\n` +
+                `<:Caretright:1473038207221502106> **Channel:** ${channel}\n` +
+                `<:Caretright:1473038207221502106> **Length:** \`${original.length}\` characters\n` +
+                `<:Caretright:1473038207221502106> **Moderator:** ${actorName}\n` +
+                (sentMessage ? `<:Caretright:1473038207221502106> **Jump:** [Open message](${sentMessage.url})` : '')
+            )
+        )
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                `### <:Chat:1473038936241864865> Preview\n> ${truncated.replace(/\n/g, '\n> ')}`
+            )
+        )
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
+
+function isSendableTextChannel(channel) {
+    return channel
+        && [
+            ChannelType.GuildText,
+            ChannelType.GuildAnnouncement,
+            ChannelType.PublicThread,
+            ChannelType.PrivateThread,
+            ChannelType.AnnouncementThread,
+        ].includes(channel.type);
+}
 
 module.exports = {
-    description: 'Embed Say',
-    usage: 'embed-say',
+    description: 'Make the bot post a plain message in this channel (mentions are not parsed)',
+    usage: 'embed-say <message>',
     category: 'admin',
+    permissions: ['ManageMessages'],
     data: new SlashCommandBuilder()
         .setName('embed-say')
-        .setDescription('Make the bot say something')
+        .setDescription('Make the bot post a message in this channel')
         .addStringOption(option =>
             option.setName('message')
-                .setDescription('The message to send')
+                .setDescription('What should the bot say?')
+                .setMaxLength(MAX_LENGTH)
                 .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
-    
+
     async execute(interaction) {
         try {
-        const message = interaction.options.getString('message');
-        await interaction.channel.send({ content: message, allowedMentions: { parse: [] } });
-        
-        const container = new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:Checkedbox:1473038547165384804> Message Sent\n\n**Channel:** ${interaction.channel}\n**Moderator:** ${interaction.user.username}`)
-            );
-        
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const text = interaction.options.getString('message');
+            if (!isSendableTextChannel(interaction.channel)) {
+                const container = buildErrorResponse(
+                    'Unsupported Channel',
+                    'This command can only post in text, announcement, or thread channels.'
+                );
+                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            }
+
+            const sent = await interaction.channel.send({
+                content: text,
+                allowedMentions: { parse: [] },
+            });
+
+            const receipt = buildSentReceipt(interaction.channel, interaction.user.username, sent, text);
+            await interaction.reply({ components: [receipt], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } catch (error) {
-            console.error('[EmbedSay] Error:', error);
-            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            console.error('[EMBED-SAY] Slash error:', error);
+            const container = buildErrorResponse('Failed to Send', 'Could not post the message.', error.message);
+            const fn = interaction.replied || interaction.deferred ? interaction.editReply : interaction.reply;
+            await fn.call(interaction, { components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
         }
     },
 
     async executePrefix(message, args) {
-        if (!message.guild) return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+        if (!message.guild) {
+            return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+        }
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-            return message.reply('<:Cancel:1473037949187657818> You need the Manage Messages permission to use this command!');
+            const container = buildPermissionDenied('Manage Messages');
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        const text = args.join(' ').trim();
+        if (!text) {
+            const container = buildInvalidUsage(
+                'embed-say',
+                '-embed-say <message>',
+                ['-embed-say Welcome to the server!', '-embed-say Heads up: read #rules.']
+            );
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+        if (text.length > MAX_LENGTH) {
+            const container = buildErrorResponse(
+                'Message Too Long',
+                `Discord limits messages to **${MAX_LENGTH}** characters. Your message is **${text.length}**.`
+            );
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+        if (!isSendableTextChannel(message.channel)) {
+            const container = buildErrorResponse(
+                'Unsupported Channel',
+                'This command can only post in text, announcement, or thread channels.'
+            );
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
         try {
-        const text = args.join(' ');
-        if (!text) {
-            return message.reply('<:Cancel:1473037949187657818> Please provide a message!');
-        }
+            await message.delete().catch(() => {});
+            const sent = await message.channel.send({
+                content: text,
+                allowedMentions: { parse: [] },
+            });
 
-        await message.delete();
-        message.channel.send({ content: text, allowedMentions: { parse: [] } });
+            const receipt = buildSentReceipt(message.channel, message.author.username, sent, text);
+            await message.channel.send({ components: [receipt], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         } catch (error) {
-            console.error('[EmbedSay] Error:', error);
-            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            console.error('[EMBED-SAY] Prefix error:', error);
+            const container = buildErrorResponse('Failed to Send', 'Could not post the message.', error.message);
+            await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };
