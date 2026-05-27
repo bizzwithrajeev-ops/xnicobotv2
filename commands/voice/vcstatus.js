@@ -266,7 +266,7 @@ module.exports = {
                     components: [buildInvalidUsage(
                         'vcstatus',
                         'vcstatus <status|clear> [#channel]',
-                        ['vcstatus <:Music:1473039311057190972> Music Session', 'vcstatus 🎮 Gaming', 'vcstatus clear #voice-chat']
+                        ['vcstatus <:Music:1473039311057190972> Music Session', 'vcstatus <:Volumeup:1473039290136002844> Hangout', 'vcstatus clear #voice-chat']
                     )],
                     flags: MessageFlags.IsComponentsV2
                 });

@@ -107,12 +107,11 @@ async function handleVoiceStateUpdate(oldState, newState) {
     if (!guild) return;
     const guildId = guild.id;
 
-    // Fast path — read once. If no interfaces or no relevant channel changes, bail.
     const cfg = mgr.getGuildConfig(guildId);
-    if (!cfg.interfaces || Object.keys(cfg.interfaces).length === 0) return;
+    const hasInterfaces = cfg.interfaces && Object.keys(cfg.interfaces).length > 0;
 
     /* ── Spawn path: user joined a trigger channel ──────────────── */
-    if (newState.channelId && newState.channelId !== oldState.channelId) {
+    if (hasInterfaces && newState.channelId && newState.channelId !== oldState.channelId) {
         const iface = mgr.findInterfaceByTrigger(guildId, newState.channelId);
         if (iface) {
             const member = newState.member;
@@ -122,8 +121,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
             if (mgr.isOnCooldown(guildId, uid)) return;
             mgr.markCooldown(guildId, uid);
 
-            // If the user already owns one (e.g. joined trigger after
-            // disconnecting from their channel), move them to it.
+            // If the user already owns one, move them back instead of creating a duplicate.
             const existing = mgr.getActiveChannel(guildId, uid);
             if (existing) {
                 const ch = guild.channels.cache.get(existing.channelId);
@@ -131,11 +129,10 @@ async function handleVoiceStateUpdate(oldState, newState) {
                     await member.voice.setChannel(ch).catch(() => {});
                     return;
                 }
-                // Stale record — drop and continue creating a fresh one.
                 mgr.dropActiveChannel(guildId, uid);
             }
 
-            // Role gate
+            // Role gating
             if (iface.allowedRoles?.length) {
                 const allowed = iface.allowedRoles.some(r => member.roles.cache.has(r));
                 if (!allowed) {
@@ -151,11 +148,9 @@ async function handleVoiceStateUpdate(oldState, newState) {
                 }
             }
 
-            // Lock the guild's create branch so two simultaneous trigger
-            // events can't race the activeChannels read.
+            // Lock the create branch so two simultaneous trigger events
+            // can't race the activeChannels read.
             await mgr.withGuildLock(guildId, async () => {
-                // Re-check inside the lock — someone else may have
-                // assigned us a channel in the meantime.
                 const current = mgr.getActiveChannel(guildId, uid);
                 if (current && guild.channels.cache.get(current.channelId)) {
                     await member.voice.setChannel(current.channelId).catch(() => {});
@@ -166,7 +161,8 @@ async function handleVoiceStateUpdate(oldState, newState) {
                     let parentCategoryId = iface.categoryId;
                     if (parentCategoryId && !guild.channels.cache.get(parentCategoryId)) parentCategoryId = null;
                     if (!parentCategoryId) {
-                        const trigger = guild.channels.cache.get(iface.triggerChannelId);
+                        // Inherit from the trigger that fired this spawn.
+                        const trigger = guild.channels.cache.get(newState.channelId);
                         parentCategoryId = trigger?.parentId || null;
                     }
 
@@ -181,7 +177,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
                     });
 
                     const maxBitrate = guild.premiumTier >= 3 ? 384 : guild.premiumTier >= 2 ? 256 : guild.premiumTier >= 1 ? 128 : 96;
-                    const bitrate = Math.min(iface.bitrate || mgr.DEFAULT_BITRATE_KBPS, maxBitrate);
+                    const bitrate = Math.min(iface.defaultBitrate || mgr.DEFAULT_BITRATE_KBPS, maxBitrate);
 
                     const overwrites = [
                         { id: guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] },
@@ -198,7 +194,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
                             ]
                         }
                     ];
-                    if (iface.visibility === 'private') {
+                    if (iface.defaultVisibility === 'private') {
                         overwrites[0].deny = [PermissionFlagsBits.Connect];
                     }
 
@@ -206,7 +202,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
                         name:    channelName,
                         type:    ChannelType.GuildVoice,
                         parent:  parentCategoryId || undefined,
-                        userLimit: iface.maxUsers || 0,
+                        userLimit: iface.defaultUserLimit || 0,
                         bitrate: bitrate * 1000,
                         permissionOverwrites: overwrites
                     });
@@ -231,9 +227,11 @@ async function handleVoiceStateUpdate(oldState, newState) {
 
         const human = ch.members.filter(m => !m.user.bot);
         if (human.size === 0) {
-            const cfg = mgr.getGuildConfig(guildId);
-            const iface = cfg.interfaces[cfg.activeChannels[ownerId]?.interfaceId];
-            if (iface?.autoDelete !== false) {
+            const fresh = mgr.getGuildConfig(guildId);
+            const entry = fresh.activeChannels[ownerId];
+            const iface = entry ? fresh.interfaces[entry.interfaceId] : null;
+            const autoDelete = iface ? iface.autoDelete !== false : true;
+            if (autoDelete) {
                 try { await ch.delete('J2C: empty temp channel'); } catch {}
                 mgr.dropActiveChannel(guildId, ownerId);
             }
@@ -460,7 +458,7 @@ async function handleJ2CSelects(interaction) {
                 return true;
             }
             await target.voice.disconnect('J2C: kicked by owner');
-            await interaction.update(ok('Kicked', `<:dnd:1485248263857639424> Kicked **${target.user.username}**.`));
+            await interaction.update(ok('Kicked', `<:Microphoneoff:1473039278438219984> Kicked **${target.user.username}**.`));
             return true;
         }
 

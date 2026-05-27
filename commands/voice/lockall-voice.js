@@ -1,7 +1,7 @@
 'use strict';
 
-const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
+const { ChannelType, PermissionFlagsBits, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'lockall-voice',
@@ -52,6 +52,8 @@ module.exports = {
             { 'Locked': `${locked}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Cannot connect', 'Moderator': message.author.username }
         );
         container.setAccentColor(0xED4245);
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

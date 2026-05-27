@@ -5,17 +5,96 @@
  * `globalsticker` commands.
  *
  * Walks every guild the bot is in, flattens the requested asset type,
- * applies optional filters (name search, animated/static, specific guild)
- * and caches the result against the panel message so paging through pages
- * does not re-scan every guild.
+ * applies optional filters (name search, animated/static, specific guild,
+ * usable/locked state) and caches the result against the panel message
+ * so paging through pages does not re-scan every guild.
  *
  * Bot-internal emoji/sticker servers are hidden from these browsers via
  * the BLACKLISTED_GUILDS set below. Anything stored there is considered
  * private bot infrastructure (e.g. branded emojis used by responses).
+ *
+ * Low-level emoji/sticker primitives (URL construction, ID parsing, error
+ * translation, name sanitization, permission checks) live in
+ * `utils/emojiSystem.js` — this module only adds the browser-specific
+ * scan/cache/filter behaviour on top.
  */
+
+const {
+    SNOWFLAKE_RE,
+    emojiCdnUrl,
+    stickerCdnUrl,
+    parseEmojiList,
+    parseStickerList,
+    sanitizeEmojiName,
+    sanitizeStickerName,
+    explainEmojiError,
+    explainStickerError,
+    emojiUsability,
+    probeEmojiId,
+    STICKER_FORMAT,
+    STICKER_FORMAT_LABEL,
+    STICKER_FORMAT_EXT,
+} = require('./emojiSystem');
 
 const TIMEOUT_MS = 5 * 60 * 1000;
 const SCAN_CACHE = new Map();
+
+/**
+ * Shared emoji palette for the global asset browsers.
+ *
+ * Every entry here is a custom emoji from one of the bot's own emoji
+ * hosting servers (whitelisted in `utils/emojiGuard.js`), so they render
+ * reliably in every client and survive the runtime emoji guard. Raw
+ * Unicode glyphs are intentionally avoided — Discord clients render
+ * many of them inconsistently (some fall outside the emoji guard's
+ * validation window and get stripped to nothing), which is why the
+ * previous browser UI looked half-broken.
+ *
+ * Use these instead of inline `<:Name:id>` literals so both `globalemoji`
+ * and `globalsticker` stay visually consistent and a future palette swap
+ * is a single-file change.
+ */
+const EMOJIS = {
+    // Brand & header
+    brand:     '<:xnico:1486755083390550036>',
+
+    // Status
+    success:   '<:Checkedbox:1473038547165384804>',
+    error:     '<:Cancel:1473037949187657818>',
+    info:      '<:Inforect:1473038624172937287>',
+    warning:   '<:Infotriangle:1473038460456800459>',
+
+    // Layout / list
+    bullet:    '<:Caretright:1473038207221502106>',
+    book:      '<:Bookopen:1473038576391557130>',
+    document:  '<:Document:1473039496995143731>',
+    bulb:      '<:Lightbulbalt:1473038470787240009>',
+    settings:  '<:Settings:1473037894703779851>',
+    star:      '<:Star:1473038501766369300>',
+
+    // Asset type indicators
+    animated:  '<:Lightning:1473038797540298792>',
+    static:    '<:Picture:1473039568398843957>',
+    sticker:   '<:Palette:1473039029476917461>',
+
+    // State badges
+    locked:    '<:Lock:1473038513749491773>',
+    unavailable: '<:Infotriangle:1473038460456800459>',
+    usable:    '<:Checkedbox:1473038547165384804>',
+
+    // Navigation
+    first:     '<:Caretleft:1473038193057333409>',
+    prev:      '<:Caretleft:1473038193057333409>',
+    next:      '<:Caretright:1473038207221502106>',
+    last:      '<:Caretright:1473038207221502106>',
+    back:      '<:Caretleft:1473038193057333409>',
+
+    // Actions
+    search:    '<:Search:1473038053219106847>',
+    byid:      '<:Document:1473039496995143731>',
+    reset:     '<:Refresh:1473037911581528165>',
+    help:      '<:Lightbulbalt:1473038470787240009>',
+};
 
 /**
  * Hard-coded list of guilds whose emojis/stickers must NEVER be exposed
@@ -30,11 +109,11 @@ const BLACKLISTED_GUILDS = new Set([
     '1473038756981375188',
 ]);
 
-const SNOWFLAKE_RE = /^\d{17,20}$/;
-
 function setScan(messageId, payload) {
     SCAN_CACHE.set(messageId, payload);
-    setTimeout(() => SCAN_CACHE.delete(messageId), TIMEOUT_MS + 30_000).unref?.();
+    const t = setTimeout(() => SCAN_CACHE.delete(messageId), TIMEOUT_MS + 30_000);
+    // Don't keep the event loop alive just to evict a cache entry.
+    if (typeof t.unref === 'function') t.unref();
 }
 
 function getScan(messageId) {
@@ -51,11 +130,28 @@ function isBlacklistedGuild(guildId) {
 
 /* ─────────────────────────── Emoji ─────────────────────────── */
 
+/**
+ * Walk every guild in `client.guilds.cache` and return a sorted list of
+ * emoji descriptors that match the supplied filter options.
+ *
+ * Returned shape per entry:
+ *   {
+ *     id, name, animated,
+ *     guildId, guildName,
+ *     url,        // 128px preview (works regardless of role-locks)
+ *     cdnUrl,     // raw cdn url used for emojis.create
+ *     tag,        // <:name:id> — only inline-renderable for `usable` items
+ *     restricted, available, usable,
+ *     roleIds,
+ *   }
+ */
 function flattenEmojis(client, opts = {}) {
     const search = (opts.search || '').toLowerCase().trim();
     const animatedOnly = !!opts.animatedOnly;
     const staticOnly = !!opts.staticOnly;
     const guildFilter = opts.guildFilter ? String(opts.guildFilter).toLowerCase() : null;
+    const usableOnly = !!opts.usableOnly;
+    const lockedOnly = !!opts.lockedOnly;
 
     const out = [];
     let guildsScanned = 0;
@@ -69,14 +165,33 @@ function flattenEmojis(client, opts = {}) {
             if (animatedOnly && !emoji.animated) continue;
             if (staticOnly && emoji.animated) continue;
             if (search && !emoji.name.toLowerCase().includes(search)) continue;
+
+            // Discord's `available` flips to false when the source guild loses
+            // boosts mid-session — the emoji is still cached, but the bot can
+            // no longer render it inline. Same idea for role-restricted
+            // emojis: the bot needs to hold one of `emoji.roles` in the
+            // source guild to put `<:tag:id>` in a message anywhere, so for
+            // browser-display purposes we treat both as "preview-only".
+            const usability = emojiUsability(emoji);
+
+            if (usableOnly && !usability.usable) continue;
+            if (lockedOnly && usability.usable) continue;
+
+            const cdnUrl = emojiCdnUrl(emoji.id, !!emoji.animated);
             out.push({
                 id: emoji.id,
                 name: emoji.name,
                 animated: !!emoji.animated,
                 guildId: guild.id,
                 guildName: guild.name,
-                url: emoji.imageURL({ size: 128 }) || `https://cdn.discordapp.com/emojis/${emoji.id}.${emoji.animated ? 'gif' : 'png'}`,
+                // Preview URL for thumbnails — always works regardless of
+                // role restrictions, since Discord's CDN doesn't gate
+                // emoji image fetches on the consumer's permissions.
+                url: emoji.imageURL?.({ size: 128 }) || emojiCdnUrl(emoji.id, !!emoji.animated, { size: 128 }),
+                // Full-size URL used for the actual `emojis.create` upload.
+                cdnUrl,
                 tag: emoji.toString(),
+                ...usability,
             });
         }
     }
@@ -86,76 +201,38 @@ function flattenEmojis(client, opts = {}) {
 
 /**
  * Resolve an emoji from a raw snowflake ID by probing the CDN.
- * Tries animated (.gif) first since gifs ALSO render as static frames in
- * .png form on Discord, and a static emoji served from .gif simply looks
- * unanimated. We then HEAD-check `.png` as a fallback for stricter cases.
+ * Tries animated (.gif) first. Returns `null` if no asset is found.
  *
- * Returns `null` if no asset is found at that ID.
+ * The returned shape mirrors `flattenEmojis` so the caller can use a
+ * single render path for cache hits and probe results.
  */
 async function fetchEmojiById(rawId, fallbackName) {
-    const id = String(rawId || '').trim();
-    if (!SNOWFLAKE_RE.test(id)) return null;
-
-    const probe = async (ext) => {
-        try {
-            const res = await fetch(`https://cdn.discordapp.com/emojis/${id}.${ext}`, { method: 'HEAD' });
-            return res.ok;
-        } catch { return false; }
-    };
-
-    const isGif = await probe('gif');
-    const isPng = !isGif && await probe('png');
-    if (!isGif && !isPng) return null;
-
-    const ext = isGif ? 'gif' : 'png';
+    const probed = await probeEmojiId(rawId);
+    if (!probed) return null;
+    const sanitized = sanitizeEmojiName(fallbackName, 'stolen_emoji');
+    const cdnUrl = emojiCdnUrl(probed.id, probed.animated);
     return {
-        id,
-        name: sanitizeName(fallbackName, 'stolen_emoji'),
-        animated: isGif,
-        url: `https://cdn.discordapp.com/emojis/${id}.${ext}?size=128`,
+        id: probed.id,
+        name: sanitized,
+        animated: probed.animated,
+        url: emojiCdnUrl(probed.id, probed.animated, { size: 128 }),
+        cdnUrl,
         guildId: null,
         guildName: 'Direct ID',
-        tag: isGif ? `<a:${fallbackName || 'emoji'}:${id}>` : `<:${fallbackName || 'emoji'}:${id}>`,
+        tag: probed.animated
+            ? `<a:${fallbackName || 'emoji'}:${probed.id}>`
+            : `<:${fallbackName || 'emoji'}:${probed.id}>`,
+        restricted: false,
+        available: true,
+        usable: true,
+        roleIds: [],
     };
 }
 
-/**
- * Parse a raw user input string and pull out one or more emoji IDs.
- * Accepts:
- *   - Bare snowflakes:                 "123456789012345678"
- *   - Custom emoji tags:               "<:name:1234>", "<a:name:1234>"
- *   - Multiple values, separated by:   commas, spaces, newlines
- * Returns an array of `{ id, name }` (name from the tag when available).
- */
-function parseEmojiIdInput(raw) {
-    if (!raw || typeof raw !== 'string') return [];
-    const found = [];
-    const seen = new Set();
-
-    // Custom emoji tags first — they give us a hint at the original name.
-    const tagRe = /<a?:([\w~]{1,32}):(\d{17,20})>/g;
-    let m;
-    while ((m = tagRe.exec(raw)) !== null) {
-        if (seen.has(m[2])) continue;
-        seen.add(m[2]);
-        found.push({ id: m[2], name: m[1] });
-    }
-
-    // Bare IDs that aren't already part of a tag.
-    const bareRe = /\b(\d{17,20})\b/g;
-    while ((m = bareRe.exec(raw)) !== null) {
-        if (seen.has(m[1])) continue;
-        seen.add(m[1]);
-        found.push({ id: m[1], name: null });
-    }
-
-    return found;
-}
+// Re-export for callers that already import these from this module.
+const parseEmojiIdInput = parseEmojiList;
 
 /* ────────────────────────── Stickers ────────────────────────── */
-
-const STICKER_FORMAT_LABEL = { 1: 'PNG', 2: 'APNG', 3: 'Lottie', 4: 'GIF' };
-const STICKER_EXT = { 1: 'png', 2: 'png', 3: 'json', 4: 'gif' };
 
 function flattenStickers(client, opts = {}) {
     const search = (opts.search || '').toLowerCase().trim();
@@ -171,12 +248,11 @@ function flattenStickers(client, opts = {}) {
             && !guild.name.toLowerCase().includes(guildFilter)) continue;
         guildsScanned++;
         for (const sticker of guild.stickers.cache.values()) {
-            if (skipLottie && sticker.format === 3) continue;
+            if (skipLottie && sticker.format === STICKER_FORMAT.LOTTIE) continue;
             if (search) {
                 const haystack = `${sticker.name} ${sticker.tags || ''} ${sticker.description || ''}`.toLowerCase();
                 if (!haystack.includes(search)) continue;
             }
-            const ext = STICKER_EXT[sticker.format] || 'png';
             out.push({
                 id: sticker.id,
                 name: sticker.name,
@@ -186,8 +262,8 @@ function flattenStickers(client, opts = {}) {
                 formatLabel: STICKER_FORMAT_LABEL[sticker.format] || 'Unknown',
                 guildId: guild.id,
                 guildName: guild.name,
-                url: `https://media.discordapp.net/stickers/${sticker.id}.${ext}?size=320`,
-                cdnUrl: `https://cdn.discordapp.com/stickers/${sticker.id}.${ext}`,
+                url: stickerCdnUrl(sticker.id, sticker.format, { preview: true, size: 320 }),
+                cdnUrl: stickerCdnUrl(sticker.id, sticker.format),
             });
         }
     }
@@ -212,69 +288,25 @@ async function fetchStickerById(client, rawId) {
     } catch {
         return null;
     }
-    if (!raw || raw.format_type === 3) return null;
+    if (!raw || raw.format_type === STICKER_FORMAT.LOTTIE) return null;
 
-    const ext = STICKER_EXT[raw.format_type] || 'png';
     return {
         id,
         name: raw.name || 'sticker',
         tags: raw.tags || '',
         description: raw.description || '',
-        format: raw.format_type || 1,
+        format: raw.format_type || STICKER_FORMAT.PNG,
         formatLabel: STICKER_FORMAT_LABEL[raw.format_type] || 'Unknown',
         guildId: null,
         guildName: 'Direct ID',
-        url: `https://media.discordapp.net/stickers/${id}.${ext}?size=320`,
-        cdnUrl: `https://cdn.discordapp.com/stickers/${id}.${ext}`,
+        url: stickerCdnUrl(id, raw.format_type, { preview: true, size: 320 }),
+        cdnUrl: stickerCdnUrl(id, raw.format_type),
     };
 }
 
-/**
- * Parse one or more sticker IDs out of a raw user input.
- * Accepts bare snowflakes and sticker URLs (cdn/media .discordapp).
- */
-function parseStickerIdInput(raw) {
-    if (!raw || typeof raw !== 'string') return [];
-    const found = [];
-    const seen = new Set();
+const parseStickerIdInput = parseStickerList;
 
-    const urlRe = /stickers\/(\d{17,20})/g;
-    let m;
-    while ((m = urlRe.exec(raw)) !== null) {
-        if (seen.has(m[1])) continue;
-        seen.add(m[1]);
-        found.push({ id: m[1] });
-    }
-    const bareRe = /\b(\d{17,20})\b/g;
-    while ((m = bareRe.exec(raw)) !== null) {
-        if (seen.has(m[1])) continue;
-        seen.add(m[1]);
-        found.push({ id: m[1] });
-    }
-
-    return found;
-}
-
-/* ─────────────────────── Steal helpers ────────────────────── */
-
-function explainEmojiError(err) {
-    if (!err) return 'Unknown error';
-    if (err.code === 30008) return 'Server emoji slots are full';
-    if (err.code === 50013) return 'Bot is missing Manage Expressions';
-    if (err.code === 50035) return 'Invalid emoji name or file';
-    if (err.code === 50045) return 'Asset too large (max 256 KB)';
-    return err.message?.slice(0, 120) || 'Unknown error';
-}
-
-function explainStickerError(err) {
-    if (!err) return 'Unknown error';
-    if (err.code === 30039) return 'Server sticker slots are full (boost level)';
-    if (err.code === 50013) return 'Bot is missing Manage Expressions';
-    if (err.code === 50035) return 'Invalid sticker name or tags';
-    if (err.code === 50046) return 'File too large (max 512 KB)';
-    if (err.code === 50006) return 'Invalid source URL';
-    return err.message?.slice(0, 120) || 'Unknown error';
-}
+/* ─────────────────────── Sticker tag picker ────────────────────── */
 
 const UNICODE_EMOJI_RE = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})(\uFE0F|\u200D|\p{Emoji_Presentation}|\p{Extended_Pictographic})*/u;
 
@@ -284,34 +316,37 @@ function pickStickerTag(sticker) {
     return m ? m[0] : '😀';
 }
 
-function sanitizeName(raw, fallback) {
-    const cleaned = String(raw || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32);
-    return cleaned.length >= 2 ? cleaned : fallback;
-}
-
-function sanitizeStickerName(raw, fallback) {
-    const cleaned = String(raw || '').replace(/[^a-zA-Z0-9_ ]/g, '').trim().slice(0, 30);
-    return cleaned.length >= 2 ? cleaned : fallback;
-}
+// Backward-compat name aliases so existing callers keep working without
+// having to know about emojiSystem.js.
+const sanitizeName = sanitizeEmojiName;
 
 module.exports = {
     TIMEOUT_MS,
+    EMOJIS,
     BLACKLISTED_GUILDS,
     isBlacklistedGuild,
     setScan,
     getScan,
     clearScan,
+
+    // Emoji
     flattenEmojis,
-    flattenStickers,
     fetchEmojiById,
-    fetchStickerById,
     parseEmojiIdInput,
-    parseStickerIdInput,
     explainEmojiError,
+    sanitizeName,
+    sanitizeEmojiName,
+
+    // Sticker
+    flattenStickers,
+    fetchStickerById,
+    parseStickerIdInput,
     explainStickerError,
     pickStickerTag,
-    sanitizeName,
     sanitizeStickerName,
+
+    // Format constants (re-exported)
+    STICKER_FORMAT,
     STICKER_FORMAT_LABEL,
-    STICKER_EXT,
+    STICKER_FORMAT_EXT,
 };

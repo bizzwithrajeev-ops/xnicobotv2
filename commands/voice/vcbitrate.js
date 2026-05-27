@@ -1,5 +1,5 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, ChannelType, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, buildInvalidUsage, BRANDING } = require('../../utils/responseBuilder');
 
 const VALID_BITRATES = [8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384];
 
@@ -65,6 +65,8 @@ module.exports = {
                 }
             );
             container.setAccentColor(0x57F287);
+            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {

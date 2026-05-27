@@ -1,5 +1,5 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'vcmuteall',
@@ -7,7 +7,7 @@ module.exports = {
     description: 'Server mute all members in your voice channel',
     usage: 'vcmuteall',
     category: 'voice',
-    aliases: ['muteallvc', 'servermmuteall'],
+    aliases: ['muteallvc', 'servermuteall'],
     permissions: ['MuteMembers'],
 
     async executePrefix(message, args) {
@@ -45,6 +45,8 @@ module.exports = {
             { 'Channel': voiceChannel.name, 'Muted': `${muted}/${members.size}`, 'Moderator': message.author.username }
         );
         container.setAccentColor(0x57F287);
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

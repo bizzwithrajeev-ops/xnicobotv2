@@ -1,5 +1,5 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, ChannelType, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, BRANDING, COLORS } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'voicemove',
@@ -83,6 +83,8 @@ module.exports = {
             { 'From': sourceName, 'To': destinationChannel.name, 'Moved': `${moved}/${members.length}`, 'Moderator': message.author.username }
         );
         container.setAccentColor(0x57F287);
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

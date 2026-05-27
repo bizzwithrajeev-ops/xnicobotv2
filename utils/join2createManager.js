@@ -1,59 +1,44 @@
 'use strict';
 
 /**
- * Join-to-Create Manager
+ * Join-to-Create Manager (v4 — multi-interface, clean UX)
  * ───────────────────────────────────────────────────────────────────
- * Storage, schema migration, premium gating, and concurrency control
- * for the J2C system. Lives in `jsonStore` under the `'join2create'`
- * key — same store the legacy v1 implementation used so we get a
- * zero-downtime upgrade.
+ * A guild can run several Join-to-Create "interfaces". Each interface
+ * is a single trigger VC + a single control panel + its own defaults
+ * (naming, user limit, bitrate, visibility, auto-delete, role gating).
  *
- * SCHEMA  (per-guild)
+ * - Free guilds  : up to MAX_INTERFACES_FREE   (1)
+ * - Premium      : up to MAX_INTERFACES_PREMIUM (10)
  *
- *   v1 (legacy, preserved by `migrateGuildConfig`):
+ * SCHEMA v4 (per-guild)
  *   {
- *     enabled, triggerChannelId, interfaceChannelId, controlPanelMessageId,
- *     activeChannels: { [ownerUserId]: tempChannelId, ... }
- *   }
- *
- *   v2 (this file):
- *   {
- *     schemaVersion: 2,
- *     tier: 'free' | 'premium',         // computed lazily, cached
+ *     schemaVersion: 4,
  *     interfaces: {
- *       [interfaceId]: {
- *         id, name, slug, emoji,
- *         triggerChannelId,             // VC users join to spawn
- *         categoryId,                   // Parent category for spawned VCs
- *         interfaceChannelId,           // Text channel hosting controls
- *         controlPanelMessageId,
- *         maxUsers,                     // 0 = unlimited
- *         bitrate,                      // kbps
- *         namingTemplate,               // e.g. '{user}'s {kind} Room'
- *         allowedRoles: [],             // empty = everyone
- *         deniedRoles:  [],
- *         visibility: 'public'|'private',
- *         autoDelete: true,
- *         enabled: true,
+ *       [id]: {
+ *         id, name, emoji, enabled,
+ *         triggerChannelIds: [vcId, ...],   // ≥1 trigger VCs for this interface
+ *         categoryId,
+ *         interfaceChannelId, controlPanelMessageId,
+ *         namingTemplate,
+ *         defaultUserLimit, defaultBitrate,
+ *         defaultVisibility, autoDelete,
+ *         allowedRoles, deniedRoles,
  *         createdAt, updatedAt
  *       }
  *     },
- *     activeChannels: {                  // flat global lookup
+ *     activeChannels: {
  *       [ownerUserId]: {
- *          channelId, interfaceId, createdAt,
- *          trustedUsers: [userId, ...],   // co-owners
- *          bannedUsers:  [userId, ...]
+ *         channelId, interfaceId, createdAt,
+ *         trustedUsers: [], bannedUsers: []
  *       }
  *     },
  *     analytics: { totalCreated, lastCreatedAt }
  *   }
  *
- * PREMIUM RULES
- *   - Free guilds : exactly 1 enabled interface.
- *   - Premium     : up to MAX_INTERFACES_PREMIUM enabled interfaces.
- *
- * The runtime calls `assertPremiumGate(guildId)` before allowing a
- * second interface to be created or the system to spawn extras.
+ * Migrations
+ *   v1 (legacy flat)         → v4 : lift legacy fields into one interface
+ *   v2 (interfaces map)      → v4 : rename to v4, normalize per-iface keys
+ *   v3 (single config)       → v4 : lift single config into one interface
  */
 
 const jsonStore       = require('./jsonStore');
@@ -62,7 +47,7 @@ const premiumManager  = require('./premiumManager');
 
 const STORE = 'join2create';
 
-const SCHEMA_VERSION         = 2;
+const SCHEMA_VERSION         = 4;
 const MAX_INTERFACES_FREE    = 1;
 const MAX_INTERFACES_PREMIUM = 10;
 const DEFAULT_BITRATE_KBPS   = 96;
@@ -81,82 +66,173 @@ function loadAll() {
 
 function saveAll(data) { jsonStore.write(STORE, data); }
 
-/* ═══════════════════════════════════════════════════════════════════
-   SCHEMA MIGRATION
-   ═══════════════════════════════════════════════════════════════════ */
-
-/**
- * Migrate a v1 (legacy) guild config object to v2 in-place. Returns
- * the migrated object. Idempotent — running twice is a no-op.
- */
-function migrateGuildConfig(legacy, guildId) {
-    if (!legacy || typeof legacy !== 'object') {
-        return defaultGuildConfig();
-    }
-    if (legacy.schemaVersion === SCHEMA_VERSION && legacy.interfaces) {
-        return legacy;
-    }
-
-    const migrated = defaultGuildConfig();
-
-    // If a v1 trigger channel is already configured, lift it into a
-    // single "default" interface so the user keeps exactly the same
-    // behaviour they had before this rebuild.
-    if (legacy.triggerChannelId) {
-        const id = makeInterfaceId();
-        migrated.interfaces[id] = {
-            id,
-            name: 'Default Room',
-            slug: 'default',
-            emoji: '<:Volumeup:1473039290136002844>',
-            triggerChannelId:      legacy.triggerChannelId,
-            categoryId:            null,
-            interfaceChannelId:    legacy.interfaceChannelId    || null,
-            controlPanelMessageId: legacy.controlPanelMessageId || null,
-            maxUsers:              0,
-            bitrate:               DEFAULT_BITRATE_KBPS,
-            namingTemplate:        "{user}'s Channel",
-            allowedRoles:          [],
-            deniedRoles:           [],
-            visibility:            'public',
-            autoDelete:            true,
-            enabled:               legacy.enabled !== false,
-            createdAt:             Date.now(),
-            updatedAt:             Date.now()
-        };
-    }
-
-    // Migrate the flat activeChannels map.
-    const ifaceList = Object.values(migrated.interfaces);
-    const fallbackIface = ifaceList[0]?.id || null;
-    if (legacy.activeChannels && typeof legacy.activeChannels === 'object') {
-        for (const [ownerUserId, channelId] of Object.entries(legacy.activeChannels)) {
-            if (!channelId) continue;
-            // v1 stored `channelId` directly; expand it.
-            migrated.activeChannels[ownerUserId] = (typeof channelId === 'string')
-                ? { channelId, interfaceId: fallbackIface, createdAt: Date.now(), trustedUsers: [], bannedUsers: [] }
-                : { ...channelId, interfaceId: channelId.interfaceId || fallbackIface, trustedUsers: channelId.trustedUsers || [], bannedUsers: channelId.bannedUsers || [] };
-        }
-    }
-
-    log.info(`[J2C] Migrated guild ${guildId} from v${legacy.schemaVersion || 1} → v${SCHEMA_VERSION}`);
-    return migrated;
-}
-
 function defaultGuildConfig() {
     return {
         schemaVersion: SCHEMA_VERSION,
-        tier: 'free',
-        interfaces: {},
+        interfaces:    {},
         activeChannels: {},
         analytics: { totalCreated: 0, lastCreatedAt: 0 }
     };
 }
 
-/**
- * Get a guild's config, migrating if necessary. Returns a deep copy
- * so callers can mutate freely; saves go through `saveGuildConfig`.
- */
+function makeInterfaceId() {
+    return 'i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function defaultInterface(partial = {}) {
+    const id = partial.id || makeInterfaceId();
+
+    // Accept legacy single `triggerChannelId` and the new `triggerChannelIds` array.
+    let triggers = [];
+    if (Array.isArray(partial.triggerChannelIds)) triggers = partial.triggerChannelIds.filter(Boolean);
+    else if (partial.triggerChannelId) triggers = [partial.triggerChannelId];
+    triggers = [...new Set(triggers)].slice(0, 25);
+
+    return {
+        id,
+        name:                  String(partial.name || 'Default').slice(0, 50) || 'Default',
+        emoji:                 partial.emoji || '<:Volumeup:1473039290136002844>',
+        enabled:               partial.enabled !== false,
+
+        triggerChannelIds:     triggers,
+        categoryId:            partial.categoryId            || null,
+        interfaceChannelId:    partial.interfaceChannelId    || null,
+        controlPanelMessageId: partial.controlPanelMessageId || null,
+
+        namingTemplate:        String(partial.namingTemplate || "{user}'s Channel").slice(0, 100),
+        defaultUserLimit:      clampInt(partial.defaultUserLimit ?? partial.maxUsers, 0, 99, 0),
+        defaultBitrate:        clampInt(partial.defaultBitrate   ?? partial.bitrate,  8, 384, DEFAULT_BITRATE_KBPS),
+        defaultVisibility:     partial.defaultVisibility === 'private' || partial.visibility === 'private' ? 'private' : 'public',
+        autoDelete:            partial.autoDelete !== false,
+
+        allowedRoles:          Array.isArray(partial.allowedRoles) ? partial.allowedRoles.slice(0, 25) : [],
+        deniedRoles:           Array.isArray(partial.deniedRoles)  ? partial.deniedRoles.slice(0, 25)  : [],
+
+        createdAt: partial.createdAt || Date.now(),
+        updatedAt: Date.now()
+    };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MIGRATION
+   ═══════════════════════════════════════════════════════════════════ */
+
+function migrateGuildConfig(raw, guildId) {
+    if (!raw || typeof raw !== 'object') return defaultGuildConfig();
+    if (raw.schemaVersion === SCHEMA_VERSION && raw.interfaces) return raw;
+
+    const fresh = defaultGuildConfig();
+
+    // ── v3 (single-interface flat) → v4 ───────────────────────────
+    if (raw.schemaVersion === 3) {
+        if (raw.triggerChannelId || raw.interfaceChannelId) {
+            const iface = defaultInterface({
+                name:                  'Default',
+                enabled:               raw.enabled !== false,
+                triggerChannelId:      raw.triggerChannelId,
+                categoryId:            raw.categoryId,
+                interfaceChannelId:    raw.interfaceChannelId,
+                controlPanelMessageId: raw.controlPanelMessageId,
+                namingTemplate:        raw.namingTemplate,
+                defaultUserLimit:      raw.defaultUserLimit,
+                defaultBitrate:        raw.defaultBitrate,
+                defaultVisibility:     raw.defaultVisibility,
+                autoDelete:            raw.autoDelete,
+                allowedRoles:          raw.allowedRoles,
+                deniedRoles:           raw.deniedRoles
+            });
+            fresh.interfaces[iface.id] = iface;
+
+            // Carry over active channels and tag them with this interface.
+            for (const [uid, entry] of Object.entries(raw.activeChannels || {})) {
+                if (!entry) continue;
+                const channelId = typeof entry === 'string' ? entry : entry.channelId;
+                if (!channelId) continue;
+                fresh.activeChannels[uid] = {
+                    channelId,
+                    interfaceId: iface.id,
+                    createdAt:   entry.createdAt || Date.now(),
+                    trustedUsers: Array.isArray(entry.trustedUsers) ? entry.trustedUsers : [],
+                    bannedUsers:  Array.isArray(entry.bannedUsers)  ? entry.bannedUsers  : []
+                };
+            }
+        }
+        if (raw.analytics) fresh.analytics = { ...fresh.analytics, ...raw.analytics };
+        log.info(`[J2C] Migrated guild ${guildId} from v3 → v${SCHEMA_VERSION}`);
+        return fresh;
+    }
+
+    // ── v2 (interfaces map) → v4 ──────────────────────────────────
+    if (raw.schemaVersion === 2 && raw.interfaces && typeof raw.interfaces === 'object') {
+        for (const [id, src] of Object.entries(raw.interfaces)) {
+            if (!src) continue;
+            const iface = defaultInterface({
+                id,
+                name:                  src.name,
+                emoji:                 src.emoji,
+                enabled:               src.enabled !== false,
+                // src may have either form depending on patch level
+                triggerChannelIds:     Array.isArray(src.triggerChannelIds) ? src.triggerChannelIds : undefined,
+                triggerChannelId:      src.triggerChannelId,
+                categoryId:            src.categoryId,
+                interfaceChannelId:    src.interfaceChannelId,
+                controlPanelMessageId: src.controlPanelMessageId,
+                namingTemplate:        src.namingTemplate,
+                defaultUserLimit:      src.maxUsers,
+                defaultBitrate:        src.bitrate,
+                defaultVisibility:     src.visibility,
+                autoDelete:            src.autoDelete,
+                allowedRoles:          src.allowedRoles,
+                deniedRoles:           src.deniedRoles,
+                createdAt:             src.createdAt
+            });
+            fresh.interfaces[id] = iface;
+        }
+        for (const [uid, entry] of Object.entries(raw.activeChannels || {})) {
+            if (!entry) continue;
+            const channelId = typeof entry === 'string' ? entry : entry.channelId;
+            if (!channelId) continue;
+            fresh.activeChannels[uid] = {
+                channelId,
+                interfaceId: entry.interfaceId || (Object.keys(fresh.interfaces)[0] || null),
+                createdAt:   entry.createdAt || Date.now(),
+                trustedUsers: Array.isArray(entry.trustedUsers) ? entry.trustedUsers : [],
+                bannedUsers:  Array.isArray(entry.bannedUsers)  ? entry.bannedUsers  : []
+            };
+        }
+        if (raw.analytics) fresh.analytics = { ...fresh.analytics, ...raw.analytics };
+        log.info(`[J2C] Migrated guild ${guildId} from v2 → v${SCHEMA_VERSION}`);
+        return fresh;
+    }
+
+    // ── v1 (legacy flat) → v4 ─────────────────────────────────────
+    if (raw.triggerChannelId || raw.interfaceChannelId) {
+        const iface = defaultInterface({
+            name:                  'Default',
+            enabled:               raw.enabled !== false,
+            triggerChannelId:      raw.triggerChannelId,
+            interfaceChannelId:    raw.interfaceChannelId,
+            controlPanelMessageId: raw.controlPanelMessageId
+        });
+        fresh.interfaces[iface.id] = iface;
+
+        for (const [uid, val] of Object.entries(raw.activeChannels || {})) {
+            if (!val) continue;
+            const channelId = typeof val === 'string' ? val : val.channelId;
+            if (!channelId) continue;
+            fresh.activeChannels[uid] = {
+                channelId,
+                interfaceId: iface.id,
+                createdAt:   val.createdAt || Date.now(),
+                trustedUsers: Array.isArray(val.trustedUsers) ? val.trustedUsers : [],
+                bannedUsers:  Array.isArray(val.bannedUsers)  ? val.bannedUsers  : []
+            };
+        }
+    }
+    log.info(`[J2C] Migrated guild ${guildId} from v${raw.schemaVersion || 1} → v${SCHEMA_VERSION}`);
+    return fresh;
+}
+
 function getGuildConfig(guildId) {
     const all = loadAll();
     const raw = all[guildId];
@@ -171,45 +247,43 @@ function saveGuildConfig(guildId, cfg) {
     saveAll(all);
 }
 
+function deleteGuildConfig(guildId) {
+    const all = loadAll();
+    delete all[guildId];
+    saveAll(all);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
-   PREMIUM GATING
+   PREMIUM
    ═══════════════════════════════════════════════════════════════════ */
 
-/**
- * Synchronous tier lookup. Owner → premium, server-premium → premium,
- * everyone else → free. Cheap; safe to call on every voice event.
- */
 function getGuildTier(guildId, requesterUserId = null) {
     if (requesterUserId && premiumManager.hasPremiumAccess(requesterUserId, guildId)) return 'premium';
     if (premiumManager.isServerPremium(guildId)) return 'premium';
     return 'free';
 }
 
+function isPremium(guildId, requesterUserId = null) {
+    return getGuildTier(guildId, requesterUserId) === 'premium';
+}
+
 function maxInterfacesFor(tier) {
     return tier === 'premium' ? MAX_INTERFACES_PREMIUM : MAX_INTERFACES_FREE;
 }
 
-/**
- * Returns { ok, reason, tier, currentCount, maxAllowed } describing
- * whether the guild may add another interface right now.
- */
 function canAddInterface(guildId, requesterUserId = null) {
     const cfg  = getGuildConfig(guildId);
     const tier = getGuildTier(guildId, requesterUserId);
     const max  = maxInterfacesFor(tier);
-    const currentCount = Object.values(cfg.interfaces).filter(i => i.enabled !== false).length;
+    const currentCount = Object.keys(cfg.interfaces).length;
 
-    if (currentCount < max) {
-        return { ok: true, tier, currentCount, maxAllowed: max };
-    }
+    if (currentCount < max) return { ok: true, tier, currentCount, max };
     return {
-        ok:        false,
-        reason:    tier === 'premium'
+        ok: false,
+        tier, currentCount, max,
+        reason: tier === 'premium'
             ? `You've reached the premium cap of ${max} interfaces.`
-            : `Free servers may run only ${max} Join-to-Create interface. Upgrade to premium to unlock up to ${MAX_INTERFACES_PREMIUM}.`,
-        tier,
-        currentCount,
-        maxAllowed: max
+            : `Free servers may run only ${max} Join-to-Create interface. Upgrade to premium to unlock up to ${MAX_INTERFACES_PREMIUM}.`
     };
 }
 
@@ -217,55 +291,53 @@ function canAddInterface(guildId, requesterUserId = null) {
    INTERFACE CRUD
    ═══════════════════════════════════════════════════════════════════ */
 
-function makeInterfaceId() {
-    return 'i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function listInterfaces(guildId) {
+    const cfg = getGuildConfig(guildId);
+    return Object.values(cfg.interfaces).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
 
-function createInterface(guildId, requesterUserId, partial) {
+function getInterface(guildId, interfaceId) {
+    const cfg = getGuildConfig(guildId);
+    return cfg.interfaces[interfaceId] || null;
+}
+
+function createInterface(guildId, requesterUserId, partial = {}) {
     const gate = canAddInterface(guildId, requesterUserId);
     if (!gate.ok) return { ok: false, error: gate.reason, tier: gate.tier };
 
     const cfg = getGuildConfig(guildId);
-    const id  = makeInterfaceId();
-    const iface = {
-        id,
-        name:                  (partial?.name  || 'Voice Room').slice(0, 50),
-        slug:                  (partial?.slug  || 'room').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 20) || 'room',
-        emoji:                 partial?.emoji  || '<:Volumeup:1473039290136002844>',
-        triggerChannelId:      partial?.triggerChannelId || null,
-        categoryId:            partial?.categoryId       || null,
-        interfaceChannelId:    partial?.interfaceChannelId    || null,
-        controlPanelMessageId: partial?.controlPanelMessageId || null,
-        maxUsers:              clampInt(partial?.maxUsers, 0, 99,    0),
-        bitrate:               clampInt(partial?.bitrate,  8, 384, DEFAULT_BITRATE_KBPS),
-        namingTemplate:        (partial?.namingTemplate || "{user}'s {kind} Room").slice(0, 80),
-        allowedRoles:          Array.isArray(partial?.allowedRoles) ? partial.allowedRoles.slice(0, 25) : [],
-        deniedRoles:           Array.isArray(partial?.deniedRoles)  ? partial.deniedRoles.slice(0, 25)  : [],
-        visibility:            partial?.visibility === 'private' ? 'private' : 'public',
-        autoDelete:            partial?.autoDelete !== false,
-        enabled:               true,
-        createdAt:             Date.now(),
-        updatedAt:             Date.now()
-    };
-
-    cfg.interfaces[id] = iface;
+    const iface = defaultInterface(partial);
+    cfg.interfaces[iface.id] = iface;
     saveGuildConfig(guildId, cfg);
     return { ok: true, iface };
 }
 
-function updateInterface(guildId, interfaceId, partial) {
+const INTERFACE_KEYS = [
+    'name', 'emoji', 'enabled',
+    'triggerChannelIds', 'categoryId', 'interfaceChannelId', 'controlPanelMessageId',
+    'namingTemplate', 'defaultUserLimit', 'defaultBitrate', 'defaultVisibility', 'autoDelete',
+    'allowedRoles', 'deniedRoles'
+];
+
+function updateInterface(guildId, interfaceId, patch) {
     const cfg = getGuildConfig(guildId);
     const iface = cfg.interfaces[interfaceId];
     if (!iface) return { ok: false, error: 'Interface not found.' };
 
-    const cloneable = ['name', 'slug', 'emoji', 'triggerChannelId', 'categoryId', 'interfaceChannelId', 'controlPanelMessageId', 'namingTemplate', 'allowedRoles', 'deniedRoles', 'visibility', 'autoDelete', 'enabled'];
-    for (const key of cloneable) {
-        if (partial?.[key] !== undefined) iface[key] = partial[key];
+    for (const key of INTERFACE_KEYS) {
+        if (patch?.[key] === undefined) continue;
+        if (key === 'defaultUserLimit')      iface[key] = clampInt(patch[key], 0, 99, iface[key]);
+        else if (key === 'defaultBitrate')   iface[key] = clampInt(patch[key], 8, 384, iface[key]);
+        else if (key === 'defaultVisibility') iface[key] = patch[key] === 'private' ? 'private' : 'public';
+        else if (key === 'namingTemplate')   iface[key] = String(patch[key] || iface[key]).slice(0, 100);
+        else if (key === 'name')             iface[key] = String(patch[key] || iface[key]).slice(0, 50) || iface[key];
+        else if (key === 'allowedRoles' || key === 'deniedRoles')
+            iface[key] = Array.isArray(patch[key]) ? patch[key].slice(0, 25) : iface[key];
+        else if (key === 'triggerChannelIds')
+            iface[key] = Array.isArray(patch[key]) ? [...new Set(patch[key].filter(Boolean))].slice(0, 25) : iface[key];
+        else iface[key] = patch[key];
     }
-    if (partial?.maxUsers !== undefined) iface.maxUsers = clampInt(partial.maxUsers, 0, 99,  iface.maxUsers);
-    if (partial?.bitrate  !== undefined) iface.bitrate  = clampInt(partial.bitrate,  8, 384, iface.bitrate);
     iface.updatedAt = Date.now();
-
     saveGuildConfig(guildId, cfg);
     return { ok: true, iface };
 }
@@ -274,7 +346,7 @@ function deleteInterface(guildId, interfaceId) {
     const cfg = getGuildConfig(guildId);
     if (!cfg.interfaces[interfaceId]) return { ok: false, error: 'Interface not found.' };
     delete cfg.interfaces[interfaceId];
-    // Also evict any active channels created under this interface.
+    // Drop active channels that referenced it.
     for (const [uid, entry] of Object.entries(cfg.activeChannels)) {
         if (entry.interfaceId === interfaceId) delete cfg.activeChannels[uid];
     }
@@ -284,12 +356,9 @@ function deleteInterface(guildId, interfaceId) {
 
 function findInterfaceByTrigger(guildId, triggerChannelId) {
     const cfg = getGuildConfig(guildId);
-    return Object.values(cfg.interfaces).find(i => i.enabled !== false && i.triggerChannelId === triggerChannelId) || null;
-}
-
-function listInterfaces(guildId) {
-    const cfg = getGuildConfig(guildId);
-    return Object.values(cfg.interfaces).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    return Object.values(cfg.interfaces).find(i =>
+        i.enabled !== false && Array.isArray(i.triggerChannelIds) && i.triggerChannelIds.includes(triggerChannelId)
+    ) || null;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -301,7 +370,7 @@ function recordActiveChannel(guildId, ownerUserId, channelId, interfaceId) {
     cfg.activeChannels[ownerUserId] = {
         channelId,
         interfaceId,
-        createdAt: Date.now(),
+        createdAt:    Date.now(),
         trustedUsers: [],
         bannedUsers:  []
     };
@@ -361,14 +430,9 @@ function removeTrustedUser(guildId, ownerUserId, targetUserId) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   CONCURRENCY CONTROL
+   CONCURRENCY
    ═══════════════════════════════════════════════════════════════════ */
 
-/**
- * Per-guild lock — chained promise queue. Wraps `fn` so the next
- * caller awaits the previous task before running. Fixes the duplicate
- * channel bug when 10+ users join the trigger VC simultaneously.
- */
 const guildLocks = new Map();
 
 async function withGuildLock(guildId, fn) {
@@ -377,33 +441,25 @@ async function withGuildLock(guildId, fn) {
         log.error(`[J2C] Guild lock error for ${guildId}: ${err.message}`);
         throw err;
     });
-    guildLocks.set(guildId, next.then(() => {}, () => {})); // never reject the chain
+    const tail = next.then(() => {}, () => {});
+    guildLocks.set(guildId, tail);
     try {
         return await next;
     } finally {
-        // Best-effort: if we are the tail, clear the entry to release memory.
-        if (guildLocks.get(guildId) === next.then(() => {}, () => {})) {
-            guildLocks.delete(guildId);
-        }
+        if (guildLocks.get(guildId) === tail) guildLocks.delete(guildId);
     }
 }
 
-/**
- * Per-user create-debounce. Prevents one user from rapidly toggling
- * voice channels and spamming `channels.create` calls.
- */
 const userCooldowns = new Map();
 const USER_COOLDOWN_MS = 3000;
 
 function isOnCooldown(guildId, userId) {
-    const key = `${guildId}:${userId}`;
-    const last = userCooldowns.get(key) || 0;
+    const last = userCooldowns.get(`${guildId}:${userId}`) || 0;
     return Date.now() - last < USER_COOLDOWN_MS;
 }
 
 function markCooldown(guildId, userId) {
     userCooldowns.set(`${guildId}:${userId}`, Date.now());
-    // Sweep stale keys occasionally
     if (userCooldowns.size > 1000) {
         const cutoff = Date.now() - USER_COOLDOWN_MS * 4;
         for (const [k, ts] of userCooldowns.entries()) {
@@ -422,18 +478,12 @@ function clampInt(value, min, max, fallback) {
     return Math.max(min, Math.min(max, n));
 }
 
-/**
- * Render an interface's `namingTemplate` against a runtime context.
- * Supported placeholders: {user}, {user.id}, {user.tag}, {kind},
- * {server}, {n} (current active count of this interface).
- */
 function applyNamingTemplate(template, ctx) {
     return String(template || "{user}'s Channel")
-        .replace(/{user(?:\.id)?}/g, ctx.user?.id || '')
+        .replace(/{user\.id}/g, ctx.user?.id || '')
         .replace(/{user\.tag}/g, ctx.user?.tag || ctx.user?.username || '')
         .replace(/{user}/g, ctx.user?.username || ctx.user?.globalName || 'User')
         .replace(/{kind}/g, ctx.iface?.name || 'Voice')
-        .replace(/{slug}/g, ctx.iface?.slug || 'room')
         .replace(/{server}/g, ctx.guild?.name || '')
         .replace(/{n}/g, String(ctx.activeCount || 0))
         .slice(0, 100);
@@ -455,19 +505,22 @@ module.exports = {
     defaultGuildConfig,
     getGuildConfig,
     saveGuildConfig,
+    deleteGuildConfig,
     migrateGuildConfig,
 
     // Premium
     getGuildTier,
+    isPremium,
     maxInterfacesFor,
     canAddInterface,
 
     // Interfaces
+    listInterfaces,
+    getInterface,
     createInterface,
     updateInterface,
     deleteInterface,
     findInterfaceByTrigger,
-    listInterfaces,
 
     // Active channels
     recordActiveChannel,

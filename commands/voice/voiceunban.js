@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -101,7 +101,9 @@ module.exports = {
                 details
             );
             container.setAccentColor(0x57F287);
-            
+            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const container = buildErrorResponse('Failed', 'Could not remove voice ban.', error.message);

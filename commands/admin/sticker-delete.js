@@ -1,123 +1,138 @@
+'use strict';
+
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, buildInvalidUsage } = require('../../utils/responseBuilder');
+const {
+    buildSuccessResponse, buildErrorResponse, buildPermissionDenied,
+    buildBotPermissionError, buildInvalidUsage,
+} = require('../../utils/responseBuilder');
+const {
+    canManageExpressions, botCanManageExpressions, explainStickerError, SNOWFLAKE_RE,
+} = require('../../utils/emojiSystem');
+
+async function findSticker(guild, input) {
+    if (!guild) return null;
+    const stickers = await guild.stickers.fetch();
+    if (SNOWFLAKE_RE.test(input)) {
+        return stickers.get(input) || null;
+    }
+    return stickers.find(s => s.name.toLowerCase() === String(input).toLowerCase()) || null;
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('sticker-delete')
-        .setDescription('Delete a sticker from the server')
-        .addStringOption(option =>
-            option.setName('sticker')
-                .setDescription('Name or ID of the sticker to delete')
-                .setRequired(true))
+        .setDescription('Delete a sticker from this server')
+        .addStringOption(o => o
+            .setName('sticker')
+            .setDescription('Sticker name or ID to delete')
+            .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions),
-    
+
     prefix: 'sticker-delete',
-    description: 'Delete a sticker from the server',
-    usage: 'sticker-delete <sticker name or ID>',
+    description: 'Delete a sticker from this server',
+    usage: 'sticker-delete <name|id>',
     category: 'admin',
     aliases: ['deletesticker', 'stickerdelete', 'rmsticker'],
-    
+    permissions: ['ManageGuildExpressions'],
+
     async execute(interaction) {
-        const stickerInput = interaction.options.getString('sticker');
+        if (!interaction.guild) {
+            const c = buildErrorResponse('Server Required', 'This command can only be used in a server.');
+            return interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (!canManageExpressions(interaction.member)) {
+            return interaction.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (!botCanManageExpressions(interaction.guild)) {
+            return interaction.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+
+        const input = interaction.options.getString('sticker');
 
         try {
-            const stickers = await interaction.guild.stickers.fetch();
-            let sticker = stickers.get(stickerInput) ||
-                stickers.find(s => s.name.toLowerCase() === stickerInput.toLowerCase());
-
+            const sticker = await findSticker(interaction.guild, input);
             if (!sticker) {
-                const container = buildErrorResponse(
+                const c = buildErrorResponse(
                     'Sticker Not Found',
-                    `No sticker with name or ID \`${stickerInput}\` was found.`,
+                    `No sticker named or with ID \`${input}\` was found.`,
                     'Use the sticker name or its ID.'
                 );
-                return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                return interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
 
             const stickerName = sticker.name;
             await sticker.delete(`Deleted by ${interaction.user.username}`);
 
-            const container = buildSuccessResponse(
+            const c = buildSuccessResponse(
                 'Sticker Deleted',
-                `Successfully deleted the sticker.`,
+                'Successfully deleted the sticker.',
                 {
-                    'Sticker': stickerName,
-                    'Deleted By': `${interaction.user.username}`
+                    'Sticker':    stickerName,
+                    'Deleted By': interaction.user.username,
                 }
             );
-
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error('Sticker Delete Error:', error);
-            const container = buildErrorResponse(
-                'Failed to Delete Sticker',
-                'An error occurred while deleting the sticker.',
-                `Error: ${error.message}`
-            );
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            const c = buildErrorResponse('Failed to Delete Sticker', explainStickerError(error));
+            await interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
     },
 
     async executePrefix(message, args) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageGuildExpressions)) {
-            const container = buildPermissionDenied('Manage Expressions');
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        if (!message.guild) {
+            const c = buildErrorResponse('Server Required', 'This command can only be used in a server.');
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-
+        if (!canManageExpressions(message.member)) {
+            return message.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (!botCanManageExpressions(message.guild)) {
+            return message.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
         if (!args.length) {
-            const container = buildInvalidUsage(
+            const c = buildInvalidUsage(
                 'sticker-delete',
                 '-sticker-delete <sticker name or ID>',
-                ['-sticker-delete MyStickerName', '-sticker-delete 123456789012345678']
+                ['-sticker-delete MyStickerName', '-sticker-delete 123456789012345678'],
             );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
 
-        const stickerInput = args.join(' ');
-
+        const input = args.join(' ');
         try {
-            const stickers = await message.guild.stickers.fetch();
-            let sticker = stickers.get(stickerInput) ||
-                stickers.find(s => s.name.toLowerCase() === stickerInput.toLowerCase());
+            let sticker = await findSticker(message.guild, input);
 
-            if (!sticker) {
-                // Also check if the message has stickers
-                if (message.stickers.size > 0) {
-                    const msgSticker = message.stickers.first();
-                    sticker = stickers.get(msgSticker.id);
-                }
+            // Fallback: if the user replied to or attached a sticker
+            // message, also accept that.
+            if (!sticker && message.stickers?.size) {
+                const msgSticker = message.stickers.first();
+                sticker = (await message.guild.stickers.fetch()).get(msgSticker.id) || null;
             }
 
             if (!sticker) {
-                const container = buildErrorResponse(
+                const c = buildErrorResponse(
                     'Sticker Not Found',
-                    `No sticker with name or ID \`${stickerInput}\` was found.`,
+                    `No sticker named or with ID \`${input}\` was found.`,
                     'Use the sticker name or its ID.'
                 );
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
             }
 
             const stickerName = sticker.name;
             await sticker.delete(`Deleted by ${message.author.username}`);
 
-            const container = buildSuccessResponse(
+            const c = buildSuccessResponse(
                 'Sticker Deleted',
-                `Successfully deleted the sticker.`,
+                'Successfully deleted the sticker.',
                 {
-                    'Sticker': stickerName,
-                    'Deleted By': `${message.author.username}`
+                    'Sticker':    stickerName,
+                    'Deleted By': message.author.username,
                 }
             );
-
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error('Sticker Delete Error:', error);
-            const container = buildErrorResponse(
-                'Failed to Delete Sticker',
-                'An error occurred while deleting the sticker.',
-                `Error: ${error.message}`
-            );
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const c = buildErrorResponse('Failed to Delete Sticker', explainStickerError(error));
+            await message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    }
+    },
 };

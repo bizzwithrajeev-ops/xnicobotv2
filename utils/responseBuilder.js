@@ -43,7 +43,24 @@ const EMOJIS = {
     MUSIC: '<:Music:1473039311057190972>',
     STAR: '<:Star:1473038501766369300>',
     GIFT: '<:Present:1473038450465706076>',
-    PARTY: '<:Present:1473038450465706076>'
+    PARTY: '<:Present:1473038450465706076>',
+    // Brand & layout
+    BRAND: '<:xnico:1486755083390550036>',
+    BULLET: '<:Caretright:1473038207221502106>',
+    BACK: '<:Caretleft:1473038193057333409>',
+    NEXT: '<:Caretright:1473038207221502106>',
+    SEARCH: '<:Search:1473038053219106847>',
+    REFRESH: '<:Refresh:1473037911581528165>',
+    BULB: '<:Lightbulbalt:1473038470787240009>',
+    DOCUMENT: '<:Document:1473039496995143731>',
+    PALETTE: '<:Palette:1473039029476917461>',
+    PICTURE: '<:Picture:1473039568398843957>',
+    TOGGLE_ON: '<:Toggleon:1473038585501581312>',
+    TOGGLE_OFF: '<:Toggleoff:1473038582813032590>',
+    // Asset type indicators (used by emoji/sticker commands)
+    ANIMATED: '<:Lightning:1473038797540298792>',
+    STATIC: '<:Picture:1473039568398843957>',
+    STICKER: '<:Palette:1473039029476917461>',
 };
 
 const BRANDING = '-# xNico </>';

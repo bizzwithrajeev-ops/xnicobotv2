@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { BRANDING } = require('../../utils/responseBuilder');
 const { getProviderStatus, GOOGLE_VOICES, AZURE_VOICES } = require('../../utils/ttsEngine');
 
 const jsonStore = require('../../utils/jsonStore');
@@ -21,7 +22,9 @@ module.exports = {
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
             const errContainer = new ContainerBuilder().setAccentColor(0xED4245)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Permission Denied\n\nYou need **Manage Server** permission to use this command.'));
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Permission Denied\n\nYou need **Manage Server** permission to use this command.'))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             return message.reply({ components: [errContainer], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -36,6 +39,7 @@ module.exports = {
             const gender = args[1]?.toLowerCase();
             if (gender !== 'male' && gender !== 'female') {
                 const container = new ContainerBuilder()
+                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Settings:1473037894703779851> Voice Gender\n\n` +
                         `**Usage:** \`-speak-config voice <male|female>\`\n\n` +
@@ -43,7 +47,9 @@ module.exports = {
                         `\`female\` — Female voice (default)\n` +
                         `\`male\` — Male voice\n\n` +
                         `-# Voice varies by provider: Google Neural2, Azure Neural, or Google TTS`
-                    ));
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -56,13 +62,16 @@ module.exports = {
             guild.updated_at = new Date().toISOString();
             jsonStore.write('guilds', guilds);
 
-            const voiceEmoji = gender === 'male' ? '👨' : '👩';
+            const voiceEmoji = gender === 'male' ? '<:User:1473038971398520977>' : '<:Userplus:1473038912212435086>';
             const container = new ContainerBuilder()
+                .setAccentColor(0x57F287)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Voice Updated\n\n` +
                     `${voiceEmoji} Default voice set to **${gender}**.\n\n` +
-                    `-# Try it: \`-speak नमस्ते दोस्तों\``
-                ));
+                    `-# Try it: \`-speak Hello world\``
+                ))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -78,7 +87,7 @@ module.exports = {
             content += `### <:Invoice:1473039492217835550> Current Settings\n`;
             content += `**Language:** ${langEntry.label} (\`${currentLang}\`)\n`;
             content += `**Voice:** ${currentGender}\n\n`;
-            content += `### 🔌 TTS Providers\n`;
+            content += `### <:Lightning:1473038797540298792> TTS Providers\n`;
             content += `${providers.googleCloud ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Google Cloud TTS** — ${providers.googleCloud ? 'Active (Neural2 — natural voice)' : 'Not configured'}\n`;
             content += `${providers.azure ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Azure Speech** — ${providers.azure ? 'Active (Neural — natural voice)' : 'Not configured'}\n`;
             content += `${providers.googleTranslate ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} **Google Translate** — Always available (basic voice)\n\n`;
@@ -86,13 +95,13 @@ module.exports = {
             if (providers.googleCloud) {
                 const gv = GOOGLE_VOICES[ttsCode];
                 if (gv) {
-                    content += `### 🧠 Active Voice for ${langEntry.label}\n`;
+                    content += `### <:Bookopen:1473038576391557130> Active Voice for ${langEntry.label}\n`;
                     content += `**Google Cloud:** \`${currentGender === 'male' ? gv.male : gv.female}\`\n`;
                 }
             } else if (providers.azure) {
                 const av = AZURE_VOICES[ttsCode];
                 if (av) {
-                    content += `### 🧠 Active Voice for ${langEntry.label}\n`;
+                    content += `### <:Bookopen:1473038576391557130> Active Voice for ${langEntry.label}\n`;
                     content += `**Azure:** \`${currentGender === 'male' ? av.male : av.female}\`\n`;
                 }
             }
@@ -106,7 +115,10 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+                .setAccentColor(0x5865F2)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -119,27 +131,30 @@ module.exports = {
             const currentGender = guild?.speak?.voice_gender || 'female';
 
             let content = `# <:Settings:1473037894703779851> Speak Configuration\n\n`;
-            content += `**Current:** Language: \`${currentLang}\` | Voice: \`${currentGender}\`\n\n`;
+            content += `**Current:** Language: \`${currentLang}\` · Voice: \`${currentGender}\`\n\n`;
             content += `**Usage:**\n`;
             content += `\`-speak-config <lang_code>\` — Set default language\n`;
             content += `\`-speak-config voice <male|female>\` — Set voice gender\n`;
             content += `\`-speak-config status\` — Show TTS providers & info\n\n`;
-            content += `### 🇮🇳 Hindi / Hinglish\n`;
-            content += `\`hi\` / \`hindi\` — देवनागरी (pure Hindi — natural voice)\n`;
+            content += `### <:Volumeup:1473039290136002844> Hindi / Hinglish\n`;
+            content += `\`hi\` / \`hindi\` — pure Hindi (Devanagari script — natural voice)\n`;
             content += `\`hinglish\` / \`hi-en\` — Hinglish (Roman script)\n\n`;
-            content += `### 🇮🇳 Indian Languages\n`;
-            content += `\`bn\` Bengali • \`ta\` Tamil • \`te\` Telugu\n`;
-            content += `\`mr\` Marathi • \`gu\` Gujarati • \`kn\` Kannada\n`;
-            content += `\`pa\` Punjabi • \`ur\` Urdu • \`ml\` Malayalam\n\n`;
-            content += `### 🌍 International\n`;
-            content += `\`en\` English • \`es\` Spanish • \`fr\` French\n`;
-            content += `\`de\` German • \`ja\` Japanese • \`ar\` Arabic\n`;
-            content += `\`ru\` Russian • \`pt\` Portuguese • \`ko\` Korean\n`;
-            content += `\`zh\` Chinese • \`tr\` Turkish • \`it\` Italian\n\n`;
+            content += `### <:Bookopen:1473038576391557130> Indian Languages\n`;
+            content += `\`bn\` Bengali · \`ta\` Tamil · \`te\` Telugu\n`;
+            content += `\`mr\` Marathi · \`gu\` Gujarati · \`kn\` Kannada\n`;
+            content += `\`pa\` Punjabi · \`ur\` Urdu · \`ml\` Malayalam\n\n`;
+            content += `### <:Document:1473039496995143731> International\n`;
+            content += `\`en\` English · \`es\` Spanish · \`fr\` French\n`;
+            content += `\`de\` German · \`ja\` Japanese · \`ar\` Arabic\n`;
+            content += `\`ru\` Russian · \`pt\` Portuguese · \`ko\` Korean\n`;
+            content += `\`zh\` Chinese · \`tr\` Turkish · \`it\` Italian\n\n`;
             content += `**Example:** \`-speak-config hi\` then \`-speak-config voice male\``;
 
             const container = new ContainerBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+                .setAccentColor(0x5865F2)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -158,15 +173,18 @@ module.exports = {
         jsonStore.write('guilds', guilds);
 
         const container = new ContainerBuilder()
+            .setAccentColor(0x57F287)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
                     .setContent(
                         `# <:Checkedbox:1473038547165384804> Config Updated\n\n` +
                         `Default speech language set to **${langEntry.label}** (\`${lang}\`).\n\n` +
-                        `Now \`-speak नमस्ते\` will use **${langEntry.label}** by default.\n\n` +
+                        `Now \`-speak hello\` will use **${langEntry.label}** by default.\n\n` +
                         `-# Tip: Use \`-speak-config voice male\` or \`-speak-config voice female\` to change voice`
                     )
-            );
+            )
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 };

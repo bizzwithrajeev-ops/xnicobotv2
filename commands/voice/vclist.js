@@ -36,10 +36,11 @@ module.exports = {
             if (memberCount > 0) {
                 const memberNames = members.map(m => {
                     let status = '';
-                    if (m.voice.serverMute) status += ' 🔇';
-                    if (m.voice.serverDeaf) status += ' 🔈';
-                    if (m.voice.streaming) status += ' 📺';
-                    if (m.voice.selfVideo) status += ' 📹';
+                    if (m.voice.serverMute) status += ' <:Microphoneoff:1473039278438219984>';
+                    if (m.voice.serverDeaf) status += ' <:Volumeoff:1473039301414621427>';
+                    if (m.voice.streaming)  status += ' <:YoutubeLive:1435331502710722592>';
+                    if (m.voice.selfVideo)  status += ' <:Camera:1473039293088927996>';
+
                     return `> <:Caretright:1473038207221502106> ${m.user.username}${status}`;
                 }).join('\n');
                 content += memberNames + '\n';

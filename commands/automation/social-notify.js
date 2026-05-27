@@ -327,7 +327,7 @@ function buildPlatformPanel(guildConfig, platform) {
             .setCustomId(`social_toggle_${platform}`)
             .setLabel(pConfig.enabled ? 'Disable' : 'Enable')
             .setStyle(pConfig.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
-            .setEmoji(pConfig.enabled ? '<:dnd:1485248263857639424>' : '<:Toggleon:1473038585501581312>'),
+            .setEmoji(pConfig.enabled ? '<:Toggleoff:1473038582813032590>' : '<:Toggleon:1473038585501581312>'),
         new ButtonBuilder()
             .setCustomId(`social_add_${platform}`)
             .setLabel(`Add ${info.itemLabel.slice(0, -1)}`)

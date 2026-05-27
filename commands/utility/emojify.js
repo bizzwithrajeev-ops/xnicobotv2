@@ -1,13 +1,31 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
+'use strict';
 
-const emojiMap = {
-    'a': '🇦', 'b': '🇧', 'c': '🇨', 'd': '🇩', 'e': '🇪', 'f': '🇫', 'g': '🇬', 'h': '🇭',
-    'i': '🇮', 'j': '🇯', 'k': '🇰', 'l': '🇱', 'm': '🇲', 'n': '🇳', 'o': '🇴', 'p': '🇵',
-    'q': '🇶', 'r': '🇷', 's': '🇸', 't': '🇹', 'u': '🇺', 'v': '🇻', 'w': '🇼', 'x': '🇽',
-    'y': '🇾', 'z': '🇿', '0': '0️⃣', '1': '1️⃣', '2': '2️⃣', '3': '3️⃣', '4': '4️⃣',
-    '5': '5️⃣', '6': '6️⃣', '7': '7️⃣', '8': '8️⃣', '9': '9️⃣', '!': '❗', '?': '<:Lightbulbalt:1473038470787240009>', ' ': '   '
+/**
+ * emojify — convert ASCII text to regional-indicator (and digit
+ * keycap) emojis. Pure Unicode output so the result renders the same
+ * for everyone, including users without access to the bot's custom
+ * emoji palette.
+ */
+
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
+const { buildErrorResponse, COLORS, EMOJIS: PALETTE, BRANDING } = require('../../utils/responseBuilder');
+
+const EMOJI_MAP = {
+    a: '🇦', b: '🇧', c: '🇨', d: '🇩', e: '🇪', f: '🇫', g: '🇬', h: '🇭',
+    i: '🇮', j: '🇯', k: '🇰', l: '🇱', m: '🇲', n: '🇳', o: '🇴', p: '🇵',
+    q: '🇶', r: '🇷', s: '🇸', t: '🇹', u: '🇺', v: '🇻', w: '🇼', x: '🇽',
+    y: '🇾', z: '🇿',
+    0: '0\uFE0F\u20E3', 1: '1\uFE0F\u20E3', 2: '2\uFE0F\u20E3', 3: '3\uFE0F\u20E3',
+    4: '4\uFE0F\u20E3', 5: '5\uFE0F\u20E3', 6: '6\uFE0F\u20E3', 7: '7\uFE0F\u20E3',
+    8: '8\uFE0F\u20E3', 9: '9\uFE0F\u20E3',
+    '!': '❗',
+    '?': '❓',
+    '#': '#\uFE0F\u20E3',
+    '*': '*\uFE0F\u20E3',
+    ' ': '   ',
 };
+
+const MAX_OUTPUT_CHARS = 1800;
 
 module.exports = {
     prefix: 'emojify',
@@ -18,29 +36,29 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (args.length === 0) {
-            const container = buildErrorResponse(
+            const c = buildErrorResponse(
                 'No Text Provided',
-                'Please provide text to emojify.',
-                '**Example:** `emojify hello`'
+                'Provide text to emojify.',
+                '**Example:** `emojify hello`',
             );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-        
+
         const text = args.join(' ');
-        const result = text.toLowerCase().split('').map(char => emojiMap[char] || char).join('');
-        
-        if (result.length > 1800) {
-            const container = buildErrorResponse('Too Long', 'Result is too long to display (max 1800 characters).');
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const result = text.toLowerCase().split('').map(ch => EMOJI_MAP[ch] || ch).join('');
+
+        if (result.length > MAX_OUTPUT_CHARS) {
+            const c = buildErrorResponse('Too Long', `Result is too long to display (max ${MAX_OUTPUT_CHARS} characters).`);
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-        
-        let content = `# 😀 Emojify\n\n`;
-        content += result;
-        
+
         const container = new ContainerBuilder()
-            .setAccentColor(COLORS.FUN)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-        
-        message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    }
+            .setAccentColor(COLORS.INFO)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# ${PALETTE.PALETTE} Emojify\n\n${result}`
+            ))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\n${BRANDING}`));
+
+        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    },
 };

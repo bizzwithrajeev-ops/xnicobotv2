@@ -1,5 +1,6 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const log = require('../../utils/logger-styled');
 
 const jsonStore = require('../../utils/jsonStore');
 const LANG_MAP = {
@@ -76,7 +77,7 @@ async function playTTS(player, ttsUrl, user) {
             return true;
         }
     } catch (e) {
-        console.error('TTS search strategy 1 failed:', e.message);
+        log.warn(`[speak] strategy 1 failed: ${e.message}`);
     }
 
     // Strategy 2: With explicit http source
@@ -90,7 +91,7 @@ async function playTTS(player, ttsUrl, user) {
             return true;
         }
     } catch (e) {
-        console.error('TTS search strategy 2 failed:', e.message);
+        log.warn(`[speak] strategy 2 failed: ${e.message}`);
     }
 
     return false;
@@ -132,19 +133,22 @@ module.exports = {
             content += `**Usage:**\n`;
             content += `> \`-speak <text>\` — Speaks in default language (\`${defaultLang}\`)\n`;
             content += `> \`-speak <lang>:<text>\` — Speaks in specific language\n\n`;
-            content += `### Indian Languages\n`;
-            content += `\`hi\` Hindi | \`bn\` Bengali | \`ta\` Tamil | \`te\` Telugu\n`;
-            content += `\`mr\` Marathi | \`gu\` Gujarati | \`kn\` Kannada | \`pa\` Punjabi | \`ur\` Urdu | \`ml\` Malayalam\n\n`;
-            content += `### International\n`;
-            content += `\`en\` English | \`es\` Spanish | \`fr\` French | \`de\` German\n`;
-            content += `\`ja\` Japanese | \`ar\` Arabic | \`ru\` Russian | \`pt\` Portuguese\n`;
-            content += `\`ko\` Korean | \`zh\` Chinese | \`tr\` Turkish | \`it\` Italian\n\n`;
+            content += `### <:Bookopen:1473038576391557130> Indian Languages\n`;
+            content += `\`hi\` Hindi · \`bn\` Bengali · \`ta\` Tamil · \`te\` Telugu\n`;
+            content += `\`mr\` Marathi · \`gu\` Gujarati · \`kn\` Kannada · \`pa\` Punjabi · \`ur\` Urdu · \`ml\` Malayalam\n\n`;
+            content += `### <:Document:1473039496995143731> International\n`;
+            content += `\`en\` English · \`es\` Spanish · \`fr\` French · \`de\` German\n`;
+            content += `\`ja\` Japanese · \`ar\` Arabic · \`ru\` Russian · \`pt\` Portuguese\n`;
+            content += `\`ko\` Korean · \`zh\` Chinese · \`tr\` Turkish · \`it\` Italian\n\n`;
             content += `### <:Settings:1473037894703779851> Settings\n`;
             content += `\`-speak-config <lang>\` — Set default language\n`;
             content += `\`-speak-config voice male/female\` — Set voice gender`;
 
             const container = new ContainerBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+                .setAccentColor(0x5865F2)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -196,7 +200,7 @@ module.exports = {
             );
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
-            console.error('Speak command error:', error);
+            log.error(`[speak] Failed: ${error.message}`);
             const container = buildErrorResponse('Speak Error', 'Failed to play text-to-speech.', error.message?.substring(0, 200));
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }

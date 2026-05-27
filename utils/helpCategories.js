@@ -33,6 +33,7 @@ const NEW_COMMANDS = new Set([
     'serveractivity', 'comparestats', 'rankposition',
     'statusrole',
     'wordle', 'akinator', 'trivia',
+    'birthday', 'birthday-setup',
 ]);
 
 /* ─────────────────────────────────────────────────────────────
@@ -113,7 +114,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Welcomer & Leave',    emoji: '<:Shield:1473038669831995494>',     cmds: ['welcomer', 'leave-setup'] },
         { name: 'Verification & Safety', emoji: '<:Checkedbox:1473038547165384804>', cmds: ['verification-setup', 'media-only', 'automodconfig', 'screenshot-verify'] },
         { name: 'Notifications',       emoji: '<:Bullhorn:1473038903157199093>',   cmds: ['booster-notify', 'social-notify', 'youtube-notify'] },
-        { name: 'Engagement',          emoji: '<:Gamepad:1473039216429498409>',    cmds: ['giveaway', 'poll', 'reactionroles', 'roletemplate', 'starboard-setup', 'serverstats', 'suggestion', 'feedback'] },
+        { name: 'Engagement',          emoji: '<:Gamepad:1473039216429498409>',    cmds: ['giveaway', 'poll', 'reactionroles', 'roletemplate', 'starboard-setup', 'serverstats', 'suggestion', 'feedback', 'birthday', 'birthday-setup'] },
     ],
 
     // ── 10. Buttons & Selection ───────────────────────────────

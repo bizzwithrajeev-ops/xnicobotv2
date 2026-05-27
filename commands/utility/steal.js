@@ -8,24 +8,21 @@ const {
     ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
 const {
-    buildErrorResponse, buildPermissionDenied, buildExpiredPanel, buildLoadingResponse,
-    BRANDING, COLORS,
+    buildErrorResponse, buildPermissionDenied, buildBotPermissionError,
+    buildExpiredPanel, buildLoadingResponse,
+    BRANDING, COLORS, EMOJIS: PALETTE,
 } = require('../../utils/responseBuilder');
 const { resolveAnyInput } = require('../../utils/stealResolver');
 const {
-    explainEmojiError, explainStickerError, sanitizeName, sanitizeStickerName,
-    pickStickerTag,
-} = require('../../utils/globalAssetBrowser');
+    canManageExpressions, botCanManageExpressions,
+    sanitizeEmojiName, sanitizeStickerName,
+    explainEmojiError, explainStickerError,
+    STICKER_FORMAT,
+} = require('../../utils/emojiSystem');
+const { pickStickerTag } = require('../../utils/globalAssetBrowser');
 
 const ID_PREFIX = 'steal';
 const PROMPT_TIMEOUT_MS = 90_000;
-
-function checkPerms(member) {
-    return !!(
-        member?.permissions?.has(PermissionFlagsBits.ManageGuildExpressions) ||
-        member?.permissions?.has(PermissionFlagsBits.Administrator)
-    );
-}
 
 function escapeMd(text) {
     return String(text || '').replace(/[*_~`|>\\]/g, m => `\\${m}`);
@@ -35,28 +32,28 @@ function escapeMd(text) {
 
 function buildPromptPayload(candidate, sessionId, indexLabel) {
     const animatedTag = candidate.animated
-        ? '<:Lightning:1473038797540298792> animated'
-        : '<:Bookopen:1473038576391557130> static';
+        ? `${PALETTE.ANIMATED} animated`
+        : `${PALETTE.STATIC} static`;
 
     const meta =
-        `### <:Invoice:1473039492217835550> Detected Source\n` +
-        `<:Caretright:1473038207221502106> **From:** ${candidate.sourceLabel}\n` +
-        `<:Caretright:1473038207221502106> **Name:** \`${candidate.name || 'unnamed'}\`\n` +
-        `<:Caretright:1473038207221502106> **Type:** ${animatedTag}\n` +
-        `<:Caretright:1473038207221502106> **Format:** \`${(candidate.ext || 'png').toUpperCase()}\``;
+        `### ${PALETTE.STATS} Detected Source\n` +
+        `${PALETTE.BULLET} **From:** ${candidate.sourceLabel}\n` +
+        `${PALETTE.BULLET} **Name:** \`${candidate.name || 'unnamed'}\`\n` +
+        `${PALETTE.BULLET} **Type:** ${animatedTag}\n` +
+        `${PALETTE.BULLET} **Format:** \`${(candidate.ext || 'png').toUpperCase()}\``;
 
     const headerSection = new SectionBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🎯 Steal Source Detected\n` +
+            `# ${PALETTE.BRAND} Steal Source Detected\n` +
             `-# ${indexLabel} • Pick how you want to add this`
         ))
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: candidate.previewUrl || candidate.url } }));
 
     const guidance =
-        `### <:Lightbulbalt:1473038470787240009> Quick Tips\n` +
-        `<:Caretright:1473038207221502106> **Emoji** is a 256 KB PNG/GIF for inline reactions and chat\n` +
-        `<:Caretright:1473038207221502106> **Sticker** is a 512 KB PNG/APNG/GIF that posts as a standalone message\n` +
-        `<:Caretright:1473038207221502106> Tap **✏️ Rename** before saving to give it a custom name`;
+        `### ${PALETTE.BULB} Quick Tips\n` +
+        `${PALETTE.BULLET} **Emoji** is a 256 KB PNG/GIF for inline reactions and chat\n` +
+        `${PALETTE.BULLET} **Sticker** is a 512 KB PNG/APNG/GIF that posts as a standalone message\n` +
+        `${PALETTE.BULLET} Tap **Rename** before saving to give it a custom name`;
 
     const container = new ContainerBuilder()
         .setAccentColor(COLORS.INFO)
@@ -67,34 +64,34 @@ function buildPromptPayload(candidate, sessionId, indexLabel) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(guidance))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-    const lottie = candidate.type === 'discord-sticker' && candidate.format === 3;
+    const lottie = candidate.type === 'discord-sticker' && candidate.format === STICKER_FORMAT.LOTTIE;
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`${ID_PREFIX}_emoji:${sessionId}`)
             .setLabel('Add as Emoji')
             .setStyle(ButtonStyle.Success)
-            .setEmoji('🙂'),
+            .setEmoji(PALETTE.ADD),
         new ButtonBuilder()
             .setCustomId(`${ID_PREFIX}_sticker:${sessionId}`)
             .setLabel('Add as Sticker')
             .setStyle(ButtonStyle.Primary)
-            .setEmoji('🖼️')
+            .setEmoji(PALETTE.STICKER)
             .setDisabled(lottie),
         new ButtonBuilder()
             .setCustomId(`${ID_PREFIX}_rename:${sessionId}`)
             .setLabel('Rename')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('✏️'),
+            .setEmoji(PALETTE.EDIT),
         new ButtonBuilder()
             .setCustomId(`${ID_PREFIX}_skip:${sessionId}`)
             .setLabel('Skip')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('⏭️'),
+            .setEmoji(PALETTE.NEXT),
         new ButtonBuilder()
             .setCustomId(`${ID_PREFIX}_cancel:${sessionId}`)
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji('✖️'),
+            .setEmoji(PALETTE.ERROR),
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
@@ -108,39 +105,41 @@ function buildSummaryPayload(results) {
     const fail = results.filter(r => r.outcome === 'fail');
     const skipped = results.filter(r => r.outcome === 'skipped');
 
+    const kindIcon = (k) => k === 'emoji' ? PALETTE.ADD : PALETTE.STICKER;
+
     const lines = [];
     if (ok.length) {
-        lines.push(`### <:Checkedbox:1473038547165384804> Added (${ok.length})`);
+        lines.push(`### ${PALETTE.SUCCESS} Added (${ok.length})`);
         for (const r of ok) {
             const tag = r.kind === 'emoji'
                 ? (r.created?.toString() ? `${r.created} \`:${r.created.name}:\`` : `\`:${r.created?.name || 'emoji'}:\``)
                 : `**${escapeMd(r.created?.name || 'sticker')}**`;
-            lines.push(`> ${r.kind === 'emoji' ? '🙂' : '🖼️'} ${tag} — \`${r.candidate.sourceLabel}\``);
+            lines.push(`> ${kindIcon(r.kind)} ${tag} — \`${r.candidate.sourceLabel}\``);
         }
     }
     if (fail.length) {
         if (lines.length) lines.push('');
-        lines.push(`### <:Cancel:1473037949187657818> Failed (${fail.length})`);
+        lines.push(`### ${PALETTE.ERROR} Failed (${fail.length})`);
         for (const r of fail) {
-            lines.push(`> ${r.kind === 'emoji' ? '🙂' : '🖼️'} \`${r.candidate.name || 'unknown'}\` — ${r.reason}`);
+            lines.push(`> ${kindIcon(r.kind)} \`${r.candidate.name || 'unknown'}\` — ${r.reason}`);
         }
     }
     if (skipped.length) {
         if (lines.length) lines.push('');
-        lines.push(`### <:Bookopen:1473038576391557130> Skipped (${skipped.length})`);
+        lines.push(`### ${PALETTE.INFO} Skipped (${skipped.length})`);
         for (const r of skipped) {
             lines.push(`> \`${r.candidate.name || 'unknown'}\` — ${r.reason}`);
         }
     }
 
-    const accent = ok.length ? 0x57F287 : (fail.length ? COLORS.ERROR || 0xED4245 : COLORS.INFO);
+    const accent = ok.length ? COLORS.SUCCESS : (fail.length ? COLORS.ERROR : COLORS.INFO);
 
     return {
         components: [
             new ContainerBuilder()
                 .setAccentColor(accent)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# 🎯 Steal Summary\n` +
+                    `# ${PALETTE.BRAND} Steal Summary\n` +
                     `-# ${ok.length} added • ${fail.length} failed • ${skipped.length} skipped`
                 ))
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
@@ -157,14 +156,14 @@ function buildSummaryPayload(results) {
 async function addAsEmoji(guild, actor, candidate) {
     const created = await guild.emojis.create({
         attachment: candidate.url,
-        name: sanitizeName(candidate.name, 'stolen_emoji'),
+        name: sanitizeEmojiName(candidate.name, 'stolen_emoji'),
         reason: `Stolen as emoji via /steal by ${actor.username}`,
     });
     return created;
 }
 
 async function addAsSticker(guild, actor, candidate) {
-    if (candidate.type === 'discord-sticker' && candidate.format === 3) {
+    if (candidate.type === 'discord-sticker' && candidate.format === STICKER_FORMAT.LOTTIE) {
         throw new Error('Lottie stickers cannot be cloned');
     }
     const opts = {
@@ -273,8 +272,12 @@ async function runPromptSession({ panelMessage, candidates, ownerId, guild }) {
         }
 
         if (action === `${ID_PREFIX}_emoji` || action === `${ID_PREFIX}_sticker`) {
-            if (!checkPerms(i.member)) {
+            if (!canManageExpressions(i.member)) {
                 await i.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
+                return;
+            }
+            if (!botCanManageExpressions(i.guild)) {
+                await i.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
                 return;
             }
             const kind = action === `${ID_PREFIX}_emoji` ? 'emoji' : 'sticker';
@@ -338,9 +341,15 @@ async function runPromptSession({ panelMessage, candidates, ownerId, guild }) {
 /* ─────────────────────── Entrypoints ─────────────────────── */
 
 async function entry({ guild, member, user, channel, replyHandle, textInput, repliedMessage, directAttachments }) {
-    if (!checkPerms(member)) {
+    if (!canManageExpressions(member)) {
         return replyHandle({
             components: [buildPermissionDenied('Manage Expressions')],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        });
+    }
+    if (!botCanManageExpressions(guild)) {
+        return replyHandle({
+            components: [buildBotPermissionError('Manage Expressions')],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         });
     }
@@ -403,17 +412,19 @@ module.exports = {
     permissions: ['ManageGuildExpressions'],
 
     async execute(interaction) {
+        if (!interaction.guild) {
+            return interaction.reply({
+                components: [buildErrorResponse('Server Required', 'This command can only be used in a server.')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            });
+        }
+
         const sourceText = interaction.options.getString('source');
         const attachment = interaction.options.getAttachment('image');
 
-        let repliedMessage = null;
-        try {
-            const ref = interaction.message?.reference;
-            if (ref?.messageId) {
-                repliedMessage = await interaction.channel.messages.fetch(ref.messageId).catch(() => null);
-            }
-        } catch {}
-
+        // Slash interactions don't surface the surrounding chat-reply
+        // context, so we don't try to fetch a "replied" message — that
+        // path is prefix-only.
         const directAttachments = new Map();
         if (attachment) directAttachments.set(attachment.id, attachment);
 
@@ -424,7 +435,7 @@ module.exports = {
             user: interaction.user,
             channel: interaction.channel,
             textInput: sourceText,
-            repliedMessage,
+            repliedMessage: null,
             directAttachments,
             replyHandle: async (payload) => interaction.editReply(payload),
         });
@@ -432,7 +443,10 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (!message.guild) {
-            return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+            return message.reply({
+                components: [buildErrorResponse('Server Required', 'This command can only be used in a server.')],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
         let repliedMessage = null;
         if (message.reference?.messageId) {

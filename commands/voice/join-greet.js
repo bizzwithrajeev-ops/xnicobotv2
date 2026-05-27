@@ -1,20 +1,44 @@
-const { MessageFlags, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
+'use strict';
 
+const {
+    MessageFlags, PermissionFlagsBits,
+    ContainerBuilder, TextDisplayBuilder,
+    SeparatorBuilder, SeparatorSpacingSize
+} = require('discord.js');
+const { BRANDING } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
+const log = require('../../utils/logger-styled');
+
+const STORE = 'join-greet';
 
 function loadConfig() {
     try {
-        if (jsonStore.has('join-greet')) return jsonStore.read('join-greet');
+        if (jsonStore.has(STORE)) return jsonStore.read(STORE);
     } catch {}
     return {};
 }
 
 function saveConfig(config) {
-    jsonStore.write('join-greet', config);
+    jsonStore.write(STORE, config);
+}
+
+function panel(content, color = 0xCAD7E6) {
+    return new ContainerBuilder()
+        .setAccentColor(color)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
+
+function denied() {
+    return panel(
+        `# <:Cancel:1473037949187657818> Permission Denied\n\n` +
+        `You need **Manage Server** permission to configure join greetings.`,
+        0xED4245
+    );
 }
 
 module.exports = {
-    data: null,
     name: 'join-greet',
     prefix: 'join-greet',
     description: 'Configure voice channel join/leave greetings',
@@ -24,161 +48,180 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Cancel:1473037949187657818> Permission Denied\n\nYou need **Manage Server** permission.`)
-                );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [denied()], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const action = args[0]?.toLowerCase();
+        const action = (args[0] || '').toLowerCase();
         const config = loadConfig();
+        const guildId = message.guildId;
 
+        // ── join ──────────────────────────────────────────────────
         if (action === 'join') {
             const voiceChannel = message.member.voice.channel;
             if (!voiceChannel) {
-                const container = new ContainerBuilder()
-                    .addTextDisplayComponents(
-                        new TextDisplayBuilder()
-                            .setContent(`# <:Cancel:1473037949187657818> Voice Required\n\nJoin the voice channel where you want greetings, then run this command again.`)
-                    );
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [panel(
+                        `# <:Cancel:1473037949187657818> Voice Required\n\n` +
+                        `Join the voice channel where you want greetings to play, then run this command again.`,
+                        0xED4245
+                    )],
+                    flags: MessageFlags.IsComponentsV2
+                });
             }
 
-            config[message.guildId] = {
-                ...config[message.guildId],
+            config[guildId] = {
+                ...config[guildId],
                 voiceChannelId: voiceChannel.id,
-                textChannelId: message.channelId,
-                enabled: true
+                textChannelId:  message.channelId,
+                enabled:        true
             };
             saveConfig(config);
 
             try {
                 const player = message.client.lavalinkManager.createPlayer({
-                    guildId: message.guildId,
+                    guildId,
                     voiceChannelId: voiceChannel.id,
-                    textChannelId: message.channelId,
-                    selfDeaf: true
+                    textChannelId:  message.channelId,
+                    selfDeaf:       true
                 });
                 if (!player.connected) await player.connect();
             } catch (err) {
-                console.error('Join-greet connect error:', err);
+                log.error(`[join-greet] Connect failed: ${err.message}`);
             }
 
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(
-                            `# <:Checkedbox:1473038547165384804> Join Greet Setup\n\n` +
-                            `**Channel:** ${voiceChannel}\n` +
-                            `**Status:** Enabled\n\n` +
-                            `The bot will now greet users who join **${voiceChannel.name}**.\n\n` +
-                            `-# Use \`-join-greet toggle off\` to disable | \`-join-greet leave\` to disconnect`
-                        )
-                );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({
+                components: [panel(
+                    `# <:Checkedbox:1473038547165384804> Join Greet Enabled\n\n` +
+                    `**Channel:** ${voiceChannel}\n` +
+                    `**Status:** <:Toggleon:1473038585501581312> Enabled\n\n` +
+                    `The bot will greet members joining **${voiceChannel.name}**.\n\n` +
+                    `-# Use \`-join-greet toggle off\` to disable · \`-join-greet leave\` to disconnect`,
+                    0x57F287
+                )],
+                flags: MessageFlags.IsComponentsV2
+            });
+        }
 
-        } else if (action === 'leave' || action === 'disconnect') {
-            const guildConfig = config[message.guildId];
-            if (guildConfig) {
-                guildConfig.enabled = false;
+        // ── leave / disconnect ────────────────────────────────────
+        if (action === 'leave' || action === 'disconnect') {
+            if (config[guildId]) {
+                config[guildId].enabled = false;
                 saveConfig(config);
             }
-
             try {
-                const player = message.client.lavalinkManager.getPlayer(message.guildId);
+                const player = message.client.lavalinkManager.getPlayer(guildId);
                 if (player) {
                     if (player.connected) await player.disconnect();
                     await player.destroy();
                 }
             } catch {}
 
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Checkedbox:1473038547165384804> Disconnected\n\nVoice greetings disabled and bot disconnected.`)
-                );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({
+                components: [panel(
+                    `# <:Checkedbox:1473038547165384804> Disconnected\n\n` +
+                    `Voice greetings disabled and the bot left the channel.`,
+                    0x57F287
+                )],
+                flags: MessageFlags.IsComponentsV2
+            });
+        }
 
-        } else if (action === 'toggle') {
-            const state = args[1]?.toLowerCase();
+        // ── toggle ────────────────────────────────────────────────
+        if (action === 'toggle') {
+            const state = (args[1] || '').toLowerCase();
             if (state !== 'on' && state !== 'off') {
-                const container = new ContainerBuilder()
-                    .addTextDisplayComponents(
-                        new TextDisplayBuilder()
-                            .setContent(`# <:Settings:1473037894703779851> Join Greet Toggle\n\n**Usage:** \`-join-greet toggle <on|off>\``)
-                    );
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [panel(
+                        `# <:Settings:1473037894703779851> Join Greet Toggle\n\n` +
+                        `**Usage:** \`-join-greet toggle <on|off>\``,
+                        0x5865F2
+                    )],
+                    flags: MessageFlags.IsComponentsV2
+                });
             }
 
             const enabled = state === 'on';
-            config[message.guildId] = { ...config[message.guildId], enabled };
+            config[guildId] = { ...config[guildId], enabled };
             saveConfig(config);
 
-            if (enabled && config[message.guildId]?.voiceChannelId) {
+            if (enabled && config[guildId]?.voiceChannelId) {
                 try {
                     const player = message.client.lavalinkManager.createPlayer({
-                        guildId: message.guildId,
-                        voiceChannelId: config[message.guildId].voiceChannelId,
-                        textChannelId: config[message.guildId].textChannelId || message.channelId,
-                        selfDeaf: true
+                        guildId,
+                        voiceChannelId: config[guildId].voiceChannelId,
+                        textChannelId:  config[guildId].textChannelId || message.channelId,
+                        selfDeaf:       true
                     });
                     if (!player.connected) await player.connect();
                 } catch {}
             }
 
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Checkedbox:1473038547165384804> Toggle Updated\n\nVoice greetings have been **${enabled ? 'ENABLED' : 'DISABLED'}**.`)
-                );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({
+                components: [panel(
+                    `# <:Checkedbox:1473038547165384804> Toggle Updated\n\n` +
+                    `Voice greetings are now ${enabled
+                        ? '<:Toggleon:1473038585501581312> **Enabled**'
+                        : '<:Toggleoff:1473038582813032590> **Disabled**'}.`,
+                    enabled ? 0x57F287 : 0xCAD7E6
+                )],
+                flags: MessageFlags.IsComponentsV2
+            });
+        }
 
-        } else if (action === 'status') {
-            const guildConfig = config[message.guildId];
-            if (!guildConfig || !guildConfig.voiceChannelId) {
-                const container = new ContainerBuilder()
-                    .addTextDisplayComponents(
-                        new TextDisplayBuilder()
-                            .setContent(`# <:Settings:1473037894703779851> Join Greet Status\n\n**Status:** Not configured\n\nUse \`-join-greet join\` while in a voice channel to set up.`)
-                    );
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        // ── status ────────────────────────────────────────────────
+        if (action === 'status') {
+            const guildConfig = config[guildId];
+            if (!guildConfig?.voiceChannelId) {
+                return message.reply({
+                    components: [panel(
+                        `# <:Settings:1473037894703779851> Join Greet Status\n\n` +
+                        `**Status:** \`Not configured\`\n\n` +
+                        `Use \`-join-greet join\` while inside a voice channel to set it up.`,
+                        0xCAD7E6
+                    )],
+                    flags: MessageFlags.IsComponentsV2
+                });
             }
 
             const vc = message.guild.channels.cache.get(guildConfig.voiceChannelId);
-            const player = message.client.lavalinkManager.getPlayer(message.guildId);
-            const connected = player && player.connected;
+            const player = message.client.lavalinkManager.getPlayer(guildId);
+            const connected = !!(player && player.connected);
 
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(
-                            `# <:Settings:1473037894703779851> Join Greet Status\n\n` +
-                            `**Channel:** ${vc || 'Deleted Channel'}\n` +
-                            `d:** ${guildConfig.enabled ? 'Yes' : 'No'}\n` +
-                            `**Bot Connected:** ${connected ? 'Yes' : 'No'}\n\n` +
-                            (!connected && guildConfig.enabled ? `-# Bot is not connected. Use \`-join-greet join\` to reconnect.` : '')
-                        )
-                );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const lines = [
+                `# <:Settings:1473037894703779851> Join Greet Status`,
+                ``,
+                `**Channel:** ${vc || '`Deleted Channel`'}`,
+                `**Enabled:** ${guildConfig.enabled
+                    ? '<:Toggleon:1473038585501581312> Yes'
+                    : '<:Toggleoff:1473038582813032590> No'}`,
+                `**Bot Connected:** ${connected
+                    ? '<:Toggleon:1473038585501581312> Yes'
+                    : '<:Toggleoff:1473038582813032590> No'}`
+            ];
+            if (guildConfig.enabled && !connected) {
+                lines.push('', `-# Bot is not connected. Run \`-join-greet join\` to reconnect.`);
+            }
 
-        } else {
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(
-                            `# <:Settings:1473037894703779851> Join Greet\n\n` +
-                            `Automatically greet users who join or leave a voice channel.\n\n` +
-                            `**Commands:**\n` +
-                            `> \`-join-greet join\` — Set current VC & connect\n` +
-                            `> \`-join-greet toggle <on|off>\` — Enable or disable\n` +
-                            `> \`-join-greet leave\` — Disconnect bot\n` +
-                            `> \`-join-greet status\` — Show config\n\n` +
-                            `-# Language follows your server's speak-config setting`
-                        )
-                );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({
+                components: [panel(lines.join('\n'), 0x5865F2)],
+                flags: MessageFlags.IsComponentsV2
+            });
         }
+
+        // ── default help ──────────────────────────────────────────
+        return message.reply({
+            components: [panel(
+                `# <:Volumeup:1473039290136002844> Join Greet\n\n` +
+                `Greet members automatically when they join or leave a voice channel.\n\n` +
+                `### <:Document:1473039496995143731> Commands\n` +
+                `> \`-join-greet join\` — set the current VC and connect the bot\n` +
+                `> \`-join-greet toggle <on|off>\` — enable or disable greetings\n` +
+                `> \`-join-greet leave\` — disconnect the bot\n` +
+                `> \`-join-greet status\` — show the current configuration\n\n` +
+                `-# Greeting language follows your server's \`-speak-config\` setting.`,
+                0x5865F2
+            )],
+            flags: MessageFlags.IsComponentsV2
+        });
     }
 };

@@ -146,7 +146,7 @@ function buildYouTubeContainer(video, isLive, messageText) {
         );
     } catch { /* ignore — Discord will reject if URL is unreachable */ }
 
-    const liveBadge = isLive ? '🔴 **LIVE**' : '<:YoutubeLive:1473038797540298792> **New Upload**';
+    const liveBadge = isLive ? '🔴 **LIVE**' : '<:YoutubeLive:1507444089292066907> **New Upload**';
     let body = `# ${liveBadge}\n\n`;
     body += `### ${video.title}\n`;
     body += `-# by **${video.channelName}**\n`;

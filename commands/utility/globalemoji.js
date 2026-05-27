@@ -2,7 +2,8 @@
 
 const {
     SlashCommandBuilder, PermissionFlagsBits, MessageFlags,
-    ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
+    ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder,
+    SeparatorBuilder, SeparatorSpacingSize,
     ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
@@ -14,9 +15,10 @@ const {
     flattenEmojis, fetchEmojiById, parseEmojiIdInput,
     explainEmojiError, sanitizeName,
     setScan, getScan, clearScan, TIMEOUT_MS,
+    EMOJIS: E,
 } = require('../../utils/globalAssetBrowser');
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 const ID_PREFIX = 'gemoji';
 const STEAL_LIMIT = 10;
 
@@ -42,11 +44,13 @@ function buildBrowserPayload(state) {
 
     const container = new ContainerBuilder().setAccentColor(COLORS.INFO);
 
-    let header = `# 🌐 Global Emoji Library\n`;
+    let header = `# ${E.brand} Global Emoji Library\n`;
     if (items.length === 0) {
         header += `-# No emojis matched your filters across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}.`;
     } else {
-        header += `-# Showing **${start + 1}-${start + slice.length}** of **${items.length}** emojis across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}`;
+        const lockedCount = items.filter(e => !e.usable).length;
+        const lockedHint = lockedCount > 0 ? ` • ${lockedCount} locked/unavailable` : '';
+        header += `-# Showing **${start + 1}-${start + slice.length}** of **${items.length}** emojis across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}${lockedHint}`;
     }
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(header));
 
@@ -54,6 +58,8 @@ function buildBrowserPayload(state) {
     if (opts.search) filterChips.push(`\`search: ${opts.search}\``);
     if (opts.animatedOnly) filterChips.push('`animated only`');
     if (opts.staticOnly) filterChips.push('`static only`');
+    if (opts.usableOnly) filterChips.push('`usable only`');
+    if (opts.lockedOnly) filterChips.push('`locked only`');
     if (opts.guildFilter) filterChips.push(`\`guild: ${opts.guildFilter}\``);
     if (filterChips.length > 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Filters: ${filterChips.join(' • ')}`));
@@ -64,37 +70,66 @@ function buildBrowserPayload(state) {
     if (slice.length === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `*Nothing matches the current filters.*\n\n` +
-            `Try **🔎 Search** below with a different keyword, or **♻️ Reset** to clear filters and start over.`
+            `Try **Search** to filter by name, or **Reset** to clear filters and start over.`
         ));
     } else {
-        const lines = slice.map((e, i) => {
+        // Render each emoji as a Section with a CDN-thumbnail accessory.
+        // Inline `<:tag:id>` only renders cross-server when the bot can use
+        // the emoji (i.e. unrestricted + available + the bot shares a guild
+        // that grants access). The CDN thumbnail is unconditional, so every
+        // entry shows a real preview even when role-locked or from a guild
+        // that lost boosts.
+        for (let i = 0; i < slice.length; i++) {
+            const e = slice[i];
             const idx = String(start + i + 1).padStart(3, '0');
-            const flag = e.animated
-                ? '<:Lightning:1473038797540298792> animated'
-                : '<:Bookopen:1473038576391557130> static';
-            return `\`${idx}.\` ${e.tag} **\`:${e.name}:\`**\n` +
-                `> ${flag} • from **${escapeMd(e.guildName)}** • \`${e.id}\``;
-        });
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+
+            const typeBadge = e.animated ? `${E.animated} \`animated\`` : `${E.static} \`static\``;
+            const stateBadge = !e.available
+                ? `${E.unavailable} \`unavailable\``
+                : e.restricted
+                    ? `${E.locked} \`role-locked\``
+                    : `${E.usable} \`usable\``;
+
+            const lines = [
+                `\`${idx}.\` **\`:${e.name}:\`**`,
+                `> ${typeBadge} • ${stateBadge}`,
+                `> Server: **${escapeMd(e.guildName)}**`,
+                `> ID: \`${e.id}\``,
+            ];
+            if (e.restricted) {
+                lines.push(`> -# *Locked behind ${e.roleIds.length} role${e.roleIds.length === 1 ? '' : 's'} in source server — preview only, but stealable.*`);
+            } else if (!e.available) {
+                lines.push(`> -# *Source server lost the boost slot — preview only, but stealable.*`);
+            }
+
+            const section = new SectionBuilder()
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))
+                .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: e.url } }));
+            container.addSectionComponents(section);
+
+            if (i < slice.length - 1) {
+                container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false));
+            }
+        }
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
     // Nav row
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_first`).setLabel('≪').setStyle(ButtonStyle.Secondary).setDisabled(page === 0 || items.length === 0),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_prev`).setLabel('◀').setStyle(ButtonStyle.Primary).setDisabled(page === 0 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_first`).setLabel('First').setStyle(ButtonStyle.Secondary).setDisabled(page === 0 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_prev`).setLabel('Prev').setStyle(ButtonStyle.Primary).setEmoji(E.prev).setDisabled(page === 0 || items.length === 0),
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_indicator`).setLabel(`${items.length === 0 ? 0 : page + 1} / ${totalPages}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_next`).setLabel('▶').setStyle(ButtonStyle.Primary).setDisabled(page >= totalPages - 1 || items.length === 0),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_last`).setLabel('≫').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_next`).setLabel('Next').setStyle(ButtonStyle.Primary).setEmoji(E.next).setDisabled(page >= totalPages - 1 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_last`).setLabel('Last').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1 || items.length === 0),
     ));
 
     // Action row: search / by-id / reset / help
     const actionRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_search`).setLabel('Search').setStyle(ButtonStyle.Primary).setEmoji('🔎'),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_byid`).setLabel('Steal by ID').setStyle(ButtonStyle.Success).setEmoji('🆔'),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_reset`).setLabel('Reset').setStyle(ButtonStyle.Secondary).setEmoji('♻️').setDisabled(!hasFilters(opts)),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_help`).setLabel('Help').setStyle(ButtonStyle.Secondary).setEmoji('❓'),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_search`).setLabel('Search').setStyle(ButtonStyle.Primary).setEmoji(E.search),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_byid`).setLabel('Steal by ID').setStyle(ButtonStyle.Success).setEmoji(E.byid),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_reset`).setLabel('Reset').setStyle(ButtonStyle.Secondary).setEmoji(E.reset).setDisabled(!hasFilters(opts)),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_help`).setLabel('Help').setStyle(ButtonStyle.Secondary).setEmoji(E.help),
     );
     container.addActionRowComponents(actionRow);
 
@@ -105,25 +140,35 @@ function buildBrowserPayload(state) {
             .setPlaceholder('Pick one or more emojis on this page to steal')
             .setMinValues(1)
             .setMaxValues(Math.min(slice.length, STEAL_LIMIT))
-            .addOptions(slice.map((e, i) => ({
-                label: `:${e.name}:`.slice(0, 100),
-                description: `from ${e.guildName}`.slice(0, 100),
-                value: String(start + i),
-                emoji: { id: e.id, name: e.name, animated: e.animated },
-            })));
+            .addOptions(slice.map((e, i) => {
+                // Discord validates the option's emoji icon against the bot's
+                // accessible emojis. Role-locked or unavailable emojis fail
+                // that check and would null the entire payload, so we only
+                // attach the live tag for usable entries — locked ones are
+                // labeled with a static badge instead.
+                const opt = {
+                    label: `:${e.name}:`.slice(0, 100),
+                    description: `${e.animated ? 'GIF' : 'PNG'} • ${e.guildName}`.slice(0, 100),
+                    value: String(start + i),
+                };
+                if (e.usable) {
+                    opt.emoji = { id: e.id, name: e.name, animated: e.animated };
+                }
+                return opt;
+            }));
         container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# Tip: tap **🔎 Search** to filter, **🆔 Steal by ID** to grab any emoji you have an ID for • ${BRANDING}`
+        `-# ${E.bulb} Tap **Search** to filter, **Steal by ID** to grab any emoji you have an ID for • ${BRANDING}`
     ));
 
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 function hasFilters(opts) {
-    return !!(opts.search || opts.animatedOnly || opts.staticOnly || opts.guildFilter);
+    return !!(opts.search || opts.animatedOnly || opts.staticOnly || opts.usableOnly || opts.lockedOnly || opts.guildFilter);
 }
 
 /* ─────────────────────── Help / instructions ─────────────────────── */
@@ -131,39 +176,44 @@ function hasFilters(opts) {
 function buildHelpPayload(browserPage) {
     const container = new ContainerBuilder().setAccentColor(COLORS.INFO);
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# 🌐 Global Emoji — How to Use`
+        `# ${E.brand} Global Emoji — How to Use`
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `### <:Bookopen:1473038576391557130> Browse\n` +
-        `<:Caretright:1473038207221502106> Use the **◀ ▶** buttons to flip through pages\n` +
-        `<:Caretright:1473038207221502106> Each entry shows the emoji preview, name, server, and ID\n\n` +
-        `### <:Search:1473038053219106847> Search\n` +
-        `<:Caretright:1473038207221502106> Click **🔎 Search** to open a search box\n` +
-        `<:Caretright:1473038207221502106> Match by **emoji name** (e.g. \`heart\`, \`fire\`, \`pepe\`)\n` +
-        `<:Caretright:1473038207221502106> Or filter to a specific server (\`-g <name or id>\`)\n` +
-        `<:Caretright:1473038207221502106> Click **♻️ Reset** to clear all filters\n\n` +
-        `### <:Toggleon:1473038585501581312> Steal from this page\n` +
-        `<:Caretright:1473038207221502106> Pick one or more emojis from the dropdown — they are added to **this server**\n` +
-        `<:Caretright:1473038207221502106> Up to **${STEAL_LIMIT}** at a time\n\n` +
-        `### 🆔 Steal by ID\n` +
-        `<:Caretright:1473038207221502106> Click **🆔 Steal by ID** and paste one or more values:\n` +
+        `### ${E.book} Browse\n` +
+        `${E.bullet} Use the **Prev / Next** buttons to flip through pages\n` +
+        `${E.bullet} Each entry shows the emoji preview, name, server, and ID\n\n` +
+        `### ${E.search} Search\n` +
+        `${E.bullet} Click **Search** to open a search box\n` +
+        `${E.bullet} Match by **emoji name** (e.g. \`heart\`, \`fire\`, \`pepe\`)\n` +
+        `${E.bullet} Or filter to a specific server by name or ID\n` +
+        `${E.bullet} Filter by **type** (\`animated\` / \`static\`) or **state** (\`usable\` / \`locked\`)\n` +
+        `${E.bullet} Click **Reset** to clear all filters\n\n` +
+        `### ${E.locked} Locked / unavailable emojis\n` +
+        `${E.bullet} ${E.locked} \`role-locked\` — only members with specific roles in the source server can use it\n` +
+        `${E.bullet} ${E.unavailable} \`unavailable\` — the source server lost a boost slot, so it's frozen\n` +
+        `${E.bullet} Both render preview-only inside Discord, but they're still **stealable** — once added to your server, role restrictions don't follow them\n\n` +
+        `### ${E.success} Steal from this page\n` +
+        `${E.bullet} Pick one or more emojis from the dropdown — they're added to **this server**\n` +
+        `${E.bullet} Up to **${STEAL_LIMIT}** at a time\n\n` +
+        `### ${E.byid} Steal by ID\n` +
+        `${E.bullet} Click **Steal by ID** and paste one or more values:\n` +
         `> • Bare emoji IDs: \`123456789012345678\`\n` +
         `> • Emoji tags: \`<:name:123>\` or \`<a:name:123>\`\n` +
         `> • Mix and match, separated by **spaces, commas, or new lines**\n` +
-        `<:Caretright:1473038207221502106> Works even for emojis from servers the bot isn't in (as long as the ID is valid)\n` +
-        `<:Caretright:1473038207221502106> Optionally rename in the same modal using the format \`123456789012345678 newname\`\n\n` +
-        `### <:Settings:1473037894703779851> Slash equivalents\n` +
-        `<:Caretright:1473038207221502106> \`/globalemoji browse search:<text> animated:true\` — search & filter\n` +
-        `<:Caretright:1473038207221502106> \`/globalemoji steal-id ids:<id1 id2 …>\` — steal by ID\n\n` +
-        `### <:Lightbulbalt:1473038470787240009> Notes\n` +
-        `<:Caretright:1473038207221502106> Bot's internal emoji servers are hidden — only public, real servers show up\n` +
-        `<:Caretright:1473038207221502106> You need **Manage Expressions** to add emojis to this server\n` +
-        `<:Caretright:1473038207221502106> Sessions expire after **5 minutes** of inactivity`
+        `${E.bullet} Works even for emojis from servers the bot isn't in (as long as the ID is valid)\n` +
+        `${E.bullet} Optionally rename in the same modal using the format \`123456789012345678 newname\`\n\n` +
+        `### ${E.settings} Slash equivalents\n` +
+        `${E.bullet} \`/globalemoji browse search:<text> animated:true\` — search & filter\n` +
+        `${E.bullet} \`/globalemoji steal-id ids:<id1 id2 …>\` — steal by ID\n\n` +
+        `### ${E.bulb} Notes\n` +
+        `${E.bullet} The bot's internal emoji servers are hidden — only public, real servers show up\n` +
+        `${E.bullet} You need **Manage Expressions** to add emojis to this server\n` +
+        `${E.bullet} Sessions expire after **5 minutes** of inactivity`
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji('◀'),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji(E.back),
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
@@ -175,7 +225,7 @@ function buildHelpPayload(browserPage) {
 function buildStealResultPayload(ok, fail, browserPage) {
     const lines = [];
     if (ok.length > 0) {
-        lines.push(`### <:Checkedbox:1473038547165384804> Added (${ok.length})`);
+        lines.push(`### ${E.success} Added (${ok.length})`);
         for (const { emoji, source } of ok) {
             const provenance = source.guildName === 'Direct ID' ? 'via direct ID' : `from **${escapeMd(source.guildName)}**`;
             lines.push(`> ${emoji} \`:${emoji.name}:\` — ${provenance}`);
@@ -183,7 +233,7 @@ function buildStealResultPayload(ok, fail, browserPage) {
     }
     if (fail.length > 0) {
         if (lines.length > 0) lines.push('');
-        lines.push(`### <:Cancel:1473037949187657818> Failed (${fail.length})`);
+        lines.push(`### ${E.error} Failed (${fail.length})`);
         for (const { source, reason } of fail) {
             lines.push(`> \`:${source.name || 'unknown'}:\` (\`${source.id}\`) — ${reason}`);
         }
@@ -193,14 +243,14 @@ function buildStealResultPayload(ok, fail, browserPage) {
     const container = new ContainerBuilder().setAccentColor(accent);
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# 🌐 Emoji Steal Results\n` +
+        `# ${E.brand} Emoji Steal Results\n` +
         `-# ${ok.length} succeeded, ${fail.length} failed`
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n') || '*No emojis were processed.*'));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji('◀'),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji(E.back),
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
@@ -215,7 +265,10 @@ async function performSteal(guild, actor, picks) {
     for (const source of picks) {
         try {
             const created = await guild.emojis.create({
-                attachment: source.url,
+                // Use the canonical CDN URL — it bypasses role-locks and
+                // boost-availability since Discord re-uploads the asset
+                // server-side when creating the emoji.
+                attachment: source.cdnUrl || source.url,
                 name: sanitizeName(source.name, 'stolen_emoji'),
                 reason: `Stolen via globalemoji by ${actor.username}`,
             });
@@ -243,14 +296,26 @@ async function resolveByIds(client, parsedIds) {
             if (e) { cached = { e, guild }; break; }
         }
         if (cached) {
+            const cdnUrl = cached.e.imageURL({ size: 128 })
+                || `https://cdn.discordapp.com/emojis/${cached.e.id}.${cached.e.animated ? 'gif' : 'png'}`;
+            const roleIds = cached.e.roles?.cache
+                ? [...cached.e.roles.cache.keys()]
+                : (Array.isArray(cached.e.roles) ? cached.e.roles : []);
+            const restricted = roleIds.length > 0;
+            const available = cached.e.available !== false;
             resolved.push({
                 id: cached.e.id,
                 name: sanitizeName(entry.name || cached.e.name, 'stolen_emoji'),
                 animated: !!cached.e.animated,
                 guildId: cached.guild.id,
                 guildName: cached.guild.name,
-                url: cached.e.imageURL({ size: 128 }) || `https://cdn.discordapp.com/emojis/${cached.e.id}.${cached.e.animated ? 'gif' : 'png'}`,
+                url: cdnUrl,
+                cdnUrl,
                 tag: cached.e.toString(),
+                restricted,
+                available,
+                usable: available && !restricted,
+                roleIds,
             });
             continue;
         }
@@ -263,7 +328,9 @@ async function resolveByIds(client, parsedIds) {
 
 /* ─────────────────────── Modal handlers ─────────────────────── */
 
-function buildSearchModal() {
+function buildSearchModal(initial = {}) {
+    const animatedDefault = initial.animatedOnly ? 'animated' : initial.staticOnly ? 'static' : '';
+    const stateDefault = initial.usableOnly ? 'usable' : initial.lockedOnly ? 'locked' : '';
     return new ModalBuilder()
         .setCustomId(`${ID_PREFIX}_search_modal`)
         .setTitle('Search Global Emojis')
@@ -275,7 +342,8 @@ function buildSearchModal() {
                     .setPlaceholder('e.g. heart, fire, pepe — leave blank to clear')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(false)
-                    .setMaxLength(100),
+                    .setMaxLength(100)
+                    .setValue(initial.search || ''),
             ),
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
@@ -284,7 +352,8 @@ function buildSearchModal() {
                     .setPlaceholder('e.g. xnico, 123456789012345678')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(false)
-                    .setMaxLength(100),
+                    .setMaxLength(100)
+                    .setValue(initial.guildFilter || ''),
             ),
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
@@ -293,7 +362,18 @@ function buildSearchModal() {
                     .setPlaceholder('animated / static / leave blank for all')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(false)
-                    .setMaxLength(20),
+                    .setMaxLength(20)
+                    .setValue(animatedDefault),
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('state')
+                    .setLabel('State filter (optional)')
+                    .setPlaceholder('usable / locked / leave blank for all')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(false)
+                    .setMaxLength(20)
+                    .setValue(stateDefault),
             ),
         );
 }
@@ -347,12 +427,14 @@ function attachCollector(panelMessage, ownerId) {
             state.opts.search = '';
             state.opts.animatedOnly = false;
             state.opts.staticOnly = false;
+            state.opts.usableOnly = false;
+            state.opts.lockedOnly = false;
             state.opts.guildFilter = '';
             applyFilters(i.client, state);
         }
         // ── Modals ──
         else if (i.customId === `${ID_PREFIX}_search`) {
-            await i.showModal(buildSearchModal()).catch(() => {});
+            await i.showModal(buildSearchModal(state.opts)).catch(() => {});
             return;
         }
         else if (i.customId === `${ID_PREFIX}_byid`) {
@@ -402,10 +484,13 @@ function attachCollector(panelMessage, ownerId) {
             const q = modalInteraction.fields.getTextInputValue('q')?.trim() || '';
             const guildVal = modalInteraction.fields.getTextInputValue('guild')?.trim() || '';
             const modeVal = (modalInteraction.fields.getTextInputValue('mode')?.trim() || '').toLowerCase();
+            const stateVal = (modalInteraction.fields.getTextInputValue('state')?.trim() || '').toLowerCase();
             state.opts.search = q;
             state.opts.guildFilter = guildVal;
             state.opts.animatedOnly = modeVal === 'animated' || modeVal === 'a';
             state.opts.staticOnly = modeVal === 'static' || modeVal === 's';
+            state.opts.usableOnly = stateVal === 'usable' || stateVal === 'u';
+            state.opts.lockedOnly = stateVal === 'locked' || stateVal === 'l';
             applyFilters(modalInteraction.client, state);
             await modalInteraction.update(buildBrowserPayload(state)).catch(() => {});
             return;
@@ -501,6 +586,10 @@ module.exports = {
             .addStringOption(o => o.setName('search').setDescription('Filter by emoji name'))
             .addBooleanOption(o => o.setName('animated').setDescription('Show only animated emojis'))
             .addBooleanOption(o => o.setName('static').setDescription('Show only static emojis'))
+            .addStringOption(o => o.setName('state').setDescription('Filter by usability state').addChoices(
+                { name: 'Usable only', value: 'usable' },
+                { name: 'Locked / unavailable only', value: 'locked' },
+            ))
             .addStringOption(o => o.setName('guild').setDescription('Filter by server name or ID')))
         .addSubcommand(s => s
             .setName('steal-id')
@@ -512,7 +601,7 @@ module.exports = {
 
     prefix: 'globalemoji',
     description: 'Browse every emoji across the bot’s servers and steal by name or ID',
-    usage: 'globalemoji [search] [-a animated] [-s static] [-g <guild>]  •  globalemoji id <ids…>',
+    usage: 'globalemoji [search] [-a animated] [-s static] [-u usable] [-l locked] [-g <guild>]  •  globalemoji id <ids…>',
     category: 'utility',
     aliases: ['gemoji', 'emojibrowse', 'allemojis'],
     permissions: ['ManageGuildExpressions'],
@@ -541,10 +630,13 @@ module.exports = {
         }
 
         // browse
+        const stateOpt = (interaction.options.getString('state') || '').toLowerCase();
         const opts = {
             search: interaction.options.getString('search') || '',
             animatedOnly: !!interaction.options.getBoolean('animated'),
             staticOnly: !!interaction.options.getBoolean('static'),
+            usableOnly: stateOpt === 'usable',
+            lockedOnly: stateOpt === 'locked',
             guildFilter: interaction.options.getString('guild') || '',
             ownerId: interaction.user.id,
         };
@@ -553,6 +645,14 @@ module.exports = {
                 'Conflicting Filters',
                 'You cannot pick both **animated** and **static** at the same time.',
                 'Choose one filter or leave both off to see everything.'
+            );
+            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (opts.usableOnly && opts.lockedOnly) {
+            const container = buildErrorResponse(
+                'Conflicting Filters',
+                'You cannot pick both **usable** and **locked** at the same time.',
+                'Choose one state filter or leave it blank to see everything.'
             );
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
@@ -565,7 +665,7 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (!message.guild) {
-            return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+            return message.reply(`${E.error} This command can only be used in a server.`).catch(() => {});
         }
         if (!checkExpressionPerms(message.member)) {
             return message.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 });
@@ -592,6 +692,13 @@ module.exports = {
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
+        if (opts.usableOnly && opts.lockedOnly) {
+            const container = buildErrorResponse(
+                'Conflicting Filters',
+                'You cannot pick both `-u` (usable) and `-l` (locked) at the same time.',
+            );
+            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
 
         await runBrowser(message.client, opts, async (payload) => {
             return message.reply(payload);
@@ -600,12 +707,14 @@ module.exports = {
 };
 
 function parsePrefixArgs(args) {
-    const opts = { search: '', animatedOnly: false, staticOnly: false, guildFilter: '' };
+    const opts = { search: '', animatedOnly: false, staticOnly: false, usableOnly: false, lockedOnly: false, guildFilter: '' };
     const remaining = [];
     for (let i = 0; i < args.length; i++) {
         const a = args[i];
         if (a === '-a' || a === '--animated') opts.animatedOnly = true;
         else if (a === '-s' || a === '--static') opts.staticOnly = true;
+        else if (a === '-u' || a === '--usable') opts.usableOnly = true;
+        else if (a === '-l' || a === '--locked') opts.lockedOnly = true;
         else if (a === '-g' || a === '--guild') {
             opts.guildFilter = args[i + 1] || '';
             i++;

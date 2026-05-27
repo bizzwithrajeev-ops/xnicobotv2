@@ -1,5 +1,5 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, COLORS } = require('../../utils/responseBuilder');
+const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, BRANDING, COLORS } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'vckickall',
@@ -55,6 +55,8 @@ module.exports = {
             { 'Channel': channel.name, 'Kicked': `${count}/${members.size}`, 'Moderator': message.author.username }
         );
         successContainer.setAccentColor(0x57F287);
+        successContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        successContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         msg.edit({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
     }

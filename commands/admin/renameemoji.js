@@ -1,16 +1,35 @@
+'use strict';
+
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const {
+    COLORS, BRANDING, EMOJIS: PALETTE,
+    buildPermissionDenied, buildBotPermissionError,
+} = require('../../utils/responseBuilder');
+const {
+    parseEmojiInput, sanitizeEmojiName, VALID_EMOJI_NAME_RE,
+    canManageExpressions, botCanManageExpressions, explainEmojiError,
+} = require('../../utils/emojiSystem');
+
+function findEmoji(guild, input) {
+    if (!guild || !input) return null;
+    const parsed = parseEmojiInput(input);
+    if (parsed?.id) {
+        const cached = guild.emojis.cache.get(parsed.id);
+        if (cached) return cached;
+    }
+    const name = String(input).replace(/^:|:$/g, '').trim();
+    if (!name) return null;
+    return guild.emojis.cache.find(e => e.name.toLowerCase() === name.toLowerCase()) || null;
+}
 
 function buildSuccess(oldName, newName, emojiStr, moderator) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.SUCCESS)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `# <:Editalt:1473038138577256670> Emoji Renamed\n\n` +
-                `${emojiStr} \`:${oldName}:\` → \`:${newName}:\`\n` +
-                `**Moderator:** ${moderator}`
-            )
-        )
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# ${PALETTE.EDIT} Emoji Renamed\n\n` +
+            `${emojiStr} \`:${oldName}:\` → \`:${newName}:\`\n` +
+            `**Moderator:** ${moderator}`
+        ))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
@@ -18,9 +37,22 @@ function buildSuccess(oldName, newName, emojiStr, moderator) {
 function buildError(desc) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.ERROR)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Rename Emoji\n\n${desc}`)
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${PALETTE.ERROR} Rename Emoji\n\n${desc}`));
+}
+
+function validateNewName(rawName) {
+    if (!rawName) return { ok: false, reason: 'Provide a new name.' };
+    const trimmed = String(rawName).trim();
+    if (trimmed.length < 2) return { ok: false, reason: 'Name must be at least 2 characters.' };
+    if (trimmed.length > 32) return { ok: false, reason: 'Name must be at most 32 characters.' };
+    if (!VALID_EMOJI_NAME_RE.test(trimmed)) {
+        return {
+            ok: false,
+            reason: 'Name can only contain letters, numbers, and underscores.',
+            sanitized: sanitizeEmojiName(trimmed, ''),
+        };
+    }
+    return { ok: true, name: trimmed };
 }
 
 module.exports = {
@@ -28,96 +60,115 @@ module.exports = {
         .setName('renameemoji')
         .setDescription('Rename a custom emoji in this server')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions)
-        .addStringOption(option =>
-            option.setName('emoji')
-                .setDescription('The emoji to rename (paste it)')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('name')
-                .setDescription('The new name for the emoji')
-                .setRequired(true)),
+        .addStringOption(o => o
+            .setName('emoji')
+            .setDescription('The emoji tag, name, or ID')
+            .setRequired(true))
+        .addStringOption(o => o
+            .setName('name')
+            .setDescription('New name (2-32 chars, letters/numbers/underscore)')
+            .setRequired(true)),
 
     prefix: 'renameemoji',
     description: 'Rename a custom emoji in this server',
-    usage: 'renameemoji <emoji> <new_name>',
+    usage: 'renameemoji <emoji|name|id> <new_name>',
     category: 'admin',
     aliases: ['emojirename'],
+    permissions: ['ManageGuildExpressions'],
 
     async execute(interaction) {
-        const input = interaction.options.getString('emoji');
-        const newName = interaction.options.getString('name');
-        const emojiMatch = input.match(/<a?:(\w+):(\d+)>/);
+        if (!interaction.guild) {
+            return interaction.reply({ components: [buildError('This command can only be used in a server.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (!canManageExpressions(interaction.member)) {
+            return interaction.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (!botCanManageExpressions(interaction.guild)) {
+            return interaction.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
 
-        if (!emojiMatch) {
+        const input = interaction.options.getString('emoji');
+        const emoji = findEmoji(interaction.guild, input);
+        if (!emoji) {
             return interaction.reply({
-                components: [buildError('Please provide a valid custom emoji.\n\n**Example:** `/renameemoji emoji:<:old:123> name:newname`')],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                components: [buildError(`Could not find an emoji matching \`${input}\` in this server.`)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
         }
 
-        const emoji = interaction.guild.emojis.cache.get(emojiMatch[2]);
-        if (!emoji) {
+        const validation = validateNewName(interaction.options.getString('name'));
+        if (!validation.ok) {
             return interaction.reply({
-                components: [buildError('That emoji was not found in this server!')],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                components: [buildError(
+                    `${validation.reason}` +
+                    (validation.sanitized
+                        ? `\n\n${PALETTE.BULB} **Suggestion:** \`${validation.sanitized}\``
+                        : ''))],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
         }
 
         try {
             const oldName = emoji.name;
-            await emoji.setName(newName, `Renamed by ${interaction.user.username}`);
-            await interaction.reply({ components: [buildSuccess(oldName, newName, `${emoji}`, interaction.user.username)], flags: MessageFlags.IsComponentsV2 });
+            await emoji.setName(validation.name, `Renamed by ${interaction.user.username}`);
+            await interaction.reply({ components: [buildSuccess(oldName, validation.name, `${emoji}`, interaction.user.username)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             await interaction.reply({
-                components: [buildError(`Failed to rename emoji: ${error.message}`)],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                components: [buildError(`Failed to rename emoji: ${explainEmojiError(error)}`)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
         }
     },
 
     async executePrefix(message, args) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageGuildExpressions) &&
-            !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply({
-                components: [buildError('You need **Manage Expressions** permission to rename emojis.')],
-                flags: MessageFlags.IsComponentsV2
-            });
+        if (!message.guild) {
+            return message.reply({ components: [buildError('This command can only be used in a server.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-
+        if (!canManageExpressions(message.member)) {
+            return message.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (!botCanManageExpressions(message.guild)) {
+            return message.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
         if (args.length < 2) {
             return message.reply({
-                components: [buildError('Please provide an emoji and new name.\n\n**Usage:** `renameemoji <emoji> <new_name>`\n**Example:** `renameemoji :oldname: newname`')],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildError(
+                    'Provide an emoji and a new name.\n\n' +
+                    '**Usage:** `renameemoji <emoji|name|id> <new_name>`\n' +
+                    '**Example:** `renameemoji <:oldname:123…> newname`'
+                )],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
 
-        const emojiMatch = args[0]?.match(/<a?:(\w+):(\d+)>/);
-        if (!emojiMatch) {
-            return message.reply({
-                components: [buildError('Please provide a valid custom emoji as the first argument.')],
-                flags: MessageFlags.IsComponentsV2
-            });
-        }
-
-        const emoji = message.guild.emojis.cache.get(emojiMatch[2]);
-        const newName = args[1];
-
+        const emoji = findEmoji(message.guild, args[0]);
         if (!emoji) {
             return message.reply({
-                components: [buildError('That emoji was not found in this server!')],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildError(`Could not find an emoji matching \`${args[0]}\` in this server.`)],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
+        }
+
+        const validation = validateNewName(args[1]);
+        if (!validation.ok) {
+            return message.reply({
+                components: [buildError(
+                    validation.reason +
+                    (validation.sanitized ? `\n\n${PALETTE.BULB} **Suggestion:** \`${validation.sanitized}\`` : '')
+                )],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
 
         try {
             const oldName = emoji.name;
-            await emoji.setName(newName, `Renamed by ${message.author.username}`);
-            await message.reply({ components: [buildSuccess(oldName, newName, `${emoji}`, message.author.username)], flags: MessageFlags.IsComponentsV2 });
+            await emoji.setName(validation.name, `Renamed by ${message.author.username}`);
+            await message.reply({ components: [buildSuccess(oldName, validation.name, `${emoji}`, message.author.username)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             await message.reply({
-                components: [buildError(`Failed to rename emoji: ${error.message}`)],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildError(`Failed to rename emoji: ${explainEmojiError(error)}`)],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
-    }
+    },
 };

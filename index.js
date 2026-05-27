@@ -1150,6 +1150,14 @@ client.on(Events.ClientReady, async () => {
         recoverPollTimers(client);
     } catch (e) { }
 
+    // ── Start birthday scheduler ──
+    try {
+        const birthdayManager = require('./utils/birthdayManager');
+        birthdayManager.startScheduler(client);
+    } catch (e) {
+        log.warning('[Birthday] Failed to start scheduler: ' + (e?.message || e));
+    }
+
     // ── Guild Tag streak rewards checker (runs every hour) ──
     try {
         const { processStreakRewards } = require('./commands/admin/guildtag');
@@ -1711,11 +1719,36 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        // Handle confession modals
+        // Handle confession modals (per-confession card actions: anon, public, reply, report)
         if (interaction.customId.startsWith('confess_modal_')) {
             const confCmd = client.commands.get('confess');
             if (confCmd?.handleModal) {
                 try { const h = await confCmd.handleModal(interaction); if (h) return; } catch (e) { log.error(`Confession Modal: ${e.message}`); }
+            }
+            return;
+        }
+        // Handle confession-setup admin modals (banadd, banremove, wordedit, lookup)
+        if (interaction.customId.startsWith('confsetup_modal_')) {
+            const confSetupCmd = client.commands.get('confession-setup');
+            if (confSetupCmd?.handleInteraction) {
+                try { const h = await confSetupCmd.handleInteraction(interaction); if (h) return; } catch (e) { log.error(`Confession Setup Modal: ${e.message}`, e); }
+            }
+            return;
+        }
+
+        // Handle birthday public-panel modal (bdaypanel_modal_set / bdaycmd_modal_set)
+        if (interaction.customId === 'bdaypanel_modal_set' || interaction.customId === 'bdaycmd_modal_set') {
+            const bdayUserCmd = client.commands.get('birthday');
+            if (bdayUserCmd?.handlePanelModal) {
+                try { const h = await bdayUserCmd.handlePanelModal(interaction); if (h) return; } catch (e) { log.error(`Birthday Modal: ${e.message}`, e); }
+            }
+            return;
+        }
+        // Handle birthday message-builder modals (bdaymsg_modal_*)
+        if (interaction.customId.startsWith('bdaymsg_modal_')) {
+            const bdaySetupCmd = client.commands.get('birthday-setup');
+            if (bdaySetupCmd?.handleInteraction) {
+                try { const h = await bdaySetupCmd.handleInteraction(interaction); if (h) return; } catch (e) { log.error(`Birthday Builder Modal: ${e.message}`, e); }
             }
             return;
         }
@@ -2450,11 +2483,49 @@ client.on('interactionCreate', async (interaction) => {
                     try { const h = await todCmd.handleButton(interaction); if (h) return; } catch {}
                 }
             }
-            // Confession buttons
-            if (interaction.customId.startsWith('confess_') || interaction.customId.startsWith('confsetup_')) {
-                const confCmd = client.commands.get(interaction.customId.startsWith('confsetup_') ? 'confession-setup' : 'confess');
+            // Confession system — admin setup panel buttons (use handleInteraction)
+            if (interaction.customId.startsWith('confsetup_')) {
+                const confSetupCmd = client.commands.get('confession-setup');
+                if (confSetupCmd?.handleInteraction) {
+                    try { const h = await confSetupCmd.handleInteraction(interaction); if (h) return; } catch (e) {
+                        log.error(`Confession Setup Button: ${e.message}`, e);
+                    }
+                }
+            }
+            // Confession system — per-confession card buttons (confess_new, confess_reply_*, etc.)
+            if (interaction.customId.startsWith('confess_')) {
+                const confCmd = client.commands.get('confess');
                 if (confCmd?.handleButton) {
-                    try { const h = await confCmd.handleButton(interaction); if (h) return; } catch {}
+                    try { const h = await confCmd.handleButton(interaction); if (h) return; } catch (e) {
+                        log.error(`Confession Button: ${e.message}`, e);
+                    }
+                }
+            }
+            // Confession system — public Submit panel buttons
+            if (interaction.customId.startsWith('confpanel_')) {
+                const confCmd = client.commands.get('confess');
+                if (confCmd?.handleButton) {
+                    try { const h = await confCmd.handleButton(interaction); if (h) return; } catch (e) {
+                        log.error(`Confession Panel Button: ${e.message}`, e);
+                    }
+                }
+            }
+            // Birthday system — admin setup panel + message-builder bridge
+            if (interaction.customId.startsWith('bdaysetup_') || interaction.customId.startsWith('bdaymsg_')) {
+                const bdayCmd = client.commands.get('birthday-setup');
+                if (bdayCmd?.handleInteraction) {
+                    try { const h = await bdayCmd.handleInteraction(interaction); if (h) return; } catch (e) {
+                        log.error(`Birthday Setup Button: ${e.message}`, e);
+                    }
+                }
+            }
+            // Birthday system — public Set-Birthday panel buttons
+            if (interaction.customId.startsWith('bdaypanel_')) {
+                const bdayUserCmd = client.commands.get('birthday');
+                if (bdayUserCmd?.handlePanelButton) {
+                    try { const h = await bdayUserCmd.handlePanelButton(interaction); if (h) return; } catch (e) {
+                        log.error(`Birthday Panel Button: ${e.message}`, e);
+                    }
                 }
             }
             // Joke & Fact next buttons
@@ -5457,6 +5528,22 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isStringSelectMenu()) {
+            // Birthday system string-selects (ping mode, hour, msgstyle)
+            if (interaction.customId === 'bdaysetup_pingpick'
+                || interaction.customId === 'bdaysetup_hourpick'
+                || interaction.customId === 'bdaysetup_msgstylepick') {
+                const bdayCmd = client.commands.get('birthday-setup');
+                if (bdayCmd?.handleInteraction) {
+                    try {
+                        const handled = await bdayCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Birthday String Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+
             // Ticket categories picker — finalize panel scoping after a
             // category was added with `/ticket-categories add` (no panel-id).
             if (interaction.customId?.startsWith('tcat_pick')) {
@@ -5495,7 +5582,7 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
             // Join-to-Create admin dashboard interface picker
-            if (interaction.customId === 'j2cset_pick') {
+            if (interaction.customId === 'j2cset_select_iface_pick') {
                 const j2cCmd = client.commands.get('join2create-setup');
                 if (j2cCmd?.handleInteraction) {
                     try {
@@ -6864,8 +6951,10 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.isChannelSelectMenu()) {
-            // J2C admin trigger channel picker
-            if (interaction.customId.startsWith('j2cset_chan_')) {
+            // J2C admin channel pickers (trigger VC, panel text channel, spawn category)
+            if (interaction.customId.startsWith('j2cset_select_trigger_')
+                || interaction.customId.startsWith('j2cset_select_panel_')
+                || interaction.customId.startsWith('j2cset_select_category_')) {
                 const j2cCmd = client.commands.get('join2create-setup');
                 if (j2cCmd?.handleInteraction) {
                     try {
@@ -7038,6 +7127,34 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             }
+            // Birthday system channel selects (announce + public panel pickers)
+            if (interaction.customId === 'bdaysetup_channelpick' || interaction.customId === 'bdaysetup_panelpick') {
+                const bdayCmd = client.commands.get('birthday-setup');
+                if (bdayCmd?.handleInteraction) {
+                    try {
+                        const handled = await bdayCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Birthday Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Confession setup channel selects (channel, log channel, public panel)
+            if (interaction.customId === 'confsetup_channelpick'
+                || interaction.customId === 'confsetup_logpick'
+                || interaction.customId === 'confsetup_panelpick') {
+                const confSetupCmd = client.commands.get('confession-setup');
+                if (confSetupCmd?.handleInteraction) {
+                    try {
+                        const handled = await confSetupCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Confession Setup Channel Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
             if (interaction.customId.startsWith('booster_')) {
                 const boosterCmd = client.commands.get('booster-notify');
                 if (boosterCmd && boosterCmd.handleInteraction) {
@@ -7064,7 +7181,7 @@ client.on('interactionCreate', async (interaction) => {
 
         if (interaction.isRoleSelectMenu()) {
             // J2C allowed-roles picker (premium-only feature)
-            if (interaction.customId.startsWith('j2cset_roles_select_')) {
+            if (interaction.customId.startsWith('j2cset_select_roles_')) {
                 const j2cCmd = client.commands.get('join2create-setup');
                 if (j2cCmd?.handleInteraction) {
                     try {
@@ -7085,6 +7202,19 @@ client.on('interactionCreate', async (interaction) => {
                         if (handled) return;
                     } catch (error) {
                         log.error(`Anti-Nuke Role Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+            // Birthday role picker
+            if (interaction.customId === 'bdaysetup_rolepick') {
+                const bdayCmd = client.commands.get('birthday-setup');
+                if (bdayCmd?.handleInteraction) {
+                    try {
+                        const handled = await bdayCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Birthday Role Select: ${error.message}`, error);
                     }
                 }
                 return;

@@ -1,295 +1,194 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildProgressResponse } = require('../../utils/responseBuilder');
+'use strict';
 
-/* ── Supported image content types for sticker ── */
-const VALID_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/apng'];
+/**
+ * stealsticker — clone stickers from sticker URLs/IDs, custom emojis,
+ * attachments, image URLs, and replied messages into the current server.
+ *
+ * Routes every primitive through `utils/emojiSystem.js` so parsing,
+ * URL building, sanitization, and error translation stay consistent
+ * with the rest of the emoji system.
+ */
 
-/* ── Resolve sticker format extension ── */
-function getStickerExtension(format) {
-    switch (format) {
-        case 4:  return 'gif';
-        case 2:  return 'png';
-        case 3:  return 'json';
-        default: return 'png';
-    }
-}
+const {
+    SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder,
+    TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags,
+} = require('discord.js');
+const {
+    COLORS, BRANDING, EMOJIS: PALETTE,
+    buildProgressResponse, buildPermissionDenied, buildBotPermissionError,
+} = require('../../utils/responseBuilder');
+const {
+    EMOJI_TAG_RE_GLOBAL, STICKER_URL_RE,
+    canManageExpressions, botCanManageExpressions,
+    sanitizeStickerName, sanitizeEmojiName,
+    emojiCdnUrl, stickerCdnUrl,
+    explainStickerError,
+    STICKER_FORMAT, STICKER_FORMAT_LABEL, STICKER_FORMAT_EXT, SNOWFLAKE_RE,
+} = require('../../utils/emojiSystem');
 
-/* ── Format label for display ── */
-function formatLabel(format) {
-    switch (format) {
-        case 4: return 'GIF';
-        case 2: return 'APNG';
-        default: return 'PNG';
-    }
-}
+const VALID_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/apng']);
+const IMAGE_EXT_RE = /\.(png|apng|jpe?g|gif|webp)(?:[?#]|$)/i;
+const IMAGE_URL_RE = /https?:\/\/[^\s<>"]+\.(?:png|apng|jpe?g|gif|webp)(?:\?[^\s<>"]*)?/gi;
 
-/* ── Validate and extract Unicode emoji for sticker tag ── */
+/* ─────────────────────── Format helpers ─────────────────────── */
+
+const UNICODE_EMOJI_RE = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})(\uFE0F|\u200D|\p{Emoji_Presentation}|\p{Extended_Pictographic})*/u;
+
 function extractUnicodeEmoji(str) {
     if (!str) return null;
-    const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})(\uFE0F|\u200D|\p{Emoji_Presentation}|\p{Extended_Pictographic})*/u;
-    const match = str.match(emojiRegex);
-    return match ? match[0] : null;
+    const m = String(str).match(UNICODE_EMOJI_RE);
+    return m ? m[0] : null;
 }
 
-/* ── Parse custom emojis from a string ── */
-function parseCustomEmojis(text) {
-    const regex = /<(a?):(\w+):(\d{15,})>/g;
-    const results = [];
+/* ─────────────────────── Source extraction ─────────────────────── */
+
+function parseCustomEmojisFromText(text) {
+    if (!text) return [];
+    const out = [];
     const seen = new Set();
+    EMOJI_TAG_RE_GLOBAL.lastIndex = 0;
     let m;
-    while ((m = regex.exec(text)) !== null) {
+    while ((m = EMOJI_TAG_RE_GLOBAL.exec(text)) !== null) {
         if (seen.has(m[3])) continue;
         seen.add(m[3]);
-        results.push({
+        const animated = m[1] === 'a';
+        out.push({
             type: 'emoji',
-            animated: m[1] === 'a',
-            name: m[2],
             id: m[3],
-            url: `https://cdn.discordapp.com/emojis/${m[3]}.${m[1] === 'a' ? 'gif' : 'png'}?size=320`,
-            format: m[1] === 'a' ? 4 : 1
+            name: m[2],
+            url: emojiCdnUrl(m[3], animated, { size: 320 }),
+            format: animated ? STICKER_FORMAT.GIF : STICKER_FORMAT.PNG,
+            tags: '😀',
+            description: '',
         });
     }
-    return results;
+    return out;
 }
 
-/* ── Parse sticker error codes ── */
-function getErrorMessage(error) {
-    if (error.code === 30039)  return 'Server sticker slots are full! Your server needs more boosts.';
-    if (error.code === 50013)  return 'I don\'t have **Manage Guild Expressions** permission!';
-    if (error.code === 50046)  return 'The file is too large. Max sticker size is **512 KB**.';
-    if (error.code === 50006)  return 'Could not download the source. The URL may be invalid or expired.';
-    if (error.message?.includes('size'))  return 'File is too large! Max sticker size is 512 KB.';
-    if (error.message?.includes('boost')) return 'Your server needs more boosts to upload stickers.';
-    if (error.message?.includes('Invalid Form Body')) return 'Invalid sticker data. Name must be 2-30 characters, tag must be a standard emoji.';
-    return `${error.message || 'Unknown error'}`;
-}
-
-/* ── Source label for display ── */
-function sourceLabel(src) {
-    switch (src) {
-        case 'emoji': return '`emoji → sticker`';
-        case 'attachment': return '`attachment`';
-        case 'url': return '`image URL`';
-        default: return '';
-    }
-}
-
-/* ── Build success container (single sticker) ── */
-function buildSuccess(sticker, source) {
-    const badge = sourceLabel(source);
-    return new ContainerBuilder()
-        .setAccentColor(COLORS.SUCCESS)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `# <:Checkedbox:1473038547165384804> Sticker Stolen!\n\n` +
-                `**Name:** ${sticker.name}\n` +
-                `**Tags:** ${sticker.tags}\n` +
-                `**Format:** ${formatLabel(sticker.format)}` +
-                (badge ? `\n**Source:** ${badge}` : '')
-            )
-        )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-}
-
-/* ── Build multi-result container ── */
-function buildMultiResult(ok, fail) {
-    const lines = [];
-    if (ok.length) {
-        lines.push(`**<:Checkedbox:1473038547165384804> Added (${ok.length}):**`);
-        for (const { sticker, source } of ok) {
-            const badge = sourceLabel(source);
-            lines.push(`> **${sticker.name}** — ${formatLabel(sticker.format)} ${badge}`);
-        }
-    }
-    if (fail.length) {
-        if (ok.length) lines.push('');
-        lines.push(`**<:Cancel:1473037949187657818> Failed (${fail.length}):**`);
-        for (const { name, reason, source } of fail) {
-            const badge = sourceLabel(source);
-            lines.push(`> **${name}** — ${reason} ${badge}`);
-        }
-    }
-    const ctr = new ContainerBuilder()
-        .setAccentColor(fail.length && !ok.length ? COLORS.ERROR : COLORS.SUCCESS);
-    ctr.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-            `# ${ok.length ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>'} Steal Sticker Results\n\n${lines.join('\n')}`
-        )
-    );
-    ctr.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-    return ctr;
-}
-
-/* ── Build error container ── */
-function buildError(title, desc) {
-    return new ContainerBuilder()
-        .setAccentColor(COLORS.ERROR)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> ${title}\n\n${desc}`)
-        );
-}
-
-/* ── Resolve sticker from various inputs ── */
 async function resolveSticker(client, input, repliedMessage) {
-    // 1. Check replied message for stickers
+    const fetchFull = async (id) => {
+        try { return await client.rest.get(`/stickers/${id}`); }
+        catch { return null; }
+    };
+    const fromMessageSticker = async (sticker) => {
+        const full = await fetchFull(sticker.id);
+        return {
+            type: 'sticker',
+            id: sticker.id,
+            name: full?.name || sticker.name || 'sticker',
+            tags: full?.tags || '😀',
+            description: full?.description || '',
+            format: full?.format_type || sticker.format || STICKER_FORMAT.PNG,
+        };
+    };
+
+    // 1. Replied message
     if (repliedMessage?.stickers?.size > 0) {
-        const sticker = repliedMessage.stickers.first();
-        try {
-            const fullSticker = await client.rest.get(`/stickers/${sticker.id}`);
-            return {
-                id: sticker.id,
-                name: fullSticker.name || sticker.name,
-                format: fullSticker.format_type || 1,
-                tags: fullSticker.tags || '😀',
-                description: fullSticker.description || '',
-                type: 'sticker'
-            };
-        } catch {
-            return {
-                id: sticker.id,
-                name: sticker.name,
-                format: sticker.format || 1,
-                tags: '😀',
-                description: '',
-                type: 'sticker'
-            };
-        }
+        return fromMessageSticker(repliedMessage.stickers.first());
     }
+    if (!input || typeof input !== 'string') return null;
 
-    if (!input) return null;
-
-    // 2. Parse sticker URL: cdn.discordapp.com/stickers/ID.ext or media.discordapp.net/stickers/ID.ext
-    const urlMatch = input.match(/stickers\/(\d{15,})\.(\w+)/);
+    // 2. Sticker URL (with or without extension)
+    const urlMatch = input.match(STICKER_URL_RE);
     if (urlMatch) {
         const id = urlMatch[1];
-        const ext = urlMatch[2].toLowerCase();
-        const formatMap = { png: 1, apng: 2, json: 3, gif: 4 };
-        try {
-            const fullSticker = await client.rest.get(`/stickers/${id}`);
-            return {
-                id,
-                name: fullSticker.name || 'sticker',
-                format: fullSticker.format_type || formatMap[ext] || 1,
-                tags: fullSticker.tags || '😀',
-                description: fullSticker.description || '',
-                type: 'sticker'
-            };
-        } catch {
-            return { id, name: 'sticker', format: formatMap[ext] || 1, tags: '😀', description: '', type: 'sticker' };
-        }
+        const ext = (urlMatch[2] || '').toLowerCase();
+        const formatFromExt = { png: STICKER_FORMAT.PNG, apng: STICKER_FORMAT.APNG, json: STICKER_FORMAT.LOTTIE, gif: STICKER_FORMAT.GIF };
+        const full = await fetchFull(id);
+        return {
+            type: 'sticker',
+            id,
+            name: full?.name || 'sticker',
+            tags: full?.tags || '😀',
+            description: full?.description || '',
+            format: full?.format_type || formatFromExt[ext] || STICKER_FORMAT.PNG,
+        };
     }
 
-    // 3. URL without extension: stickers/ID
-    const idFromUrl = input.match(/stickers\/(\d{15,})/);
-    if (idFromUrl) {
-        const id = idFromUrl[1];
-        try {
-            const fullSticker = await client.rest.get(`/stickers/${id}`);
-            return {
-                id,
-                name: fullSticker.name || 'sticker',
-                format: fullSticker.format_type || 1,
-                tags: fullSticker.tags || '😀',
-                description: fullSticker.description || '',
-                type: 'sticker'
-            };
-        } catch {
-            return { id, name: 'sticker', format: 1, tags: '😀', description: '', type: 'sticker' };
-        }
+    // 3. Bare snowflake
+    const trimmed = input.trim();
+    if (SNOWFLAKE_RE.test(trimmed)) {
+        const full = await fetchFull(trimmed);
+        if (!full) return null;
+        return {
+            type: 'sticker',
+            id: trimmed,
+            name: full.name || 'sticker',
+            tags: full.tags || '😀',
+            description: full.description || '',
+            format: full.format_type || STICKER_FORMAT.PNG,
+        };
     }
-
-    // 4. Raw sticker ID
-    if (/^\d{15,}$/.test(input.trim())) {
-        try {
-            const fullSticker = await client.rest.get(`/stickers/${input.trim()}`);
-            return {
-                id: input.trim(),
-                name: fullSticker.name || 'sticker',
-                format: fullSticker.format_type || 1,
-                tags: fullSticker.tags || '😀',
-                description: fullSticker.description || '',
-                type: 'sticker'
-            };
-        } catch {
-            return { id: input.trim(), name: 'sticker', format: 1, tags: '😀', description: '', type: 'sticker' };
-        }
-    }
-
     return null;
 }
 
-/* ── Collect all sticker-creation sources from inputs ── */
+function attachmentToSource(att) {
+    if (!att) return null;
+    const ct = att.contentType || '';
+    const passesContentType = ct && VALID_IMAGE_TYPES.has(ct);
+    const passesExt = IMAGE_EXT_RE.test(att.name || att.url || '');
+    if (!passesContentType && !passesExt) return null;
+    const baseName = (att.name || 'sticker').replace(/\.[^.]+$/, '');
+    return {
+        type: 'attachment',
+        name: baseName, // sanitization happens at create time
+        url: att.url,
+        format: ct === 'image/gif' || /\.gif(?:[?#]|$)/i.test(att.name || att.url || '')
+            ? STICKER_FORMAT.GIF
+            : STICKER_FORMAT.PNG,
+        tags: '😀',
+        description: '',
+    };
+}
+
 async function collectSources(client, textInput, repliedMessage, directAttachments) {
     const sources = [];
 
-    // 1. Try to resolve a native sticker (from reply or text)
+    // 1. Native sticker (reply or text URL/ID)
     const stickerData = await resolveSticker(client, textInput, repliedMessage);
-    if (stickerData && stickerData.format !== 3) {
-        sources.push(stickerData);
-    }
+    if (stickerData && stickerData.format !== STICKER_FORMAT.LOTTIE) sources.push(stickerData);
 
-    // 2. Parse custom emojis from text input → emoji-to-sticker
+    // 2. Custom emojis in text → emoji-as-sticker
     if (textInput) {
-        for (const e of parseCustomEmojis(textInput)) {
-            sources.push(e);
-        }
+        for (const e of parseCustomEmojisFromText(textInput)) sources.push(e);
     }
 
-    // 3. Parse custom emojis from replied message content
+    // 3. Custom emojis in replied message body (only if it isn't itself a sticker reply)
     if (repliedMessage?.content && !repliedMessage.stickers?.size) {
-        for (const e of parseCustomEmojis(repliedMessage.content)) {
-            sources.push(e);
+        for (const e of parseCustomEmojisFromText(repliedMessage.content)) sources.push(e);
+    }
+
+    // 4. Direct attachments
+    if (directAttachments?.size || directAttachments?.values) {
+        const iter = directAttachments.values?.() || [];
+        for (const att of iter) {
+            const src = attachmentToSource(att);
+            if (src) sources.push(src);
         }
     }
 
-    // 4. Direct attachments (slash command attachment or prefix message attachments)
-    if (directAttachments?.size) {
-        for (const [, att] of directAttachments) {
-            if (!att.contentType || !VALID_IMAGE_TYPES.includes(att.contentType)) continue;
-            const nameBase = att.name?.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_ ]/g, '').substring(0, 30) || 'sticker';
-            sources.push({
-                type: 'attachment',
-                name: nameBase.length >= 2 ? nameBase : 'sticker',
-                url: att.url,
-                format: att.contentType === 'image/gif' ? 4 : 1,
-                tags: '😀',
-                description: ''
-            });
-        }
-    }
-
-    // 5. Attachments from replied message
+    // 5. Replied message attachments
     if (repliedMessage?.attachments?.size) {
         for (const [, att] of repliedMessage.attachments) {
-            if (!att.contentType || !VALID_IMAGE_TYPES.includes(att.contentType)) continue;
-            const nameBase = att.name?.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_ ]/g, '').substring(0, 30) || 'sticker';
-            sources.push({
-                type: 'attachment',
-                name: nameBase.length >= 2 ? nameBase : 'sticker',
-                url: att.url,
-                format: att.contentType === 'image/gif' ? 4 : 1,
-                tags: '😀',
-                description: ''
-            });
+            const src = attachmentToSource(att);
+            if (src) sources.push(src);
         }
     }
 
-    // 6. Image URLs from text (not sticker/emoji CDN)
+    // 6. Image URLs in text
     if (textInput) {
-        const urlRegex = /(https?:\/\/[^\s<>"]+\.(?:png|jpg|jpeg|gif|webp))(?:\?[^\s<>"]*)?/gi;
+        IMAGE_URL_RE.lastIndex = 0;
         let m;
-        while ((m = urlRegex.exec(textInput)) !== null) {
-            if (/cdn\.discordapp\.com\/emojis\//.test(m[0])) continue;
-            if (/stickers\/\d+/.test(m[0])) continue;
+        while ((m = IMAGE_URL_RE.exec(textInput)) !== null) {
+            if (/cdn\.discordapp\.com\/emojis\//i.test(m[0])) continue;
+            if (/stickers\/\d{17,20}/i.test(m[0])) continue;
             sources.push({
                 type: 'url',
                 name: 'sticker',
                 url: m[0],
-                format: /\.gif/i.test(m[1]) ? 4 : 1,
+                format: /\.(gif|apng)(?:[?#]|$)/i.test(m[0]) ? STICKER_FORMAT.GIF : STICKER_FORMAT.PNG,
                 tags: '😀',
-                description: ''
+                description: '',
             });
         }
     }
@@ -297,182 +196,254 @@ async function collectSources(client, textInput, repliedMessage, directAttachmen
     return sources;
 }
 
-/* ── Create the sticker from a source ── */
-async function createStickerFromSource(guild, user, source, customName, customEmoji) {
-    const name = customName || source.name;
-    if (name.length < 2 || name.length > 30) {
-        throw new Error(`Sticker name must be 2-30 characters (got ${name.length}).`);
-    }
+/* ─────────────────────── UI ─────────────────────── */
 
-    // Resolve tag
+function sourceLabel(src) {
+    switch (src) {
+        case 'emoji':      return '`emoji → sticker`';
+        case 'attachment': return '`attachment`';
+        case 'url':        return '`image URL`';
+        default:           return '';
+    }
+}
+
+function buildSuccessSingle(sticker, sourceType) {
+    const badge = sourceLabel(sourceType);
+    return new ContainerBuilder()
+        .setAccentColor(COLORS.SUCCESS)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# ${PALETTE.SUCCESS} Sticker Stolen\n\n` +
+            `**Name:** ${sticker.name}\n` +
+            `**Tag:** ${sticker.tags}\n` +
+            `**Format:** ${STICKER_FORMAT_LABEL[sticker.format] || 'PNG'}` +
+            (badge ? `\n**Source:** ${badge}` : '')
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
+
+function buildResultMulti(ok, fail) {
+    const lines = [];
+    if (ok.length) {
+        lines.push(`### ${PALETTE.SUCCESS} Added (${ok.length})`);
+        for (const { sticker, source } of ok) {
+            const badge = sourceLabel(source);
+            lines.push(`> **${sticker.name}** \`${STICKER_FORMAT_LABEL[sticker.format] || 'PNG'}\` ${badge}`.trim());
+        }
+    }
+    if (fail.length) {
+        if (ok.length) lines.push('');
+        lines.push(`### ${PALETTE.ERROR} Failed (${fail.length})`);
+        for (const { name, reason, source } of fail) {
+            const badge = sourceLabel(source);
+            lines.push(`> **${name}** — ${reason} ${badge}`.trim());
+        }
+    }
+    const accent = ok.length ? COLORS.SUCCESS : COLORS.ERROR;
+    return new ContainerBuilder()
+        .setAccentColor(accent)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# ${PALETTE.STICKER} Steal Sticker Results\n` +
+            `-# ${ok.length} succeeded, ${fail.length} failed\n\n` +
+            (lines.join('\n') || '*Nothing was processed.*')
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+}
+
+function buildErrorContainer(title, desc) {
+    return new ContainerBuilder()
+        .setAccentColor(COLORS.ERROR)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${PALETTE.ERROR} ${title}\n\n${desc}`));
+}
+
+const NO_SOURCE_MESSAGE =
+    `**Supported sources:**\n` +
+    `${PALETTE.BULLET} Sticker URL or ID (right-click sticker → Copy Link)\n` +
+    `${PALETTE.BULLET} Custom Discord emojis (emoji → sticker conversion)\n` +
+    `${PALETTE.BULLET} Image attachments (PNG, GIF, JPEG, WebP)\n` +
+    `${PALETTE.BULLET} Direct image URLs\n` +
+    `${PALETTE.BULLET} Reply to a message containing any of the above\n\n` +
+    `**Examples:**\n` +
+    '`/stealsticker source:<:emoji:123456789012345678>`\n' +
+    '`/stealsticker image:<upload>`\n' +
+    'Reply to a sticker message with `/stealsticker`';
+
+/* ─────────────────────── Steal core ─────────────────────── */
+
+async function createStickerFromSource(guild, user, source, customName, customEmoji) {
+    const name = sanitizeStickerName(customName || source.name, 'sticker');
+
     let tag = '😀';
     if (customEmoji) {
-        const extracted = extractUnicodeEmoji(customEmoji);
-        if (extracted) tag = extracted;
+        const ex = extractUnicodeEmoji(customEmoji);
+        if (ex) tag = ex;
     } else if (source.tags) {
-        const origEmoji = extractUnicodeEmoji(source.tags);
-        if (origEmoji) tag = origEmoji;
+        const ex = extractUnicodeEmoji(source.tags);
+        if (ex) tag = ex;
     }
 
-    // Build the file URL
     let fileUrl;
     if (source.type === 'sticker') {
-        const ext = getStickerExtension(source.format);
-        fileUrl = `https://media.discordapp.net/stickers/${source.id}.${ext}`;
+        fileUrl = stickerCdnUrl(source.id, source.format);
+    } else if (source.type === 'emoji') {
+        fileUrl = source.url;
     } else {
         fileUrl = source.url;
     }
 
     return guild.stickers.create({
         file: fileUrl,
-        name: name,
+        name,
         tags: tag,
-        reason: `Stolen by ${user.username} (source: ${source.type})`
+        description: (source.description || '').slice(0, 100) || undefined,
+        reason: `Stolen by ${user.username} (source: ${source.type})`,
     });
 }
+
+/* ─────────────────────── Module ─────────────────────── */
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stealsticker')
         .setDescription('Steal stickers from stickers, emojis, attachments, or image URLs')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions)
-        .addStringOption(option =>
-            option.setName('source')
-                .setDescription('Sticker URL/ID, emoji, or image URL to add as sticker')
-                .setRequired(false))
-        .addAttachmentOption(option =>
-            option.setName('image')
-                .setDescription('Upload an image to add as sticker (PNG/GIF/JPEG/WebP)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('name')
-                .setDescription('Custom name for the sticker (2-30 characters)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('emoji')
-                .setDescription('Unicode emoji tag (e.g. 😀) — defaults to 😀')
-                .setRequired(false)),
+        .addStringOption(o => o
+            .setName('source')
+            .setDescription('Sticker URL/ID, emoji, or image URL to add as sticker')
+            .setRequired(false))
+        .addAttachmentOption(o => o
+            .setName('image')
+            .setDescription('Upload an image to add as sticker (PNG/GIF/JPEG/WebP)')
+            .setRequired(false))
+        .addStringOption(o => o
+            .setName('name')
+            .setDescription('Custom name for the sticker (2-30 characters)')
+            .setRequired(false))
+        .addStringOption(o => o
+            .setName('emoji')
+            .setDescription('Unicode emoji tag for the sticker (defaults to 😀)')
+            .setRequired(false)),
 
     prefix: 'stealsticker',
     description: 'Steal stickers from stickers, emojis, attachments, or image URLs',
     usage: 'stealsticker <sticker-url/emoji/image> [name] — or reply to a message',
     category: 'utility',
     aliases: ['ss', 'stickerclone', 'stickersteal'],
+    permissions: ['ManageGuildExpressions'],
 
     async execute(interaction) {
+        if (!interaction.guild) {
+            return interaction.reply({
+                components: [buildErrorContainer('Server Required', 'This command can only be used in a server.')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            });
+        }
+        if (!canManageExpressions(interaction.member)) {
+            return interaction.reply({
+                components: [buildPermissionDenied('Manage Expressions')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            });
+        }
+        if (!botCanManageExpressions(interaction.guild)) {
+            return interaction.reply({
+                components: [buildBotPermissionError('Manage Expressions')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            });
+        }
+
         const sourceInput = interaction.options.getString('source');
         const attachment = interaction.options.getAttachment('image');
         const customName = interaction.options.getString('name');
         const emojiInput = interaction.options.getString('emoji');
 
-        // Try to get the replied message
-        let repliedMessage = null;
-        try {
-            const ref = interaction.message?.reference;
-            if (ref?.messageId) {
-                repliedMessage = await interaction.channel.messages.fetch(ref.messageId).catch(() => null);
-            }
-        } catch {}
-
-        // Build attachments map
+        // Slash interactions don't carry the surrounding chat reply
+        // context, so we don't try to fetch a "replied" message here.
         const attachments = new Map();
         if (attachment) attachments.set(attachment.id, attachment);
 
-        const sources = await collectSources(interaction.client, sourceInput, repliedMessage, attachments);
+        const sources = await collectSources(interaction.client, sourceInput, null, attachments);
 
         if (!sources.length) {
             return interaction.reply({
-                components: [buildError('No Source Provided',
-                    '**Supported sources:**\n' +
-                    '> • Sticker URL/ID (right-click sticker → Copy Link)\n' +
-                    '> • Custom Discord emojis (emoji → sticker)\n' +
-                    '> • Image attachments (PNG, GIF, JPEG, WebP)\n' +
-                    '> • Image URLs\n' +
-                    '> • Reply to a message with a sticker, emoji, or attachment\n\n' +
-                    '**Examples:**\n' +
-                    '`/stealsticker source:<:emoji:123>` — convert emoji to sticker\n' +
-                    '`/stealsticker image:<upload>` — upload image as sticker\n' +
-                    'Reply to a sticker/emoji message with `/stealsticker`'
-                )],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                components: [buildErrorContainer('No Source Provided', NO_SOURCE_MESSAGE)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
         }
 
         await interaction.deferReply();
 
-        // Single source path
         if (sources.length === 1) {
             const source = sources[0];
-
-            if (source.format === 3) {
+            if (source.format === STICKER_FORMAT.LOTTIE) {
                 return interaction.editReply({
-                    components: [buildError('Unsupported Format',
-                        'Lottie stickers (animated vector) cannot be cloned. Only **PNG**, **APNG**, and **GIF** are supported.'
-                    )],
-                    flags: MessageFlags.IsComponentsV2
-                });
+                    components: [buildErrorContainer('Unsupported Format',
+                        'Lottie stickers (animated vector) cannot be cloned. Only PNG, APNG, and GIF are supported.')],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => null);
             }
-
             try {
                 const sticker = await createStickerFromSource(interaction.guild, interaction.user, source, customName, emojiInput);
                 return interaction.editReply({
-                    components: [buildSuccess(sticker, source.type)],
-                    flags: MessageFlags.IsComponentsV2
-                });
-            } catch (error) {
-                console.error('Sticker steal error:', error);
+                    components: [buildSuccessSingle(sticker, source.type)],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => null);
+            } catch (err) {
                 return interaction.editReply({
-                    components: [buildError('Failed to Steal Sticker', getErrorMessage(error))],
-                    flags: MessageFlags.IsComponentsV2
-                });
+                    components: [buildErrorContainer('Failed to Steal Sticker', explainStickerError(err))],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => null);
             }
         }
 
-        // Multi-source path with progress
         await interaction.editReply({
             components: [buildProgressResponse('Steal Sticker In Progress', 0, sources.length, 'Adding stickers to this server...')],
-            flags: MessageFlags.IsComponentsV2
+            flags: MessageFlags.IsComponentsV2,
         });
 
         const ok = [];
         const fail = [];
-
         for (let i = 0; i < sources.length; i++) {
             const source = sources[i];
-            if (source.format === 3) {
-                fail.push({ name: source.name, reason: 'Lottie format unsupported', source: source.type });
+            if (source.format === STICKER_FORMAT.LOTTIE) {
+                fail.push({ name: source.name || 'sticker', reason: 'Lottie format unsupported', source: source.type });
             } else {
                 try {
                     const sticker = await createStickerFromSource(interaction.guild, interaction.user, source, null, emojiInput);
                     ok.push({ sticker, source: source.type });
                 } catch (err) {
-                    fail.push({ name: source.name, reason: getErrorMessage(err), source: source.type });
+                    fail.push({ name: source.name || 'sticker', reason: explainStickerError(err), source: source.type });
                 }
             }
-
             await interaction.editReply({
-                components: [buildProgressResponse('Steal Sticker In Progress', i + 1, sources.length, 'Adding stickers to this server...', source.name)],
-                flags: MessageFlags.IsComponentsV2
+                components: [buildProgressResponse('Steal Sticker In Progress', i + 1, sources.length, 'Adding stickers to this server...', source.name || 'sticker')],
+                flags: MessageFlags.IsComponentsV2,
             }).catch(() => null);
         }
 
-        await interaction.editReply({
-            components: [buildMultiResult(ok, fail)],
-            flags: MessageFlags.IsComponentsV2
-        });
+        await interaction.editReply({ components: [buildResultMulti(ok, fail)], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
     },
 
     async executePrefix(message, args) {
-        // Permission check
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageGuildExpressions) &&
-            !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!message.guild) {
             return message.reply({
-                components: [buildError('Permission Denied', 'You need the **Manage Expressions** permission to use this command.')],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildErrorContainer('Server Required', 'This command can only be used in a server.')],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
+        }
+        if (!canManageExpressions(message.member)) {
+            return message.reply({
+                components: [buildPermissionDenied('Manage Expressions')],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
+        }
+        if (!botCanManageExpressions(message.guild)) {
+            return message.reply({
+                components: [buildBotPermissionError('Manage Expressions')],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
 
-        // Check replied message
         let repliedMessage = null;
         if (message.reference?.messageId) {
             repliedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
@@ -483,78 +454,70 @@ module.exports = {
 
         if (!sources.length) {
             return message.reply({
-                components: [buildError('No Source Provided',
-                    '**Supported sources:**\n' +
-                    '> • Sticker URL/ID\n' +
-                    '> • Custom Discord emojis (emoji → sticker)\n' +
-                    '> • Image attachments (upload with your message)\n' +
-                    '> • Image URLs\n' +
-                    '> • Reply to a sticker, emoji, or attachment message\n\n' +
-                    '**Examples:**\n' +
-                    '`!stealsticker <:emoji:123>` — convert emoji to sticker\n' +
-                    '`!stealsticker` + attach an image\n' +
-                    'Reply to a sticker/emoji message with `!stealsticker`'
-                )],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildErrorContainer('No Source Provided', NO_SOURCE_MESSAGE)],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
 
-        // Custom name from tail arg (only for single source)
+        // Custom name from tail arg, only if exactly one source.
         let customName = null;
         if (sources.length === 1 && args.length > 0) {
             const lastArg = args[args.length - 1];
-            if (!/<(a?):(\w+):(\d{15,})>/.test(lastArg) && !/^https?:\/\//i.test(lastArg) && !/^\d{15,}$/.test(lastArg)) {
-                customName = lastArg.substring(0, 30);
-            }
+            EMOJI_TAG_RE_GLOBAL.lastIndex = 0;
+            const looksLikeToken = EMOJI_TAG_RE_GLOBAL.test(lastArg)
+                || /^https?:\/\//i.test(lastArg)
+                || SNOWFLAKE_RE.test(lastArg);
+            if (!looksLikeToken) customName = lastArg;
         }
 
         const processing = await message.reply({
             components: [buildProgressResponse('Steal Sticker In Progress', 0, sources.length, 'Adding stickers to this server...')],
-            flags: MessageFlags.IsComponentsV2
+            flags: MessageFlags.IsComponentsV2,
         }).catch(() => null);
-
         if (!processing) return;
 
-        // Single source path
         if (sources.length === 1) {
             const source = sources[0];
-
-            if (source.format === 3) {
-                return processing.edit({ content: null, components: [buildError('Unsupported Format', 'Lottie stickers cannot be cloned.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            if (source.format === STICKER_FORMAT.LOTTIE) {
+                return processing.edit({
+                    components: [buildErrorContainer('Unsupported Format', 'Lottie stickers cannot be cloned.')],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
             }
-
             try {
                 const sticker = await createStickerFromSource(message.guild, message.author, source, customName, null);
-                return processing.edit({ content: null, components: [buildSuccess(sticker, source.type)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-            } catch (error) {
-                console.error('Sticker steal error:', error);
-                return processing.edit({ content: null, components: [buildError('Failed to Steal Sticker', getErrorMessage(error))], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return processing.edit({
+                    components: [buildSuccessSingle(sticker, source.type)],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
+            } catch (err) {
+                return processing.edit({
+                    components: [buildErrorContainer('Failed to Steal Sticker', explainStickerError(err))],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
             }
         }
 
-        // Multi-source path
         const ok = [];
         const fail = [];
-
         for (let i = 0; i < sources.length; i++) {
             const source = sources[i];
-            if (source.format === 3) {
-                fail.push({ name: source.name, reason: 'Lottie format unsupported', source: source.type });
+            if (source.format === STICKER_FORMAT.LOTTIE) {
+                fail.push({ name: source.name || 'sticker', reason: 'Lottie format unsupported', source: source.type });
             } else {
                 try {
                     const sticker = await createStickerFromSource(message.guild, message.author, source, null, null);
                     ok.push({ sticker, source: source.type });
                 } catch (err) {
-                    fail.push({ name: source.name, reason: getErrorMessage(err), source: source.type });
+                    fail.push({ name: source.name || 'sticker', reason: explainStickerError(err), source: source.type });
                 }
             }
-
             await processing.edit({
-                components: [buildProgressResponse('Steal Sticker In Progress', i + 1, sources.length, 'Adding stickers to this server...', source.name)],
-                flags: MessageFlags.IsComponentsV2
+                components: [buildProgressResponse('Steal Sticker In Progress', i + 1, sources.length, 'Adding stickers to this server...', source.name || 'sticker')],
+                flags: MessageFlags.IsComponentsV2,
             }).catch(() => null);
         }
 
-        processing.edit({ content: null, components: [buildMultiResult(ok, fail)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-    }
+        await processing.edit({ components: [buildResultMulti(ok, fail)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    },
 };

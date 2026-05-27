@@ -1,44 +1,64 @@
+'use strict';
+
+/**
+ * extract-emoji — pull every custom Discord emoji tag out of an
+ * arbitrary message and list them with their CDN download URLs so
+ * users can grab them externally.
+ */
+
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS, EMOJIS: PALETTE, BRANDING } = require('../../utils/responseBuilder');
+const { EMOJI_TAG_RE_GLOBAL, emojiCdnUrl } = require('../../utils/emojiSystem');
 
 module.exports = {
     prefix: 'extract-emoji',
-    description: 'Extract all emojis from text',
+    description: 'Extract all custom emojis from text',
     usage: 'extract-emoji <text>',
     category: 'utility',
     aliases: ['getemoji', 'extractemoji'],
 
     async executePrefix(message, args) {
         if (!args.length) {
-            const container = buildErrorResponse(
+            const c = buildErrorResponse(
                 'No Text Provided',
-                'Please provide text to extract emojis from.',
-                '**Example:** `extract-emoji Hello <:Userplus:1473038912212435086> World 🌍`'
+                'Provide text to extract emojis from.',
+                '**Example:** `extract-emoji Hello <:Userplus:1473038912212435086>`',
             );
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
 
         const text = args.join(' ');
-        
-        const customEmojiRegex = /<a?:\w+:\d+>/g;
-        const customEmojis = text.match(customEmojiRegex) || [];
+        EMOJI_TAG_RE_GLOBAL.lastIndex = 0;
 
-        if (customEmojis.length === 0) {
-            const container = buildErrorResponse('No Emojis Found', 'No custom Discord emojis found in the provided text.');
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const seen = new Set();
+        const found = [];
+        let m;
+        while ((m = EMOJI_TAG_RE_GLOBAL.exec(text)) !== null) {
+            if (seen.has(m[3])) continue;
+            seen.add(m[3]);
+            found.push({ tag: m[0], name: m[2], id: m[3], animated: m[1] === 'a' });
         }
 
-        const uniqueEmojis = [...new Set(customEmojis)];
-        
-        let content = `# 😀 Extracted Emojis\n\n`;
-        content += `**Found:** ${uniqueEmojis.length} unique emoji(s)\n\n`;
-        content += `### Emojis\n`;
-        content += `> ${uniqueEmojis.join(' ')}`;
+        if (!found.length) {
+            const c = buildErrorResponse('No Emojis Found', 'No custom Discord emojis were found in that text.');
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+
+        const list = found.map((e, i) => {
+            const url = emojiCdnUrl(e.id, e.animated);
+            const idx = String(i + 1).padStart(2, '0');
+            return `\`${idx}.\` ${e.tag} \`:${e.name}:\` — [download](${url})`;
+        }).join('\n');
 
         const container = new ContainerBuilder()
             .setAccentColor(COLORS.INFO)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# ${PALETTE.SEARCH} Extracted Emojis\n` +
+                `-# Found **${found.length}** unique emoji${found.length === 1 ? '' : 's'}\n\n` +
+                list
+            ))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\n${BRANDING}`));
 
-        message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    }
+        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    },
 };

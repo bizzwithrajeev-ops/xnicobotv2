@@ -15,6 +15,7 @@ const {
     flattenStickers, fetchStickerById, parseStickerIdInput,
     explainStickerError, pickStickerTag, sanitizeStickerName,
     setScan, getScan, clearScan, TIMEOUT_MS,
+    EMOJIS: E,
 } = require('../../utils/globalAssetBrowser');
 
 const PAGE_SIZE = 5;
@@ -45,7 +46,7 @@ function buildBrowserPayload(state) {
 
     const container = new ContainerBuilder().setAccentColor(COLORS.PURPLE || 0x9B59B6);
 
-    let header = `# 🌐 Global Sticker Library\n`;
+    let header = `# ${E.sticker} Global Sticker Library\n`;
     if (items.length === 0) {
         header += `-# No stickers matched your filters across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}.`;
     } else {
@@ -65,7 +66,7 @@ function buildBrowserPayload(state) {
     if (slice.length === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `*Nothing matches the current filters.*\n\n` +
-            `Try **🔎 Search** below with different terms, or **♻️ Reset** to clear filters.`
+            `Try **Search** with different terms, or **Reset** to clear filters.`
         ));
     } else {
         for (let i = 0; i < slice.length; i++) {
@@ -92,18 +93,18 @@ function buildBrowserPayload(state) {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_first`).setLabel('≪').setStyle(ButtonStyle.Secondary).setDisabled(page === 0 || items.length === 0),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_prev`).setLabel('◀').setStyle(ButtonStyle.Primary).setDisabled(page === 0 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_first`).setLabel('First').setStyle(ButtonStyle.Secondary).setDisabled(page === 0 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_prev`).setLabel('Prev').setStyle(ButtonStyle.Primary).setEmoji(E.prev).setDisabled(page === 0 || items.length === 0),
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_indicator`).setLabel(`${items.length === 0 ? 0 : page + 1} / ${totalPages}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_next`).setLabel('▶').setStyle(ButtonStyle.Primary).setDisabled(page >= totalPages - 1 || items.length === 0),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_last`).setLabel('≫').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_next`).setLabel('Next').setStyle(ButtonStyle.Primary).setEmoji(E.next).setDisabled(page >= totalPages - 1 || items.length === 0),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_last`).setLabel('Last').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1 || items.length === 0),
     ));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_search`).setLabel('Search').setStyle(ButtonStyle.Primary).setEmoji('🔎'),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_byid`).setLabel('Steal by ID').setStyle(ButtonStyle.Success).setEmoji('🆔'),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_reset`).setLabel('Reset').setStyle(ButtonStyle.Secondary).setEmoji('♻️').setDisabled(!hasFilters(opts)),
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_help`).setLabel('Help').setStyle(ButtonStyle.Secondary).setEmoji('❓'),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_search`).setLabel('Search').setStyle(ButtonStyle.Primary).setEmoji(E.search),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_byid`).setLabel('Steal by ID').setStyle(ButtonStyle.Success).setEmoji(E.byid),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_reset`).setLabel('Reset').setStyle(ButtonStyle.Secondary).setEmoji(E.reset).setDisabled(!hasFilters(opts)),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_help`).setLabel('Help').setStyle(ButtonStyle.Secondary).setEmoji(E.help),
     ));
 
     if (slice.length > 0) {
@@ -122,7 +123,7 @@ function buildBrowserPayload(state) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# Tip: server boost level limits sticker slots • ${BRANDING}`
+        `-# ${E.bulb} Server boost level limits sticker slots • ${BRANDING}`
     ));
 
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
@@ -132,38 +133,38 @@ function buildBrowserPayload(state) {
 
 function buildHelpPayload(browserPage) {
     const container = new ContainerBuilder().setAccentColor(COLORS.PURPLE || 0x9B59B6);
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🌐 Global Sticker — How to Use`));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${E.sticker} Global Sticker — How to Use`));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `### <:Bookopen:1473038576391557130> Browse\n` +
-        `<:Caretright:1473038207221502106> Use **◀ ▶** to flip through pages\n` +
-        `<:Caretright:1473038207221502106> Each entry shows a thumbnail, name, format, server, and ID\n\n` +
-        `### <:Search:1473038053219106847> Search\n` +
-        `<:Caretright:1473038207221502106> Click **🔎 Search** to filter by name, tag, or description\n` +
-        `<:Caretright:1473038207221502106> Or filter to a specific server with the second field\n` +
-        `<:Caretright:1473038207221502106> Click **♻️ Reset** to clear all filters\n\n` +
-        `### <:Toggleon:1473038585501581312> Steal from this page\n` +
-        `<:Caretright:1473038207221502106> Pick one or more stickers from the dropdown — they are added to **this server**\n` +
-        `<:Caretright:1473038207221502106> Up to **${STEAL_LIMIT}** at a time\n` +
-        `<:Caretright:1473038207221502106> Lottie stickers are skipped automatically (Discord doesn't allow cloning them)\n\n` +
-        `### 🆔 Steal by ID\n` +
-        `<:Caretright:1473038207221502106> Click **🆔 Steal by ID** and paste one or more values:\n` +
+        `### ${E.book} Browse\n` +
+        `${E.bullet} Use **Prev / Next** to flip through pages\n` +
+        `${E.bullet} Each entry shows a thumbnail, name, format, server, and ID\n\n` +
+        `### ${E.search} Search\n` +
+        `${E.bullet} Click **Search** to filter by name, tag, or description\n` +
+        `${E.bullet} Or filter to a specific server with the second field\n` +
+        `${E.bullet} Click **Reset** to clear all filters\n\n` +
+        `### ${E.success} Steal from this page\n` +
+        `${E.bullet} Pick one or more stickers from the dropdown — they're added to **this server**\n` +
+        `${E.bullet} Up to **${STEAL_LIMIT}** at a time\n` +
+        `${E.bullet} Lottie stickers are skipped automatically (Discord doesn't allow cloning them)\n\n` +
+        `### ${E.byid} Steal by ID\n` +
+        `${E.bullet} Click **Steal by ID** and paste one or more values:\n` +
         `> • Bare sticker IDs: \`123456789012345678\`\n` +
         `> • Sticker URLs: \`cdn.discordapp.com/stickers/123…\`\n` +
         `> • Mix and match, separated by **spaces, commas, or new lines**\n` +
-        `<:Caretright:1473038207221502106> Works for stickers from **any** server — even ones the bot isn't in\n\n` +
-        `### <:Settings:1473037894703779851> Slash equivalents\n` +
-        `<:Caretright:1473038207221502106> \`/globalsticker browse search:<text>\` — search & filter\n` +
-        `<:Caretright:1473038207221502106> \`/globalsticker steal-id ids:<id1 id2 …>\` — steal by ID\n\n` +
-        `### <:Lightbulbalt:1473038470787240009> Notes\n` +
-        `<:Caretright:1473038207221502106> Bot's internal sticker servers are hidden\n` +
-        `<:Caretright:1473038207221502106> Free servers can hold 5 stickers, Tier 1 has 15, Tier 2 has 30, Tier 3 has 60\n` +
-        `<:Caretright:1473038207221502106> You need **Manage Expressions** permission\n` +
-        `<:Caretright:1473038207221502106> Sessions expire after **5 minutes** of inactivity`
+        `${E.bullet} Works for stickers from **any** server — even ones the bot isn't in\n\n` +
+        `### ${E.settings} Slash equivalents\n` +
+        `${E.bullet} \`/globalsticker browse search:<text>\` — search & filter\n` +
+        `${E.bullet} \`/globalsticker steal-id ids:<id1 id2 …>\` — steal by ID\n\n` +
+        `### ${E.bulb} Notes\n` +
+        `${E.bullet} The bot's internal sticker servers are hidden\n` +
+        `${E.bullet} Free servers can hold 5 stickers, Tier 1 has 15, Tier 2 has 30, Tier 3 has 60\n` +
+        `${E.bullet} You need **Manage Expressions** permission\n` +
+        `${E.bullet} Sessions expire after **5 minutes** of inactivity`
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji('◀'),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji(E.back),
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
@@ -175,7 +176,7 @@ function buildHelpPayload(browserPage) {
 function buildStealResultPayload(ok, fail, browserPage) {
     const lines = [];
     if (ok.length > 0) {
-        lines.push(`### <:Checkedbox:1473038547165384804> Added (${ok.length})`);
+        lines.push(`### ${E.success} Added (${ok.length})`);
         for (const { sticker, source } of ok) {
             const provenance = source.guildName === 'Direct ID' ? 'via direct ID' : `from **${escapeMd(source.guildName)}**`;
             lines.push(`> **${escapeMd(sticker.name)}** \`(${source.formatLabel})\` — ${provenance}`);
@@ -183,7 +184,7 @@ function buildStealResultPayload(ok, fail, browserPage) {
     }
     if (fail.length > 0) {
         if (lines.length > 0) lines.push('');
-        lines.push(`### <:Cancel:1473037949187657818> Failed (${fail.length})`);
+        lines.push(`### ${E.error} Failed (${fail.length})`);
         for (const { source, reason } of fail) {
             lines.push(`> **${escapeMd(source.name || 'unknown')}** (\`${source.id}\`) — ${reason}`);
         }
@@ -193,14 +194,14 @@ function buildStealResultPayload(ok, fail, browserPage) {
     const container = new ContainerBuilder().setAccentColor(accent);
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# 🌐 Sticker Steal Results\n` +
+        `# ${E.sticker} Sticker Steal Results\n` +
         `-# ${ok.length} succeeded, ${fail.length} failed`
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n') || '*No stickers were processed.*'));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji('◀'),
+        new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji(E.back),
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
@@ -531,7 +532,7 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (!message.guild) {
-            return message.reply('<:Cancel:1473037949187657818> This command can only be used in a server.').catch(() => {});
+            return message.reply(`${E.error} This command can only be used in a server.`).catch(() => {});
         }
         if (!checkExpressionPerms(message.member)) {
             return message.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 });

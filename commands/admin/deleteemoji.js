@@ -1,16 +1,37 @@
+'use strict';
+
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const {
+    COLORS, BRANDING, EMOJIS: PALETTE,
+    buildPermissionDenied, buildBotPermissionError,
+} = require('../../utils/responseBuilder');
+const {
+    parseEmojiInput, canManageExpressions, botCanManageExpressions,
+    explainEmojiError,
+} = require('../../utils/emojiSystem');
+
+function findEmoji(guild, input) {
+    if (!guild || !input) return null;
+    // 1. Custom emoji tag or bare snowflake
+    const parsed = parseEmojiInput(input);
+    if (parsed?.id) {
+        const cached = guild.emojis.cache.get(parsed.id);
+        if (cached) return cached;
+    }
+    // 2. Name lookup (with optional `:wrapping:`)
+    const name = String(input).replace(/^:|:$/g, '').trim();
+    if (!name) return null;
+    return guild.emojis.cache.find(e => e.name.toLowerCase() === name.toLowerCase()) || null;
+}
 
 function buildSuccess(emojiName, moderator) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.SUCCESS)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `# <:Trash:1473038090074591293> Emoji Deleted\n\n` +
-                `**Name:** \`:${emojiName}:\`\n` +
-                `**Moderator:** ${moderator}`
-            )
-        )
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# ${PALETTE.DELETE} Emoji Deleted\n\n` +
+            `**Name:** \`:${emojiName}:\`\n` +
+            `**Moderator:** ${moderator}`
+        ))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
@@ -18,9 +39,7 @@ function buildSuccess(emojiName, moderator) {
 function buildError(desc) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.ERROR)
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Delete Emoji\n\n${desc}`)
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${PALETTE.ERROR} Delete Emoji\n\n${desc}`));
 }
 
 module.exports = {
@@ -28,33 +47,35 @@ module.exports = {
         .setName('deleteemoji')
         .setDescription('Delete a custom emoji from this server')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions)
-        .addStringOption(option =>
-            option.setName('emoji')
-                .setDescription('The emoji to delete (paste it)')
-                .setRequired(true)),
+        .addStringOption(o => o
+            .setName('emoji')
+            .setDescription('The emoji tag, name, or ID')
+            .setRequired(true)),
 
     prefix: 'deleteemoji',
     description: 'Delete a custom emoji from this server',
-    usage: 'deleteemoji <emoji>',
+    usage: 'deleteemoji <emoji|name|id>',
     category: 'admin',
     aliases: ['delemoji', 'removeemoji'],
+    permissions: ['ManageGuildExpressions'],
 
     async execute(interaction) {
-        const input = interaction.options.getString('emoji');
-        const emojiMatch = input.match(/<a?:(\w+):(\d+)>/);
-
-        if (!emojiMatch) {
-            return interaction.reply({
-                components: [buildError('Please provide a valid custom emoji.\n\n**Example:** `/deleteemoji emoji:<:name:123>`')],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
-            });
+        if (!interaction.guild) {
+            return interaction.reply({ components: [buildError('This command can only be used in a server.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (!canManageExpressions(interaction.member)) {
+            return interaction.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
+        if (!botCanManageExpressions(interaction.guild)) {
+            return interaction.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
-        const emoji = interaction.guild.emojis.cache.get(emojiMatch[2]);
+        const input = interaction.options.getString('emoji');
+        const emoji = findEmoji(interaction.guild, input);
         if (!emoji) {
             return interaction.reply({
-                components: [buildError('That emoji was not found in this server!')],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                components: [buildError(`Could not find an emoji matching \`${input}\` in this server.`)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
         }
 
@@ -64,36 +85,42 @@ module.exports = {
             await interaction.reply({ components: [buildSuccess(emojiName, interaction.user.username)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             await interaction.reply({
-                components: [buildError(`Failed to delete emoji: ${error.message}`)],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                components: [buildError(`Failed to delete emoji: ${explainEmojiError(error)}`)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
         }
     },
 
     async executePrefix(message, args) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageGuildExpressions) &&
-            !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!message.guild) {
+            return message.reply({ components: [buildError('This command can only be used in a server.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (!canManageExpressions(message.member)) {
+            return message.reply({ components: [buildPermissionDenied('Manage Expressions')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (!botCanManageExpressions(message.guild)) {
+            return message.reply({ components: [buildBotPermissionError('Manage Expressions')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (!args.length) {
             return message.reply({
-                components: [buildError('You need **Manage Expressions** permission to delete emojis.')],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildError(
+                    'Provide an emoji tag, name, or ID.\n\n' +
+                    `**Usage:** \`deleteemoji <emoji>\`\n` +
+                    `**Examples:**\n` +
+                    `${PALETTE.BULLET} \`deleteemoji <:name:123456789012345678>\`\n` +
+                    `${PALETTE.BULLET} \`deleteemoji name\`\n` +
+                    `${PALETTE.BULLET} \`deleteemoji 123456789012345678\``
+                )],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
 
-        const emojiMatch = args[0]?.match(/<a?:(\w+):(\d+)>/);
-
-        if (!emojiMatch) {
-            return message.reply({
-                components: [buildError('Please provide a valid emoji.\n\n**Usage:** `deleteemoji <emoji>`\n**Example:** `deleteemoji :customemoji:`')],
-                flags: MessageFlags.IsComponentsV2
-            });
-        }
-
-        const emoji = message.guild.emojis.cache.get(emojiMatch[2]);
+        const emoji = findEmoji(message.guild, args.join(' '));
         if (!emoji) {
             return message.reply({
-                components: [buildError('That emoji was not found in this server!')],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildError(`Could not find an emoji matching \`${args.join(' ')}\` in this server.`)],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
 
         try {
@@ -102,9 +129,9 @@ module.exports = {
             await message.reply({ components: [buildSuccess(emojiName, message.author.username)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             await message.reply({
-                components: [buildError(`Failed to delete emoji: ${error.message}`)],
-                flags: MessageFlags.IsComponentsV2
-            });
+                components: [buildError(`Failed to delete emoji: ${explainEmojiError(error)}`)],
+                flags: MessageFlags.IsComponentsV2,
+            }).catch(() => {});
         }
-    }
+    },
 };

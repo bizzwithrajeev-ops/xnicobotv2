@@ -1,7 +1,7 @@
 'use strict';
 
-const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
+const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ChannelType, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder } = require('discord.js');
+const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
 const { applyStatus } = require('./vcstatus');
 const jsonStore = require('../../utils/jsonStore');
 
@@ -62,6 +62,8 @@ module.exports = {
                 'Removed By': interaction.user.username
             });
             container.setAccentColor(0x57F287);
+            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
             await interaction.reply({
@@ -102,6 +104,8 @@ module.exports = {
                 'Removed By': message.author.username
             });
             container.setAccentColor(0x57F287);
+            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
             await message.reply({
