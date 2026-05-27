@@ -160,8 +160,21 @@ function renderSidebar() {
         { id: '__profile', name: 'Profile', route: '#/profile', icon: 'user' },
         { id: '__commands', name: 'Commands', route: '#/commands', icon: 'code' },
     ];
-    // Modules grouped
+
+    // Owner-only entries — only inserted if the JWT actually carries
+    // `isOwner: true`. Server-side endpoints reject these requests for
+    // anyone else, but hiding the link keeps the UI clean.
+    if (state.user?.isOwner) {
+        groups.Main.push({ id: '__premium', name: 'Premium Keys', route: '#/premium', icon: 'crown' });
+    }
+
+    // Modules grouped — skip premium-only modules entirely for users
+    // who don't have premium (and aren't owner). This prevents the
+    // "click → 403 → bounce" UX. A locked card is still rendered on
+    // the server overview so users know the feature exists.
+    const viewerHasPremium = !!(state.user?.isOwner || state.user?.hasPremium);
     for (const m of (window.XNICO_MODULES || [])) {
+        if (m.premium && !viewerHasPremium) continue;
         (groups[m.group] ||= []).push(m);
     }
 
@@ -275,6 +288,16 @@ window.toggleUserMenu = toggleUserMenu;
 window.closeUserMenu = closeUserMenu;
 window.logout = logout;
 
+// Expose api / icon / toast / state for extras.js and other module files.
+// Without this, extras.js falls back to its own fetch wrapper but loses
+// the centralized 401-handling, draft tracking, and toast styling.
+window.api = api;
+window.icon = icon;
+window.toast = toast;
+window.esc = esc;
+window.state = state;
+window.handleRoute = handleRoute;
+
 // ───── Router ─────────────────────────────────────────────
 /* Routes:
    #/servers                                   – server list
@@ -309,6 +332,16 @@ async function handleRoute() {
         } else if (parts[0] === 'commands') {
             setCrumb('Commands');
             await pageCommands();
+        } else if (parts[0] === 'premium') {
+            // Owner-only — anyone else gets a friendly redirect to
+            // /servers. Server-side endpoints also reject non-owners.
+            if (!state.user?.isOwner) {
+                toast('Owner only', 'error');
+                location.hash = '#/servers';
+                return;
+            }
+            setCrumb('Premium Keys');
+            await pagePremium();
         } else if (parts[0] === 'server' && parts[1]) {
             const gid = parts[1];
             await ensureGuild(gid);
@@ -353,6 +386,18 @@ async function handleRoute() {
             if (mod.custom && mod.id === 'message-builder') return pageMessageBuilder();
             if (mod.custom && mod.id === 'button-commands') return pageButtonCreator();
             if (mod.custom && mod.id === 'select-menus') return pageMenuCreator();
+            // Newer modules — dedicated render functions live in extras.js
+            if (mod.custom && mod.id === 'aichat') return pageAiChat();
+            if (mod.custom && mod.id === 'birthdays') return pageBirthdays();
+            if (mod.custom && mod.id === 'applications') return pageApplications();
+            if (mod.custom && mod.id === 'warn-config') return pageWarnConfig();
+            if (mod.custom && mod.id === 'warnings') return pageWarningsLog();
+            if (mod.custom && mod.id === 'statusrole') return pageStatusRole();
+            if (mod.custom && mod.id === 'botblock') return pageBotBlock();
+            if (mod.custom && mod.id === 'vanityguard') return pageVanityGuard();
+            if (mod.custom && mod.id === 'confessions') return pageConfessions();
+            if (mod.custom && mod.id === 'ignored-channels') return pageIgnoredChannels();
+            if (mod.custom && mod.id === 'modlogs') return pageModLogs();
             return pageModule(mod);
         } else {
             pageNotFound();
@@ -1228,21 +1273,167 @@ window.__profileSaveAfk = async () => {
 // ───── Page: commands ────────────────────────────────────
 async function pageCommands() {
     const data = await api('/api/commands') || { categories: [], totalCommands: 0 };
+    const cats = data.categories || [];
+    const viewerHasPremium = !!(data.viewer?.isOwner || data.viewer?.hasPremium);
+    let activeFilter = 'all'; // all | free | premium
+
+    function render() {
+        const filtered = cats.map(c => ({
+            ...c,
+            shown: c.commands.filter(cmd => activeFilter === 'all' || (activeFilter === 'premium') === !!cmd.premium)
+        })).filter(c => c.shown.length);
+
+        $('#page').innerHTML = `
+            <div class="page-h">
+                <div>
+                    <h1>Commands</h1>
+                    <p>
+                        Browse <b>${data.totalCommands || 0}</b> commands across ${cats.length} categories.
+                        ${data.premiumCommands ? `<span class="tag amber" style="margin-left:.5rem">${icon('crown')} ${data.premiumCommands} Premium</span>` : ''}
+                        ${viewerHasPremium ? '<span class="tag green" style="margin-left:.5rem">You have Premium access</span>' : '<span class="tag grey" style="margin-left:.5rem">Free tier</span>'}
+                    </p>
+                </div>
+                <div class="row gap-1">
+                    <button class="btn ${activeFilter === 'all' ? 'primary' : ''}" data-filter="all">All</button>
+                    <button class="btn ${activeFilter === 'free' ? 'primary' : ''}" data-filter="free">Free</button>
+                    <button class="btn ${activeFilter === 'premium' ? 'primary' : ''}" data-filter="premium">${icon('crown')} Premium</button>
+                </div>
+            </div>
+            <div class="grid g-3">
+                ${filtered.map(c => `
+                    <div class="card hover" data-cat="${esc(c.key)}">
+                        <div class="card-h">
+                            <div class="ic">${c.icon || icon('grid')}</div>
+                            <div class="tt">
+                                <div class="t">${esc(c.name)} ${c.premiumCount ? `<span class="tag amber" style="font-size:.65rem;padding:.1rem .4rem">${c.premiumCount} PRO</span>` : ''}</div>
+                                <div class="s">${c.shown.length}${c.shown.length !== c.count ? ' / ' + c.count : ''} commands</div>
+                            </div>
+                        </div>
+                        <p class="text-mute">${esc(c.desc || '')}</p>
+                        <details>
+                            <summary class="text-sm" style="cursor:pointer;color:var(--accent);user-select:none">Show commands</summary>
+                            <div class="row wrap gap-1 mt-2">
+                                ${c.shown.map(cmd => `
+                                    <span class="tag ${cmd.premium ? 'amber' : 'grey'}" title="${esc(cmd.description || cmd.name)}">
+                                        ${cmd.premium ? `${icon('crown')} ` : ''}${esc(cmd.name)}
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </details>
+                    </div>`).join('') || '<div class="empty"><p>No commands match this filter.</p></div>'}
+            </div>
+            ${!viewerHasPremium && data.premiumCommands ? `
+                <div class="card mt-3 premium-glow" style="text-align:center">
+                    ${icon('crown')}
+                    <h3 style="margin-top:.5rem">Unlock ${data.premiumCommands} Premium Commands</h3>
+                    <p class="text-mute">Premium tier includes loan, customshop, currency, 247 (24/7 music), bot-customize, AI chat setup, and more.</p>
+                    <a class="btn primary mt-2" href="https://discord.gg/Zs35X7Umak" target="_blank">${icon('star')} Get Premium</a>
+                </div>` : ''}
+        `;
+        $$('[data-filter]').forEach(b => b.onclick = () => { activeFilter = b.dataset.filter; render(); });
+    }
+    render();
+}
+
+// ───── Page: premium key generator (owner only) ─────────
+async function pagePremium() {
+    if (!state.user?.isOwner) { location.hash = '#/servers'; return; }
+    const data = await api('/api/premium');
+    if (data?._error) {
+        $('#page').innerHTML = `<div class="empty"><h3>Failed</h3><p>${esc(data.error || 'Could not load keys.')}</p></div>`;
+        return;
+    }
+    const keys = data?.keys || [];
+
+    const tierStats = keys.reduce((acc, k) => {
+        const t = k.tier || 'user';
+        acc[t] = (acc[t] || 0) + 1;
+        if (k.redeemed) acc.redeemed++;
+        else acc.unredeemed++;
+        return acc;
+    }, { user: 0, server: 0, redeemed: 0, unredeemed: 0 });
+
     $('#page').innerHTML = `
         <div class="page-h">
-            <div><h1>Commands</h1><p>Explore <b>${data.totalCommands || 0}+</b> commands across all categories.</p></div>
+            <div><h1>${icon('crown')} Premium Keys <span class="tag amber">Owner</span></h1><p>Generate, audit, and revoke premium keys.</p></div>
+            <a class="btn" href="#/servers">${icon('home')} Back</a>
         </div>
-        <div class="grid g-3">
-            ${(data.categories || []).map(c => `
-                <div class="card hover">
-                    <div class="card-h">
-                        <div class="ic">${c.icon || icon('grid')}</div>
-                        <div class="tt"><div class="t">${esc(c.name)}</div><div class="s">${c.count} commands</div></div>
-                    </div>
-                    <p>${esc(c.desc || '')}</p>
-                </div>`).join('')}
+
+        <div class="grid g-4 mb-3">
+            <div class="stat purple"><div class="ic">${icon('coin')}</div><div><div class="v">${keys.length}</div><div class="l">Total Keys</div></div></div>
+            <div class="stat green"><div class="ic">${icon('check')}</div><div><div class="v">${tierStats.redeemed}</div><div class="l">Redeemed</div></div></div>
+            <div class="stat amber"><div class="ic">${icon('star')}</div><div><div class="v">${tierStats.unredeemed}</div><div class="l">Available</div></div></div>
+            <div class="stat cyan"><div class="ic">${icon('server')}</div><div><div class="v">${tierStats.server}</div><div class="l">Server-tier</div></div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-h"><div class="ic">${icon('star')}</div><div class="tt"><div class="t">Generate Key</div><div class="s">Creates a redeemable XNICO-XXXX-XXXX key.</div></div></div>
+            <div class="form-grid mt-2">
+                <label class="field"><span>Tier</span>
+                    <select id="pk-tier">
+                        <option value="user">User Premium</option>
+                        <option value="server">Server Premium</option>
+                    </select>
+                </label>
+                <label class="field"><span>Duration</span>
+                    <select id="pk-dur">
+                        <option value="7d">7 days</option>
+                        <option value="30d" selected>30 days</option>
+                        <option value="90d">90 days</option>
+                        <option value="365d">1 year</option>
+                        <option value="lifetime">Lifetime</option>
+                    </select>
+                </label>
+            </div>
+            <button class="btn primary mt-2" id="pk-gen">${icon('star')} Generate Key</button>
+            <div id="pk-out" class="mt-2"></div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-h"><div class="ic">${icon('log')}</div><div class="tt"><div class="t">All Keys</div><div class="s">${keys.length} on record</div></div></div>
+            ${keys.length ? `<table class="tbl">
+                <thead><tr><th>Key</th><th>Tier</th><th>Duration</th><th>Status</th><th>Created</th><th></th></tr></thead>
+                <tbody>${keys.map(k => `
+                    <tr>
+                        <td class="mono">${esc(k.key)}</td>
+                        <td><span class="tag ${k.tier === 'server' ? 'cyan' : 'purple'}">${esc(k.tier || 'user')}</span></td>
+                        <td>${esc(k.duration || '—')}</td>
+                        <td>${k.redeemed
+                            ? `<span class="tag green">Redeemed${k.redeemedBy ? ' by ' + esc(k.redeemedBy) : ''}</span>`
+                            : '<span class="tag amber">Available</span>'}</td>
+                        <td class="text-sm text-mute">${k.createdAt ? new Date(k.createdAt).toLocaleDateString() : '—'}</td>
+                        <td>${k.redeemed ? '' : `<button class="btn" data-revoke="${esc(k.key)}" title="Revoke key">${icon('user-x')}</button>`}</td>
+                    </tr>`).join('')}</tbody>
+            </table>` : '<div class="empty"><p>No keys generated yet.</p></div>'}
         </div>
     `;
+
+    $('#pk-gen').onclick = async () => {
+        const btn = $('#pk-gen'); btn.disabled = true;
+        const r = await api('/api/premium/generate', {
+            method: 'POST',
+            body: JSON.stringify({ tier: $('#pk-tier').value, duration: $('#pk-dur').value })
+        });
+        btn.disabled = false;
+        if (r?._error) return toast(r.error || 'Generation failed', 'error');
+        $('#pk-out').innerHTML = `
+            <div class="tag green" style="font-size:1rem;padding:.5rem 1rem;font-family:monospace;letter-spacing:.05em">${esc(r.key)}</div>
+            <p class="text-sm text-mute mt-1">Copied to clipboard. Send via DM and tell the user to redeem with <code>/redeemkey</code>.</p>`;
+        try { await navigator.clipboard.writeText(r.key); } catch {}
+        toast('Key generated and copied', 'success');
+        // Refresh after a short pause
+        setTimeout(pagePremium, 800);
+    };
+
+    $('#page').addEventListener('click', async e => {
+        const k = e.target.closest('[data-revoke]')?.dataset.revoke;
+        if (!k) return;
+        if (!confirm(`Revoke key ${k}? This cannot be undone.`)) return;
+        const r = await api(`/api/premium/${encodeURIComponent(k)}`, { method: 'DELETE' });
+        if (r?._error) return toast(r.error || 'Revoke failed', 'error');
+        toast('Key revoked', 'success');
+        pagePremium();
+    });
 }
 
 // ───── Page: 404 ─────────────────────────────────────────

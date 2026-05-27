@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
-const { getCurrency, getCurrencyName, formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
+const { getCurrency, getCurrencyName, formatCoins, formatCoinsShort, DEFAULT_CURRENCY, DEFAULT_CURRENCY_NAME } = require('../../utils/currencyHelper');
 const { buildPermissionDenied, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 function loadSettings() {
@@ -27,7 +27,7 @@ module.exports = {
             .addStringOption(o => o.setName('name').setDescription('Currency name (e.g. gems, gold, credits)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('reset')
-            .setDescription('Reset currency to default (<:Money:1473377877239140529> coins)'))
+            .setDescription(`Reset currency to default (${DEFAULT_CURRENCY} ${DEFAULT_CURRENCY_NAME})`))
         .addSubcommand(sub => sub
             .setName('view')
             .setDescription('View current currency settings'))
@@ -71,9 +71,9 @@ module.exports = {
             }
 
             const container = buildSuccessResponse('Currency Reset', 'Currency has been reset to the default.', {
-                'Symbol': '<:Money:1473377877239140529>',
-                'Name': 'coins',
-                'Example': '<:Money:1473377877239140529> 1,500 coins'
+                'Symbol': DEFAULT_CURRENCY,
+                'Name': DEFAULT_CURRENCY_NAME,
+                'Example': `${DEFAULT_CURRENCY} 1,500 ${DEFAULT_CURRENCY_NAME}`
             });
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -135,7 +135,7 @@ module.exports = {
                 delete settings[guildId].currencyName;
                 saveSettings(settings);
             }
-            const container = buildSuccessResponse('Currency Reset', 'Currency has been reset to the default (<:Money:1473377877239140529> coins).');
+            const container = buildSuccessResponse('Currency Reset', `Currency has been reset to the default (${DEFAULT_CURRENCY} ${DEFAULT_CURRENCY_NAME}).`);
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 

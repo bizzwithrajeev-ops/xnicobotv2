@@ -11,6 +11,17 @@ const CARD_STYLES = {
 };
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite premium-gate message instead of execution.
+     *
+     * Re-validation happens at component level (rankcard_* button
+     * handler in utils/interactionHandlers.js) so that panels keep
+     * working only as long as the user / server is premium.
+     */
+    premiumOnly: true,
+
     data: new SlashCommandBuilder()
         .setName('rank-customize')
         .setDescription('Customize your rank card appearance')

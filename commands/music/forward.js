@@ -1,33 +1,32 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { formatTime, voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
 
-async function doForward(player, member, seconds) {
-    if (!player || !player.queue.current) return { error: { title: 'No Player', body: 'Nothing is playing.' } };
+const { SlashCommandBuilder } = require('discord.js');
+const { formatTime } = require('../../utils/musicHelpers');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
 
-    const voiceErr = voiceErrorMessage(member, player);
-    if (voiceErr) return { error: { title: 'Voice Required', body: voiceErr } };
+async function run(target, lavalinkManager, seconds) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
 
-    if (player.queue.current.info.isStream || (player.queue.current.info.duration || 0) === 0) {
-        return { error: { title: 'Cannot Seek', body: 'Cannot seek inside a live stream.' } };
+    const pre = preflightPlayer({ player, member: target.member });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const t = player.queue.current;
+    if (!t.info.duration || t.info.isStream) {
+        return replyMusic(target, musicError('Cannot Seek', 'Seeking is not supported on live streams.'), { ephemeral: isSlash });
     }
-
     if (!Number.isFinite(seconds) || seconds < 1 || seconds > 600) {
-        return { error: { title: 'Invalid Input', body: 'Provide a value between 1 and 600 seconds.' } };
+        return replyMusic(target, musicError('Invalid Input', 'Provide a value between 1 and 600 seconds.'), { ephemeral: isSlash });
     }
 
-    const duration = player.queue.current.info.duration;
-    const newPosition = Math.min(duration - 1000, (player.position || 0) + seconds * 1000);
+    const newPosition = Math.min(t.info.duration - 1000, (player.position || 0) + seconds * 1000);
     await player.seek(Math.max(0, newPosition));
-    return { newPosition };
-}
 
-function buildResponse(seconds, position) {
-    return new ContainerBuilder().addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-            `# <:Fastforward:1473039306292723976> Fast Forward\n\nMoved forward **${seconds}s**.\n-# Position: \`${formatTime(position)}\``
-        )
-    );
+    return replyMusic(target, musicSuccess(
+        'Fast Forward',
+        `Moved forward **${seconds}s**.`,
+        `Position: \`${formatTime(newPosition)}\` / \`${formatTime(t.info.duration)}\``
+    ));
 }
 
 module.exports = {
@@ -45,34 +44,9 @@ module.exports = {
     aliases: ['ff', 'fwd'],
 
     async execute(interaction, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(interaction.guild.id);
-            const seconds = interaction.options.getInteger('seconds') || 10;
-            const result = await doForward(player, interaction.member, seconds);
-            if (result.error) {
-                return interaction.reply({ components: [buildErrorResponse(result.error.title, result.error.body)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            }
-            return interaction.reply({ components: [buildResponse(seconds, result.newPosition)], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Forward Error:', error);
-            const reply = { components: [buildErrorResponse('Forward Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
-            if (interaction.replied || interaction.deferred) return interaction.followUp(reply).catch(() => {});
-            return interaction.reply(reply).catch(() => {});
-        }
+        return run(interaction, lavalinkManager, interaction.options.getInteger('seconds') || 10);
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            const seconds = parseInt(args[0]) || 10;
-            const result = await doForward(player, message.member, seconds);
-            if (result.error) {
-                return message.reply({ components: [buildErrorResponse(result.error.title, result.error.body)], flags: MessageFlags.IsComponentsV2 });
-            }
-            return message.reply({ components: [buildResponse(seconds, result.newPosition)], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Forward Error:', error);
-            return message.reply({ components: [buildErrorResponse('Forward Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        }
-    }
+        return run(message, lavalinkManager, parseInt(args[0]) || 10);
+    },
 };

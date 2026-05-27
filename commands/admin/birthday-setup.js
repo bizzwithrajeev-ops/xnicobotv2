@@ -2,20 +2,25 @@
 
 /**
  * /birthday-setup
- * ────────────────
- * Admin-facing setup panel for the birthday system. Builds an interactive
- * Components V2 panel where staff can:
- *   • Pick the announcement channel
- *   • Pick an optional birthday role (granted on the user's day)
- *   • Choose ping mode (everyone, here, role, user, none)
- *   • Pick the message style (Simple / Embed / Components V2) and edit
- *     it through the shared message builder (utils/actionMessageBuilder)
- *   • Set the announcement hour (UTC)
- *   • Toggle the system on/off
- *   • Send the public "Set Your Birthday" panel into a channel
+ * ───────────────
+ * Admin-facing setup panel for the birthday system. Every control is inline
+ * on the panel — picking a channel, role, ping mode, hour, or message style
+ * refreshes the panel in-place with a green confirmation notice.
  *
- * Every setting change refreshes the original panel in-place so admins
- * always see the current state without spawning extra messages.
+ * Components V2 layout (8 components, under the 10-per-container cap):
+ *   1. Header text
+ *   2. Separator
+ *   3. Channel select (announcement channel)
+ *   4. Role select (optional birthday role)
+ *   5. String select — Ping Mode
+ *   6. String select — Send Hour (UTC)
+ *   7. String select — Message Style
+ *   8. Action row of 5 buttons: Edit Message · Preview · Test Send · Public Panel · Toggle/Reset
+ *
+ * Auxiliary (button-spawned) ephemerals:
+ *   • Public-panel channel picker (`bdaysetup_panelpick`)
+ *   • Reset confirmation (`bdaysetup_resetconfirm` / `_resetcancel`)
+ *   • Message-builder bridge (`bdaymsg_*` → utils/actionMessageBuilder)
  */
 
 const {
@@ -53,12 +58,12 @@ function pingLabel(mode) {
     })[mode] || 'User only';
 }
 
-function typeLabel(t) {
+function styleLabel(t) {
     return ({
         simple: '💬 Simple',
         embed: '📝 Embed',
         components: '🎨 Components V2'
-    })[t] || 'Embed';
+    })[t] || '📝 Embed';
 }
 
 function hourLabel(h) {
@@ -70,7 +75,7 @@ function ensureManageGuild(interaction) {
     return interaction.member?.permissions?.has(PermissionFlagsBits.ManageGuild);
 }
 
-// ── Setup panel builder ────────────────────────────────────────────────
+// ── Main setup panel ───────────────────────────────────────────────────
 
 function buildSetupPanel(guild, opts = {}) {
     const cfg = birthdayManager.getGuildConfig(guild.id);
@@ -84,9 +89,6 @@ function buildSetupPanel(guild, opts = {}) {
         ? `Posted in <#${cfg.panel.channelId}>`
         : '`Not posted yet`';
 
-    // Components-V2 containers are capped at 10 child components, so we keep
-    // header + body collapsed into a single text display + one separator
-    // so the 5 interactive rows always fit (1 + 1 + 5 = 7 base components).
     const headerBlock =
         `# 🎂  Birthday System\n` +
         `-# Schedule birthday wishes for **${guild.name}**\n\n` +
@@ -98,19 +100,18 @@ function buildSetupPanel(guild, opts = {}) {
         `**Birthday Role:** ${roleTxt}\n` +
         `**Ping Mode:** \`${pingLabel(cfg.pingMode)}\`\n` +
         `**Send Hour:** \`${hourLabel(cfg.hour)}\`\n` +
-        `**Message Style:** ${typeLabel(cfg.messageType)}\n\n` +
-        `### <:User:1473038971398520977> Member Stats\n` +
-        `**Saved Birthdays:** \`${userCount}\`\n` +
-        `**Public Panel:** ${panelTxt}\n` +
-        (notice ? `\n${notice}\n` : '') +
-        `\n-# Members save their birthday with \`/birthday set\` or via the public panel.`;
+        `**Message Style:** ${styleLabel(cfg.messageType)}\n\n` +
+        `### <:User:1473038971398520977> Stats\n` +
+        `**Saved Birthdays:** \`${userCount}\` · **Public Panel:** ${panelTxt}\n` +
+        (notice ? `\n${notice}` : '') +
+        `\n\n-# Members save with \`/birthday set\` or via the public panel.`;
 
     const container = new ContainerBuilder()
         .setAccentColor(enabled ? 0xFF6FA3 : 0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(headerBlock))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-    // Row 1 — Channel select (live, in-panel)
+    // ── Channel select ────────────────────────────────────────────────
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
@@ -122,7 +123,7 @@ function buildSetupPanel(guild, opts = {}) {
         )
     );
 
-    // Row 2 — Role select (live)
+    // ── Role select ───────────────────────────────────────────────────
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
@@ -133,34 +134,64 @@ function buildSetupPanel(guild, opts = {}) {
         )
     );
 
-    // Row 3 — Ping / hour / style
+    // ── Ping mode select ──────────────────────────────────────────────
+    const pingOptions = [
+        { label: 'User only', value: 'user', description: 'Mention only the birthday user', emoji: '<:User:1473038971398520977>' },
+        { label: 'Birthday role', value: 'role', description: 'Ping the configured birthday role', emoji: '<:Pin:1473038806612447500>' },
+        { label: '@here', value: 'here', description: 'Ping online members in the channel', emoji: '🔔' },
+        { label: '@everyone', value: 'everyone', description: 'Ping every member', emoji: '<:Bullhorn:1473038903157199093>' },
+        { label: 'No ping', value: 'none', description: 'Send the message silently', emoji: '<:Toggleoff:1473038582813032590>' }
+    ].map(o => ({ ...o, default: cfg.pingMode === o.value }));
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`${SETUP_PREFIX}_ping`)
-                .setLabel(`Ping: ${pingLabel(cfg.pingMode)}`)
-                .setEmoji('🔔')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId(`${SETUP_PREFIX}_hour`)
-                .setLabel(`Hour: ${hourLabel(cfg.hour)}`)
-                .setEmoji('🕒')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId(`${SETUP_PREFIX}_msgstyle`)
-                .setLabel(`Style: ${(cfg.messageType || 'embed').replace(/^\w/, c => c.toUpperCase())}`)
-                .setEmoji('<:Palette:1473039029476917461>')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId(`${SETUP_PREFIX}_clearrole`)
-                .setLabel('Clear Role')
-                .setEmoji('<:Trash:1473038090074591293>')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(!cfg.roleId)
+            new StringSelectMenuBuilder()
+                .setCustomId(`${SETUP_PREFIX}_pingpick`)
+                .setPlaceholder(`🔔 Ping mode — currently: ${pingLabel(cfg.pingMode)}`)
+                .addOptions(pingOptions)
         )
     );
 
-    // Row 4 — Edit / Preview / Test / Public Panel
+    // ── Hour select (24 options) ──────────────────────────────────────
+    const hourOptions = [];
+    for (let h = 0; h < 24; h++) {
+        const value = String(h);
+        // Only set description for the special markers — Discord
+        // rejects empty strings for option.description ("Received one
+        // or more errors"), so omit the field entirely otherwise.
+        const opt = {
+            label: `${String(h).padStart(2, '0')}:00 UTC`,
+            value,
+            default: String(cfg.hour ?? 9) === value
+        };
+        if (h === 0) opt.description = 'Midnight UTC';
+        else if (h === 12) opt.description = 'Noon UTC';
+        hourOptions.push(opt);
+    }
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(`${SETUP_PREFIX}_hourpick`)
+                .setPlaceholder(`🕒 Send hour (UTC) — currently: ${hourLabel(cfg.hour)}`)
+                .addOptions(hourOptions)
+        )
+    );
+
+    // ── Style select ──────────────────────────────────────────────────
+    const styleOptions = [
+        { label: 'Simple', value: 'simple', description: 'Plain text message', emoji: '<:Chat:1473038936241864865>' },
+        { label: 'Embed', value: 'embed', description: 'Rich embed with title, color, and fields', emoji: '<:Document:1473039496995143731>' },
+        { label: 'Components V2', value: 'components', description: 'Modern card-style layout', emoji: '<:Fire:1473038604812161218>' }
+    ].map(o => ({ ...o, default: cfg.messageType === o.value }));
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(`${SETUP_PREFIX}_msgstylepick`)
+                .setPlaceholder(`🎨 Message style — currently: ${styleLabel(cfg.messageType)}`)
+                .addOptions(styleOptions)
+        )
+    );
+
+    // ── Buttons row ───────────────────────────────────────────────────
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -184,10 +215,11 @@ function buildSetupPanel(guild, opts = {}) {
                 .setLabel('Send Public Panel')
                 .setEmoji('<:Add:1473038100862337035>')
                 .setStyle(ButtonStyle.Primary)
+                .setDisabled(!cfg.channelId)
         )
     );
 
-    // Row 5 — Toggle / reset / refresh
+    // ── Bottom row ────────────────────────────────────────────────────
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -199,13 +231,19 @@ function buildSetupPanel(guild, opts = {}) {
                 .setStyle(enabled ? ButtonStyle.Danger : ButtonStyle.Success)
                 .setDisabled(!cfg.channelId),
             new ButtonBuilder()
+                .setCustomId(`${SETUP_PREFIX}_clearrole`)
+                .setLabel('Clear Role')
+                .setEmoji('<:Trash:1473038090074591293>')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(!cfg.roleId),
+            new ButtonBuilder()
                 .setCustomId(`${SETUP_PREFIX}_refresh`)
                 .setLabel('Refresh')
                 .setEmoji('<:Refresh:1473037911581528165>')
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId(`${SETUP_PREFIX}_reset`)
-                .setLabel('Reset Settings')
+                .setLabel('Reset')
                 .setEmoji('<:Trash:1473038090074591293>')
                 .setStyle(ButtonStyle.Danger)
         )
@@ -230,8 +268,8 @@ function buildPublicPanel(guild) {
             `> <:Caretright:1473038207221502106>  Enter your birthday as \`DD-MM\` or \`DD-MM-YYYY\`\n` +
             `> <:Caretright:1473038207221502106>  We'll wish you in the announcement channel on your day\n\n` +
             `### <:Document:1473039496995143731> Privacy\n` +
-            `Your birthday is stored only for this server and used solely to ` +
-            `send you a wish on the day. You can clear it anytime with **Remove**.`
+            `Your birthday is stored only for this server. You can clear it ` +
+            `anytime with **Remove**.`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addActionRowComponents(
@@ -274,7 +312,6 @@ async function refreshPanel(interaction, notice) {
         await interaction.editReply(payload).catch(() => {});
     } else {
         await interaction.update(payload).catch(async () => {
-            // update() fails when interaction is already in a different state.
             await interaction.reply(payload).catch(() => {});
         });
     }
@@ -294,10 +331,10 @@ module.exports = {
     category: 'admin',
     aliases: ['birthdaysetup', 'bdaysetup', 'bday-setup'],
 
-    buildSetupPanel,
-    buildPublicPanel,
     SETUP_PREFIX,
     BUILDER_PREFIX,
+    buildSetupPanel,
+    buildPublicPanel,
 
     async execute(interaction) {
         if (!ensureManageGuild(interaction)) {
@@ -332,7 +369,7 @@ module.exports = {
         const id = interaction.customId;
         if (!id) return false;
 
-        // Message builder bridge — handles both button + modal events
+        // Message builder bridge — handles both button + modal events.
         if (id.startsWith(BUILDER_PREFIX + '_')) {
             return handleMessageBuilderRouting(interaction);
         }
@@ -351,29 +388,28 @@ module.exports = {
         const guildId = interaction.guild.id;
 
         try {
-            // ── Channel pick (in-panel select) ───────────────────────
+            // ── Channel pick ──────────────────────────────────────────
             if (interaction.isChannelSelectMenu() && action === 'channelpick') {
                 const channelId = interaction.values[0];
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 cfg.channelId = channelId;
                 birthdayManager.saveGuildConfig(guildId, cfg);
-                await refreshPanel(interaction, `<:Checkedbox:1473038547165384804> Announcement channel set to <#${channelId}>.`);
+                await refreshPanel(interaction,
+                    `<:Checkedbox:1473038547165384804> Announcement channel set to <#${channelId}>.`);
                 return true;
             }
 
-            // ── Role pick (in-panel select) ──────────────────────────
+            // ── Role pick ─────────────────────────────────────────────
             if (interaction.isRoleSelectMenu() && action === 'rolepick') {
                 const roleId = interaction.values[0] || null;
                 const cfg = birthdayManager.getGuildConfig(guildId);
 
                 if (roleId) {
-                    // Sanity-check we can actually assign this role.
                     const role = interaction.guild.roles.cache.get(roleId);
                     const me = interaction.guild.members.me;
                     if (role && me && me.roles.highest.comparePositionTo(role) <= 0) {
                         await refreshPanel(interaction,
-                            `<:Cancel:1473037949187657818> I can't assign **${role.name}** — it's higher than my top role. ` +
-                            `Pick a lower role or move my role above it.`);
+                            `<:Cancel:1473037949187657818> I can't assign **${role.name}** — it's higher than my top role. Move my role above it or pick a lower role.`);
                         return true;
                     }
                     if (role && role.managed) {
@@ -399,110 +435,51 @@ module.exports = {
                 return true;
             }
 
-            // ── Ping picker — shows secondary panel ──────────────────
-            if (interaction.isButton() && action === 'ping') {
-                const row = new ActionRowBuilder().addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId(`${SETUP_PREFIX}_pingpick`)
-                        .setPlaceholder('Pick how to ping on birthdays')
-                        .addOptions(
-                            { label: 'User only', value: 'user', description: 'Mention only the birthday user', emoji: '<:User:1473038971398520977>' },
-                            { label: 'Birthday role', value: 'role', description: 'Ping the configured role', emoji: '<:Pin:1473038806612447500>' },
-                            { label: '@here', value: 'here', description: 'Ping online members in the channel', emoji: '🔔' },
-                            { label: '@everyone', value: 'everyone', description: 'Ping every member', emoji: '<:Bullhorn:1473038903157199093>' },
-                            { label: 'No ping', value: 'none', description: 'Send the message silently', emoji: '<:Toggleoff:1473038582813032590>' }
-                        )
-                );
-                await interaction.reply({
-                    content: '🔔 Pick the ping behavior for birthday messages:',
-                    components: [row],
-                    flags: MessageFlags.Ephemeral
-                });
-                return true;
-            }
+            // ── Ping mode (inline) ────────────────────────────────────
             if (interaction.isStringSelectMenu() && action === 'pingpick') {
                 const val = interaction.values[0];
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 cfg.pingMode = val;
                 birthdayManager.saveGuildConfig(guildId, cfg);
-                await interaction.update({
-                    content: `<:Checkedbox:1473038547165384804> Ping mode set to **${pingLabel(val)}**. ` +
-                             `Return to the panel to see updated settings.`,
-                    components: []
-                });
+                await refreshPanel(interaction,
+                    `<:Checkedbox:1473038547165384804> Ping mode set to **${pingLabel(val)}**.`);
                 return true;
             }
 
-            // ── Hour picker ──────────────────────────────────────────
-            if (interaction.isButton() && action === 'hour') {
-                const opts = [];
-                for (let h = 0; h < 24; h++) {
-                    opts.push({
-                        label: `${String(h).padStart(2, '0')}:00 UTC`,
-                        value: String(h),
-                        description: h === 0 ? 'Midnight UTC' : (h === 12 ? 'Noon UTC' : '')
-                    });
-                }
-                const row = new ActionRowBuilder().addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId(`${SETUP_PREFIX}_hourpick`)
-                        .setPlaceholder('Pick the announcement hour (UTC)')
-                        .addOptions(opts)
-                );
-                await interaction.reply({
-                    content: '🕒 Pick the **UTC** hour to send birthday wishes:',
-                    components: [row],
-                    flags: MessageFlags.Ephemeral
-                });
-                return true;
-            }
+            // ── Hour (inline) ─────────────────────────────────────────
             if (interaction.isStringSelectMenu() && action === 'hourpick') {
                 const hour = parseInt(interaction.values[0], 10);
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 cfg.hour = isNaN(hour) ? 9 : Math.max(0, Math.min(23, hour));
                 birthdayManager.saveGuildConfig(guildId, cfg);
-                await interaction.update({
-                    content: `<:Checkedbox:1473038547165384804> Send hour set to **${hourLabel(cfg.hour)}**. ` +
-                             `Return to the panel to see updated settings.`,
-                    components: []
-                });
+                await refreshPanel(interaction,
+                    `<:Checkedbox:1473038547165384804> Send hour set to **${hourLabel(cfg.hour)}**.`);
                 return true;
             }
 
-            // ── Message style picker ─────────────────────────────────
-            if (interaction.isButton() && action === 'msgstyle') {
-                const row = new ActionRowBuilder().addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId(`${SETUP_PREFIX}_msgstylepick`)
-                        .setPlaceholder('Pick the message style')
-                        .addOptions(
-                            { label: 'Simple', value: 'simple', description: 'Plain text message', emoji: '<:Chat:1473038936241864865>' },
-                            { label: 'Embed', value: 'embed', description: 'Rich embed with title, color, and fields', emoji: '<:Document:1473039496995143731>' },
-                            { label: 'Components V2', value: 'components', description: 'Modern card-style layout', emoji: '<:Fire:1473038604812161218>' }
-                        )
-                );
-                await interaction.reply({
-                    content: '<:Palette:1473039029476917461> Pick a message style. The matching template will be loaded — fine-tune it with **Edit Message**.',
-                    components: [row],
-                    flags: MessageFlags.Ephemeral
-                });
-                return true;
-            }
+            // ── Message style (inline) ────────────────────────────────
             if (interaction.isStringSelectMenu() && action === 'msgstylepick') {
                 const t = interaction.values[0];
-                if (!['simple', 'embed', 'components'].includes(t)) return true;
+                if (!['simple', 'embed', 'components'].includes(t)) {
+                    await refreshPanel(interaction);
+                    return true;
+                }
                 const cfg = birthdayManager.getGuildConfig(guildId);
+                const wasSame = cfg.messageType === t;
                 cfg.messageType = t;
-                cfg.messageData = birthdayManager.cloneTemplate(t);
+                // Only reset template when user actually switches styles —
+                // re-clicking the current style preserves their custom edits.
+                if (!wasSame) {
+                    cfg.messageData = birthdayManager.cloneTemplate(t);
+                }
                 birthdayManager.saveGuildConfig(guildId, cfg);
-                await interaction.update({
-                    content: `<:Checkedbox:1473038547165384804> Style set to **${typeLabel(t)}** — default template loaded. Edit it with **Edit Message**.`,
-                    components: []
-                });
+                await refreshPanel(interaction, wasSame
+                    ? `<:Checkedbox:1473038547165384804> Style still set to **${styleLabel(t)}** — your custom message was preserved.`
+                    : `<:Checkedbox:1473038547165384804> Style set to **${styleLabel(t)}** — default template loaded. Customize it with **Edit Message**.`);
                 return true;
             }
 
-            // ── Edit Message (spawn shared message builder) ──────────
+            // ── Edit Message → spawn shared message builder ───────────
             if (interaction.isButton() && action === 'msgedit') {
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 const seed = cfg.messageData && Object.keys(cfg.messageData).length
@@ -523,7 +500,7 @@ module.exports = {
                 return true;
             }
 
-            // ── Preview ──────────────────────────────────────────────
+            // ── Preview ───────────────────────────────────────────────
             if (interaction.isButton() && action === 'preview') {
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 const data = cfg.messageData || birthdayManager.cloneTemplate(cfg.messageType || 'embed');
@@ -565,7 +542,7 @@ module.exports = {
                 return true;
             }
 
-            // ── Test Send ────────────────────────────────────────────
+            // ── Test Send ─────────────────────────────────────────────
             if (interaction.isButton() && action === 'test') {
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 if (!cfg.channelId) {
@@ -605,7 +582,7 @@ module.exports = {
                 return true;
             }
 
-            // ── Send public Set-Birthday panel ───────────────────────
+            // ── Send public Set-Birthday panel ────────────────────────
             if (interaction.isButton() && action === 'panel') {
                 const row = new ActionRowBuilder().addComponents(
                     new ChannelSelectMenuBuilder()
@@ -639,7 +616,7 @@ module.exports = {
                 }
                 try {
                     const cfg = birthdayManager.getGuildConfig(guildId);
-                    // If a panel was previously posted, try to delete the old one.
+                    // Best-effort: delete the previous panel if one exists.
                     if (cfg.panel?.channelId && cfg.panel?.messageId) {
                         const oldCh = interaction.guild.channels.cache.get(cfg.panel.channelId)
                             || await interaction.guild.channels.fetch(cfg.panel.channelId).catch(() => null);
@@ -668,7 +645,7 @@ module.exports = {
                 return true;
             }
 
-            // ── Toggle ───────────────────────────────────────────────
+            // ── Toggle ────────────────────────────────────────────────
             if (interaction.isButton() && action === 'toggle') {
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 if (!cfg.channelId) {
@@ -684,13 +661,13 @@ module.exports = {
                 return true;
             }
 
-            // ── Refresh ──────────────────────────────────────────────
+            // ── Refresh ───────────────────────────────────────────────
             if (interaction.isButton() && action === 'refresh') {
                 await refreshPanel(interaction);
                 return true;
             }
 
-            // ── Reset (asks for confirmation) ────────────────────────
+            // ── Reset (with confirmation) ─────────────────────────────
             if (interaction.isButton() && action === 'reset') {
                 const confirmRow = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -704,7 +681,7 @@ module.exports = {
                         .setStyle(ButtonStyle.Secondary)
                 );
                 await interaction.reply({
-                    content: '<:Cancel:1473037949187657818> Reset will clear channel, role, ping mode, hour, and message template.\n' +
+                    content: '<:Cancel:1473037949187657818> Reset clears channel, role, ping mode, hour, and message template.\n' +
                              '**Saved member birthdays are preserved.** Continue?',
                     components: [confirmRow],
                     flags: MessageFlags.Ephemeral
@@ -717,7 +694,7 @@ module.exports = {
                 all[guildId] = { ...birthdayManager.getDefaultGuildConfig(), users: preserveUsers };
                 birthdayManager.saveAll(all);
                 await interaction.update({
-                    content: '<:Checkedbox:1473038547165384804> Settings reset. Member birthdays were preserved.',
+                    content: '<:Checkedbox:1473038547165384804> Settings reset. Member birthdays were preserved.\n-# Re-open `/birthday-setup` to see the cleared panel.',
                     components: []
                 });
                 return true;
@@ -732,11 +709,13 @@ module.exports = {
         } catch (err) {
             require('../../utils/logger-styled').error('[birthday-setup] handler error:', err);
             const msg = `<:Cancel:1473037949187657818> Something went wrong: ${err.message || err}`;
-            if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            try {
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+                } else {
+                    await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+                }
+            } catch {}
             return true;
         }
 
@@ -748,7 +727,6 @@ module.exports = {
 
 async function handleMessageBuilderRouting(interaction) {
     const guildId = interaction.guild.id;
-
     if (!interaction.isButton() && !interaction.isModalSubmit()) return false;
 
     const onSave = async (i, data) => {
@@ -769,7 +747,7 @@ async function handleMessageBuilderRouting(interaction) {
         };
         cfg.messageType = data.mode || cfg.messageType || 'embed';
         birthdayManager.saveGuildConfig(guildId, cfg);
-        const okMsg = '<:Checkedbox:1473038547165384804> Birthday message saved!';
+        const okMsg = '<:Checkedbox:1473038547165384804> Birthday message saved! Re-open `/birthday-setup` to refresh the panel.';
         if (i.deferred || i.replied) {
             await i.editReply({ content: okMsg, components: [], embeds: [] }).catch(() => {});
         } else {

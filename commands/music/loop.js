@@ -1,91 +1,68 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage, nextLoopMode } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { nextLoopMode } = require('../../utils/musicHelpers');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
 
 const ICONS = {
     off:   '<:Forward:1473038953182531645>',
     track: '<:Refresh:1473037911581528165>',
-    queue: '<:Shuffle:1473039298751107213>'
+    queue: '<:Shuffle:1473039298751107213>',
 };
 
 const TEXT = { off: 'Off', track: 'Track', queue: 'Queue' };
-
-function applyMode(player, mode) {
-    player.setRepeatMode(mode);
-}
+const VALID = new Set(Object.keys(TEXT));
 
 function buildResponse(mode) {
-    return new ContainerBuilder().addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-            `# ${ICONS[mode]} Loop — ${TEXT[mode]}\n\n` +
-            (mode === 'off'   ? 'Repeat is disabled.\n-# Tracks will play through the queue once.' :
-             mode === 'track' ? 'Current track will repeat indefinitely.\n-# Run \`/loop off\` to disable.' :
-                                'Whole queue will repeat after the last track.\n-# Run \`/loop off\` to disable.')
-        )
-    );
+    const body = mode === 'off'
+        ? 'Repeat is disabled — tracks will play through once.'
+        : mode === 'track'
+            ? 'Current track will repeat indefinitely.'
+            : 'Whole queue will repeat after the last track.';
+    const footer = mode === 'off' ? null : 'Run `/loop off` to disable.';
+    return musicSuccess(`Loop — ${TEXT[mode]}`, body, footer);
+}
+
+async function run(target, lavalinkManager, requested) {
+    const player = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    const pre = preflightPlayer({ player, member: target.member });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    let mode;
+    if (!requested) mode = nextLoopMode(player.repeatMode || 'off');
+    else if (VALID.has(requested)) mode = requested;
+    else return replyMusic(target, musicError('Invalid Mode', 'Use one of: `off`, `track`, `queue` — or omit to cycle.'), { ephemeral: isSlash });
+
+    player.setRepeatMode(mode);
+    return replyMusic(target, buildResponse(mode));
 }
 
 module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('loop')
+        .setDescription('Cycle or set the repeat mode')
+        .addStringOption(o => o.setName('mode')
+            .setDescription('Loop mode (omit to cycle)').setRequired(false)
+            .addChoices(
+                { name: 'Off',   value: 'off' },
+                { name: 'Track', value: 'track' },
+                { name: 'Queue', value: 'queue' }
+            )),
+
     prefix: 'loop',
-    description: 'Cycle or set the loop/repeat mode',
+    description: 'Cycle or set the repeat mode',
     usage: 'loop [off|track|queue]',
     category: 'music',
     aliases: ['lp', 'rp'],
 
-    data: new SlashCommandBuilder()
-        .setName('loop')
-        .setDescription('Cycle or set the loop/repeat mode')
-        .addStringOption(option =>
-            option.setName('mode')
-                .setDescription('Loop mode (omit to cycle)')
-                .setRequired(false)
-                .addChoices(
-                    { name: 'Off',   value: 'off' },
-                    { name: 'Track', value: 'track' },
-                    { name: 'Queue', value: 'queue' }
-                )),
-
     async execute(interaction, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(interaction.guild.id);
-            if (!player) {
-                return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            }
-            const voiceErr = voiceErrorMessage(interaction.member, player);
-            if (voiceErr) return interaction.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-            const requested = interaction.options.getString('mode');
-            const mode = requested || nextLoopMode(player.repeatMode || 'off');
-            applyMode(player, mode);
-
-            await interaction.reply({ components: [buildResponse(mode)], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Loop Error:', error);
-            const msg = error.message || 'An unknown error occurred';
-            const reply = { components: [buildErrorResponse('Loop Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
-            if (interaction.replied || interaction.deferred) await interaction.followUp(reply).catch(() => {});
-            else await interaction.reply(reply).catch(() => {});
-        }
+        const requested = interaction.options.getString('mode');
+        return run(interaction, lavalinkManager, requested);
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing.')], flags: MessageFlags.IsComponentsV2 });
-            const voiceErr = voiceErrorMessage(message.member, player);
-            if (voiceErr) return message.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 });
-
-            const requested = args[0]?.toLowerCase();
-            let mode;
-            if (!requested) mode = nextLoopMode(player.repeatMode || 'off');
-            else if (['off', 'track', 'queue'].includes(requested)) mode = requested;
-            else return message.reply({ components: [buildErrorResponse('Invalid Mode', 'Use one of: `off`, `track`, `queue` — or omit to cycle.')], flags: MessageFlags.IsComponentsV2 });
-
-            applyMode(player, mode);
-            return message.reply({ components: [buildResponse(mode)], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Loop Error:', error);
-            return message.reply({ components: [buildErrorResponse('Loop Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        }
-    }
+        const requested = args[0]?.toLowerCase() || null;
+        return run(message, lavalinkManager, requested);
+    },
 };

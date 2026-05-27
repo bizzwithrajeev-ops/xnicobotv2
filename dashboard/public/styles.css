@@ -672,6 +672,13 @@ input[type="color"] { width: 44px; height: 38px; padding: 2px; border-radius: 8p
 .tag.red   { background: rgba(239,68,68,.12);  color: #fca5a5; border-color: rgba(239,68,68,.25); }
 .tag.amber { background: rgba(245,158,11,.12); color: #fcd34d; border-color: rgba(245,158,11,.25); }
 .tag.grey  { background: var(--bg-hover); color: var(--text-mute); border-color: var(--border); }
+.tag.cyan   { background: rgba(6,182,212,.12);  color: #67e8f9; border-color: rgba(6,182,212,.25); }
+.tag.purple { background: rgba(124,58,237,.14); color: #c4b5fd; border-color: rgba(124,58,237,.30); }
+
+/* Premium-marked command tags glow gently so they're easy to spot in a long list */
+.tag.amber svg { color: #fcd34d; }
+.card details summary { padding: .25rem 0; }
+.card details[open] summary { margin-bottom: .25rem; }
 
 /* Table */
 .tbl {

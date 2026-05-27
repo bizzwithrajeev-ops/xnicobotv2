@@ -1,6 +1,57 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { getGuildConfig, updateGuildConfig } = require('../../utils/database');
-const { buildPermissionDenied } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { paginate, setupPaginationCollector } = require('../../utils/pagination');
+
+/**
+ * Build the paginated payload for the "list" subcommand. Combines
+ * ignored channels and roles into one numbered, sectioned list so we
+ * stay under the 4 000-char container cap on busy servers, while
+ * keeping the existing two-section layout intact at small sizes.
+ */
+function buildIgnoreListResult(guild, ignoreChannels, ignoreRoles) {
+    const E = {
+        block:  '<:Commentblock:1473370739351490794>',
+        chan:   '<:Folderblock:1473039508545994996>',
+        role:   '<:Userplus:1473038912212435086>',
+        caret:  '<:Caretright:1473038207221502106>',
+        none:   '<:Cancel:1473037949187657818>',
+    };
+
+    const channelLines = ignoreChannels.length > 0
+        ? ignoreChannels.map((id, i) => {
+            const ch = guild.channels.cache.get(id);
+            const label = ch ? `${ch}` : `~~<#${id}>~~ \`(deleted)\``;
+            return `${E.caret} \`${String(i + 1).padStart(2, '0')}.\` ${label}`;
+        })
+        : [`${E.none} *No ignored channels*`];
+
+    const roleLines = ignoreRoles.length > 0
+        ? ignoreRoles.map((id, i) => {
+            const role = guild.roles.cache.get(id);
+            const label = role ? `<@&${id}>` : `~~<@&${id}>~~ \`(deleted)\``;
+            return `${E.caret} \`${String(i + 1).padStart(2, '0')}.\` ${label}`;
+        })
+        : [`${E.none} *No ignored roles*`];
+
+    const lines = [
+        `### ${E.chan} Ignored Channels (${ignoreChannels.length})`,
+        ...channelLines,
+        '',
+        `### ${E.role} Ignored Roles (${ignoreRoles.length})`,
+        ...roleLines,
+    ];
+
+    return paginate({
+        header:
+            `# ${E.block} Leveling · Ignore List\n` +
+            `-# Members do not gain XP in these channels or with these roles.`,
+        lines,
+        perPage:     20,
+        accentColor: COLORS.WARNING,
+        footer:      BRANDING,
+    });
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -132,27 +183,12 @@ module.exports = {
 
         if (subcommand === 'list') {
             const ignoreChannels = guildConfig.leveling?.ignoreChannels || [];
-            const ignoreRoles = guildConfig.leveling?.ignoreRoles || [];
+            const ignoreRoles    = guildConfig.leveling?.ignoreRoles    || [];
 
-            const channelList = ignoreChannels.length > 0
-                ? ignoreChannels.map(id => `• <#${id}>`).join('\n')
-                : '• None';
-
-            const roleList = ignoreRoles.length > 0
-                ? ignoreRoles.map(id => `• <@&${id}>`).join('\n')
-                : '• None';
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(
-                            `# <:Commentblock:1473370739351490794> Ignored Channels & Roles\n\n` +
-                            `**Ignored Channels (${ignoreChannels.length}):**\n${channelList}\n\n` +
-                            `**Ignored Roles (${ignoreRoles.length}):**\n${roleList}`
-                        )
-                );
-
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const result = buildIgnoreListResult(interaction.guild, ignoreChannels, ignoreRoles);
+            const reply  = await interaction.reply({ ...result, fetchReply: true });
+            setupPaginationCollector(reply, result._pageData, interaction.user.id);
+            return;
         }
     },
 
@@ -164,27 +200,10 @@ module.exports = {
 
         const guildConfig = await getGuildConfig(message.guild.id);
         const ignoreChannels = guildConfig.leveling?.ignoreChannels || [];
-        const ignoreRoles = guildConfig.leveling?.ignoreRoles || [];
+        const ignoreRoles    = guildConfig.leveling?.ignoreRoles    || [];
 
-        const channelList = ignoreChannels.length > 0
-            ? ignoreChannels.map(id => `• <#${id}>`).join('\n')
-            : '• None';
-
-        const roleList = ignoreRoles.length > 0
-            ? ignoreRoles.map(id => `• <@&${id}>`).join('\n')
-            : '• None';
-
-        const container = new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(
-                        `# <:Commentblock:1473370739351490794> Ignored Channels & Roles\n\n` +
-                        `**Ignored Channels (${ignoreChannels.length}):**\n${channelList}\n\n` +
-                        `**Ignored Roles (${ignoreRoles.length}):**\n${roleList}\n\n` +
-                        `Use \`/leveling-ignore\` to add or remove channels/roles.`
-                    )
-            );
-
-        return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const result = buildIgnoreListResult(message.guild, ignoreChannels, ignoreRoles);
+        const reply  = await message.reply(result);
+        setupPaginationCollector(reply, result._pageData, message.author.id);
     }
 };

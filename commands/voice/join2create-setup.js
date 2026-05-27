@@ -129,7 +129,7 @@ function buildAdminDashboard(guild, requesterUserId) {
             const panel = i.interfaceChannelId ? `<#${i.interfaceChannelId}>` : '`No panel`';
             return `${state} ${i.emoji} **${i.name}**  ·  Panel: ${panel}\n` +
                    `> Triggers: ${triggers}\n` +
-                   `-# Limit \`${i.defaultUserLimit || '∞'}\` · Bitrate \`${i.defaultBitrate}kbps\` · ${i.defaultVisibility === 'private' ? 'Private' : 'Public'} · Auto-delete \`${i.autoDelete ? 'On' : 'Off'}\``;
+                   `-# Limit \`${i.defaultUserLimit || '∞'}\` · Bitrate \`${i.defaultBitrate}kbps\` · Max VCs \`${i.maxConcurrentChannels ? i.maxConcurrentChannels : '∞'}\` · ${i.defaultVisibility === 'private' ? 'Private' : 'Public'} · Auto-delete \`${i.autoDelete ? 'On' : 'Off'}\``;
         }).join('\n\n');
         body = `### <:Bookopen:1473038576391557130> Interfaces\n${lines}`;
     }
@@ -217,6 +217,7 @@ function buildInterfaceEditor(guild, iface, requesterUserId) {
         `### <:Document:1473039496995143731> Defaults\n` +
         `> **Naming:** \`${iface.namingTemplate}\`\n` +
         `> **User limit:** \`${iface.defaultUserLimit === 0 ? 'Unlimited' : iface.defaultUserLimit}\`  ·  **Bitrate:** \`${iface.defaultBitrate} kbps\`\n` +
+        `> **Max temp channels:** \`${iface.maxConcurrentChannels ? iface.maxConcurrentChannels : 'Unlimited'}\`\n` +
         `> **Visibility:** \`${iface.defaultVisibility}\`  ·  **Auto-delete when empty:** \`${iface.autoDelete ? 'On' : 'Off'}\`\n`;
 
     if (iface.allowedRoles?.length) {
@@ -401,14 +402,16 @@ module.exports = {
         const id = interaction.customId;
 
         if (id === 'j2cset_modal_create') {
-            const name    = interaction.fields.getTextInputValue('name').trim();
-            const naming  = interaction.fields.getTextInputValue('naming').trim();
-            const limit   = interaction.fields.getTextInputValue('limit').trim();
-            const bitrate = interaction.fields.getTextInputValue('bitrate').trim();
+            const name        = interaction.fields.getTextInputValue('name').trim();
+            const naming      = interaction.fields.getTextInputValue('naming').trim();
+            const limit       = interaction.fields.getTextInputValue('limit').trim();
+            const bitrate     = interaction.fields.getTextInputValue('bitrate').trim();
+            const maxChannels = (interaction.fields.getTextInputValue('maxchannels') || '0').trim();
 
             const r = mgr.createInterface(interaction.guild.id, interaction.user.id, {
                 name, namingTemplate: naming,
-                defaultUserLimit: limit, defaultBitrate: bitrate
+                defaultUserLimit: limit, defaultBitrate: bitrate,
+                maxConcurrentChannels: maxChannels
             });
             if (!r.ok) {
                 if (r.tier !== 'premium') {
@@ -426,10 +429,11 @@ module.exports = {
         if (id.startsWith('j2cset_modal_edit_')) {
             const ifaceId = id.slice('j2cset_modal_edit_'.length);
             const patch = {
-                name:             interaction.fields.getTextInputValue('name').trim(),
-                namingTemplate:   interaction.fields.getTextInputValue('naming').trim(),
-                defaultUserLimit: interaction.fields.getTextInputValue('limit').trim(),
-                defaultBitrate:   interaction.fields.getTextInputValue('bitrate').trim()
+                name:                  interaction.fields.getTextInputValue('name').trim(),
+                namingTemplate:        interaction.fields.getTextInputValue('naming').trim(),
+                defaultUserLimit:      interaction.fields.getTextInputValue('limit').trim(),
+                defaultBitrate:        interaction.fields.getTextInputValue('bitrate').trim(),
+                maxConcurrentChannels: (interaction.fields.getTextInputValue('maxchannels') || '0').trim()
             };
             const r = mgr.updateInterface(interaction.guild.id, ifaceId, patch);
             if (!r.ok) {
@@ -490,12 +494,27 @@ async function runQuickSetupForTarget(target, guild, requesterUserId) {
             flags: CV2
         });
 
-        mgr.createInterface(guild.id, requesterUserId, {
+        // Re-check the cap atomically: another admin could have raced to
+        // claim the last slot between `canAddInterface` above and now.
+        const r = mgr.createInterface(guild.id, requesterUserId, {
             name: 'Default',
             triggerChannelIds:     [triggerChannel.id],
             interfaceChannelId:    interfaceChannel.id,
             controlPanelMessageId: controlMsg.id
         });
+        if (!r.ok) {
+            // Roll back the channels we just created so we don't leak orphans.
+            try { await triggerChannel.delete().catch(() => {}); } catch {}
+            try { await interfaceChannel.delete().catch(() => {}); } catch {}
+            const reply = {
+                components: [r.tier === 'premium'
+                    ? buildErrorResponse('Cap Reached', r.error)
+                    : buildPremiumGate('multiple Join-to-Create interfaces')],
+                flags: CV2_EPH
+            };
+            if (target.update) return target.update(reply);
+            return target.reply ? target.reply(reply) : null;
+        }
     } catch (e) {
         try { triggerChannel?.delete(); } catch {}
         try { interfaceChannel?.delete(); } catch {}
@@ -606,7 +625,10 @@ async function openCreateModal(interaction) {
                 .setPlaceholder('0').setMaxLength(2).setValue('0').setRequired(true)),
             new ActionRowBuilder().addComponents(new TextInputBuilder()
                 .setCustomId('bitrate').setLabel('Default Bitrate (8-384 kbps)').setStyle(TextInputStyle.Short)
-                .setPlaceholder('96').setMaxLength(3).setValue('96').setRequired(true))
+                .setPlaceholder('96').setMaxLength(3).setValue('96').setRequired(true)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder()
+                .setCustomId('maxchannels').setLabel('Max Temp Channels (0-99, 0 = unlimited)').setStyle(TextInputStyle.Short)
+                .setPlaceholder('0').setMaxLength(2).setValue('0').setRequired(true))
         );
     return interaction.showModal(modal);
 }
@@ -627,7 +649,10 @@ async function openEditModal(interaction, iface) {
                 .setValue(String(iface.defaultUserLimit)).setMaxLength(2).setRequired(true)),
             new ActionRowBuilder().addComponents(new TextInputBuilder()
                 .setCustomId('bitrate').setLabel('Default Bitrate (8-384 kbps)').setStyle(TextInputStyle.Short)
-                .setValue(String(iface.defaultBitrate)).setMaxLength(3).setRequired(true))
+                .setValue(String(iface.defaultBitrate)).setMaxLength(3).setRequired(true)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder()
+                .setCustomId('maxchannels').setLabel('Max Temp Channels (0-99, 0 = unlimited)').setStyle(TextInputStyle.Short)
+                .setValue(String(iface.maxConcurrentChannels || 0)).setMaxLength(2).setRequired(true))
         );
     return interaction.showModal(modal);
 }

@@ -1,76 +1,106 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { formatTime } = require('../../utils/helpers');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { waitForLavalink } = require('../../utils/helpers');
+const { formatTime } = require('../../utils/musicHelpers');
+const {
+    preflightVoiceOnly, musicSuccess, musicError, replyMusic,
+} = require('../../utils/musicResponse');
+
+const SEARCH_TIMEOUT_MS = 10_000;
+
+async function ensurePlayer(target, lavalinkManager, member) {
+    let player = lavalinkManager.getPlayer(target.guild.id);
+    if (!player) {
+        player = await lavalinkManager.createPlayer({
+            guildId: target.guild.id,
+            voiceChannelId: member.voice.channel.id,
+            textChannelId: target.channel.id,
+            selfDeaf: true,
+            selfMute: false,
+            volume: 100,
+        });
+        await player.connect();
+        await new Promise(r => setTimeout(r, 800));
+    }
+    return player;
+}
+
+async function run(target, lavalinkManager, query) {
+    const isSlash = typeof target.isRepliable === 'function';
+    const member  = target.member;
+    const requester = isSlash ? target.user : target.author;
+
+    const voiceErr = preflightVoiceOnly(member);
+    if (voiceErr) return replyMusic(target, voiceErr.container, { ephemeral: isSlash });
+
+    if (!query || !query.trim()) {
+        return replyMusic(target, musicError('Missing Query', 'Provide a song name or URL.'), { ephemeral: isSlash });
+    }
+
+    if (isSlash) await target.deferReply().catch(() => {});
+
+    if (!(await waitForLavalink(lavalinkManager))) {
+        return replyMusic(target, musicError('Music Unavailable', 'No music servers are connected right now.', 'Please try again in a moment.'), { ephemeral: isSlash });
+    }
+
+    let player;
+    try { player = await ensurePlayer(target, lavalinkManager, member); }
+    catch (err) {
+        return replyMusic(target, musicError('Connection Failed', 'Could not join your voice channel.', err?.message), { ephemeral: isSlash });
+    }
+
+    const isUrl = /^https?:\/\//i.test(query);
+    const searchQuery = isUrl ? query : `ytsearch:${query}`;
+
+    let res;
+    try {
+        res = await Promise.race([
+            player.search({ query: searchQuery }, requester),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Search timeout')), SEARCH_TIMEOUT_MS)),
+        ]);
+    } catch (err) {
+        const msg = err.message === 'Search timeout'
+            ? 'Search timed out. The music server may be slow.'
+            : (err.message || 'Failed to search for tracks.');
+        return replyMusic(target, musicError('Search Failed', msg), { ephemeral: isSlash });
+    }
+
+    if (res.loadType === 'empty' || !res.tracks?.length) {
+        return replyMusic(target, musicError('No Results', 'No results found.', 'Try a different query.'), { ephemeral: isSlash });
+    }
+
+    const track = res.tracks[0];
+    track.requester = requester;
+    await player.queue.add(track, 0);
+
+    if (!player.playing && !player.paused) {
+        await player.play();
+    }
+
+    return replyMusic(target, musicSuccess(
+        'Added to Top of Queue',
+        `**${track.info.title}**\n-# by ${track.info.author || 'Unknown Artist'}`,
+        `Duration: \`${formatTime(track.info.duration || 0)}\` · Up next.`
+    ));
+}
 
 module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('playtop')
+        .setDescription('Add a track to the top of the queue')
+        .addStringOption(o => o.setName('query').setDescription('Song name or URL').setRequired(true)),
+
+    prefix: 'playtop',
+    description: 'Add a track to the top of the queue',
+    usage: 'playtop <song name or URL>',
+    category: 'music',
+    aliases: ['pt'],
+
+    async execute(interaction, lavalinkManager) {
+        return run(interaction, lavalinkManager, interaction.options.getString('query'));
+    },
     async executePrefix(message, args, lavalinkManager) {
-        {
-            const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id));
-            if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        const query = args.join(' ');
-        if (!query) {
-            return message.reply({ components: [buildErrorResponse('Missing Input', 'Please provide a song name or URL!')], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        if (!lavalinkManager.useable) {
-            return message.reply({ components: [buildErrorResponse('Music Unavailable', 'No music servers are connected right now. Please try again in a moment.')], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        try {
-            let player = lavalinkManager.getPlayer(message.guild.id);
-            
-            if (!player) {
-                player = await lavalinkManager.createPlayer({
-                    guildId: message.guild.id,
-                    voiceChannelId: message.member.voice.channel.id,
-                    textChannelId: message.channel.id,
-                    selfDeaf: true,
-                    selfMute: false,
-                    volume: 100
-                });
-                
-                await player.connect();
-            }
-
-            const isUrl = /^https?:\/\//i.test(query);
-            const searchQuery = isUrl ? query : `ytsearch:${query}`;
-            const searchPromise = player.search({ query: searchQuery }, message.author);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Search timeout')), 10000)
-            );
-
-            const res = await Promise.race([searchPromise, timeoutPromise]).catch(error => {
-                if (error.message === 'Search timeout') {
-                    throw new Error('Search timed out! The Lavalink server may be slow. Please try again.');
-                }
-                throw error;
-            });
-
-            if (res.loadType === 'empty' || !res.tracks || res.tracks.length === 0) {
-                return message.reply({ components: [buildErrorResponse('No Results', 'No results found! Please try a different query.')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const track = res.tracks[0];
-            await player.queue.add(track, 0);
-            
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Upload:1473730858308469020> Added to Top of Queue\n**${track.info.title}**\nDuration: ${formatTime(track.info.duration)} | Next up!`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-
-            if (!player.playing && !player.paused) {
-                await player.play();
-            }
-        } catch (error) {
-            console.error('PlayTop Error:', error);
-            const errorMsg = error.message || 'An unknown error occurred';
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${errorMsg}`)], flags: MessageFlags.IsComponentsV2 }).catch(console.error);
-        }
-    }
+        return run(message, lavalinkManager, args.join(' '));
+    },
 };

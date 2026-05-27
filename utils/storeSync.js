@@ -248,6 +248,31 @@ const HANDLERS = {
     'vanity-protect'() {
         // antinuke vanity protection reads through jsonStore on demand
     },
+
+    // ── Newly surfaced bot features ──────────────────────────────────────
+    // None of these have an in-memory cache to clear: each reads through
+    // jsonStore on demand. We register no-op handlers so the dashboard's
+    // notifyModuleUpdate() resolves to a documented entry rather than
+    // falling off the table — if any of these gain a TTL cache later,
+    // wire it up here in one place.
+    aichat() { /* utils/aiChatManager reads jsonStore on demand */ },
+    birthdays() { /* utils/birthdayManager reads jsonStore on demand */ },
+    applications() { /* commands/admin/application reads jsonStore on demand */ },
+    'application-responses'() { /* read on demand */ },
+    statusrole() { /* read on demand by the presenceUpdate listener */ },
+    botblock() { /* read on demand by the messageCreate listener */ },
+    vanityguard() { /* read on demand by guildUpdate listener */ },
+    nightmode() { /* read on demand */ },
+    emergency() { /* read on demand */ },
+    servertag() { /* read on demand */ },
+    'servertag-users'() { /* read on demand */ },
+    guildtags() { /* read on demand */ },
+    lockdown() { /* read on demand */ },
+    'ignored-channels'() { /* read on demand by leveling/automod/logger */ },
+    warnings() { /* read on demand by warn / warnings / clearwarnings */ },
+    'warn-config'() { /* read on demand by warn.js threshold check */ },
+    modlogs() { /* read on demand by cases / reason / modhistory */ },
+    'premium-keys'() { /* read on demand by redeemkey.js */ },
 };
 
 /**

@@ -1,10 +1,11 @@
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
 const { updateMusicPanel, updateVoiceChannelStatus } = require('../../utils/musicPanel');
-const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+const { preflightPlayer, musicSuccess, replyMusic } = require('../../utils/musicResponse');
 const jsonStore = require('../../utils/jsonStore');
 
-function read247Enabled(guildId) {
+function read247(guildId) {
     try {
         if (!jsonStore.has('musicpanel-247')) return false;
         const cfg = jsonStore.read('musicpanel-247');
@@ -16,27 +17,14 @@ function clearQueue(player) {
     const tracks = player.queue?.tracks;
     if (!tracks) return 0;
     const len = tracks.length;
-    if (typeof player.queue.splice === 'function') {
-        player.queue.splice(0, len);
-    } else {
-        tracks.splice(0, len);
-    }
+    if (typeof player.queue.splice === 'function') player.queue.splice(0, len);
+    else                                            tracks.splice(0, len);
     return len;
-}
-
-function buildResultContainer(queueSize, mode) {
-    let content = `# <:Cancel:1473037949187657818> Music Stopped\n\n`;
-    content += `Cleared **${queueSize}** track${queueSize !== 1 ? 's' : ''} from the queue.\n\n`;
-    if (mode === '247') content += `> <:Refresh:1473037911581528165> Bot staying in **24/7 mode**`;
-    else                content += `> Left the voice channel`;
-    return new ContainerBuilder()
-        .setAccentColor(COLORS.ERROR)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 async function performStop(client, player, guildId) {
     const queueSize = player.queue?.tracks?.length || 0;
-    const stay = read247Enabled(guildId);
+    const stay = read247(guildId);
     if (stay) {
         clearQueue(player);
         try { await player.stopPlaying(); } catch {}
@@ -50,34 +38,40 @@ async function performStop(client, player, guildId) {
     return { queueSize, mode: 'left' };
 }
 
+function buildResult(queueSize, mode) {
+    const tail = mode === '247'
+        ? '24/7 mode is on — staying in voice.'
+        : 'Left the voice channel.';
+    return musicSuccess(
+        'Music Stopped',
+        `Cleared **${queueSize}** track${queueSize === 1 ? '' : 's'} from the queue.`,
+        tail
+    );
+}
+
+async function run(target, lavalinkManager) {
+    const player = lavalinkManager.getPlayer(target.guild.id);
+
+    // Allow stop without a current track (e.g. last track ended) — only need
+    // a player + same VC.
+    const pre = preflightPlayer({ player, member: target.member, requireCurrent: false });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const r = await performStop(target.client, player, target.guild.id);
+    return replyMusic(target, buildResult(r.queueSize, r.mode));
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stop')
-        .setDescription('Stop the music and clear the queue'),
+        .setDescription('Stop playback and clear the queue'),
 
     prefix: 'stop',
-    description: 'Stop the music and clear the queue',
+    description: 'Stop playback and clear the queue',
     usage: 'stop',
     category: 'music',
     aliases: ['disconnect', 'dc', 'leave', 'lv', 'bye'],
 
-    async execute(interaction, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(interaction.guild.id);
-        if (!player) return interaction.reply({ components: [buildErrorResponse('No Music Playing', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        const voiceErr = voiceErrorMessage(interaction.member, player);
-        if (voiceErr) return interaction.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        const r = await performStop(interaction.client, player, interaction.guild.id);
-        return interaction.reply({ components: [buildResultContainer(r.queueSize, r.mode)], flags: MessageFlags.IsComponentsV2 });
-    },
-
-    async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player) return message.reply({ components: [buildErrorResponse('No Music Playing', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 });
-        const voiceErr = voiceErrorMessage(message.member, player);
-        if (voiceErr) return message.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 });
-
-        const r = await performStop(message.client, player, message.guild.id);
-        return message.reply({ components: [buildResultContainer(r.queueSize, r.mode)], flags: MessageFlags.IsComponentsV2 });
-    }
+    async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 };

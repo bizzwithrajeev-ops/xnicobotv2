@@ -1,50 +1,96 @@
-const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+'use strict';
+
+/**
+ * -vcmod
+ * ───────────────────────────────────────────────────────────────────
+ * List trusted VC moderators in the guild. The previous version
+ * built one big container with all entries inlined, which can hit
+ * the 4 000-char Components V2 cap on guilds with a lot of trusted
+ * staff. Now uses the shared pagination helper, matching `-mods`
+ * and `-admins` style for consistency.
+ */
+
+const { MessageFlags } = require('discord.js');
 const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { paginate, setupPaginationCollector } = require('../../utils/pagination');
+const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 const trust = require('../../utils/trustManager');
 
+const E = {
+    mic:       '<:Microphone:1473039293088927996>',
+    user:      '<:User:1473038971398520977>',
+    role:      '<:Userplus:1473038912212435086>',
+    caret:     '<:Caretright:1473038207221502106>',
+    shield:    '<:Shield:1473038669831995494>',
+    cancel:    '<:Cancel:1473037949187657818>',
+};
+
+function formatEntryLine(entry) {
+    const mention  = entry.type === 'user' ? `<@${entry.id}>` : `<@&${entry.id}>`;
+    const typeIcon = entry.type === 'user' ? E.user : E.role;
+    const addedBy  = entry.addedBy ? `by <@${entry.addedBy}>` : 'by *unknown*';
+    const addedAt  = entry.addedAt
+        ? `<t:${Math.floor(new Date(entry.addedAt).getTime() / 1000)}:R>`
+        : '*unknown time*';
+    return `${typeIcon} ${mention} — added ${addedAt} ${addedBy}`;
+}
+
 module.exports = {
-    prefix: 'vcmod',
+    prefix:      'vcmod',
     description: 'Display all trusted VC moderators in this guild',
-    usage: 'vcmod',
-    category: 'admin',
-    aliases: ['vcmods', 'listvcmods', 'vcmodlist'],
+    usage:       'vcmod',
+    category:    'admin',
+    aliases:     ['vcmods', 'listvcmods', 'vcmodlist'],
 
     async executePrefix(message) {
         try {
-        const entries = trust.getList(message.guild.id, 'vcmods');
+            const entries = trust.getList(message.guild.id, 'vcmods');
 
-        let list = '';
-        if (entries.length === 0) {
-            list = '*No VC moderators in the trust list*';
-        } else {
-            for (const entry of entries) {
-                const mention = entry.type === 'user' ? `<@${entry.id}>` : `<@&${entry.id}>`;
-                const typeIcon = entry.type === 'user' ? '<:User:1473038971398520977>' : '<:Userplus:1473038912212435086>';
-                const addedBy = entry.addedBy ? `by <@${entry.addedBy}>` : '';
-                const addedAt = entry.addedAt ? `<t:${Math.floor(new Date(entry.addedAt).getTime() / 1000)}:R>` : 'Unknown';
-                list += `${typeIcon} ${mention} — added ${addedAt} ${addedBy}\n`;
+            if (entries.length === 0) {
+                const container = createContainer(COLORS.INFO);
+                addTextDisplay(
+                    container,
+                    `# ${E.mic} Trusted VC Moderators\n\n` +
+                    `*No VC moderators in the trust list*\n\n` +
+                    `-# Use \`add-vcmod @user\` to grant trust.`,
+                );
+                addSeparator(container);
+                addTextDisplay(container, BRANDING);
+                return message.reply({
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
-        }
 
-        const container = new ContainerBuilder()
-            .setAccentColor(COLORS.INFO)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# <:Microphone:1473039293088927996> Trusted VC Moderators\n\n` +
-                `**Server:** ${message.guild.name}\n` +
-                `**Total:** ${entries.length}\n` +
-                `**Trust Role:** Trusted VC Mod\n` +
-                `**Permissions:** Mute Members, Deafen Members, Move Members\n\n` +
-                `${list}\n` +
-                `-# Use \`add-vcmod @user\` or \`remove-vcmod @user\` to manage`
-            ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+            const lines = entries.map(formatEntryLine);
 
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const result = paginate({
+                header:
+                    `# ${E.mic} Trusted VC Moderators\n` +
+                    `${E.caret} **Server:** ${message.guild.name}\n` +
+                    `${E.caret} **Total:** ${entries.length}\n` +
+                    `${E.caret} **Trust Role:** Trusted VC Mod\n` +
+                    `${E.caret} **Permissions:** Mute · Deafen · Move Members\n` +
+                    `-# Use \`add-vcmod @user\` or \`remove-vcmod @user\` to manage.`,
+                lines,
+                perPage:     15,
+                accentColor: COLORS.INFO,
+                footer:      BRANDING,
+            });
+
+            const reply = await message.reply(result);
+            setupPaginationCollector(reply, result._pageData, message.author.id);
         } catch (error) {
             console.error('[VCMod] Error:', error);
-            const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const container = buildErrorResponse(
+                'Error',
+                'An error occurred while executing this command.',
+                error.message,
+            );
+            return message.reply({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
-    }
+    },
 };

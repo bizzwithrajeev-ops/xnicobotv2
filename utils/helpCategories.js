@@ -34,6 +34,8 @@ const NEW_COMMANDS = new Set([
     'statusrole',
     'wordle', 'akinator', 'trivia',
     'birthday', 'birthday-setup',
+    // ── Latest additions ──
+    'automeme', 'afk', 'afklist', 'vcmod', 'vcmods',
 ]);
 
 /* ─────────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 9. Automation ─────────────────────────────────────────
     automation: [
-        { name: 'Auto Triggers',       emoji: '<:Refresh:1473037911581528165>',    cmds: ['autoreact', 'autoresponder', 'sticky-message'] },
+        { name: 'Auto Triggers',       emoji: '<:Refresh:1473037911581528165>',    cmds: ['autoreact', 'autoresponder', 'sticky-message', 'automeme'] },
         { name: 'Auto Membership',     emoji: '<:Settings:1473037894703779851>',   cmds: ['autorole', 'autonick', 'statusrole'] },
         { name: 'Tickets',             emoji: '<:Attach:1473037923979886694>',     cmds: ['ticket-setup', 'ticket-add', 'ticket-close', 'ticket-remove', 'ticket-categories'] },
         { name: 'Welcomer & Leave',    emoji: '<:Shield:1473038669831995494>',     cmds: ['welcomer', 'leave-setup'] },

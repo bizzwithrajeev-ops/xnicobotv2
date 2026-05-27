@@ -990,6 +990,28 @@ async function handleModalSubmit(interaction) {
     const guildId = interaction.guild.id;
     const key = `${guildId}-${userId}`;
 
+    // ── Premium gate for rank/profile customization modals ────────────
+    // Modal submissions don't go through the slash dispatcher's
+    // `premiumOnly` check. If a user opened a customize panel before
+    // their server's premium expired, we still need to fail closed
+    // when they actually submit a modal (color hex, opacity, bio, …).
+    if (
+        interaction.customId.startsWith('profile_') && interaction.customId.endsWith('_modal') ||
+        interaction.customId.startsWith('rankcard_') && interaction.customId.endsWith('_modal')
+    ) {
+        const premiumManager = require('./premiumManager');
+        if (!premiumManager.hasPremiumAccess(userId, interaction.guild?.id)) {
+            const { buildPremiumGate } = require('./responseBuilder');
+            const which = interaction.customId.startsWith('rankcard_')
+                ? '/rank-customize'
+                : '/profile-customize';
+            return interaction.reply({
+                components: [buildPremiumGate(which)],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            }).catch(() => {});
+        }
+    }
+
     // Profile customization modals
     if (interaction.customId === 'profile_background_modal') {
         const { updateUserData, getUserData } = require('./dataManager');
@@ -4933,6 +4955,51 @@ async function handleVerificationButtons(interaction) {
 async function handleProfileButtons(interaction) {
     const { updateUserData, getUserData } = require('./dataManager');
     const LevelCard = require('./levelCard');
+
+    // ── Premium gate for the customize panels ─────────────────────────
+    // Both `profile-customize` and `rank-customize` (and the "Customize"
+    // entry buttons on the user-facing cards) are premium-only commands
+    // (see commands/social/profile-customize.js, commands/leveling/rank-customize.js).
+    // The slash/prefix dispatcher already gates COMMAND ENTRY, but it
+    // doesn't see button presses on a panel that's already open in the
+    // channel (e.g. someone opened it 2 days ago, then their server
+    // premium expired). We re-validate here so the panel fails closed.
+    //
+    // `profile_badges_view` is a read-only badge listing — leaving it
+    // open to non-premium users on purpose.
+    const customizeButton =
+        interaction.customId === 'profile_customize_open' ||
+        interaction.customId === 'rankcard_customize_open' ||
+        interaction.customId.startsWith('profile_set_')   ||
+        interaction.customId.startsWith('profile_vis_')   ||
+        interaction.customId === 'profile_preview'        ||
+        interaction.customId === 'profile_reset'          ||
+        interaction.customId === 'profile_refresh'        ||
+        interaction.customId === 'profile_help_btn'       ||
+        interaction.customId.startsWith('rankcard_set_')  ||
+        interaction.customId === 'rankcard_preview'       ||
+        interaction.customId === 'rankcard_reset'         ||
+        interaction.customId === 'rankcard_refresh'       ||
+        interaction.customId === 'rankcard_help_btn';
+
+    if (customizeButton) {
+        try {
+            const premiumManager = require('./premiumManager');
+            if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                const { buildPremiumGate } = require('./responseBuilder');
+                const which = interaction.customId.startsWith('rankcard_')
+                    ? '/rank-customize'
+                    : '/profile-customize';
+                await interaction.reply({
+                    components: [buildPremiumGate(which)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return true;
+            }
+        } catch (e) {
+            log.error(`[profile/rank customize gate] ${e.message}`);
+        }
+    }
 
     // Open profile customize panel (from socialprofile card button)
     if (interaction.customId === 'profile_customize_open') {

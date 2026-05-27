@@ -342,6 +342,17 @@ function buildSetupConfirmation({ panelChannel, ticketCategory, supportRole, pan
 /* ─────────────────────── command builder ──────────────────────── */
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite premium-gate message instead of execution.
+     *
+     * Component-level guards (button / modal / select handlers) live
+     * inside `handleInteraction` and `handleModalSubmit` below to
+     * cover the case where premium expires while a panel is open.
+     */
+    premiumOnly: true,
+
     category: 'automation',
     data: new SlashCommandBuilder()
         .setName('ticket-setup')
@@ -1128,6 +1139,25 @@ module.exports = {
 
     async handleInteraction(interaction) {
         if (!interaction.isButton()) return false;
+
+        // ── Premium gate (component-level) ─────────────────────────
+        // The slash dispatcher gates `/ticket-setup` at command entry,
+        // but the panel/welcome builder buttons live inside ephemeral
+        // sessions that can outlive a guild's premium window. Re-validate
+        // so the builder fails closed once the guild loses access.
+        const prefixForPremium = extractPrefixFromCustomId(interaction.customId);
+        if (prefixForPremium.startsWith('ticketpanel:') || prefixForPremium.startsWith('ticketmsg:')) {
+            const premiumManager = require('../../utils/premiumManager');
+            if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                const { buildPremiumGate } = require('../../utils/responseBuilder');
+                await interaction.reply({
+                    components: [buildPremiumGate('/ticket-setup')],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return true;
+            }
+        }
+
         if (await checkAndExpire(interaction, 'config')) return true;
         const prefix = extractPrefixFromCustomId(interaction.customId);
 
@@ -1192,6 +1222,21 @@ module.exports = {
 
     async handleModalSubmit(interaction) {
         const prefix = extractPrefixFromCustomId(interaction.customId);
+        if (!prefix.startsWith('ticketpanel:') && !prefix.startsWith('ticketmsg:')) {
+            return false;
+        }
+
+        // ── Premium gate (modal-level) ─────────────────────────────
+        const premiumManager = require('../../utils/premiumManager');
+        if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+            const { buildPremiumGate } = require('../../utils/responseBuilder');
+            await interaction.reply({
+                components: [buildPremiumGate('/ticket-setup')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            }).catch(() => {});
+            return true;
+        }
+
         if (prefix.startsWith('ticketpanel:')) {
             return handleMsgBuilderModal(interaction, prefix, 'ticketpanel', prefix.replace('ticketpanel:', ''), 'panel');
         }

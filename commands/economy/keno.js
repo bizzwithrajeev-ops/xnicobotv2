@@ -26,7 +26,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsAmount, coinIcon } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -41,7 +41,7 @@ const E = {
     success:  '<:Checkedbox:1473038547165384804>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     chart:    '<:transfer:1479780506718437396>',
     skipnext: '<:Skipnext:1473039269726785737>',
     star:     '<:Star:1473038501766369300>',
@@ -112,7 +112,7 @@ function buildPresetContainer(userId) {
     const lines = [
         `# ${E.title} Keno — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         '',
         `${E.info} First, pick **how many numbers** you'll bet on. The picker board appears next.`,
     ];
@@ -162,7 +162,7 @@ function buildPickerContainer(userId) {
     const lines = [
         `# ${E.title} Keno — Pick ${game.pickCount} Numbers`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.pick} **Picked:** ${game.picks.size} / ${game.pickCount}`,
     ];
     if (game.picks.size > 0) {
@@ -262,7 +262,7 @@ function buildResultContainer(game, draw, matches, mult, payout) {
     const lines = [
         `# ${E.title} Keno`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.chart} **Matches:** ${matches} / ${game.pickCount}  ·  multiplier \`${mult}x\``,
         '',
         won
@@ -303,7 +303,7 @@ async function handleKeno(reply, userId, args, guildId) {
             `# ${E.title} Keno`,
             '',
             `> ${E.info} **Usage:** \`keno <bet>\``,
-            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${coinIcon(guildId)} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Pick numbers from 1–${POOL_SIZE}. The bot draws ${DRAW_SIZE}. Payout depends on how many you matched.`,
             '',

@@ -32,7 +32,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsAmount, coinIcon } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -47,7 +47,7 @@ const E = {
     fail:     '<:Cancel:1473037949187657818>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     skipnext: '<:Skipnext:1473039269726785737>',
     star:     '<:Star:1473038501766369300>',
     fire:     '<:Fire:1473038604812161218>',
@@ -111,11 +111,11 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Limbo — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (target) {
         lines.push(`> ${target.emoji} **Target:** \`${target.mult}x\``);
-        lines.push(`> ${E.coin} **Win pays:** ${formatCoinsAmount(Math.floor(game.bet * target.mult), game.guildId)}`);
+        lines.push(`> ${coinIcon(game.guildId)} **Win pays:** ${formatCoinsAmount(Math.floor(game.bet * target.mult), game.guildId)}`);
     }
 
     lines.push('');
@@ -166,7 +166,7 @@ function buildResultContainer(game, rolled, target) {
     const lines = [
         `# ${E.title} Limbo`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${target.emoji} **Target:** \`${target.mult}x\``,
         `> ${E.chart} **Rolled:** \`${rolled.toFixed(2)}x\``,
         '',
@@ -200,7 +200,7 @@ async function handleLimbo(reply, userId, args, guildId) {
             `# ${E.title} Limbo`,
             '',
             `> ${E.info} **Usage:** \`limbo <bet>\``,
-            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${coinIcon(guildId)} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Pick a **target multiplier** — if the rolled multiplier hits or exceeds your target, you win at exactly your target.`,
             '',

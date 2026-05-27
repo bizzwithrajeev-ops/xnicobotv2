@@ -48,7 +48,7 @@ const E = {
     fail:     '<:Cancel:1473037949187657818>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // Coin icon is per-guild — see coinIcon(guildId). Don't bake one in.
     chart:    '<:transfer:1479780506718437396>',
     skipnext: '<:Skipnext:1473039269726785737>',
     fire:     '<:Fire:1473038604812161218>',
@@ -133,7 +133,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Plinko — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.rows) {
         lines.push(`> ${ROW_OPTIONS[game.rows].emoji} **Rows:** ${ROW_OPTIONS[game.rows].label}`);
@@ -248,20 +248,20 @@ function buildLiveContainer(game, status, info = {}) {
         `# ${E.title} Plinko`,
         `-# ${E.rows} ${ROW_OPTIONS[game.rows].label}  ·  ${r.emoji} ${r.label}`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
 
     if (status === 'falling') {
         lines.push(`> ${E.ball} **Dropping...** row ${info.row}/${game.rows}`);
     } else if (status === 'won') {
         lines.push(`> ${E.success} **Slot ${info.slot}** → \`${info.mult}x\` payout`);
-        lines.push(`> ${E.coin} **Won:** ${formatCoinsAmount(info.payout, game.guildId)} (+${formatNumber(info.payout - game.bet)})`);
+        lines.push(`> ${coinIcon(game.guildId)} **Won:** ${formatCoinsAmount(info.payout, game.guildId)} (+${formatNumber(info.payout - game.bet)})`);
     } else if (status === 'lost') {
         lines.push(`> ${E.fail} **Slot ${info.slot}** → \`${info.mult}x\` payout`);
-        lines.push(`> ${E.coin} **Lost:** ${formatCoinsAmount(game.bet - info.payout, game.guildId)} (kept ${formatNumber(info.payout)})`);
+        lines.push(`> ${coinIcon(game.guildId)} **Lost:** ${formatCoinsAmount(game.bet - info.payout, game.guildId)} (kept ${formatNumber(info.payout)})`);
     } else if (status === 'push') {
         lines.push(`> ${E.info} **Slot ${info.slot}** → \`${info.mult}x\` payout`);
-        lines.push(`> ${E.coin} **Bet refunded:** ${formatCoinsAmount(info.payout, game.guildId)}`);
+        lines.push(`> ${coinIcon(game.guildId)} **Bet refunded:** ${formatCoinsAmount(info.payout, game.guildId)}`);
     }
 
     lines.push('');
@@ -299,7 +299,7 @@ async function handlePlinko(reply, userId, args, guildId) {
             `# ${E.title} Plinko`,
             '',
             `> ${E.info} **Usage:** \`plinko <bet>\``,
-            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${coinIcon(guildId)} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Drop a ball through pegs — the slot it lands in decides your payout.`,
             '',

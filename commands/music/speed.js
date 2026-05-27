@@ -1,72 +1,54 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager, raw) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    const pre = preflightPlayer({ player, member: target.member });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const speed = Number.parseFloat(raw);
+    if (!Number.isFinite(speed) || speed < 0.25 || speed > 3.0) {
+        return replyMusic(target, musicError(
+            'Invalid Speed',
+            'Speed must be between **0.25** and **3.0**.',
+            'Examples: `0.5` half speed · `1.0` normal · `1.5` faster'
+        ), { ephemeral: isSlash });
+    }
+
+    try {
+        await player.filterManager.setTimescale({ speed });
+        return replyMusic(target, musicSuccess(
+            'Playback Speed',
+            `Speed set to **${speed.toFixed(2)}x**.`,
+            'Use `1.0` to restore normal speed.'
+        ));
+    } catch {
+        return replyMusic(target, musicError('Filter Failed', 'Could not change speed. The audio engine may not support this filter.'), { ephemeral: isSlash });
+    }
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('speed')
-        .setDescription('Change playback speed')
-        .addNumberOption(option =>
-            option.setName('value')
-                .setDescription('Speed value (0.25 - 3.0, default: 1.0)')
-                .setRequired(true)
-                .setMinValue(0.25)
-                .setMaxValue(3.0)),
-    
+        .setDescription('Change playback speed (0.25 - 3.0)')
+        .addNumberOption(o => o.setName('value')
+            .setDescription('Speed value (0.25 - 3.0, default 1.0)')
+            .setRequired(true).setMinValue(0.25).setMaxValue(3.0)),
+
+    prefix: 'speed',
+    description: 'Change playback speed',
+    usage: 'speed <0.25-3.0>',
+    category: 'music',
+    aliases: ['playbackspeed'],
+
     async execute(interaction, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(interaction.guild.id);
-        if (!player || !player.queue.current) {
-            return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-        {
-            const __ve = voiceErrorMessage(interaction.member, lavalinkManager?.getPlayer?.(interaction.guild.id));
-            if (__ve) return interaction.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const speed = interaction.options.getNumber('value');
-
-        try {
-            await player.filterManager.setTimescale({ speed });
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Lightningalt:1473038679906844824> Speed Changed\n\n**Playback Speed:** ${speed}x\n**Track:** ${player.queue.current.info.title}\n\n*Tip: Use 1.0 for normal speed*`)
-                );
-
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            await interaction.reply({ components: [buildErrorResponse('Error', 'Failed to change speed! The player might not support this feature.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
+        return run(interaction, lavalinkManager, interaction.options.getNumber('value'));
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player || !player.queue.current) {
-            return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-        }
-        {
-            const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id));
-            if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        const speed = parseFloat(args[0]);
-        if (isNaN(speed) || speed < 0.25 || speed > 3.0) {
-            return message.reply({ components: [buildErrorResponse('Missing Input', 'Please provide a valid speed between 0.25 and 3.0!\nExample: `-speed 1.5`')], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        try {
-            await player.filterManager.setTimescale({ speed });
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Lightningalt:1473038679906844824> Speed Changed\n\n**Playback Speed:** ${speed}x\n**Track:** ${player.queue.current.info.title}\n\n*Tip: Use 1.0 for normal speed*`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            message.reply({ components: [buildErrorResponse('Failed', 'Failed to change speed! The player might not support this feature.')], flags: MessageFlags.IsComponentsV2 });
-        }
-    }
+        return run(message, lavalinkManager, args[0]);
+    },
 };

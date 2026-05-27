@@ -120,9 +120,19 @@ function buildBotInfo(client, guild) {
     const nodeVersion = process.version;
     const djsVersion = require('discord.js').version;
 
-    const lavalinkPlayers = client.lavalink?.players?.size || 0;
-    const lavalinkNodes = client.lavalink?.nodeManager?.nodes
-        ? [...client.lavalink.nodeManager.nodes.values()].filter(n => n.connected).length
+    // Music engine — the manager is attached as `client.lavalinkManager`
+    // by utils/lavalinkSetup.js. The previous version of this file read
+    // `client.lavalink`, which is undefined, so node and session counts
+    // always rendered as 0. We also count totals (not just connected)
+    // so admins can spot when half the cluster is offline.
+    const lm = client.lavalinkManager;
+    const totalNodes = lm?.nodeManager?.nodes?.size || 0;
+    const connectedNodes = lm?.nodeManager?.nodes
+        ? [...lm.nodeManager.nodes.values()].filter(n => n.connected).length
+        : 0;
+    const lavalinkPlayers = lm?.players?.size || 0;
+    const playingPlayers = lm?.players
+        ? [...lm.players.values()].filter(p => p?.playing && !p?.paused).length
         : 0;
 
     const shardId = guild?.shardId ?? 0;
@@ -172,10 +182,19 @@ function buildBotInfo(client, guild) {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
     // ── Music Engine ──
+    const nodeStateLine = totalNodes === 0
+        ? '`No nodes configured`'
+        : connectedNodes === totalNodes
+            ? `\`${connectedNodes}/${totalNodes}\` online`
+            : connectedNodes === 0
+                ? `\`0/${totalNodes}\` offline`
+                : `\`${connectedNodes}/${totalNodes}\` online (degraded)`;
+
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `### ${E.music} Music Engine\n` +
-        `${E.node} **Nodes:** ${lavalinkNodes} connected  ·  ` +
-        `${E.music} **Active Players:** ${lavalinkPlayers}`
+        `${E.node} **Nodes:** ${nodeStateLine}  ·  ` +
+        `${E.music} **Sessions:** ${lavalinkPlayers}  ·  ` +
+        `${E.fire} **Playing:** ${playingPlayers}`
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));

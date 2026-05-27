@@ -50,7 +50,7 @@ const E = {
     success:  '<:Checkedbox:1473038547165384804>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     chart:    '<:transfer:1479780506718437396>',
     star:     '<:Star:1473038501766369300>',
     skipnext: '<:Skipnext:1473039269726785737>',
@@ -161,7 +161,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Crash — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.risk) {
         const r = RISKS[game.risk];
@@ -251,7 +251,7 @@ function buildLiveContainer(game, status = 'rising') {
         `# ${E.title} Crash`,
         `-# ${r.emoji} ${r.label} risk  ·  cap ${r.cap}×`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         game.autoMult ? `> ${E.auto} **Auto-cashout:** \`${game.autoMult}x\`` : null,
         '',
         header,
@@ -291,7 +291,7 @@ async function handleCrash(reply, userId, args, guildId) {
             `# ${E.title} Crash`,
             '',
             `> ${E.info} **Usage:** \`crash <bet>\``,
-            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${coinIcon(guildId)} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Watch the multiplier rise. Cash out before it crashes — but wait too long and you lose the lot.`,
             '',

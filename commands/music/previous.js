@@ -1,24 +1,33 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { formatTime, voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
 
-async function playPrevious(player) {
-    // queue.previous is appended-to-end on each track end, so the most-recent
-    // previous is the *last* element.
-    const prev = (player.queue.previous || []);
+const { SlashCommandBuilder } = require('discord.js');
+const { formatTime } = require('../../utils/musicHelpers');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    // We only need a player + correct VC for previous; the queue may be
+    // empty and we still want to play the most recent past track.
+    const pre = preflightPlayer({ player, member: target.member, requireCurrent: false });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const prev = player.queue.previous || [];
     const previousTrack = prev[prev.length - 1] || prev[0];
-    if (!previousTrack) return null;
-    await player.queue.add(previousTrack, 0);
-    await player.skip();
-    return previousTrack;
-}
+    if (!previousTrack) {
+        return replyMusic(target, musicError('No History', 'No previous track to play.'), { ephemeral: isSlash });
+    }
 
-function buildResponse(track) {
-    return new ContainerBuilder().addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-            `# <:Skipprev:1473039272193032402> Playing Previous\n\n**${track.info.title}**\n-# Duration: \`${formatTime(track.info.duration || 0)}\``
-        )
-    );
+    await player.queue.add(previousTrack, 0);
+    if (player.queue.current) await player.skip();
+    else                       await player.play();
+
+    return replyMusic(target, musicSuccess(
+        'Playing Previous Track',
+        `**${previousTrack.info.title}**`,
+        `Duration: \`${formatTime(previousTrack.info.duration || 0)}\``
+    ));
 }
 
 module.exports = {
@@ -32,41 +41,6 @@ module.exports = {
     category: 'music',
     aliases: ['prev'],
 
-    async execute(interaction, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(interaction.guild.id);
-            if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            const voiceErr = voiceErrorMessage(interaction.member, player);
-            if (voiceErr) return interaction.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-            const track = await playPrevious(player);
-            if (!track) {
-                return interaction.reply({ components: [buildErrorResponse('No History', 'No previous track available.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            }
-            return interaction.reply({ components: [buildResponse(track)], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Previous Error:', error);
-            const reply = { components: [buildErrorResponse('Previous Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
-            if (interaction.replied || interaction.deferred) await interaction.followUp(reply).catch(() => {});
-            else await interaction.reply(reply).catch(() => {});
-        }
-    },
-
-    async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing.')], flags: MessageFlags.IsComponentsV2 });
-            const voiceErr = voiceErrorMessage(message.member, player);
-            if (voiceErr) return message.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 });
-
-            const track = await playPrevious(player);
-            if (!track) {
-                return message.reply({ components: [buildErrorResponse('No History', 'No previous track available.')], flags: MessageFlags.IsComponentsV2 });
-            }
-            return message.reply({ components: [buildResponse(track)], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Previous Error:', error);
-            return message.reply({ components: [buildErrorResponse('Previous Error', error.message || 'Unknown error')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        }
-    }
+    async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 };

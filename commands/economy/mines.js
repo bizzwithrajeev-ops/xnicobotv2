@@ -46,7 +46,7 @@ const E = {
     success:  '<:Checkedbox:1473038547165384804>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     sandwatch:'<:Sandwatch:1473038580094861545>',
     settings: '<:Settings:1473037894703779851>',
     skipnext: '<:Skipnext:1473039269726785737>',
@@ -305,26 +305,26 @@ function buildGameContainer(game, status = 'playing') {
         statusText = [
             `> ${E.gem} **Revealed:** \`${game.revealed.size}\` / \`${safeTotal}\` safe tiles`,
             `> ${E.chart} **Multiplier:** \`${multiplier}x\``,
-            `> ${E.coin} **Potential payout:** ${formatCoinsAmount(potential, game.guildId)}`,
+            `> ${coinIcon(game.guildId)} **Potential payout:** ${formatCoinsAmount(potential, game.guildId)}`,
         ].join('\n');
     } else if (status === 'won') {
         color = 0x57F287;
         const profit = potential - game.bet;
         statusText = [
             `> ${E.success} **Cashed out at \`${multiplier}x\`!**`,
-            `> ${E.coin} **Won:** ${formatCoinsAmount(potential, game.guildId)} *(profit +${formatNumber(profit)})*`,
+            `> ${coinIcon(game.guildId)} **Won:** ${formatCoinsAmount(potential, game.guildId)} *(profit +${formatNumber(profit)})*`,
         ].join('\n');
     } else if (status === 'lost') {
         color = 0xED4245;
         statusText = [
             `> ${E.mine} **BOOM! You hit a mine.**`,
-            `> ${E.coin} **Lost:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+            `> ${coinIcon(game.guildId)} **Lost:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         ].join('\n');
     } else if (status === 'expired') {
         color = 0x6b7280;
         statusText = [
             `> ${E.sandwatch} **Round timed out — auto cashed out.**`,
-            `> ${E.coin} **Returned:** ${formatCoinsAmount(potential, game.guildId)}  *(${multiplier}x)*`,
+            `> ${coinIcon(game.guildId)} **Returned:** ${formatCoinsAmount(potential, game.guildId)}  *(${multiplier}x)*`,
         ].join('\n');
     }
 
@@ -333,7 +333,7 @@ function buildGameContainer(game, status = 'playing') {
         `# ${E.title} Minesweeper`,
         `-# ${gridInfo.emoji} ${gridInfo.label}  ·  ${riskInfo.emoji} **${riskInfo.label}** risk  ·  ${E.mine} \`${mineCount}\` mines`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         '',
         statusText,
     ].join('\n'));
@@ -355,7 +355,7 @@ function buildSetupContainer(userId) {
     const summaryLines = [
         `# ${E.title} Minesweeper — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
 
     if (game.gridKey) {

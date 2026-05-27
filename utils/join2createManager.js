@@ -22,6 +22,7 @@
  *         namingTemplate,
  *         defaultUserLimit, defaultBitrate,
  *         defaultVisibility, autoDelete,
+ *         maxConcurrentChannels,
  *         allowedRoles, deniedRoles,
  *         createdAt, updatedAt
  *       }
@@ -104,6 +105,7 @@ function defaultInterface(partial = {}) {
         defaultBitrate:        clampInt(partial.defaultBitrate   ?? partial.bitrate,  8, 384, DEFAULT_BITRATE_KBPS),
         defaultVisibility:     partial.defaultVisibility === 'private' || partial.visibility === 'private' ? 'private' : 'public',
         autoDelete:            partial.autoDelete !== false,
+        maxConcurrentChannels: clampInt(partial.maxConcurrentChannels ?? partial.maxChannels, 0, 99, 0),
 
         allowedRoles:          Array.isArray(partial.allowedRoles) ? partial.allowedRoles.slice(0, 25) : [],
         deniedRoles:           Array.isArray(partial.deniedRoles)  ? partial.deniedRoles.slice(0, 25)  : [],
@@ -138,8 +140,10 @@ function migrateGuildConfig(raw, guildId) {
                 defaultBitrate:        raw.defaultBitrate,
                 defaultVisibility:     raw.defaultVisibility,
                 autoDelete:            raw.autoDelete,
+                maxConcurrentChannels: raw.maxConcurrentChannels,
                 allowedRoles:          raw.allowedRoles,
-                deniedRoles:           raw.deniedRoles
+                deniedRoles:           raw.deniedRoles,
+                createdAt:             raw.createdAt
             });
             fresh.interfaces[iface.id] = iface;
 
@@ -182,6 +186,7 @@ function migrateGuildConfig(raw, guildId) {
                 defaultBitrate:        src.bitrate,
                 defaultVisibility:     src.visibility,
                 autoDelete:            src.autoDelete,
+                maxConcurrentChannels: src.maxConcurrentChannels ?? src.maxChannels,
                 allowedRoles:          src.allowedRoles,
                 deniedRoles:           src.deniedRoles,
                 createdAt:             src.createdAt
@@ -212,7 +217,8 @@ function migrateGuildConfig(raw, guildId) {
             enabled:               raw.enabled !== false,
             triggerChannelId:      raw.triggerChannelId,
             interfaceChannelId:    raw.interfaceChannelId,
-            controlPanelMessageId: raw.controlPanelMessageId
+            controlPanelMessageId: raw.controlPanelMessageId,
+            createdAt:             raw.createdAt
         });
         fresh.interfaces[iface.id] = iface;
 
@@ -316,6 +322,7 @@ const INTERFACE_KEYS = [
     'name', 'emoji', 'enabled',
     'triggerChannelIds', 'categoryId', 'interfaceChannelId', 'controlPanelMessageId',
     'namingTemplate', 'defaultUserLimit', 'defaultBitrate', 'defaultVisibility', 'autoDelete',
+    'maxConcurrentChannels',
     'allowedRoles', 'deniedRoles'
 ];
 
@@ -328,6 +335,7 @@ function updateInterface(guildId, interfaceId, patch) {
         if (patch?.[key] === undefined) continue;
         if (key === 'defaultUserLimit')      iface[key] = clampInt(patch[key], 0, 99, iface[key]);
         else if (key === 'defaultBitrate')   iface[key] = clampInt(patch[key], 8, 384, iface[key]);
+        else if (key === 'maxConcurrentChannels') iface[key] = clampInt(patch[key], 0, 99, iface[key]);
         else if (key === 'defaultVisibility') iface[key] = patch[key] === 'private' ? 'private' : 'public';
         else if (key === 'namingTemplate')   iface[key] = String(patch[key] || iface[key]).slice(0, 100);
         else if (key === 'name')             iface[key] = String(patch[key] || iface[key]).slice(0, 50) || iface[key];
@@ -400,6 +408,15 @@ function findOwnerByChannel(guildId, channelId) {
     return null;
 }
 
+function countActiveChannelsForInterface(guildId, interfaceId) {
+    const cfg = getGuildConfig(guildId);
+    let n = 0;
+    for (const entry of Object.values(cfg.activeChannels || {})) {
+        if (entry?.interfaceId === interfaceId) n++;
+    }
+    return n;
+}
+
 function transferOwnership(guildId, fromUserId, toUserId) {
     const cfg = getGuildConfig(guildId);
     const entry = cfg.activeChannels[fromUserId];
@@ -425,6 +442,27 @@ function removeTrustedUser(guildId, ownerUserId, targetUserId) {
     const entry = cfg.activeChannels[ownerUserId];
     if (!entry) return { ok: false, error: 'No active channel.' };
     entry.trustedUsers = (entry.trustedUsers || []).filter(id => id !== targetUserId);
+    saveGuildConfig(guildId, cfg);
+    return { ok: true };
+}
+
+function addBannedUser(guildId, ownerUserId, targetUserId) {
+    const cfg = getGuildConfig(guildId);
+    const entry = cfg.activeChannels[ownerUserId];
+    if (!entry) return { ok: false, error: 'No active channel.' };
+    entry.bannedUsers = entry.bannedUsers || [];
+    if (!entry.bannedUsers.includes(targetUserId)) entry.bannedUsers.push(targetUserId);
+    // Block also strips co-owner status if present.
+    entry.trustedUsers = (entry.trustedUsers || []).filter(id => id !== targetUserId);
+    saveGuildConfig(guildId, cfg);
+    return { ok: true };
+}
+
+function removeBannedUser(guildId, ownerUserId, targetUserId) {
+    const cfg = getGuildConfig(guildId);
+    const entry = cfg.activeChannels[ownerUserId];
+    if (!entry) return { ok: false, error: 'No active channel.' };
+    entry.bannedUsers = (entry.bannedUsers || []).filter(id => id !== targetUserId);
     saveGuildConfig(guildId, cfg);
     return { ok: true };
 }
@@ -527,9 +565,12 @@ module.exports = {
     dropActiveChannel,
     getActiveChannel,
     findOwnerByChannel,
+    countActiveChannelsForInterface,
     transferOwnership,
     addTrustedUser,
     removeTrustedUser,
+    addBannedUser,
+    removeBannedUser,
 
     // Concurrency
     withGuildLock,

@@ -1,68 +1,42 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { preflightPlayer, musicSuccess, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager) {
+    const player = lavalinkManager.getPlayer(target.guild.id);
+
+    const pre = preflightPlayer({ player, member: target.member });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const map = target.client.autoplayStatus = target.client.autoplayStatus || new Map();
+    const current = map.get(target.guild.id) || false;
+    const next = !current;
+    map.set(target.guild.id, next);
+
+    return replyMusic(target, musicSuccess(
+        `Autoplay ${next ? 'Enabled' : 'Disabled'}`,
+        next
+            ? 'Related tracks will be queued automatically when the queue ends.'
+            : 'Autoplay is now off.',
+    ));
+}
 
 module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('autoplay')
+        .setDescription('Toggle autoplay (queue related tracks when the queue ends)'),
+
     prefix: 'autoplay',
-    description: 'Toggle autoplay mode',
+    description: 'Toggle autoplay',
     usage: 'autoplay',
     category: 'music',
     aliases: ['ap', 'auto'],
-    
-    data: new SlashCommandBuilder()
-        .setName('autoplay')
-        .setDescription('Toggle autoplay mode (plays related songs automatically)'),
-    
-    async execute(interaction, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(interaction.guild.id);
-            if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            { const __ve = voiceErrorMessage(interaction.member, lavalinkManager?.getPlayer?.(interaction.guild.id)); if (__ve) return interaction.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }); }
 
-            const autoplayStatus = interaction.client.autoplayStatus;
-            const currentStatus = autoplayStatus.get(interaction.guild.id) || false;
-            autoplayStatus.set(interaction.guild.id, !currentStatus);
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Refresh:1473037911581528165> Autoplay ${!currentStatus ? 'Enabled' : 'Disabled'}\n\n${!currentStatus ? 'Related songs will be played automatically when the queue ends' : 'Autoplay has been turned off'}`)
-                );
-
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Autoplay Error:', error);
-            const msg = error.message || 'An unknown error occurred';
-            if (interaction.replied || interaction.deferred) await interaction.followUp({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-            else await interaction.reply({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-        }
-    },
-
-    async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            { const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id)); if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 }); }
-
-            const autoplayStatus = message.client.autoplayStatus;
-            const currentStatus = autoplayStatus.get(message.guild.id) || false;
-            autoplayStatus.set(message.guild.id, !currentStatus);
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Refresh:1473037911581528165> Autoplay ${!currentStatus ? 'Enabled' : 'Disabled'}\n\n${!currentStatus ? 'Related songs will be played automatically when the queue ends' : 'Autoplay has been turned off'}`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Autoplay Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        }
-    },
+    async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 
     getAutoplayStatus(guildId, client) {
-        if (!client || !client.autoplayStatus) return false;
-        return client.autoplayStatus.get(guildId) || false;
-    }
+        return !!(client?.autoplayStatus && client.autoplayStatus.get(guildId));
+    },
 };

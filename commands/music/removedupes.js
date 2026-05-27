@@ -1,59 +1,57 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
 
-module.exports = {
-    async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player || !player.queue.current) {
-                return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            }
-            {
-            const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id));
-            if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 });
-        }
+const { SlashCommandBuilder } = require('discord.js');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
 
-            const originalLength = player.queue.tracks.length;
-            
-            if (originalLength === 0) {
-                return message.reply({ components: [buildErrorResponse('Empty Queue', 'The queue is empty!')], flags: MessageFlags.IsComponentsV2 });
-            }
+async function run(target, lavalinkManager) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
 
-            const seen = new Set();
-            const uniqueTracks = [];
+    const pre = preflightPlayer({ player, member: target.member, requireCurrent: false });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
 
-            for (const track of player.queue.tracks) {
-                const identifier = track.info.identifier || track.info.uri;
-                if (!seen.has(identifier)) {
-                    seen.add(identifier);
-                    uniqueTracks.push(track);
-                }
-            }
+    const original = player.queue.tracks?.length || 0;
+    if (original === 0) {
+        return replyMusic(target, musicError('Empty Queue', 'There are no queued tracks.'), { ephemeral: isSlash });
+    }
 
-            player.queue.tracks = uniqueTracks;
-            const removedCount = originalLength - uniqueTracks.length;
-
-            if (removedCount === 0) {
-                const container = new ContainerBuilder()
-                    .addTextDisplayComponents(
-                        new TextDisplayBuilder()
-                            .setContent(`# <:Checkedbox:1473038547165384804> No Duplicates Found\n\nThe queue has no duplicate tracks!`)
-                    );
-
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Trash:1473038090074591293> Duplicates Removed\n\n**Removed:** ${removedCount} duplicate track${removedCount > 1 ? 's' : ''}\n**Remaining:** ${uniqueTracks.length} unique track${uniqueTracks.length !== 1 ? 's' : ''}`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Removedupes Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    const seen = new Set();
+    const unique = [];
+    for (const track of player.queue.tracks) {
+        const id = track.info.identifier || track.info.uri;
+        if (!seen.has(id)) {
+            seen.add(id);
+            unique.push(track);
         }
     }
+    player.queue.tracks = unique;
+    const removed = original - unique.length;
+
+    if (removed === 0) {
+        return replyMusic(target, musicSuccess(
+            'No Duplicates',
+            'The queue had no duplicate tracks.',
+        ));
+    }
+
+    return replyMusic(target, musicSuccess(
+        'Duplicates Removed',
+        `Removed **${removed}** duplicate track${removed === 1 ? '' : 's'}.`,
+        `**${unique.length}** unique track${unique.length === 1 ? '' : 's'} remaining.`
+    ));
+}
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('removedupes')
+        .setDescription('Remove duplicate tracks from the queue'),
+
+    prefix: 'removedupes',
+    description: 'Remove duplicate tracks from the queue',
+    usage: 'removedupes',
+    category: 'music',
+    aliases: ['dedupe', 'rmdupes'],
+
+    async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 };

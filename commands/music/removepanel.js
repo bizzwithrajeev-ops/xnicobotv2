@@ -1,71 +1,64 @@
+'use strict';
 
-const { PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
+const { PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { buildPermissionDenied } = require('../../utils/responseBuilder');
+const { musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
+const log = require('../../utils/logger-styled');
 
 const jsonStore = require('../../utils/jsonStore');
 
-function loadPanelConfig() {
-    if (!jsonStore.has('musicpanel')) {
-        return {};
-    }
-    return jsonStore.read('musicpanel');
-}
+const STORE = 'musicpanel';
+const CV2 = MessageFlags.IsComponentsV2;
 
-function savePanelConfig(config) {
-    jsonStore.write('musicpanel', config);
+function loadPanelConfig() {
+    if (!jsonStore.has(STORE)) return {};
+    return jsonStore.read(STORE) || {};
 }
+function savePanelConfig(config) { jsonStore.write(STORE, config); }
 
 module.exports = {
     name: 'removepanel',
+    prefix: 'removepanel',
     description: 'Remove the music panel from this server',
-    
-    async executePrefix(message, args, lavalinkManager) {
-        console.log('Remove music panel command executed by', message.author.username);
-        
+    usage: 'removepanel',
+    category: 'music',
+    aliases: ['rmpanel'],
+
+    async executePrefix(message) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
-            return message.reply({ components: [buildErrorResponse('No Permission', 'You need **Manage Channels** permission to use this command!')], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({ components: [buildPermissionDenied('Manage Channels')], flags: CV2 });
         }
 
         const config = loadPanelConfig();
-        
-        // Check if panel exists for this server
         if (!config[message.guild.id]) {
-            return message.reply({ components: [buildErrorResponse('Error', 'No music panel exists in this server!')], flags: MessageFlags.IsComponentsV2 });
+            return replyMusic(message, musicError('No Panel', 'There is no music panel configured for this server.'));
         }
 
         try {
             const panelData = config[message.guild.id];
             const channel = message.guild.channels.cache.get(panelData.channelId);
-            
             if (channel) {
-                // Delete the channel
-                await channel.delete('Music panel removed by admin');
-                console.log(`<:Trash:1473038090074591293> Deleted music panel channel ${panelData.channelId} in guild ${message.guild.id}`);
+                try { await channel.delete('Music panel removed by admin'); }
+                catch (e) { log.error?.(`[removepanel] channel delete failed: ${e.message}`); }
             }
 
-            // Remove from config
             delete config[message.guild.id];
             savePanelConfig(config);
-            
-            // Update caches to indicate panel no longer exists
-            if (global.musicPanelCache) {
-                global.musicPanelCache.set(message.guild.id, false);
-            }
-            if (global.musicPanelChannelCache) {
-                global.musicPanelChannelCache.delete(message.guild.id);
-            }
 
-            const successContainer = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent('# <:Checkedbox:1473038547165384804> Panel Removed\n\nMusic panel has been successfully removed!')
-                );
-            await message.reply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
+            if (global.musicPanelCache) global.musicPanelCache.set(message.guild.id, false);
+            if (global.musicPanelChannelCache) global.musicPanelChannelCache.delete(message.guild.id);
 
-        } catch (error) {
-            console.error('Remove Music Panel Error:', error);
-            console.error('Error stack:', error.stack);
-            await message.reply({ components: [buildErrorResponse('Failed', `Failed to remove music panel. Error: ${error.message}`)], flags: MessageFlags.IsComponentsV2 }).catch(console.error);
+            return replyMusic(message, musicSuccess(
+                'Music Panel Removed',
+                'The music panel has been removed from this server.',
+            ));
+        } catch (err) {
+            log.error?.(`[removepanel] Failed: ${err.message}`);
+            return replyMusic(message, musicError(
+                'Remove Failed',
+                'Could not fully remove the music panel.',
+                err.message || 'Check my permissions and try again.'
+            ));
         }
-    }
+    },
 };

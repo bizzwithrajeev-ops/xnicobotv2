@@ -1,49 +1,38 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
 const { buildNowPlayingContainer } = require('../../utils/musicPanel');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
+const { musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager) {
+    const guildId = target.guild.id;
+    const player  = lavalinkManager.getPlayer(guildId);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    if (!player || !player.queue?.current) {
+        return replyMusic(target, musicError('No Music Playing', 'There is no music currently playing.', 'Use `/play <song>` to start playback.'), { ephemeral: isSlash });
+    }
+
+    const autoplay  = target.client.autoplayStatus || new Map();
+    const container = buildNowPlayingContainer(player, autoplay);
+
+    if (!container) {
+        return replyMusic(target, musicError('Load Failed', 'Could not load now-playing information.'), { ephemeral: isSlash });
+    }
+    return replyMusic(target, container);
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
-        .setDescription('Show the currently playing song with full music controls'),
+        .setDescription('Show the currently playing track and full music controls'),
 
     prefix: 'nowplaying',
-    description: 'Show the currently playing song with controls',
+    description: 'Show the currently playing track and full music controls',
     usage: 'nowplaying',
     category: 'music',
     aliases: ['np', 'current', 'playing'],
 
-    async execute(interaction, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(interaction.guild.id);
-        if (!player || !player.queue.current) {
-            const container = buildErrorResponse('No Music Playing', 'There is no music currently playing.');
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const container = buildNowPlayingContainer(player, interaction.client.autoplayStatus || new Map());
-        
-        if (!container) {
-            const errorContainer = buildErrorResponse('Load Failed', 'Failed to load now playing information.');
-            return interaction.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    },
-
-    async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player || !player.queue.current) {
-            const container = buildErrorResponse('No Music Playing', 'There is no music currently playing.');
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        const container = buildNowPlayingContainer(player, message.client.autoplayStatus || new Map());
-        
-        if (!container) {
-            const errorContainer = buildErrorResponse('Load Failed', 'Failed to load now playing information.');
-            return message.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    }
+    async execute(interaction, lavalinkManager)        { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 };

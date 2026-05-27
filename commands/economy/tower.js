@@ -37,7 +37,7 @@ const E = {
     fail:     '<:Cancel:1473037949187657818>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // Coin icon is per-guild — see coinIcon(guildId). Don't bake one in.
     chart:    '<:transfer:1479780506718437396>',
     skipnext: '<:Skipnext:1473039269726785737>',
     crown:    '<:Crown:1506010837368963142>',
@@ -119,7 +119,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Tower — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.difficulty) {
         const d = DIFFICULTIES[game.difficulty];
@@ -197,7 +197,7 @@ function buildLiveContainer(game, status, info = {}) {
         `# ${E.title} Tower of Risk`,
         `-# ${d.emoji} ${d.label}  ·  ${d.tiles} tiles · ${d.mines} mine${d.mines > 1 ? 's' : ''} per floor`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.chart} **Current multiplier:** \`${currentMult}x\`  ·  potential ${formatCoins(potential, game.guildId)}`,
         currentFloor < TOTAL_FLOORS && status === 'climbing' ? `> ${E.success} **Next floor pays:** \`${nextMult}x\`` : null,
         '',
@@ -272,7 +272,7 @@ async function handleTower(reply, userId, args, guildId) {
             `# ${E.title} Tower of Risk`,
             '',
             `> ${E.info} **Usage:** \`tower <bet>\``,
-            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${coinIcon(guildId)} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Climb 8 floors. Pick the safe tile on each floor — multiplier compounds. Cash out anytime.`,
             '',

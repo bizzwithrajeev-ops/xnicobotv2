@@ -14,7 +14,9 @@ function getAfkResult(guild) {
 
     const allLines = guildAfk.map(([id, data]) => {
         const member = guild.members.cache.get(id);
-        const reason = data.reason || 'AFK';
+        // Stored field is `message` (see commands/utility/afk.js). Some
+        // legacy entries used `reason`, so we fall back gracefully.
+        const reason = data.message || data.reason || 'AFK';
         const since = data.timestamp ? `<t:${Math.floor(data.timestamp / 1000)}:R>` : 'Unknown';
         return `> 💤 ${member} - ${reason} (${since})`;
     });

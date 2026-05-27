@@ -1,61 +1,83 @@
-const { ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { formatTime } = require('../../utils/helpers');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
+'use strict';
+
+const {
+    SlashCommandBuilder,
+    ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder,
+    SeparatorBuilder, SeparatorSpacingSize,
+} = require('discord.js');
+const { formatTime } = require('../../utils/musicHelpers');
+const { BRANDING } = require('../../utils/responseBuilder');
+const {
+    musicSuccess, musicError, replyMusic, COLOR,
+} = require('../../utils/musicResponse');
+
+function buildTrackDmContainer(track, guildName) {
+    const container = new ContainerBuilder().setAccentColor(COLOR.BRAND);
+
+    const body =
+        `**${track.info.title}**\n\n` +
+        `**Artist:** ${track.info.author || 'Unknown'}\n` +
+        `**Duration:** ${formatTime(track.info.duration || 0)}\n` +
+        `**Server:** ${guildName}\n` +
+        (track.info.uri ? `**Link:** ${track.info.uri}` : '**Link:** _not available_');
+
+    if (track.info.artworkUrl) {
+        const section = new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Music:1473039311057190972> Saved Track`))
+            .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: track.info.artworkUrl } }));
+        container
+            .addSectionComponents(section)
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(body));
+    } else {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Music:1473039311057190972> Saved Track\n\n${body}`));
+    }
+
+    container
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+    return container;
+}
+
+async function run(target, lavalinkManager) {
+    const isSlash = typeof target.isRepliable === 'function';
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const user    = isSlash ? target.user : target.author;
+
+    if (!player || !player.queue?.current) {
+        return replyMusic(target, musicError('No Track Playing', 'There is no current track to grab.'), { ephemeral: isSlash });
+    }
+
+    const track = player.queue.current;
+    const dmContainer = buildTrackDmContainer(track, target.guild.name);
+
+    try {
+        await user.send({ components: [dmContainer], flags: require('discord.js').MessageFlags.IsComponentsV2 });
+    } catch {
+        return replyMusic(target, musicError(
+            'DM Failed',
+            'I could not send you a direct message.',
+            'Open your DMs from server members and try again.'
+        ), { ephemeral: isSlash });
+    }
+
+    return replyMusic(target, musicSuccess(
+        'Track Saved',
+        'Track details were sent to your DMs.',
+    ), { ephemeral: isSlash });
+}
 
 module.exports = {
-    async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player || !player.queue.current) {
-            return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-        }
+    data: new SlashCommandBuilder()
+        .setName('grab')
+        .setDescription('Save the current track info to your DMs'),
 
-        const track = player.queue.current;
-        
-        let container;
-        
-        if (track.info.artworkUrl) {
-            const section = new SectionBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Music:1473039311057190972> Saved Track`))
-                .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: track.info.artworkUrl } }));
+    prefix: 'grab',
+    description: 'Save the current track info to your DMs',
+    usage: 'grab',
+    category: 'music',
+    aliases: ['save', 'snatch'],
 
-            container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addSectionComponents(section)
-                .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `**${track.info.title}**\n\n` +
-                        `**Artist:** ${track.info.author || 'Unknown'}\n` +
-                        `**Duration:** ${formatTime(track.info.duration)}\n` +
-                        `**Server:** ${message.guild.name}\n` +
-                        `**URL:** ${track.info.uri || 'No URL available'}`
-                    )
-                );
-        } else {
-            container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Music:1473039311057190972> Saved Track\n\n` +
-                        `**${track.info.title}**\n\n` +
-                        `**Artist:** ${track.info.author || 'Unknown'}\n` +
-                        `**Duration:** ${formatTime(track.info.duration)}\n` +
-                        `**Server:** ${message.guild.name}\n` +
-                        `**URL:** ${track.info.uri || 'No URL available'}`
-                    )
-                );
-        }
-
-        try {
-            await message.author.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-            const successContainer = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent('# <:Checkedbox:1473038547165384804> Grabbed!\n\nSong info has been sent to your DMs!')
-                );
-            await message.reply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            await message.reply({ components: [buildErrorResponse('Error', "I couldn't send you a DM! Make sure your DMs are open.")], flags: MessageFlags.IsComponentsV2 });
-        }
-    }
+    async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 };

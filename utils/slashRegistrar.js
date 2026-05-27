@@ -72,7 +72,7 @@ const GLOBAL_PRIORITY = new Set([
     // ── Automation & engagement ──
     'welcomer', 'autorole', 'ticket-setup', 'ticket-add', 'ticket-remove', 'ticket-close', 'ticket-categories',
     'giveaway', 'reactionroles', 'autoresponder', 'autoreact', 'starboard-setup',
-    'poll', 'sticky-message', 'youtube-notify', 'social-notify',
+    'poll', 'sticky-message', 'youtube-notify', 'social-notify', 'automeme',
     'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'invite-setup',
 
     // ── Builders & tools ──

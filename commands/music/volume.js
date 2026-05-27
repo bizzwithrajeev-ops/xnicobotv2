@@ -1,39 +1,57 @@
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
-const { buildErrorResponse, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { preflightPlayer, musicSuccess, musicError, replyMusic, COLOR, buildMusicContainer } = require('../../utils/musicResponse');
 
 function volumeIcon(v) {
-    if (v === 0)  return '<:Volumeoff:1473039301414621427>';
-    if (v < 50)   return '<:Volumedown:1473039303691993233>';
-    if (v < 100)  return '<:Volumedown:1473039303691993233>';
-    if (v <= 150) return '<:Volumeup:1473039290136002844>';
+    if (v === 0) return '<:Volumeoff:1473039301414621427>';
+    if (v < 100) return '<:Volumedown:1473039303691993233>';
     return '<:Volumeup:1473039290136002844>';
 }
 
-function buildContainer(volume, oldVolume) {
-    const filled = Math.min(20, Math.max(0, Math.floor(volume / 10)));
+function buildVolumeContainer(newVolume, oldVolume) {
+    const filled = Math.min(20, Math.max(0, Math.floor(newVolume / 10)));
     const bar = '█'.repeat(filled) + '░'.repeat(20 - filled);
-    const warn = volume > 150 ? `\n\n> <:Infotriangle:1473038460456800459> High volume — protect your hearing.` : '';
-    const content =
-        `# ${volumeIcon(volume)} Volume Changed\n\n` +
+    const warn = newVolume > 150 ? `\n\n> <:Infotriangle:1473038460456800459> High volume — protect your hearing.` : '';
+    const body =
         `**Previous:** ${oldVolume}%\n` +
-        `**New:** ${volume}%\n\n` +
-        `\`${bar}\` ${volume}%${warn}`;
-    return new ContainerBuilder()
-        .setAccentColor(COLORS.SUCCESS)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+        `**New:** ${newVolume}%\n\n` +
+        `\`${bar}\` ${newVolume}%${warn}`;
+    return buildMusicContainer({
+        title: 'Volume Updated',
+        emoji: volumeIcon(newVolume),
+        body,
+        color: COLOR.BRAND,
+    });
+}
+
+async function run(target, lavalinkManager, raw) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    const pre = preflightPlayer({ player, member: target.member, requireCurrent: false });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const volume = parseInt(raw, 10);
+    if (!Number.isFinite(volume) || volume < 0 || volume > 200) {
+        return replyMusic(target, musicError(
+            'Invalid Volume',
+            'Volume must be between **0** and **200**.',
+            'Examples: `/volume 50` · `/volume 100` · `/volume 150`'
+        ), { ephemeral: isSlash });
+    }
+
+    const old = player.volume || 100;
+    await player.setVolume(volume);
+    return replyMusic(target, buildVolumeContainer(volume, old));
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('volume')
         .setDescription('Set the playback volume')
-        .addIntegerOption(option =>
-            option.setName('level')
-                .setDescription('Volume level (0-200)')
-                .setRequired(true)
-                .setMinValue(0)
-                .setMaxValue(200)),
+        .addIntegerOption(o => o.setName('level')
+            .setDescription('Volume level (0-200)').setRequired(true).setMinValue(0).setMaxValue(200)),
 
     prefix: 'volume',
     description: 'Set the playback volume',
@@ -42,29 +60,9 @@ module.exports = {
     aliases: ['vol', 'v'],
 
     async execute(interaction, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(interaction.guild.id);
-        if (!player) return interaction.reply({ components: [buildErrorResponse('No Music Playing', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        const voiceErr = voiceErrorMessage(interaction.member, player);
-        if (voiceErr) return interaction.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        const volume = interaction.options.getInteger('level');
-        const oldVolume = player.volume || 100;
-        await player.setVolume(volume);
-        return interaction.reply({ components: [buildContainer(volume, oldVolume)], flags: MessageFlags.IsComponentsV2 });
+        return run(interaction, lavalinkManager, interaction.options.getInteger('level'));
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player) return message.reply({ components: [buildErrorResponse('No Music Playing', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 });
-        const voiceErr = voiceErrorMessage(message.member, player);
-        if (voiceErr) return message.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 });
-
-        const volume = parseInt(args[0]);
-        if (isNaN(volume) || volume < 0 || volume > 200) {
-            return message.reply({ components: [buildInvalidUsage('volume', '-volume <0-200>', ['-volume 50', '-volume 100', '-volume 150'])], flags: MessageFlags.IsComponentsV2 });
-        }
-        const oldVolume = player.volume || 100;
-        await player.setVolume(volume);
-        return message.reply({ components: [buildContainer(volume, oldVolume)], flags: MessageFlags.IsComponentsV2 });
-    }
+        return run(message, lavalinkManager, args[0]);
+    },
 };

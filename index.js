@@ -1505,6 +1505,14 @@ client.on(Events.ClientReady, async () => {
     } catch (e) {
         log.error(`Social notify poller failed to start: ${e.message}`);
     }
+
+    // ── AutoMeme scheduler ──
+    try {
+        const autoMemePoster = require('./utils/autoMemePoster');
+        autoMemePoster.startScheduler(client);
+    } catch (e) {
+        log.error(`AutoMeme scheduler failed to start: ${e.message}`);
+    }
 });
 
 // Auto-nickname system
@@ -1804,6 +1812,19 @@ client.on('interactionCreate', async (interaction) => {
 
         // Custom Font URL modal
         if (interaction.customId === 'custom_font_modal_rankcard' || interaction.customId === 'custom_font_modal_profile') {
+            // ── Premium gate ─────────────────────────────────────
+            // Custom font upload is a premium-only customization
+            // surface (matches /rank-customize and /profile-customize).
+            if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                const { buildPremiumGate } = require('./utils/responseBuilder');
+                const which = interaction.customId === 'custom_font_modal_rankcard'
+                    ? '/rank-customize'
+                    : '/profile-customize';
+                return interaction.reply({
+                    components: [buildPremiumGate(which)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                }).catch(() => {});
+            }
             try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
                 const { registerCustomFontFromUrl } = require('./utils/fontRegistry');
@@ -2444,6 +2465,28 @@ client.on('interactionCreate', async (interaction) => {
                         if (handled) return;
                     } catch (error) {
                         log.error(`WouldYouRather Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            if (interaction.customId.startsWith('afk_')) {
+                const afkCmd = client.commands.get('afk');
+                if (afkCmd?.handleButton) {
+                    try {
+                        const handled = await afkCmd.handleButton(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`AFK Button Error: ${error.message}`, error);
+                    }
+                }
+            }
+            if (interaction.customId.startsWith('automeme_')) {
+                const automemeCmd = client.commands.get('automeme');
+                if (automemeCmd?.handleButton) {
+                    try {
+                        const handled = await automemeCmd.handleButton(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`AutoMeme Button Error: ${error.message}`, error);
                     }
                 }
             }
@@ -5808,6 +5851,20 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             if (interaction.customId === 'rankcard_font_select' || interaction.customId === 'profile_font_select') {
+                // ── Premium gate ─────────────────────────────────────
+                // Select-menu interactions don't pass through the slash
+                // dispatcher's `premiumOnly` check. If a customize panel
+                // was opened before premium expired, fail closed here.
+                if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                    const { buildPremiumGate } = require('./utils/responseBuilder');
+                    const which = interaction.customId.startsWith('rankcard_')
+                        ? '/rank-customize'
+                        : '/profile-customize';
+                    return interaction.reply({
+                        components: [buildPremiumGate(which)],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                }
                 try {
                     const { isValidFont, FONT_FAMILIES, getCustomFontName } = require('./utils/fontRegistry');
                     const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
@@ -5856,6 +5913,16 @@ client.on('interactionCreate', async (interaction) => {
 
             // Route card style selection for rank card and profile card
             if (interaction.customId === 'rankcard_style_select' || interaction.customId === 'profile_style_select') {
+                if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                    const { buildPremiumGate } = require('./utils/responseBuilder');
+                    const which = interaction.customId.startsWith('rankcard_')
+                        ? '/rank-customize'
+                        : '/profile-customize';
+                    return interaction.reply({
+                        components: [buildPremiumGate(which)],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                }
                 try {
                     const { updateUserData } = require('./utils/dataManager');
                     const selectedStyle = interaction.values[0];
@@ -5887,6 +5954,13 @@ client.on('interactionCreate', async (interaction) => {
 
             // Route badge style selection for profile card
             if (interaction.customId === 'profile_badge_select') {
+                if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                    const { buildPremiumGate } = require('./utils/responseBuilder');
+                    return interaction.reply({
+                        components: [buildPremiumGate('/profile-customize')],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                }
                 try {
                     const { updateUserData } = require('./utils/dataManager');
                     const selectedBadge = interaction.values[0];
@@ -8454,68 +8528,117 @@ client.on('messageCreate', async (message) => {
         }
     } catch (e) { }
 
-    // Bot mention response - Professional styled
+    // Bot mention response — polished Components V2 panel with avatar
+    // section, separator, stats, features, and quick-action buttons.
     if (message.content === `<@${client.user.id}>` || message.content === `<@!${client.user.id}>`) {
-        const totalCommands = new Set(client.commands?.values() || []).size;
+        const uniqueCommands = new Set(client.commands?.values() || []);
+        const totalCommands = uniqueCommands.size;
         const totalServers = client.guilds.cache.size;
-        const totalUsers = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
-        const uptime = Math.floor(client.uptime / 1000);
-        const uptimeStr = uptime > 86400 ? `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h` :
-            uptime > 3600 ? `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m` :
-                `${Math.floor(uptime / 60)}m ${uptime % 60}s`;
+        const totalUsers = client.guilds.cache.reduce((acc, g) => acc + (g.memberCount || 0), 0);
+
+        const uptimeSec = Math.floor(client.uptime / 1000);
+        const days = Math.floor(uptimeSec / 86400);
+        const hours = Math.floor((uptimeSec % 86400) / 3600);
+        const mins = Math.floor((uptimeSec % 3600) / 60);
+        const secs = uptimeSec % 60;
+        const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m`
+            : hours > 0 ? `${hours}h ${mins}m`
+            : mins > 0  ? `${mins}m ${secs}s`
+            : `${secs}s`;
+
+        const apiPing = Math.round(client.ws.ping);
 
         const guildCustom = botCustomize.getConfig(guildId);
         const gPrefix = getGuildPrefix(guildId);
-        const accentColor = botCustomize.getEmbedColor(guildId);
+        const accentColor = botCustomize.getEmbedColor(guildId) || 0xCAD7E6;
         const aboutLine = guildCustom.aboutText
-            ? `> ${guildCustom.aboutText.split('\n')[0].substring(0, 120)}\n\n`
-            : `> <:Lightningalt:1473038679906844824> **Advanced Multi-Purpose Discord Bot**\n\n`;
+            ? guildCustom.aboutText.split('\n')[0].substring(0, 140)
+            : 'All-in-one Discord toolkit — Music, Moderation, Economy, Levels, Tickets & more.';
 
-        let mentionContent = `# <:xnico:1486755083390550036> ${client.user.username}\n\n`;
-        mentionContent += aboutLine;
-        mentionContent += `### <:Settings:1473037894703779851> Quick Info\n`;
-        mentionContent += `-# Prefix: \`${gPrefix}\` • Slash: \`/\`\n`;
-        mentionContent += `-# Commands: \`${totalCommands}\` • Servers: \`${totalServers}\`\n`;
-        mentionContent += `-# Uptime: \`${uptimeStr}\`\n\n`;
-        mentionContent += `### <:Music:1473039311057190972> Features\n`;
-        mentionContent += `-# <:YoutubeLive:1435331502710722592> Music • <:Shield:1473038669831995494> Moderation • <:Lightning:1473038797540298792> Leveling\n`;
-        mentionContent += `-# <:Money:1473377877239140529> Economy • <:Gamepad:1473039216429498409> Fun • <:Bookopen:1473038576391557130> Profiles\n\n`;
-        if (guildCustom.footerText) {
-            mentionContent += `-# ${guildCustom.footerText}`;
-        } else {
-            mentionContent += `-# Use \`${gPrefix}help\` or \`/help\` to explore all commands`;
-        }
+        const headerSection = new SectionBuilder()
+            .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                    `# <:xnico:1486755083390550036> ${client.user.username}\n` +
+                    `-# Hi ${message.author}, here's everything you need to know.`
+                )
+            )
+            .setThumbnailAccessory(
+                new ThumbnailBuilder({ media: { url: client.user.displayAvatarURL({ size: 256 }) } })
+            );
+
+        const aboutBlock =
+            `### <:Lightbulbalt:1473038470787240009> About\n` +
+            `> ${aboutLine}`;
+
+        const quickInfoBlock =
+            `### <:Settings:1473037894703779851> Quick Info\n` +
+            `<:Edit:1473037903625191580> **Prefix** \`${gPrefix}\`  ·  ` +
+            `<:Caretright:1473038207221502106> **Slash** \`/\`\n` +
+            `<:Bookopen:1473038576391557130> **Commands** \`${totalCommands}\`  ·  ` +
+            `<:Folder:1473039340425973972> **Servers** \`${totalServers.toLocaleString()}\`  ·  ` +
+            `<:User:1473038971398520977> **Users** \`${totalUsers.toLocaleString()}\`\n` +
+            `<:Clock:1473039102113878056> **Uptime** \`${uptimeStr}\`  ·  ` +
+            `<:Heartbeat:1473038409961308221> **Latency** \`${apiPing}ms\``;
+
+        const featuresBlock =
+            `### <:Fire:1473038604812161218> Features\n` +
+            `<:Music:1473039311057190972> **Music** — Lavalink with YouTube · Spotify · SoundCloud\n` +
+            `<:Shield:1473038669831995494> **Security** — Anti-Nuke · Anti-Raid · AutoMod · Threat Mode\n` +
+            `<:banhammer:1473367388597780592> **Moderation** — Bans · Kicks · Cases · Audit logging\n` +
+            `<:Money:1473377877239140529> **Economy** — Custom currency · Shop · Gambling · Pets\n` +
+            `<:Lightning:1473038797540298792> **Leveling** — XP · Rank cards · Level roles\n` +
+            `<:Refresh:1473037911581528165> **Automation** — Welcomer · Tickets · Giveaways · AutoMeme`;
+
+        const footerLine = guildCustom.footerText
+            ? `-# ${guildCustom.footerText}`
+            : `-# Try \`${gPrefix}help\` or \`/help\` for the full command catalog.`;
 
         const container = new ContainerBuilder()
             .setAccentColor(accentColor)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(mentionContent))
+            .addSectionComponents(headerSection)
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(aboutBlock))
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(quickInfoBlock))
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(featuresBlock))
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(footerLine))
             .addActionRowComponents(
-                new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('show_help_menu')
-                            .setLabel('Commands')
-                            .setStyle(ButtonStyle.Primary)
-                            .setEmoji('<:Bookopen:1473038576391557130>'),
-                        new ButtonBuilder()
-                            .setLabel('Invite Me')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL(`https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`)
-                            .setEmoji('<:Checkedbox:1473038547165384804>'),
-                        new ButtonBuilder()
-                            .setLabel('Support')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL(process.env.SUPPORT_SERVER || 'https://discord.gg/Zs35X7Umak')
-                            .setEmoji('<:Envelope:1473038885364695113>'),
-                        new ButtonBuilder()
-                            .setLabel('Vote')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL(`https://top.gg/bot/${client.user.id}/vote`)
-                            .setEmoji('<:Lightning:1473038797540298792>')
-                    )
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('show_help_menu')
+                        .setLabel('Commands')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('<:Bookopen:1473038576391557130>'),
+                    new ButtonBuilder()
+                        .setLabel('Invite')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`)
+                        .setEmoji('<:Add:1473038100862337035>'),
+                    new ButtonBuilder()
+                        .setLabel('Support')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(process.env.SUPPORT_SERVER || 'https://discord.gg/Zs35X7Umak')
+                        .setEmoji('<:Envelope:1473038885364695113>'),
+                    new ButtonBuilder()
+                        .setLabel('Vote')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://top.gg/bot/${client.user.id}/vote`)
+                        .setEmoji('<:topgg:1473546762248523839>'),
+                    new ButtonBuilder()
+                        .setLabel('Website')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(process.env.BOT_WEBSITE || 'https://thenico.vercel.app')
+                        .setEmoji('<:Globe:1473039496995143731>'),
+                )
             );
 
-        return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        return message.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: { repliedUser: false },
+        }).catch(() => {});
     }
 
     if (guildId) {
@@ -8719,7 +8842,9 @@ client.on('messageCreate', async (message) => {
                     afkStats[userId] = { count: 0, totalTime: 0 };
                 }
                 afkStats[userId].totalTime += afkDuration;
-                afkStats[userId].count++; // Increment count
+                // count is incremented at AFK ENTRY in commands/utility/afk.js
+                // (one count per session). Do NOT bump it again here or
+                // each session counts as two.
                 jsonStore.write('afk-stats', afkStats);
 
                 delete afkConfig[userId];

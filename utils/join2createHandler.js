@@ -23,7 +23,7 @@ const {
     UserSelectMenuBuilder
 } = require('discord.js');
 
-const { buildSuccessResponse, buildErrorResponse, buildPremiumGate, BRANDING } = require('./responseBuilder');
+const { buildSuccessResponse, buildErrorResponse, BRANDING } = require('./responseBuilder');
 const trustManager = require('./trustManager');
 const log          = require('./logger-styled');
 const mgr          = require('./join2createManager');
@@ -31,7 +31,6 @@ const mgr          = require('./join2createManager');
 const CV2_EPH = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
 const ok  = (t, d) => ({ components: [buildSuccessResponse(t, d)], flags: CV2_EPH });
 const err = (t, d) => ({ components: [buildErrorResponse(t, d)], flags: CV2_EPH });
-const gate = (cmd) => ({ components: [buildPremiumGate(cmd)],   flags: CV2_EPH });
 
 const OWNER_PERMS  = {
     ViewChannel: true, Connect: true, Speak: true,
@@ -168,6 +167,16 @@ async function handleVoiceStateUpdate(oldState, newState) {
 
                     const activeCount = Object.values(mgr.getGuildConfig(guildId).activeChannels)
                         .filter(e => e.interfaceId === iface.id).length;
+
+                    // Concurrency cap: 0 = unlimited, otherwise hard-limit live temp VCs
+                    // for this interface. Checked inside the guild lock so simultaneous
+                    // joins can't race past the cap.
+                    const cap = Number(iface.maxConcurrentChannels) || 0;
+                    if (cap > 0 && activeCount >= cap) {
+                        await member.voice.setChannel(null).catch(() => {});
+                        log.info(`[J2C] Cap reached (${activeCount}/${cap}) for interface ${iface.id} in ${guildId}; bounced ${uid}.`);
+                        return;
+                    }
 
                     const channelName = mgr.applyNamingTemplate(iface.namingTemplate, {
                         user:  member.user,
@@ -465,12 +474,15 @@ async function handleJ2CSelects(interaction) {
         if (action === 'block') {
             await channel.permissionOverwrites.edit(target.id, { Connect: false, ViewChannel: false });
             if (channel.members.has(target.id)) await target.voice.disconnect('J2C: blocked').catch(() => {});
+            // Sync the manager state: track the ban and strip co-owner status.
+            mgr.addBannedUser(guild.id, ownerId, target.id);
             await interaction.update(ok('Blocked', `<:Commentblock:1473370739351490794> Blocked **${target.user.username}**.`));
             return true;
         }
 
         if (action === 'unblock') {
             await channel.permissionOverwrites.delete(target.id).catch(() => {});
+            mgr.removeBannedUser(guild.id, ownerId, target.id);
             await interaction.update(ok('Unblocked', `<:Checkedbox:1473038547165384804> Unblocked **${target.user.username}**.`));
             return true;
         }

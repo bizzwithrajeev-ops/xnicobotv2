@@ -344,6 +344,96 @@ window.XNICO_MODULES = [
         description: 'Customize bot nickname, prefix, embed colors, and behavior. Premium only.',
         icon: 'settings',
         custom: true
+    },
+
+    // ── Newly surfaced bot features (added in dashboard v4.1) ─────────
+    {
+        id: 'aichat',
+        name: 'AI Chat',
+        group: 'Engagement',
+        description: 'Conversational AI chat in a designated channel. Choose model, prompt, tokens.',
+        icon: 'chat',
+        custom: true
+    },
+    {
+        id: 'birthdays',
+        name: 'Birthdays',
+        group: 'Engagement',
+        description: 'Auto-celebrate birthdays with messages, optional ping role and configurable hour.',
+        icon: 'gift',
+        custom: true
+    },
+    {
+        id: 'applications',
+        name: 'Applications',
+        group: 'Utility',
+        description: 'Custom application forms with reviewable responses, accept/deny role automation.',
+        icon: 'log',
+        custom: true
+    },
+    {
+        id: 'warn-config',
+        name: 'Warning Thresholds',
+        group: 'Moderation',
+        description: 'Punishment escalation per warn count: warning → timeout → kick → ban.',
+        icon: 'shield',
+        custom: true
+    },
+    {
+        id: 'warnings',
+        name: 'Warnings Log',
+        group: 'Moderation',
+        description: 'View and remove user warnings logged by the warn command.',
+        icon: 'log',
+        custom: true
+    },
+    {
+        id: 'statusrole',
+        name: 'Status Roles',
+        group: 'Utility',
+        description: 'Auto-assign roles when a member sets a configured custom status text.',
+        icon: 'user-plus',
+        custom: true
+    },
+    {
+        id: 'botblock',
+        name: 'Bot Block',
+        group: 'Moderation',
+        description: 'Auto-delete bot messages in configured channels.',
+        icon: 'shield',
+        custom: true
+    },
+    {
+        id: 'vanityguard',
+        name: 'Vanity Guard',
+        group: 'Moderation',
+        description: 'Protect your vanity URL from unauthorized changes.',
+        icon: 'shield',
+        custom: true
+    },
+    {
+        id: 'confessions',
+        name: 'Confessions',
+        group: 'Utility',
+        description: 'Anonymous confession channel with moderation controls.',
+        icon: 'chat',
+        custom: true
+    },
+    {
+        id: 'ignored-channels',
+        name: 'Ignored Channels',
+        group: 'Moderation',
+        description: 'Channels excluded from leveling, logging, and automod scans.',
+        icon: 'shield',
+        custom: true
+    },
+    {
+        id: 'modlogs',
+        name: 'Moderation Logs',
+        group: 'Moderation',
+        description: 'Browse the real moderation cases logged by /warn, /ban, /kick, /timeout.',
+        icon: 'log',
+        custom: true
     }
 ];
 

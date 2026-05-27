@@ -16,7 +16,7 @@ const {
 } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
-const { getEconomySettings, getCurrency, getCurrencyName, formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
+const { getEconomySettings, getCurrency, getCurrencyName, formatCoinsShort, formatCoins, coinIcon } = require('../../utils/currencyHelper');
 
 const STORE = 'custom-shop';
 
@@ -135,7 +135,7 @@ function buildPurchaseResult(item, userData, results, guildId) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `## ${E.check} Purchase Successful!\n\n` +
             `${E.star} **Item:** ${item.name}\n` +
-            `${E.coin} **Cost:** ${currency} ${item.price.toLocaleString()} ${currencyName}\n` +
+            `${coinIcon(guildId)} **Cost:** ${currency} ${item.price.toLocaleString()} ${currencyName}\n` +
             `${E.lightning} **Balance:** ${currency} ${userData.coins.toLocaleString()} ${currencyName}`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
@@ -180,7 +180,7 @@ async function executeAction(member, item, guild, guildId) {
                 const { userData } = economyManager.getUser(economy, member.id);
                 userData.coins += bonus;
                 economyManager.saveEconomy(economy);
-                results.push(`${E.coin} Received **${bonus.toLocaleString()}** bonus ${getCurrencyName(guildId)}`);
+                results.push(`${coinIcon(guildId)} Received **${bonus.toLocaleString()}** bonus ${getCurrencyName(guildId)}`);
             }
             break;
         }

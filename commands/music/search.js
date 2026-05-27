@@ -1,249 +1,150 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
-const { formatTime } = require('../../utils/helpers');
+'use strict';
+
+const {
+    SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags,
+} = require('discord.js');
+const { waitForLavalink } = require('../../utils/helpers');
+const { formatTime } = require('../../utils/musicHelpers');
+const { getPlatformInfo, truncateText } = require('../../utils/musicPanel');
+const {
+    preflightVoiceOnly, musicError, replyMusic, COLOR, ICON, buildMusicContainer,
+} = require('../../utils/musicResponse');
+
+const SEARCH_TIMEOUT_MS = 20_000;
+const RESULTS_TTL_MS    = 60_000;
+
+async function ensurePlayer(target, lavalinkManager, member) {
+    let player = lavalinkManager.getPlayer(target.guild.id);
+    if (!player) {
+        player = await lavalinkManager.createPlayer({
+            guildId: target.guild.id,
+            voiceChannelId: member.voice.channel.id,
+            textChannelId: target.channel.id,
+            selfDeaf: true,
+            selfMute: false,
+            volume: 100,
+        });
+        await player.connect();
+        await new Promise(r => setTimeout(r, 800));
+    }
+    return player;
+}
+
+function buildResultContainer(query, tracks) {
+    const lines = tracks.map((t, i) => {
+        const platform = getPlatformInfo(t.info.sourceName);
+        const title = truncateText(t.info.title, 50);
+        const author = truncateText(t.info.author || 'Unknown', 30);
+        return `\`${i + 1}.\` ${platform.icon} **${title}**\n-# by ${author} · \`${formatTime(t.info.duration || 0)}\``;
+    }).join('\n\n');
+
+    const container = buildMusicContainer({
+        title: 'Search Results',
+        emoji: '<:Search:1473038053219106847>',
+        body: `**Query:** ${truncateText(query, 80)}\n\n${lines}`,
+        footer: 'Pick a track below — selection expires in 60 seconds.',
+        color: COLOR.BRAND,
+        brand: false,
+    });
+
+    const numEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+    const buttons = tracks.slice(0, 5).map((_t, i) =>
+        new ButtonBuilder()
+            .setCustomId(`search_select_${i}`)
+            .setLabel(String(i + 1))
+            .setEmoji(numEmojis[i])
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    const row1 = new ActionRowBuilder().addComponents(...buttons.slice(0, 4));
+    const row2Buttons = [...buttons.slice(4)];
+    row2Buttons.push(
+        new ButtonBuilder()
+            .setCustomId('search_cancel')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(ICON.ERROR)
+    );
+    const row2 = new ActionRowBuilder().addComponents(...row2Buttons);
+
+    container.addActionRowComponents(row1, row2);
+    return container;
+}
+
+async function run(target, lavalinkManager, query) {
+    const isSlash = typeof target.isRepliable === 'function';
+    const member  = target.member;
+    const requester = isSlash ? target.user : target.author;
+
+    const voiceErr = preflightVoiceOnly(member);
+    if (voiceErr) return replyMusic(target, voiceErr.container, { ephemeral: isSlash });
+
+    if (!query || !query.trim()) {
+        return replyMusic(target, musicError('Missing Query', 'Provide something to search for.'), { ephemeral: isSlash });
+    }
+
+    if (isSlash) await target.deferReply().catch(() => {});
+
+    if (!(await waitForLavalink(lavalinkManager))) {
+        return replyMusic(target, musicError('Music Unavailable', 'No music servers are connected right now.', 'Please try again in a moment.'), { ephemeral: isSlash });
+    }
+
+    let player;
+    try { player = await ensurePlayer(target, lavalinkManager, member); }
+    catch (err) {
+        return replyMusic(target, musicError('Connection Failed', 'Could not join your voice channel.', err?.message), { ephemeral: isSlash });
+    }
+
+    const doSearch = (q) => Promise.race([
+        player.search({ query: q }, requester),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Search timeout')), SEARCH_TIMEOUT_MS)),
+    ]);
+
+    let res;
+    try {
+        res = await doSearch(`ytsearch:${query}`);
+        if (res.loadType === 'empty' || !res.tracks?.length) {
+            res = await doSearch(`scsearch:${query}`);
+        }
+    } catch (err) {
+        const msg = err.message === 'Search timeout'
+            ? 'Search timed out. The music server may be slow.'
+            : (err.message || 'Failed to search for tracks.');
+        return replyMusic(target, musicError('Search Failed', msg), { ephemeral: isSlash });
+    }
+
+    if (res.loadType === 'empty' || !res.tracks?.length) {
+        return replyMusic(target, musicError('No Results', 'No results found.', 'Try a different query.'), { ephemeral: isSlash });
+    }
+
+    const tracks = res.tracks.slice(0, 5);
+    const container = buildResultContainer(query, tracks);
+
+    const cache = (target.client.searchResults = target.client.searchResults || new Map());
+    const userId = isSlash ? target.user.id : target.author.id;
+    cache.set(userId, { tracks, player, timestamp: Date.now() });
+    setTimeout(() => cache.delete(userId), RESULTS_TTL_MS);
+
+    return replyMusic(target, container);
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('search')
-        .setDescription('Search for songs and select from results')
-        .addStringOption(option =>
-            option.setName('query')
-                .setDescription('Song name to search')
-                .setRequired(true)),
-    
+        .setDescription('Search for tracks and pick one to play')
+        .addStringOption(o => o.setName('query').setDescription('Song name or URL').setRequired(true)),
+
+    prefix: 'search',
+    description: 'Search for tracks and pick one to play',
+    usage: 'search <query>',
+    category: 'music',
+    aliases: ['find', 'lookup'],
+
     async execute(interaction, lavalinkManager) {
-        {
-            const __ve = voiceErrorMessage(interaction.member, lavalinkManager?.getPlayer?.(interaction.guild.id));
-            if (__ve) return interaction.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const query = interaction.options.getString('query');
-
-        try {
-            await interaction.deferReply();
-
-            if (!lavalinkManager.useable) {
-                return interaction.editReply({ components: [buildErrorResponse('Music Unavailable', 'No music servers are connected right now. Please try again in a moment.')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            let player = lavalinkManager.getPlayer(interaction.guild.id);
-            
-            if (!player) {
-                player = await lavalinkManager.createPlayer({
-                    guildId: interaction.guild.id,
-                    voiceChannelId: interaction.member.voice.channel.id,
-                    textChannelId: interaction.channel.id,
-                    selfDeaf: true,
-                    selfMute: false,
-                    volume: 100
-                });
-                
-                await player.connect();
-            }
-
-            let res = await Promise.race([
-                player.search({ query: `ytsearch:${query}` }, interaction.user),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Search timed out')), 20000))
-            ]);
-
-            if (res.loadType === 'empty' || !res.tracks || !res.tracks.length) {
-                res = await Promise.race([
-                    player.search({ query: `scsearch:${query}` }, interaction.user),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Search timed out')), 20000))
-                ]);
-            }
-
-            if (res.loadType === 'empty' || !res.tracks || !res.tracks.length) {
-                return interaction.editReply(`<:Cancel:1473037949187657818> No results found!`);
-            }
-
-            const tracks = res.tracks.slice(0, 5);
-
-            const searchText = `# <:Search:1473038053219106847> Search Results\n\n**Query:** ${query}\n\n` +
-                tracks.map((track, i) => 
-                    `**${i + 1}.** ${track.info.title}\n` +
-                    `     Artist: ${track.info.author || 'Unknown'} | Duration: ${formatTime(track.info.duration)}\n`
-                ).join('\n');
-
-            const row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_0`)
-                        .setLabel('1')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('1️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_1`)
-                        .setLabel('2')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('2️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_2`)
-                        .setLabel('3')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('3️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_3`)
-                        .setLabel('4')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('4️⃣')
-                );
-
-            const row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_4`)
-                        .setLabel('5')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('5️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId('search_cancel')
-                        .setLabel('Cancel')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji('<:Cancel:1473037949187657818>')
-                );
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(searchText)
-                )
-                .addActionRowComponents(row1)
-                .addActionRowComponents(row2);
-
-            interaction.client.searchResults = interaction.client.searchResults || new Map();
-            interaction.client.searchResults.set(interaction.user.id, {
-                tracks: tracks,
-                player: player,
-                timestamp: Date.now()
-            });
-
-            setTimeout(() => {
-                interaction.client.searchResults.delete(interaction.user.id);
-            }, 60000);
-
-            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Search Error:', error);
-            await interaction.editReply(`<:Cancel:1473037949187657818> An error occurred while searching!`);
-        }
+        return run(interaction, lavalinkManager, interaction.options.getString('query'));
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        {
-            const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id));
-            if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        const query = args.join(' ');
-        if (!query) return message.reply({ components: [buildErrorResponse('Missing Input', 'Please provide a search query!')], flags: MessageFlags.IsComponentsV2 });
-
-        try {
-            if (!lavalinkManager.useable) {
-                return message.reply({ components: [buildErrorResponse('Music Unavailable', 'No music servers are connected right now. Please try again in a moment.')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const reply = await message.reply('<:Search:1473038053219106847> Searching...');
-
-            let player = lavalinkManager.getPlayer(message.guild.id);
-            
-            if (!player) {
-                player = await lavalinkManager.createPlayer({
-                    guildId: message.guild.id,
-                    voiceChannelId: message.member.voice.channel.id,
-                    textChannelId: message.channel.id,
-                    selfDeaf: true,
-                    selfMute: false,
-                    volume: 100
-                });
-                
-                await player.connect();
-            }
-
-            let res = await Promise.race([
-                player.search({ query: `ytsearch:${query}` }, message.author),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Search timed out')), 20000))
-            ]);
-
-            if (res.loadType === 'empty' || !res.tracks || !res.tracks.length) {
-                res = await Promise.race([
-                    player.search({ query: `scsearch:${query}` }, message.author),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Search timed out')), 20000))
-                ]);
-            }
-
-            if (res.loadType === 'empty' || !res.tracks || !res.tracks.length) {
-                return reply.edit(`<:Cancel:1473037949187657818> No results found!`);
-            }
-
-            const tracks = res.tracks.slice(0, 5);
-
-            const searchText = `# <:Search:1473038053219106847> Search Results\n\n**Query:** ${query}\n\n` +
-                tracks.map((track, i) => 
-                    `**${i + 1}.** ${track.info.title}\n` +
-                    `     Artist: ${track.info.author || 'Unknown'} | Duration: ${formatTime(track.info.duration)}\n`
-                ).join('\n');
-
-            const row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_0`)
-                        .setLabel('1')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('1️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_1`)
-                        .setLabel('2')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('2️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_2`)
-                        .setLabel('3')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('3️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_3`)
-                        .setLabel('4')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('4️⃣')
-                );
-
-            const row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`search_select_4`)
-                        .setLabel('5')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('5️⃣'),
-                    new ButtonBuilder()
-                        .setCustomId('search_cancel')
-                        .setLabel('Cancel')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji('<:Cancel:1473037949187657818>')
-                );
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(searchText)
-                )
-                .addActionRowComponents(row1)
-                .addActionRowComponents(row2);
-
-            message.client.searchResults = message.client.searchResults || new Map();
-            message.client.searchResults.set(message.author.id, {
-                tracks: tracks,
-                player: player,
-                timestamp: Date.now()
-            });
-
-            setTimeout(() => {
-                message.client.searchResults.delete(message.author.id);
-            }, 60000);
-
-            await reply.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Search Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', 'An error occurred while searching!')], flags: MessageFlags.IsComponentsV2 });
-        }
-    }
+        return run(message, lavalinkManager, args.join(' '));
+    },
 };

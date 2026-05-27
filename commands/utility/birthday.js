@@ -43,25 +43,29 @@ function daysUntil(entry) {
 }
 
 function buildBirthdayModal(customId, existing) {
-    const modal = new ModalBuilder()
+    const input = new TextInputBuilder()
+        .setCustomId('bday_date')
+        .setLabel('Birthday (DD-MM or DD-MM-YYYY)')
+        .setStyle(TextInputStyle.Short)
+        .setMinLength(3)
+        .setMaxLength(10)
+        .setPlaceholder('e.g. 14-08-2003')
+        .setRequired(true);
+
+    // Only prefill when we have a valid stored value. Calling setValue('')
+    // while minLength is 3 makes Discord reject the modal with
+    // BASE_TYPE_MIN_LENGTH because the prefilled string is too short.
+    if (existing && Number.isInteger(existing.day) && Number.isInteger(existing.month)) {
+        const dd = String(existing.day).padStart(2, '0');
+        const mm = String(existing.month).padStart(2, '0');
+        const prefill = existing.year ? `${dd}-${mm}-${existing.year}` : `${dd}-${mm}`;
+        input.setValue(prefill);
+    }
+
+    return new ModalBuilder()
         .setCustomId(customId)
-        .setTitle('Set Your Birthday');
-    modal.addComponents(
-        new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-                .setCustomId('bday_date')
-                .setLabel('Birthday (DD-MM or DD-MM-YYYY)')
-                .setStyle(TextInputStyle.Short)
-                .setMinLength(3)
-                .setMaxLength(10)
-                .setPlaceholder('e.g. 14-08-2003')
-                .setValue(existing
-                    ? `${String(existing.day).padStart(2, '0')}-${String(existing.month).padStart(2, '0')}${existing.year ? `-${existing.year}` : ''}`
-                    : '')
-                .setRequired(true)
-        )
-    );
-    return modal;
+        .setTitle('Set Your Birthday')
+        .addComponents(new ActionRowBuilder().addComponents(input));
 }
 
 function buildViewCard(member, entry) {

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 const jsonStore = require('../../utils/jsonStore');
 module.exports = {
@@ -108,25 +109,33 @@ module.exports = {
                         new TextDisplayBuilder().setContent(
                             `# <:Image:1473039533112033508> No Media-Only Channels\n\n` +
                             `There are no media-only channels configured in this server.\n\n` +
-                            `*Use /media-only add to create one*`
+                            `*Use \`/media-only add\` to create one.*`
                         )
                     );
 
                 return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
-            const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Image:1473039533112033508> Media-Only Channels\n\n` +
-                        `This server has **${channels.length}** media-only channel(s):\n\n` +
-                        `${channels.map(id => `• <#${id}>`).join('\n')}\n\n` +
-                        `*Only messages with attachments are allowed in these channels*`
-                    )
-                );
+            // Filter to channels still present in the guild — surfacing
+            // dangling IDs would just confuse the user.
+            const lines = channels.map((id, i) => {
+                const ch = interaction.guild.channels.cache.get(id);
+                const label = ch ? `${ch}` : `~~<#${id}>~~ \`(deleted)\``;
+                return `<:Caretright:1473038207221502106> \`${String(i + 1).padStart(2, '0')}.\` ${label}`;
+            });
 
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const result = paginate({
+                header:
+                    `# <:Image:1473039533112033508> Media-Only Channels\n` +
+                    `-# **${channels.length}** channel${channels.length === 1 ? '' : 's'} • only attachments are allowed`,
+                lines,
+                perPage:     15,
+                accentColor: COLORS.INFO,
+                footer:      BRANDING,
+            });
+
+            const reply = await interaction.reply({ ...result, fetchReply: true });
+            setupPaginationCollector(reply, result._pageData, interaction.user.id);
         }
         } catch (error) {
             console.error('[MediaOnly] Error:', error);
@@ -159,25 +168,31 @@ module.exports = {
                     new TextDisplayBuilder().setContent(
                         `# <:Image:1473039533112033508> No Media-Only Channels\n\n` +
                         `There are no media-only channels configured in this server.\n\n` +
-                        `*Use /media-only add to create one*`
+                        `*Use \`/media-only add\` to create one.*`
                     )
                 );
 
             return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `# <:Image:1473039533112033508> Media-Only Channels\n\n` +
-                    `This server has **${channels.length}** media-only channel(s):\n\n` +
-                    `${channels.map(id => `• <#${id}>`).join('\n')}\n\n` +
-                    `*Only messages with attachments are allowed in these channels*`
-                )
-            );
+        const lines = channels.map((id, i) => {
+            const ch = message.guild.channels.cache.get(id);
+            const label = ch ? `${ch}` : `~~<#${id}>~~ \`(deleted)\``;
+            return `<:Caretright:1473038207221502106> \`${String(i + 1).padStart(2, '0')}.\` ${label}`;
+        });
 
-        await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const result = paginate({
+            header:
+                `# <:Image:1473039533112033508> Media-Only Channels\n` +
+                `-# **${channels.length}** channel${channels.length === 1 ? '' : 's'} • only attachments are allowed`,
+            lines,
+            perPage:     15,
+            accentColor: COLORS.INFO,
+            footer:      BRANDING,
+        });
+
+        const reply = await message.reply(result);
+        setupPaginationCollector(reply, result._pageData, message.author.id);
         } catch (error) {
             console.error('[MediaOnly] Error:', error);
             const container = buildErrorResponse('Error', 'An error occurred while executing this command.', error.message);

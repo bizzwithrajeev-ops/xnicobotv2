@@ -1,56 +1,43 @@
-const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
-const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
-const { updateVoiceChannelStatus } = require('../../utils/musicPanel');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
 
-function buildContent(currentTrack) {
-    let content = `# <:Play:1473039266081800303> Music Resumed\n\n`;
-    content += `**Track:** ${currentTrack.info.title}\n`;
-    content += `**Artist:** ${currentTrack.info.author || 'Unknown'}\n\n`;
-    content += `> Now playing`;
-    return new ContainerBuilder()
-        .setAccentColor(COLORS.SUCCESS)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+const { SlashCommandBuilder } = require('discord.js');
+const { updateVoiceChannelStatus } = require('../../utils/musicPanel');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+    const member  = target.member;
+
+    const pre = preflightPlayer({ player, member });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    if (!player.paused) {
+        return replyMusic(target, musicError('Not Paused', 'Playback is not paused right now.'), { ephemeral: isSlash });
+    }
+
+    await player.resume();
+    await updateVoiceChannelStatus(target.client, player);
+
+    const t = player.queue.current;
+    return replyMusic(target, musicSuccess(
+        'Music Resumed',
+        `**${t.info.title}**\n-# by ${t.info.author || 'Unknown Artist'}`,
+        'Now playing.'
+    ));
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resume')
-        .setDescription('Resume the paused song'),
+        .setDescription('Resume the paused track'),
 
     prefix: 'resume',
-    description: 'Resume the paused song',
+    description: 'Resume the paused track',
     usage: 'resume',
     category: 'music',
     aliases: ['rs', 'unpause', 'continue'],
 
-    async execute(interaction, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(interaction.guild.id);
-        if (!player) return interaction.reply({ components: [buildErrorResponse('No Music Playing', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        const voiceErr = voiceErrorMessage(interaction.member, player);
-        if (voiceErr) return interaction.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        const currentTrack = player.queue.current;
-        if (!currentTrack) return interaction.reply({ components: [buildErrorResponse('No Track Playing', 'No track is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        if (!player.paused) return interaction.reply({ components: [buildErrorResponse('Not Paused', 'The music is not paused.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-
-        await player.resume();
-        await updateVoiceChannelStatus(interaction.client, player);
-        return interaction.reply({ components: [buildContent(currentTrack)], flags: MessageFlags.IsComponentsV2 });
-    },
-
-    async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player) return message.reply({ components: [buildErrorResponse('No Music Playing', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 });
-        const voiceErr = voiceErrorMessage(message.member, player);
-        if (voiceErr) return message.reply({ components: [buildErrorResponse('Voice Required', voiceErr)], flags: MessageFlags.IsComponentsV2 });
-
-        const currentTrack = player.queue.current;
-        if (!currentTrack) return message.reply({ components: [buildErrorResponse('No Track Playing', 'No track is currently playing.')], flags: MessageFlags.IsComponentsV2 });
-        if (!player.paused) return message.reply({ components: [buildErrorResponse('Not Paused', 'The music is not paused.')], flags: MessageFlags.IsComponentsV2 });
-
-        await player.resume();
-        await updateVoiceChannelStatus(message.client, player);
-        return message.reply({ components: [buildContent(currentTrack)], flags: MessageFlags.IsComponentsV2 });
-    }
+    async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
 };

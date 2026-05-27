@@ -22,7 +22,7 @@ const {
     SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
-const { formatCoins, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsAmount, coinIcon } = require('../../utils/currencyHelper');
 const {
     createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize
 } = require('../../utils/componentHelpers');
@@ -37,7 +37,9 @@ const E = {
     fail:     '<:Cancel:1473037949187657818>',
     info:     '<:Inforect:1473038624172937287>',
     warn:     '<:Infotriangle:1473038460456800459>',
-    coin:     '<:Money:1473377877239140529>',
+    // NOTE: do not bake the coin emoji in here — it must follow the
+    // per-guild `/currency` setting. Use `coinIcon(guildId)` at every
+    // render site instead.
     chart:    '<:transfer:1479780506718437396>',
     skipnext: '<:Skipnext:1473039269726785737>',
     star:     '<:Star:1473038501766369300>',
@@ -133,7 +135,7 @@ function buildSetupContainer(userId) {
     const lines = [
         `# ${E.title} Fortune Wheel — Setup`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
     ];
     if (game.preset) {
         const p = PRESETS[game.preset];
@@ -199,7 +201,7 @@ function buildResultContainer(game, result) {
         `# ${E.title} Fortune Wheel`,
         `-# ${p.emoji} ${p.label}  ·  ${result.total} segments`,
         '',
-        `> ${E.coin} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+        `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
         `> ${E.spin} **Landed:** slot ${result.slot + 1} → ${multiplierEmoji(result.mult)} \`${result.mult}x\``,
         '',
         won
@@ -236,7 +238,7 @@ async function handleWheel(reply, userId, args, guildId) {
             `# ${E.title} Fortune Wheel`,
             '',
             `> ${E.info} **Usage:** \`wheel <bet>\``,
-            `> ${E.coin} **Max Bet:** ${formatNumber(MAX_BET)}`,
+            `> ${coinIcon(guildId)} **Max Bet:** ${formatNumber(MAX_BET)}`,
             '',
             `Spin the Fortune Wheel — pick a preset, then watch where the pointer lands.`,
             '',

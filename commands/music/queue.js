@@ -1,44 +1,39 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
 const { buildQueueContainer } = require('../../utils/musicPanel');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
+const { musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager, page) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    if (!player || !player.queue?.current) {
+        return replyMusic(target, musicError('No Music Playing', 'There is no music currently playing.', 'Use `/play <song>` to start playback.'), { ephemeral: isSlash });
+    }
+
+    const safePage = Math.max(0, (Number.isFinite(page) ? page : 1) - 1);
+    return replyMusic(target, buildQueueContainer(player, safePage));
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('queue')
         .setDescription('Display the current music queue')
-        .addIntegerOption(option =>
-            option.setName('page')
-                .setDescription('Page number')
-                .setRequired(false)
-                .setMinValue(1)),
-    
+        .addIntegerOption(o => o.setName('page').setDescription('Page number').setMinValue(1).setRequired(false)),
+
     prefix: 'queue',
     description: 'Display the current music queue',
     usage: 'queue [page]',
     category: 'music',
     aliases: ['q'],
-    
+
     async execute(interaction, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(interaction.guild.id);
-        if (!player || !player.queue || !player.queue.current) {
-            const container = buildErrorResponse('No Music Playing', 'There is no music currently playing.');
-            return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-        }
-
-        const page = (interaction.options?.getInteger('page') || 1) - 1;
-        const container = buildQueueContainer(player, page);
-        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const page = interaction.options.getInteger('page') || 1;
+        return run(interaction, lavalinkManager, page);
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        const player = lavalinkManager.getPlayer(message.guild.id);
-        if (!player || !player.queue || !player.queue.current) {
-            const container = buildErrorResponse('No Music Playing', 'There is no music currently playing.');
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        const page = (parseInt(args[0]) || 1) - 1;
-        const container = buildQueueContainer(player, page);
-        message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    }
+        const page = parseInt(args[0]) || 1;
+        return run(message, lavalinkManager, page);
+    },
 };

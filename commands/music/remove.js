@@ -1,81 +1,56 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager, position) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    const pre = preflightPlayer({ player, member: target.member, requireCurrent: false });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const total = player.queue.tracks?.length || 0;
+    if (total === 0) {
+        return replyMusic(target, musicError('Empty Queue', 'There are no queued tracks to remove.'), { ephemeral: isSlash });
+    }
+
+    const pos = parseInt(position, 10);
+    if (!Number.isFinite(pos) || pos < 1 || pos > total) {
+        return replyMusic(target, musicError(
+            'Invalid Position',
+            `Pick a number between **1** and **${total}**.`,
+            'Use `/queue` to see all queued tracks.'
+        ), { ephemeral: isSlash });
+    }
+
+    const removed = player.queue.tracks[pos - 1];
+    player.queue.remove(pos - 1);
+
+    return replyMusic(target, musicSuccess(
+        'Track Removed',
+        `**${removed.info.title}**\n-# by ${removed.info.author || 'Unknown Artist'}`,
+        `Was at position #${pos}.`
+    ));
+}
 
 module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('remove')
+        .setDescription('Remove a track from the queue')
+        .addIntegerOption(o => o.setName('position')
+            .setDescription('Track position in the queue').setRequired(true).setMinValue(1)),
+
     prefix: 'remove',
-    description: 'Remove a song from the queue',
+    description: 'Remove a track from the queue',
     usage: 'remove <position>',
     category: 'music',
     aliases: ['rm', 'del'],
-    
-    data: new SlashCommandBuilder()
-        .setName('remove')
-        .setDescription('Remove a song from the queue')
-        .addIntegerOption(option =>
-            option.setName('position')
-                .setDescription('Position of the song in queue')
-                .setRequired(true)
-                .setMinValue(1)),
-    
+
     async execute(interaction, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(interaction.guild.id);
-            if (!player) return interaction.reply({ components: [buildErrorResponse('No Player', 'Nothing is currently playing.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            { const __ve = voiceErrorMessage(interaction.member, lavalinkManager?.getPlayer?.(interaction.guild.id)); if (__ve) return interaction.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }); }
-
-            const position = interaction.options.getInteger('position');
-
-            if (position > player.queue.tracks.length) {
-                return interaction.reply({ components: [buildErrorResponse('Invalid Position', `Queue has ${player.queue.tracks.length} tracks.`)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
-            }
-
-            const removed = player.queue.tracks[position - 1];
-            player.queue.remove(position - 1);
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Trash:1473038090074591293> Track Removed\n\n**Removed:** ${removed.info.title}\n**Position:** ${position}`)
-                );
-
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Remove Error:', error);
-            const msg = error.message || 'An unknown error occurred';
-            if (interaction.replied || interaction.deferred) await interaction.followUp({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-            else await interaction.reply({ components: [buildErrorResponse('Error', msg)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
-        }
+        return run(interaction, lavalinkManager, interaction.options.getInteger('position'));
     },
-
     async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player) return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            { const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id)); if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 }); }
-
-            const position = parseInt(args[0]);
-            if (!position || position < 1) {
-                return message.reply({ components: [buildErrorResponse('Missing Input', 'Please provide a valid position number!')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            if (position > player.queue.tracks.length) {
-                return message.reply({ components: [buildErrorResponse('Invalid Input', `Invalid position! Queue has ${player.queue.tracks.length} tracks.`)], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const removed = player.queue.tracks[position - 1];
-            player.queue.remove(position - 1);
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Trash:1473038090074591293> Track Removed\n\n**Removed:** ${removed.info.title}\n**Position:** ${position}`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Remove Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        }
-    }
+        return run(message, lavalinkManager, args[0]);
+    },
 };

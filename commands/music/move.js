@@ -1,52 +1,64 @@
-const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { voiceErrorMessage } = require('../../utils/musicHelpers');
+'use strict';
+
+const { SlashCommandBuilder } = require('discord.js');
+const { preflightPlayer, musicSuccess, musicError, replyMusic } = require('../../utils/musicResponse');
+
+async function run(target, lavalinkManager, fromRaw, toRaw) {
+    const player  = lavalinkManager.getPlayer(target.guild.id);
+    const isSlash = typeof target.isRepliable === 'function';
+
+    const pre = preflightPlayer({ player, member: target.member, requireCurrent: false });
+    if (!pre.ok) return replyMusic(target, pre.container, { ephemeral: pre.ephemeral });
+
+    const total = player.queue.tracks?.length || 0;
+    if (total < 2) {
+        return replyMusic(target, musicError('Not Enough Tracks', 'Need at least 2 queued tracks to move.'), { ephemeral: isSlash });
+    }
+
+    const fromPos = parseInt(fromRaw, 10);
+    const toPos   = parseInt(toRaw, 10);
+    if (!Number.isFinite(fromPos) || !Number.isFinite(toPos) ||
+        fromPos < 1 || fromPos > total || toPos < 1 || toPos > total) {
+        return replyMusic(target, musicError(
+            'Invalid Position',
+            `Both positions must be between **1** and **${total}**.`,
+            'Use `/queue` to see all queued tracks.'
+        ), { ephemeral: isSlash });
+    }
+    if (fromPos === toPos) {
+        return replyMusic(target, musicError('No Change', 'The track is already at that position.'), { ephemeral: isSlash });
+    }
+
+    const track = player.queue.tracks[fromPos - 1];
+    player.queue.tracks.splice(fromPos - 1, 1);
+    player.queue.tracks.splice(toPos - 1, 0, track);
+
+    return replyMusic(target, musicSuccess(
+        'Track Moved',
+        `**${track.info.title}**`,
+        `Moved from #${fromPos} → #${toPos}`
+    ));
+}
 
 module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('move')
+        .setDescription('Move a track to a different queue position')
+        .addIntegerOption(o => o.setName('from').setDescription('Current position').setRequired(true).setMinValue(1))
+        .addIntegerOption(o => o.setName('to').setDescription('New position').setRequired(true).setMinValue(1)),
+
+    prefix: 'move',
+    description: 'Move a track to a different queue position',
+    usage: 'move <from> <to>',
+    category: 'music',
+    aliases: ['mv'],
+
+    async execute(interaction, lavalinkManager) {
+        return run(interaction, lavalinkManager,
+            interaction.options.getInteger('from'),
+            interaction.options.getInteger('to'));
+    },
     async executePrefix(message, args, lavalinkManager) {
-        try {
-            const player = lavalinkManager.getPlayer(message.guild.id);
-            if (!player || !player.queue.current) {
-                return message.reply({ components: [buildErrorResponse('No Player', 'Nothing is playing!')], flags: MessageFlags.IsComponentsV2 });
-            }
-            {
-            const __ve = voiceErrorMessage(message.member, lavalinkManager?.getPlayer?.(message.guild.id));
-            if (__ve) return message.reply({ components: [buildErrorResponse('Voice Required', __ve)], flags: MessageFlags.IsComponentsV2 });
-        }
-
-            if (args.length < 2) {
-                return message.reply({ components: [buildErrorResponse('Invalid Usage', 'Usage: `-move <from> <to>`')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const fromPos = parseInt(args[0]) - 1;
-            const toPos = parseInt(args[1]) - 1;
-
-            if (isNaN(fromPos) || isNaN(toPos)) {
-                return message.reply({ components: [buildErrorResponse('Missing Input', 'Please provide valid position numbers!')], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            if (fromPos < 0 || fromPos >= player.queue.tracks.length) {
-                return message.reply({ components: [buildErrorResponse('Invalid Input', `Invalid 'from' position! Queue has ${player.queue.tracks.length} tracks.`)], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            if (toPos < 0 || toPos >= player.queue.tracks.length) {
-                return message.reply({ components: [buildErrorResponse('Invalid Input', `Invalid 'to' position! Queue has ${player.queue.tracks.length} tracks.`)], flags: MessageFlags.IsComponentsV2 });
-            }
-
-            const track = player.queue.tracks[fromPos];
-            player.queue.tracks.splice(fromPos, 1);
-            player.queue.tracks.splice(toPos, 0, track);
-
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder()
-                        .setContent(`# <:Refresh:1473037911581528165> Track Moved\n\n**${track.info.title}**\n\nMoved from position ${fromPos + 1} to position ${toPos + 1}`)
-                );
-
-            message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        } catch (error) {
-            console.error('Move Error:', error);
-            message.reply({ components: [buildErrorResponse('Error', `An error occurred: ${error.message || 'Unknown error'}`)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        }
-    }
+        return run(message, lavalinkManager, args[0], args[1]);
+    },
 };

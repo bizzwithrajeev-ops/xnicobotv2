@@ -700,6 +700,16 @@ async function handleCommand(editFn, msgObj, url, userId) {
    ═══════════════════════════════════════════════ */
 
 module.exports = {
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the
+     * command dispatcher in index.js — non-premium users get a
+     * polite premium-gate message instead of execution.
+     *
+     * Downloading from third-party sites is bandwidth- and CPU-heavy
+     * (yt-dlp + ffmpeg), so this is a premium feature.
+     */
+    premiumOnly: true,
+
     data: new SlashCommandBuilder()
         .setName('download')
         .setDescription('Download videos, audio, or images from YouTube, Instagram, TikTok & more')

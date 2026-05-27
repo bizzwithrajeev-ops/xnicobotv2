@@ -22,7 +22,7 @@ async function handleBalance(reply, targetUser, guildId) {
         `### <:User:1473038971398520977> ${targetUser.username}`,
         '',
         `> ${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(wallet, guildId)}`,
-        `> <:Invoice:1473039492217835550> **Bank:** ${formatCoins(bank, guildId)}`,
+        `> <:Bank:1473039150927319192> **Bank:** ${formatCoins(bank, guildId)}`,
     ].join('\n'));
 
     addSeparator(container, SeparatorSpacingSize.Small);

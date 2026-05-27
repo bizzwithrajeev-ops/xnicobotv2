@@ -148,7 +148,7 @@ function createFavoritesButtons(page, totalPages, hasFavorites) {
             new ButtonBuilder()
                 .setCustomId('mymusic_back')
                 .setLabel('Back')
-                .setEmoji('<:Caretleft:1473038204125409330>')
+                .setEmoji('<:Caretleft:1473038193057333409>')
                 .setStyle(ButtonStyle.Secondary)
         ));
     } else {
@@ -156,7 +156,7 @@ function createFavoritesButtons(page, totalPages, hasFavorites) {
             new ButtonBuilder()
                 .setCustomId('mymusic_back')
                 .setLabel('Back')
-                .setEmoji('<:Caretleft:1473038204125409330>')
+                .setEmoji('<:Caretleft:1473038193057333409>')
                 .setStyle(ButtonStyle.Secondary)
         ));
     }
@@ -208,7 +208,7 @@ function createSpotifyButtons(playlists) {
         new ButtonBuilder()
             .setCustomId('mymusic_back')
             .setLabel('Back')
-            .setEmoji('<:Caretleft:1473038204125409330>')
+            .setEmoji('<:Caretleft:1473038193057333409>')
             .setStyle(ButtonStyle.Secondary)
     ));
 
@@ -731,8 +731,8 @@ module.exports = {
             const favorites = await models.FavoriteSong.find({ userId });
             if (!favorites || num > favorites.length) {
                 await interaction.reply({
-                    components: [buildErrorResponse('Not Found', `Song #${num} not found. You have ${favorites?.length || 0} favorites.`)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                    flags: MessageFlags.Ephemeral
+                    components: [buildErrorResponse('Not Found', `Song #${num} not found. You have ${favorites?.length || 0} favorites.`)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
                 });
                 return true;
             }
