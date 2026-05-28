@@ -1,6 +1,7 @@
 const { PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { getGuildConfig, updateGuildConfig } = require('../../utils/database');
 const { buildPermissionDenied, buildInvalidUsage, buildSuccessResponse, EMOJIS } = require('../../utils/responseBuilder');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -144,13 +145,18 @@ module.exports = {
                 return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             
-            let rolesList = '# <:Bookmark:1473038643492028517> Level Role Rewards\n\n';
-            for (const lr of guildRoles) {
+            const lineEntries = guildRoles.map(lr => {
                 const role = message.guild.roles.cache.get(lr.roleId);
-                rolesList += `> <:Caretright:1473038207221502106> **Level ${lr.level}** → ${role || '\`Deleted Role\`'}\n`;
-            }
-            rolesList += `\n-# ${guildRoles.length} reward${guildRoles.length !== 1 ? 's' : ''} configured`;
-            
+                return `> <:Caretright:1473038207221502106> **Level ${lr.level}** → ${role || '\`Deleted Role\`'}`;
+            });
+            const { content: rolesList } = buildSafeListText({
+                header: '# <:Bookmark:1473038643492028517> Level Role Rewards',
+                lines: lineEntries,
+                separator: '\n',
+                footer: `\n-# ${guildRoles.length} reward${guildRoles.length !== 1 ? 's' : ''} configured`,
+                overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
+            });
+
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()

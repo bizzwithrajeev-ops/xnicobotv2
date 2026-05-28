@@ -801,7 +801,7 @@ module.exports = {
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Panel Message Saved!\n\n` +
                         `Your custom verification panel message has been saved and applied.\n\n` +
-                        `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : '<:Chat:1473038936241864865> Simple'}\n\n` +
+                        `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : data.mode === 'components' ? '<:Settings:1473037894703779851> Components V2' : '<:Chat:1473038936241864865> Simple'}\n\n` +
                         `The panel in the verification channel has been updated.\n\n` +
                         `Use \`/verification-setup reset-panel\` to revert to default.`
                     )

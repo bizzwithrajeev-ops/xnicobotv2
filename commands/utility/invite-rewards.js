@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { setReward, removeReward, getRewards } = require('../../utils/inviteManager');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -72,13 +73,18 @@ module.exports = {
                 return interaction.reply({ content: '<:Cancel:1473037949187657818> No invite rewards configured yet!', flags: MessageFlags.Ephemeral });
             }
             
-            let rewardText = '# <:Present:1473038450465706076> Invite Rewards\n\n';
-            
-            for (const reward of rewards) {
+            // Trim to fit Discord's 4 000-char per-TextDisplay cap.
+            const lineEntries = rewards.map(reward => {
                 const role = interaction.guild.roles.cache.get(reward.roleId);
                 const roleName = role ? role.toString() : 'Unknown Role';
-                rewardText += `• **${reward.invites} invites** → ${roleName}\n`;
-            }
+                return `• **${reward.invites} invites** → ${roleName}`;
+            });
+            const { content: rewardText } = buildSafeListText({
+                header: '# <:Present:1473038450465706076> Invite Rewards',
+                lines: lineEntries,
+                separator: '\n',
+                overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
+            });
             
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(
@@ -141,13 +147,18 @@ module.exports = {
                 return message.reply('<:Cancel:1473037949187657818> No invite rewards configured yet!');
             }
             
-            let rewardText = '# <:Present:1473038450465706076> Invite Rewards\n\n';
-            
-            for (const reward of rewards) {
+            // Trim to fit Discord's 4 000-char per-TextDisplay cap.
+            const lineEntries = rewards.map(reward => {
                 const role = message.guild.roles.cache.get(reward.roleId);
                 const roleName = role ? role.toString() : 'Unknown Role';
-                rewardText += `• **${reward.invites} invites** → ${roleName}\n`;
-            }
+                return `• **${reward.invites} invites** → ${roleName}`;
+            });
+            const { content: rewardText } = buildSafeListText({
+                header: '# <:Present:1473038450465706076> Invite Rewards',
+                lines: lineEntries,
+                separator: '\n',
+                overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
+            });
             
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(

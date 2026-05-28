@@ -111,6 +111,10 @@ function buildShopPage(category, userId, guildId) {
     }
   } else if (isCustom) {
     // Custom-shop items rendered as full cards with action label badges.
+    // Note: no inter-item separators — Discord caps Components V2 messages
+    // at 40 components total, and the custom shop allows up to 25 items.
+    // 25 items + 24 separators + chrome would blow the cap; the section
+    // padding alone is enough visual separation.
     items.forEach((item, i) => {
       const affordable = wallet >= item.price;
       const action = ACTION_LABELS[item.action] || { emoji: '<:Star:1473038501766369300>', label: item.action };
@@ -120,10 +124,10 @@ function buildShopPage(category, userId, guildId) {
         `-# ${icon} **${formatCoinsAmount(item.price, guildId)}**  ·  ${action.emoji} ${action.label}  ·  Index \`#${i + 1}\``
       ].join('\n');
       addTextDisplay(container, card);
-      if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);
     });
   } else {
     // Built-in items — fixed layout: title row, description row, meta row.
+    // Same no-separator strategy as above to keep component count predictable.
     items.forEach((item, i) => {
       const owned = userInv.filter(x => x.id === item.id).length;
       const affordable = wallet >= item.price;
@@ -135,7 +139,6 @@ function buildShopPage(category, userId, guildId) {
         `-# ${icon} **${formatCoinsAmount(item.price, guildId)}**  ·  <:Box:1473039115581915256> Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
       ].join('\n');
       addTextDisplay(container, card);
-      if (i < items.length - 1) addSeparator(container, SeparatorSpacingSize.Small);
     });
   }
 

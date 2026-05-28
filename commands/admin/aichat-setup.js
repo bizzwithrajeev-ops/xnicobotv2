@@ -131,6 +131,29 @@ module.exports = {
         const customId = interaction.customId;
         if (!customId.startsWith('aichat_')) return false;
 
+        // ── Admin + Premium gate ───────────────────────────────────
+        // Buttons / modals / selects on this panel route here directly,
+        // so they bypass the slash-command dispatcher's `premiumOnly`
+        // check. Re-validate so the panel fails closed when the server
+        // loses premium AFTER the panel was opened, and so non-admins
+        // can't poke at someone else's panel.
+        if (!interaction.member?.permissions?.has?.(PermissionFlagsBits.Administrator)) {
+            await interaction.reply({
+                content: '<:Cancel:1473037949187657818> You need **Administrator** permission to configure AI chat.',
+                flags: MessageFlags.Ephemeral,
+            }).catch(() => {});
+            return true;
+        }
+        const premiumManager = require('../../utils/premiumManager');
+        if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+            const { buildPremiumGate } = require('../../utils/responseBuilder');
+            await interaction.reply({
+                components: [buildPremiumGate('/aichat-setup')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            }).catch(() => {});
+            return true;
+        }
+
         // Check if config session has expired
         if (await checkAndExpire(interaction, 'config')) return true;
 

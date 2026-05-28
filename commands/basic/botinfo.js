@@ -11,7 +11,9 @@ const {
     MessageFlags,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -106,6 +108,13 @@ function buildBotInfo(client, guild) {
     const guildCustom = botCustomize.getConfig(guildId);
     const prefix = guildCustom.prefix || process.env.PREFIX || '-';
 
+    // Per-guild branding — these come from /bot-customize and are the
+    // single source of truth for how this bot presents itself in this
+    // server. We surface them here so anyone running -about / -botinfo
+    // sees the server-specific bio and banner instead of just stats.
+    const customBio    = (guildCustom.aboutText || '').trim();
+    const customBanner = guildCustom.bannerUrl;
+
     const totalMembers = client.guilds.cache.reduce((a, g) => a + g.memberCount, 0);
     const totalChannels = client.channels.cache.size;
     const totalCommands = countCommands(path.join(__dirname, '..'));
@@ -138,6 +147,17 @@ function buildBotInfo(client, guild) {
     const shardId = guild?.shardId ?? 0;
     const createdTs = Math.floor(client.user.createdTimestamp / 1000);
 
+    // Prefer the per-server avatar configured via /bot-customize, then
+    // the bot member's per-guild avatar (set via editMe), then finally
+    // the global user avatar. This keeps -botinfo / -about in sync with
+    // whatever the admin configured even if Discord's cache hasn't
+    // caught up yet, or if Discord declined the live PATCH but we kept
+    // the URL locally.
+    const botMemberThumb = guild?.members?.me;
+    const thumbnailUrl = guildCustom.avatarUrl
+        || botMemberThumb?.displayAvatarURL?.({ size: 256 })
+        || client.user.displayAvatarURL({ size: 256 });
+
     const container = new ContainerBuilder().setAccentColor(accentColor);
 
     // ── Header ──
@@ -150,9 +170,41 @@ function buildBotInfo(client, guild) {
                 )
             )
             .setThumbnailAccessory(
-                new ThumbnailBuilder({ media: { url: client.user.displayAvatarURL({ size: 256 }) } })
+                new ThumbnailBuilder({ media: { url: thumbnailUrl } })
             )
     );
+
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+    // ── Per-guild banner (if admin set one via /bot-customize) ──
+    // Renders as a media gallery so the banner shows full-width above
+    // the about block. Falls back silently if the URL is malformed —
+    // the slash panel already validates URLs at write time, but this
+    // try/catch keeps the rest of the panel rendering even if a stored
+    // URL turns out to be unfetchable.
+    if (customBanner) {
+        try {
+            container.addMediaGalleryComponents(
+                new MediaGalleryBuilder().addItems(
+                    new MediaGalleryItemBuilder().setURL(customBanner)
+                )
+            );
+            container.addSeparatorComponents(
+                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+            );
+        } catch {}
+    }
+
+    // ── Per-guild About / Bio ──
+    // The "About" header always shows. If an admin has configured a
+    // custom bio via /bot-customize, we use it verbatim (clamped to
+    // Discord's 4 000-char TextDisplay budget). Otherwise we fall back
+    // to a tasteful default so /about isn't blank for unconfigured guilds.
+    const aboutBlock = customBio
+        ? `### ${E.database} About\n` + customBio.slice(0, 1500)
+        : `### ${E.database} About\n` +
+          `All-in-one Discord toolkit — Music, Moderation, Economy, Levels, Tickets & more.`;
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(aboutBlock));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 

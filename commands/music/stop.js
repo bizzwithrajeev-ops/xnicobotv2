@@ -4,9 +4,14 @@ const { SlashCommandBuilder } = require('discord.js');
 const { updateMusicPanel, updateVoiceChannelStatus } = require('../../utils/musicPanel');
 const { preflightPlayer, musicSuccess, replyMusic } = require('../../utils/musicResponse');
 const jsonStore = require('../../utils/jsonStore');
+const premiumManager = require('../../utils/premiumManager');
 
 function read247(guildId) {
     try {
+        // 24/7 is premium-only — non-premium servers fall through to
+        // the normal "leave voice on stop" branch even if the saved
+        // config still says enabled.
+        if (!premiumManager.isServerPremium(guildId)) return false;
         if (!jsonStore.has('musicpanel-247')) return false;
         const cfg = jsonStore.read('musicpanel-247');
         return !!cfg?.[guildId]?.enabled;

@@ -58,7 +58,7 @@ const THEME = {
         LIGHTNING: '<:Lightningalt:1473038679906844824>',
         ANNOUNCE: '<:Bullhorn:1473038903157199093>',
         
-        ARROW_RIGHT: '▸',
+        ARROW_RIGHT: '<:Caretright:1473038207221502106>',
         ARROW_LEFT: '◂',
         DOT: '•',
         BULLET: '◦',

@@ -51,7 +51,7 @@ function buildPage(client, activeUsers, activeServers, page, view) {
                     .setDisabled(true),
                 new ButtonBuilder()
                     .setCustomId(`premiums_users_${safePage + 1}`)
-                    .setEmoji('<:Skipnext:1473039269726785737>')
+                    .setEmoji('<:Caretright:1473038207221502106>')
                     .setLabel('Next')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(safePage >= totalPages - 1)
@@ -128,7 +128,7 @@ function buildPage(client, activeUsers, activeServers, page, view) {
                     .setDisabled(true),
                 new ButtonBuilder()
                     .setCustomId(`premiums_servers_${safePage + 1}`)
-                    .setEmoji('<:Skipnext:1473039269726785737>')
+                    .setEmoji('<:Caretright:1473038207221502106>')
                     .setLabel('Next')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(safePage >= totalPages - 1)

@@ -27,6 +27,7 @@ const { getDefaultMessages, getVariableGroups, replaceInviteVariables, buildCont
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 // ── Message type metadata for the Messages panel ──────────────────────────
 const MESSAGE_TYPES = {
@@ -238,19 +239,27 @@ function createSettingsRow(guildConfig) {
 function buildRewardsPanel(guildConfig, guild) {
     const rewards = guildConfig.rewards || [];
 
-    let content = `# <:Present:1473038450465706076> Invite Rewards\n\n`;
-
     if (rewards.length === 0) {
-        content += `*No reward roles configured yet.*\n\nClick **Add Reward** to create invite milestones.`;
-    } else {
-        content += `Members who hit these invite milestones will be awarded the matching role automatically.\n\n`;
-        const sortedRewards = [...rewards].sort((a, b) => a.invites - b.invites);
-        for (const reward of sortedRewards) {
-            const role = guild.roles.cache.get(reward.roleId);
-            content += `<:Caretright:1473038207221502106> **${reward.invites} invites** → ${role ? role.toString() : '*Unknown Role*'}\n`;
-        }
+        return `# <:Present:1473038450465706076> Invite Rewards\n\n` +
+            `*No reward roles configured yet.*\n\nClick **Add Reward** to create invite milestones.`;
     }
 
+    const sortedRewards = [...rewards].sort((a, b) => a.invites - b.invites);
+    const lineEntries = sortedRewards.map(reward => {
+        const role = guild.roles.cache.get(reward.roleId);
+        return `<:Caretright:1473038207221502106> **${reward.invites} invites** → ${role ? role.toString() : '*Unknown Role*'}`;
+    });
+
+    // Trim to fit Discord's 4 000-char per-TextDisplay cap. With many
+    // rewards plus deleted-role entries the naive concat would exceed it.
+    const { content } = buildSafeListText({
+        header:
+            `# <:Present:1473038450465706076> Invite Rewards\n\n` +
+            `Members who hit these invite milestones will be awarded the matching role automatically.\n`,
+        lines: lineEntries,
+        separator: '\n',
+        overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
+    });
     return content;
 }
 

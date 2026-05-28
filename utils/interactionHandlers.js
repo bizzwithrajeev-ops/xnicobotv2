@@ -3,6 +3,7 @@ const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedB
 const jsonStore = require('./jsonStore');
 const log = require('./logger-styled');
 const { checkAndExpire, registerSession } = require('./panelExpiration');
+const { buildSafeListText } = require('./componentHelpers');
 /**
  * Resolve a channel from user input (ID, mention, or name).
  * Accepts: raw ID, <#ID>, #name, or channel name.
@@ -3379,10 +3380,19 @@ async function handleAutoresponderButtons(interaction) {
             return interaction.reply({ content: '<:Cancel:1473037949187657818> No autoresponses configured!', flags: MessageFlags.Ephemeral });
         }
 
-        let listText = '# <:Bookopen:1473038576391557130> Autoresponse List\n\n';
-        guildConfig.responses.forEach((item, index) => {
+        // Build response lines, then trim to fit Discord's 4 000-char per-
+        // TextDisplay cap. Without this guard, a server with many or long
+        // autoresponses would fail with INVALID_FORM_BODY when the panel is
+        // edited.
+        const lineEntries = guildConfig.responses.map((item, index) => {
             const resp = item.response || '(empty)';
-            listText += `**${index + 1}.** Trigger: \`${item.trigger || '(none)'}\`\n   Response: ${resp.substring(0, 50)}${resp.length > 50 ? '...' : ''}\n\n`;
+            return `**${index + 1}.** Trigger: \`${item.trigger || '(none)'}\`\n   Response: ${resp.substring(0, 50)}${resp.length > 50 ? '...' : ''}`;
+        });
+        const { content: listText } = buildSafeListText({
+            header: '# <:Bookopen:1473038576391557130> Autoresponse List',
+            lines: lineEntries,
+            separator: '\n\n',
+            overflowHint: '\n\n-# +${n} more not shown — remove some entries to see them all',
         });
 
         const container = new ContainerBuilder()
@@ -3537,10 +3547,16 @@ async function handleAutoreactButtons(interaction) {
             return interaction.reply({ content: '<:Cancel:1473037949187657818> No autoreactions configured!', flags: MessageFlags.Ephemeral });
         }
 
-        let listText = '# <:Bookopen:1473038576391557130> Autoreaction List\n\n';
-        guildConfig.reactions.forEach((item, index) => {
+        // Same 4 000-char trimming as autoresponse list above.
+        const lineEntries = guildConfig.reactions.map((item, index) => {
             const emojis = Array.isArray(item.emojis) ? item.emojis.join(' ') : '(none)';
-            listText += `**${index + 1}.** Trigger: \`${item.trigger || '(none)'}\`\n   Emojis: ${emojis}\n\n`;
+            return `**${index + 1}.** Trigger: \`${item.trigger || '(none)'}\`\n   Emojis: ${emojis}`;
+        });
+        const { content: listText } = buildSafeListText({
+            header: '# <:Bookopen:1473038576391557130> Autoreaction List',
+            lines: lineEntries,
+            separator: '\n\n',
+            overflowHint: '\n\n-# +${n} more not shown — remove some entries to see them all',
         });
 
         const container = new ContainerBuilder()

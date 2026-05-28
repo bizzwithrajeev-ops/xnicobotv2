@@ -18,7 +18,13 @@ const {
     EMOJIS: E,
 } = require('../../utils/globalAssetBrowser');
 
-const PAGE_SIZE = 8;
+// Discord caps a Components V2 message at 40 total components (containers,
+// sections, separators, action rows, buttons, etc. all counted). The browser
+// chrome (header, separators, 3 action rows + buttons, footer) already burns
+// ~19 slots, and each emoji entry costs 3 (section + text display + thumbnail).
+// Keeping PAGE_SIZE at 6 leaves comfortable headroom (≈37/40) and avoids the
+// "Invalid Form Body / too many components" rejection that earlier sizes hit.
+const PAGE_SIZE = 6;
 const ID_PREFIX = 'gemoji';
 const STEAL_LIMIT = 10;
 
@@ -107,9 +113,9 @@ function buildBrowserPayload(state) {
                 .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: e.url } }));
             container.addSectionComponents(section);
 
-            if (i < slice.length - 1) {
-                container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false));
-            }
+            // Note: previously a spacing-only separator was inserted between
+            // entries. Removed to stay under Discord's 40-component CV2 cap —
+            // sections already render with their own padding.
         }
     }
 

@@ -1,5 +1,6 @@
 const { PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { buildPermissionDenied, buildInvalidUsage, buildSuccessResponse, buildErrorResponse, EMOJIS } = require('../../utils/responseBuilder');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -107,13 +108,19 @@ module.exports = {
                 return await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             
-            let multiplierList = '# <:Lightning:1473038797540298792> XP Multipliers\n\n';
-            for (const [roleId, mult] of Object.entries(guildMultipliers)) {
+            const entries = Object.entries(guildMultipliers);
+            const lineEntries = entries.map(([roleId, mult]) => {
                 const role = message.guild.roles.cache.get(roleId);
-                multiplierList += `> <:Caretright:1473038207221502106> ${role || '`Deleted Role`'} — **${mult}x** XP (+${Math.round((mult - 1) * 100)}%)\n`;
-            }
-            multiplierList += `\n-# ${Object.keys(guildMultipliers).length} multiplier${Object.keys(guildMultipliers).length !== 1 ? 's' : ''} configured`;
-            
+                return `> <:Caretright:1473038207221502106> ${role || '`Deleted Role`'} — **${mult}x** XP (+${Math.round((mult - 1) * 100)}%)`;
+            });
+            const { content: multiplierList } = buildSafeListText({
+                header: '# <:Lightning:1473038797540298792> XP Multipliers',
+                lines: lineEntries,
+                separator: '\n',
+                footer: `\n-# ${entries.length} multiplier${entries.length !== 1 ? 's' : ''} configured`,
+                overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
+            });
+
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()

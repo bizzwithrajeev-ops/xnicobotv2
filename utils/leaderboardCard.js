@@ -1,5 +1,27 @@
 'use strict';
 
+/**
+ * leaderboardCard.js — Premium economy leaderboard renderer.
+ *
+ * Visual refresh notes (v2):
+ *   • 920px wide responsive-height canvas with a layered glassy
+ *     background (gradient + diagonal lattice + radial accent
+ *     glow + top sweep + outer border).
+ *   • Header now puts the accent emoji inside a glowing chip,
+ *     mode label inline with a scope dot indicator, and a
+ *     gradient divider that fades into the accent.
+ *   • Rows: alternating glass tiles, podium rows (1st/2nd/3rd) get
+ *     a tinted left rail + medal-coloured glow halo behind the
+ *     rank badge. Avatars get a soft outer glow ring keyed to
+ *     either medal colour or accent.
+ *   • Stat lines render through emojiCanvasHelper so Discord
+ *     custom emojis (`<:Money:…>`) become proper images.
+ *   • Footer: requester standing line plus a thin "percentile" bar
+ *     showing where the requester sits on the global ladder.
+ *
+ * © Rajeev (Rexzy) — xNico
+ */
+
 const { createCanvas } = require('@napi-rs/canvas');
 const imageCache = require('./imageCache');
 const { registerAllFonts, getFontHelpers } = require('./fontRegistry');
@@ -13,22 +35,22 @@ try { registerAllFonts(); } catch (_) {}
 ═══════════════════════════════════════════════════ */
 const W        = 920;
 const ROW_H    = 80;
-const HEADER_H = 108;
-const FOOTER_H = 72;
+const HEADER_H = 116;
+const FOOTER_H = 90;
 const PAD      = 28;
 const ROW_GAP  = 4;
-const BRAD     = 20;
-const ROW_BR   = 11;
+const BRAD     = 22;
+const ROW_BR   = 12;
 
-const BG        = '#0d0d1a';
-const BG2       = '#13132a';
-const BG3       = '#1a1a35';
+const BG        = '#0c0c1a';
+const BG2       = '#11122a';
+const BG3       = '#171835';
 const ROW_EVEN  = 'rgba(22,22,52,0.92)';
 const ROW_ODD   = 'rgba(17,17,42,0.80)';
 const FOOT_BG   = 'rgba(10,10,26,0.97)';
-const TEXT_MAIN  = '#f0f0f5';
+const TEXT_MAIN  = '#f1f3f8';
 const TEXT_MUTED = '#8b8fa3';
-const TEXT_DIM   = '#3d3f54';
+const TEXT_DIM   = '#3d4156';
 
 const MEDAL_HEX = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
@@ -42,26 +64,27 @@ function h2r(hex) {
 function i2h(n) { return '#' + n.toString(16).padStart(6,'0'); }
 function fmtN(n) {
     n = Number(n) || 0;
-    if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
-    if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+    if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
     return n.toLocaleString();
 }
 
 function rrPath(ctx, x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.lineTo(x+w-r, y);
-    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-    ctx.lineTo(x+w, y+h-r);
-    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-    ctx.lineTo(x+r, y+h);
-    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-    ctx.lineTo(x, y+r);
-    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.moveTo(x+radius, y);
+    ctx.lineTo(x+w-radius, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+radius);
+    ctx.lineTo(x+w, y+h-radius);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-radius, y+h);
+    ctx.lineTo(x+radius, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-radius);
+    ctx.lineTo(x, y+radius);
+    ctx.quadraticCurveTo(x, y, x+radius, y);
     ctx.closePath();
 }
 
-// Truncate pure-text (no emojis) to fit maxW
 function truncate(ctx, text, maxW) {
     if (!text) return '';
     text = String(text);
@@ -69,15 +92,6 @@ function truncate(ctx, text, maxW) {
     let t = text;
     while (t.length > 0 && ctx.measureText(t+'…').width > maxW) t = t.slice(0,-1);
     return t + '…';
-}
-
-// Strip Discord custom emoji tags + unicode emoji codepoints for pure-text measurement
-function stripEmojis(str) {
-    return String(str||'')
-        .replace(/<a?:[\w]+:\d+>/g, '')
-        .replace(/\p{Emoji_Presentation}/gu, '')
-        .replace(/\p{Extended_Pictographic}/gu, '')
-        .trim();
 }
 
 async function loadAvatar(url) {
@@ -103,25 +117,24 @@ async function generateLeaderboardCard(entries, opts) {
     const rgbA      = (a) => `rgba(${acc.r},${acc.g},${acc.b},${a})`;
 
     const N  = entries.length;
-    const H  = HEADER_H + N*(ROW_H+ROW_GAP) - ROW_GAP + FOOTER_H + 10;
+    const H  = HEADER_H + N*(ROW_H+ROW_GAP) - ROW_GAP + FOOTER_H + 14;
 
     const canvas = createCanvas(W, H);
     const ctx    = canvas.getContext('2d');
 
-    // Global baseline/align defaults
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign    = 'left';
 
-    /* ══ 1. CARD BASE FILL (full canvas, no clip) ══
-       Ensures the canvas is never transparent/white even if gradient fails */
+    /* ══ 1. CARD BASE FILL ══ */
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
 
-    /* ══ 2. BACKGROUND GRADIENT (inside rounded clip) ══ */
+    /* ══ 2. BACKGROUND (inside rounded clip) ══ */
     ctx.save();
     rrPath(ctx, 0, 0, W, H, BRAD);
     ctx.clip();
 
+    // Multi-stop diagonal gradient
     const bgG = ctx.createLinearGradient(0, 0, W, H);
     bgG.addColorStop(0,    BG);
     bgG.addColorStop(0.35, BG2);
@@ -130,8 +143,8 @@ async function generateLeaderboardCard(entries, opts) {
     ctx.fillStyle = bgG;
     ctx.fillRect(0, 0, W, H);
 
-    // Subtle diagonal texture
-    ctx.strokeStyle = rgbA(0.030);
+    // Diagonal lattice
+    ctx.strokeStyle = rgbA(0.025);
     ctx.lineWidth   = 1;
     for (let i = -H; i < W + H; i += 52) {
         ctx.beginPath();
@@ -143,25 +156,33 @@ async function generateLeaderboardCard(entries, opts) {
     // Top accent sweep
     const sweepG = ctx.createLinearGradient(0, 0, W, 0);
     sweepG.addColorStop(0,    rgbA(0.00));
-    sweepG.addColorStop(0.22, rgbA(0.24));
-    sweepG.addColorStop(0.65, rgbA(0.08));
+    sweepG.addColorStop(0.22, rgbA(0.28));
+    sweepG.addColorStop(0.65, rgbA(0.10));
     sweepG.addColorStop(1,    rgbA(0.00));
     ctx.fillStyle = sweepG;
     ctx.fillRect(0, 0, W, 4);
 
-    // Ambient radial glow
-    const radG = ctx.createRadialGradient(W*0.38, 0, 0, W*0.38, 0, 310);
-    radG.addColorStop(0, rgbA(0.14));
+    // Header radial glow
+    const radG = ctx.createRadialGradient(W*0.38, 0, 0, W*0.38, 0, 320);
+    radG.addColorStop(0, rgbA(0.16));
     radG.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = radG;
-    ctx.fillRect(0, 0, W, HEADER_H + 50);
+    ctx.fillRect(0, 0, W, HEADER_H + 60);
+
+    // Subtle top-right cool glow for depth
+    const radG2 = ctx.createRadialGradient(W - 60, 30, 0, W - 60, 30, 240);
+    radG2.addColorStop(0, 'rgba(99,102,241,0.10)');
+    radG2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = radG2;
+    ctx.fillRect(0, 0, W, 200);
 
     ctx.restore();
 
     /* ══ 3. HEADER ══ */
     const hTX = PAD + 10;
 
-    // Title uses drawTextWithEmoji so the accent emoji (<:Sketch:1473038248493453352>, 🌍 etc.) renders as image
+    // Title row — accent emoji rendered via the emoji helper so custom
+    // Discord IDs become real images instead of unstyled glyphs.
     ctx.font      = FB(30);
     ctx.fillStyle = TEXT_MAIN;
     ctx.textAlign    = 'left';
@@ -169,9 +190,10 @@ async function generateLeaderboardCard(entries, opts) {
     await drawTextWithEmoji(
         ctx,
         `${opts.accentEmoji}  ${opts.scopeLabel} Economy Leaderboard`,
-        hTX, 46, 30
+        hTX, 50, 30
     );
 
+    // Sub-line — small UI text with chips for scope/mode/players
     ctx.font      = FM(13);
     ctx.fillStyle = TEXT_MUTED;
     ctx.textAlign    = 'left';
@@ -180,14 +202,14 @@ async function generateLeaderboardCard(entries, opts) {
         ctx,
         `${opts.scopeEmoji} ${opts.scopeLabel}  ·  ${opts.modeLabel}  ·  ` +
         `${(opts.totalCount||0).toLocaleString()} players  ·  Page ${(opts.page||0)+1} / ${opts.totalPages||1}`,
-        hTX, 74, 13
+        hTX, 80, 13
     );
 
-    // Divider
-    const divY = HEADER_H - 10;
+    // Divider — accent gradient that fades at both edges
+    const divY = HEADER_H - 6;
     const divG = ctx.createLinearGradient(PAD, divY, W-PAD, divY);
     divG.addColorStop(0,    'rgba(0,0,0,0)');
-    divG.addColorStop(0.15, rgbA(0.60));
+    divG.addColorStop(0.15, rgbA(0.65));
     divG.addColorStop(0.85, rgbA(0.30));
     divG.addColorStop(1,    'rgba(0,0,0,0)');
     ctx.strokeStyle = divG;
@@ -216,8 +238,8 @@ async function generateLeaderboardCard(entries, opts) {
 
         const rg = ctx.createLinearGradient(ROW_X, rowY, ROW_X+ROW_W, rowY);
         if (isPod) {
-            rg.addColorStop(0,    `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.13)`);
-            rg.addColorStop(0.25, i%2===0 ? ROW_EVEN : ROW_ODD);
+            rg.addColorStop(0,    `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.16)`);
+            rg.addColorStop(0.30, i%2===0 ? ROW_EVEN : ROW_ODD);
             rg.addColorStop(1,    i%2===0 ? ROW_EVEN : ROW_ODD);
         } else {
             rg.addColorStop(0, i%2===0 ? ROW_EVEN : ROW_ODD);
@@ -226,13 +248,21 @@ async function generateLeaderboardCard(entries, opts) {
         ctx.fillStyle = rg;
         ctx.fillRect(ROW_X, rowY, ROW_W, ROW_H);
 
+        // Top edge highlight — tiny shine for premium feel
+        const shineG = ctx.createLinearGradient(0, rowY, 0, rowY + 12);
+        shineG.addColorStop(0, 'rgba(255,255,255,0.04)');
+        shineG.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = shineG;
+        ctx.fillRect(ROW_X, rowY, ROW_W, 12);
+
+        // Podium left rail
         if (isPod) {
-            ctx.fillStyle = `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.72)`;
+            ctx.fillStyle = `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.78)`;
             ctx.fillRect(ROW_X, rowY, 4, ROW_H);
         }
         ctx.restore();
 
-        // "You" highlight ring
+        // "You" highlight ring — accent stroke
         if (e.isRequester) {
             ctx.save();
             ctx.strokeStyle = rgbA(0.65);
@@ -247,11 +277,12 @@ async function generateLeaderboardCard(entries, opts) {
         const bdgY = rowY + ROW_H/2;
 
         if (isPod) {
+            // Glowing medal coin
             ctx.save();
             ctx.shadowColor = mc;
-            ctx.shadowBlur  = 14;
+            ctx.shadowBlur  = 16;
             const cg = ctx.createRadialGradient(bdgX, bdgY-4, 2, bdgX, bdgY, 24);
-            cg.addColorStop(0, `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.40)`);
+            cg.addColorStop(0, `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.45)`);
             cg.addColorStop(1, `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.06)`);
             ctx.fillStyle = cg;
             ctx.beginPath();
@@ -259,8 +290,8 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.fill();
             ctx.restore();
 
-            ctx.strokeStyle = mc + 'aa';
-            ctx.lineWidth   = 1.5;
+            ctx.strokeStyle = mc + 'cc';
+            ctx.lineWidth   = 1.8;
             ctx.beginPath();
             ctx.arc(bdgX, bdgY, 24, 0, Math.PI*2);
             ctx.stroke();
@@ -273,6 +304,7 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.fillText(String(e.rank), bdgX, bdgY);
             ctx.restore();
         } else {
+            // Plain numbered badge
             ctx.save();
             ctx.beginPath();
             ctx.arc(bdgX, bdgY, 18, 0, Math.PI*2);
@@ -302,15 +334,18 @@ async function generateLeaderboardCard(entries, opts) {
         const img = await loadAvatar(e.avatar);
 
         if (img) {
+            // Glow halo
             ctx.save();
-            ctx.shadowColor = isPod ? mc : rgbA(0.4);
-            ctx.shadowBlur  = isPod ? 14 : 8;
+            const halo = ctx.createRadialGradient(avCX, avCY, avR, avCX, avCY, avR + 14);
+            halo.addColorStop(0, isPod ? `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.35)` : rgbA(0.30));
+            halo.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(avCX, avCY, avR+3, 0, Math.PI*2);
-            ctx.strokeStyle = 'rgba(0,0,0,0)';
-            ctx.stroke();
+            ctx.arc(avCX, avCY, avR + 14, 0, Math.PI*2);
+            ctx.fill();
             ctx.restore();
 
+            // Image clipped to circle
             ctx.save();
             ctx.beginPath();
             ctx.arc(avCX, avCY, avR, 0, Math.PI*2);
@@ -318,7 +353,8 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.drawImage(img, avX, avY, AV, AV);
             ctx.restore();
 
-            ctx.strokeStyle = isPod ? mc+'cc' : rgbA(0.50);
+            // Outer ring
+            ctx.strokeStyle = isPod ? mc + 'cc' : rgbA(0.55);
             ctx.lineWidth   = isPod ? 2.5 : 1.5;
             ctx.beginPath();
             ctx.arc(avCX, avCY, avR+2, 0, Math.PI*2);
@@ -344,7 +380,7 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.restore();
         }
 
-        /* ── Name (pure text, no emojis expected) ── */
+        /* ── Name (pure text) ── */
         const txX   = avX + AV + 16;
         const nameW = ROW_W - (txX - ROW_X) - 210;
         const nameY = rowY + 28;
@@ -354,12 +390,20 @@ async function generateLeaderboardCard(entries, opts) {
         ctx.fillStyle    = e.isRequester ? accentHex : TEXT_MAIN;
         ctx.textAlign    = 'left';
         ctx.textBaseline = 'alphabetic';
-        const nameStr = truncate(ctx, String(e.name||''), nameW);
-        ctx.fillText(nameStr, txX, nameY);
+        // Display names may contain emojis; truncate using mixed-text
+        // width and render through drawTextWithEmoji.
+        let nameStr = String(e.name || '');
+        while (require('./emojiCanvasHelper').measureMixedText(ctx, nameStr, 17) > nameW && nameStr.length > 0) {
+            nameStr = nameStr.slice(0, -1);
+        }
+        if (nameStr !== String(e.name || '')) nameStr += '\u2026';
+        await drawTextWithEmoji(ctx, nameStr, txX, nameY, 17);
 
-        // "YOU" badge
+        // "YOU" badge — placed right after the name. Use the mixed-
+        // text width because the name may have emojis that took more
+        // horizontal space than measureText reports.
         if (e.isRequester) {
-            const nw = ctx.measureText(nameStr).width;
+            const nw = require('./emojiCanvasHelper').measureMixedText(ctx, nameStr, 17);
             ctx.save();
             const bx = txX + nw + 10;
             const by = nameY - 13;
@@ -379,21 +423,14 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.restore();
         }
 
-        /* ── Stat line (contains emoji like 💵 <:Bank:1473039150927319192>) — use drawTextWithEmoji ── */
+        /* ── Stat line (may contain custom emojis) — drawTextWithEmoji ── */
         ctx.font         = FT(12);
         ctx.fillStyle    = TEXT_MUTED;
         ctx.textAlign    = 'left';
         ctx.textBaseline = 'alphabetic';
-        // Truncate based on stripped text width; then render with emoji images
-        const rawStat    = String(e.statLine||'');
-        const strippedSt = stripEmojis(rawStat);
-        ctx.font = FT(12); // ensure font is set for measureText
-        const statStr = truncate(ctx, rawStat, nameW + 90) === rawStat
-            ? rawStat
-            : truncate(ctx, strippedSt, nameW + 60) + rawStat.slice(strippedSt.length > 0 ? strippedSt.length : rawStat.length);
-        await drawTextWithEmoji(ctx, rawStat, txX, subY, 12);
+        await drawTextWithEmoji(ctx, String(e.statLine||''), txX, subY, 12);
 
-        /* ── Primary stat (right-aligned, pure numbers — no emojis) ── */
+        /* ── Primary stat (right-aligned, no emojis) ── */
         const statX = ROW_X + ROW_W - 14;
         const valY  = rowY + 30;
         const lblY  = rowY + 54;
@@ -402,7 +439,7 @@ async function generateLeaderboardCard(entries, opts) {
         ctx.shadowColor  = rgbA(0.45);
         ctx.shadowBlur   = 10;
         ctx.font         = FB(23);
-        ctx.fillStyle    = accentHex;
+        ctx.fillStyle    = isPod ? mc : accentHex;
         ctx.textAlign    = 'right';
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(fmtN(e.primaryValue), statX, valY);
@@ -414,14 +451,14 @@ async function generateLeaderboardCard(entries, opts) {
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(String(e.primaryLabel||''), statX, lblY);
 
-        // Reset for next iteration
+        // Reset
         ctx.textAlign    = 'left';
         ctx.textBaseline = 'alphabetic';
     }
 
     /* ══ 5. FOOTER ══ */
-    const footY = HEADER_H + N*(ROW_H+ROW_GAP) - ROW_GAP + 6;
-    const footH = FOOTER_H - 6;
+    const footY = HEADER_H + N*(ROW_H+ROW_GAP) - ROW_GAP + 10;
+    const footH = FOOTER_H - 10;
 
     ctx.save();
     rrPath(ctx, PAD, footY, ROW_W, footH, ROW_BR);
@@ -431,8 +468,16 @@ async function generateLeaderboardCard(entries, opts) {
     fg.addColorStop(1, BG);
     ctx.fillStyle = fg;
     ctx.fillRect(PAD, footY, ROW_W, footH);
+    // Left rail keyed to accent
     ctx.fillStyle = rgbA(0.65);
     ctx.fillRect(PAD, footY, 4, footH);
+
+    // Top-edge shine
+    const fShine = ctx.createLinearGradient(0, footY, 0, footY + 8);
+    fShine.addColorStop(0, 'rgba(255,255,255,0.05)');
+    fShine.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = fShine;
+    ctx.fillRect(PAD, footY, ROW_W, 8);
     ctx.restore();
 
     const ftX = PAD + 16;
@@ -440,6 +485,7 @@ async function generateLeaderboardCard(entries, opts) {
     ctx.textBaseline = 'alphabetic';
 
     if (opts.requester && opts.requester.rank) {
+        // Standing line
         ctx.font      = FB(14);
         ctx.fillStyle = TEXT_MAIN;
         await drawTextWithEmoji(
@@ -447,24 +493,62 @@ async function generateLeaderboardCard(entries, opts) {
             `📍  Your Standing — #${opts.requester.rank} of ${(opts.totalCount||0).toLocaleString()}`,
             ftX, footY + 26, 14
         );
+
+        // Mini percentile bar — visual "where you sit on the ladder"
+        const barX = ftX;
+        const barY = footY + 42;
+        const barW = ROW_W - 32;
+        const barH = 6;
+        const total = Math.max(1, opts.totalCount || 1);
+        // Higher rank (closer to #1) = fill closer to 100%
+        const pct = Math.max(0, Math.min(1, 1 - (opts.requester.rank - 1) / total));
+
+        rrPath(ctx, barX, barY, barW, barH, barH/2);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fill();
+
+        const fillW = Math.max(barH, barW * pct);
+        ctx.save();
+        rrPath(ctx, barX, barY, fillW, barH, barH/2);
+        ctx.clip();
+        const barG = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+        barG.addColorStop(0, rgbA(0.55));
+        barG.addColorStop(0.6, rgbA(0.95));
+        barG.addColorStop(1, '#ffffff');
+        ctx.fillStyle = barG;
+        ctx.fillRect(barX, barY, fillW, barH);
+        ctx.restore();
+
+        // Right-aligned percentile chip + optional gap text
+        ctx.font      = FT(11);
+        ctx.fillStyle = TEXT_MUTED;
+        ctx.textAlign = 'left';
         if (opts.requester.gapText) {
-            ctx.font      = FT(12);
-            ctx.fillStyle = TEXT_MUTED;
-            ctx.fillText(opts.requester.gapText, ftX, footY + 50);
+            ctx.fillText(opts.requester.gapText, ftX, footY + 70);
+        } else {
+            ctx.fillText(`Top ${Math.max(1, Math.round((1 - pct) * 100 + 0.5))}% of all ranked players`, ftX, footY + 70);
         }
     } else {
         ctx.font      = FT(13);
         ctx.fillStyle = TEXT_MUTED;
         await drawTextWithEmoji(
             ctx,
-            `📍  Not ranked yet — try work or daily to start earning!`,
-            ftX, footY + 34, 13
+            `📍  Not ranked yet — try \`work\` or \`daily\` to start earning!`,
+            ftX, footY + 38, 13
         );
+        // Empty placeholder bar
+        const barX = ftX;
+        const barY = footY + 56;
+        const barW = ROW_W - 32;
+        const barH = 6;
+        rrPath(ctx, barX, barY, barW, barH, barH/2);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fill();
     }
 
     /* ══ 6. OUTER BORDER ══ */
     ctx.save();
-    ctx.strokeStyle = rgbA(0.14);
+    ctx.strokeStyle = rgbA(0.16);
     ctx.lineWidth   = 1;
     rrPath(ctx, 0.5, 0.5, W-1, H-1, BRAD);
     ctx.stroke();

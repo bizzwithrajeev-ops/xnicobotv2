@@ -62,7 +62,7 @@ function buildList(backups, page, uid) {
 
     ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`sbkl:prev:${sid}`).setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-        new ButtonBuilder().setCustomId(`sbkl:next:${sid}`).setEmoji('<:Skipnext:1473039269726785737>').setStyle(ButtonStyle.Secondary).setDisabled(page >= pages - 1),
+        new ButtonBuilder().setCustomId(`sbkl:next:${sid}`).setEmoji('<:Caretright:1473038207221502106>').setStyle(ButtonStyle.Secondary).setDisabled(page >= pages - 1),
         new ButtonBuilder().setCustomId(`sbkl:refresh:${sid}`).setEmoji('<:History:1473037847568318605>').setLabel('Refresh').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(`sbkl:new:${sid}`).setEmoji('<:Add:1473038100862337035>').setLabel('New Backup').setStyle(ButtonStyle.Success)
     ));

@@ -55,12 +55,25 @@ function safeLabel(str, fallback = 'Button') {
 }
 
 // Helper: find the welcomer panel message for this user/guild from session data
-// Modal submissions don't carry interaction.message, so we look it up via sessions
+// Modal submissions don't carry interaction.message, so we look it up via sessions.
+// Selects/buttons on ephemeral pickers (e.g. the template loader popup) carry the
+// ephemeral message — but we want the *main* welcomer panel, not the picker — so
+// we ignore ephemeral source messages and fall through to the session lookup.
 async function findPanelMessage(interaction) {
-    // If the interaction has a message (buttons/selects), use it directly
-    if (interaction.message) return interaction.message;
+    // If the interaction has a non-ephemeral message (buttons/selects on the main
+    // welcomer panel itself), use it directly.
+    if (interaction.message) {
+        const flags = interaction.message.flags;
+        // MessageFlags.Ephemeral = 1 << 6 (64). Treat ephemeral messages as
+        // "picker popups" and search sessions for the real panel instead.
+        const isEphemeral = typeof flags?.has === 'function'
+            ? flags.has(64)
+            : ((flags ?? 0) & 64) === 64;
+        if (!isEphemeral) return interaction.message;
+    }
     
-    // For modals: search sessions for a panel owned by this user in this guild
+    // For modals or ephemeral pickers: search sessions for the real panel
+    // owned by this user in this guild.
     if (!global.welcomerSessions) return null;
     
     for (const [messageId, session] of global.welcomerSessions.entries()) {
@@ -2209,9 +2222,22 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
 
-            // Rebuild and display the leave panel with the newly applied template
+            // Update the *original* leave panel — the select menu lives on an
+            // ephemeral picker, so interaction.update won't refresh the real one.
             const updatedLeavePanel = buildLeaveContainer(guildConfig.leave);
-            await interaction.update({ components: [updatedLeavePanel], flags: MessageFlags.IsComponentsV2 });
+            try { await updatePanelMessage(interaction, updatedLeavePanel); } catch (e) {}
+
+            // Replace the ephemeral picker with a success confirmation.
+            const successContainer = new ContainerBuilder()
+                .setAccentColor(0x57F287)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Leave Template Loaded\n\n` +
+                        `**${templateName}** has been applied to your leave panel.\n\n` +
+                        `-# Server-specific settings (channel, enabled state) were preserved.`
+                    )
+                );
+            await interaction.update({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
         
@@ -2941,10 +2967,25 @@ module.exports = {
             
             config[guildId] = mergedConfig;
             saveConfig(config);
-            
-            // Rebuild and display the main welcomer panel with the newly applied template
+
+            // Update the *original* welcomer panel (this select lives on an ephemeral
+            // message — interaction.update would only refresh the ephemeral one).
             const updatedPanel = buildWelcomerContainer(mergedConfig, guildId);
-            await interaction.update({ components: [updatedPanel], flags: MessageFlags.IsComponentsV2 });
+            try { await updatePanelMessage(interaction, updatedPanel); } catch (e) {}
+
+            // Replace the ephemeral template-picker with a success confirmation so
+            // the user gets clear feedback that the template was loaded.
+            const sourceLabel = templateSource === 'built-in' ? 'Built-in' : 'Saved';
+            const successContainer = new ContainerBuilder()
+                .setAccentColor(0x57F287)
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Template Loaded\n\n` +
+                        `**${templateName}** (${sourceLabel}) has been applied to your welcomer panel.\n\n` +
+                        `-# Server-specific settings (channel, enabled state) were preserved.`
+                    )
+                );
+            await interaction.update({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
         

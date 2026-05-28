@@ -5,6 +5,7 @@ const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require(
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { ITEMS, itemDisplay, CATEGORIES } = require('../../utils/shopItems');
 const economyManager = require('../../utils/economyManager');
+const itemCooldowns = require('../../utils/itemCooldowns');
 
 const jsonStore = require('../../utils/jsonStore');
 const ITEMS_PER_PAGE = 6;
@@ -12,6 +13,36 @@ const ITEMS_PER_PAGE = 6;
 function load() {
   if (!jsonStore.has('inventory')) return {};
   try { return jsonStore.read('inventory'); } catch { return {}; }
+}
+
+/**
+ * Parse anything an item's `emoji` field could be (unicode "🎫",
+ * custom tag "<:Box:1473039115581915256>", animated tag
+ * "<a:wave:1234>", or undefined) into the `{ id?, name?, animated? }`
+ * shape that StringSelectMenuOption expects.
+ *
+ * Returns `undefined` when nothing usable was provided so the option
+ * is built without an emoji rather than failing validation.
+ */
+function parseSelectEmoji(raw) {
+    if (!raw) return undefined;
+    const s = String(raw).trim();
+    const custom = s.match(/^<(a?):([^:\s]+):(\d+)>$/);
+    if (custom) {
+        return { animated: custom[1] === 'a', name: custom[2], id: custom[3] };
+    }
+    // Plain Unicode glyph (or anything that's not a Discord tag) — keep
+    // only the first grapheme so we never feed Discord a multi-char
+    // string in the emoji slot, which it rejects.
+    const first = [...s][0];
+    return first ? { name: first } : undefined;
+}
+
+/** Trim a string to the Discord StringSelect limit, with ellipsis. */
+function clampSelect(text, max) {
+    if (!text) return '';
+    const t = String(text);
+    return t.length <= max ? t : t.slice(0, max - 1) + '…';
 }
 
 /* ═══════════════════ GROUP ITEMS ═══════════════════ */
@@ -36,6 +67,18 @@ function groupItems(items) {
 
 /* ═══════════════════ BUILD PAGE ═══════════════════ */
 
+/**
+ * Tag the inventory line with cooldown info if the item is currently
+ * blocked. Returns "" when ready or when the item has no cooldown
+ * configured. Format is purposefully terse so it fits on the existing
+ * `-# … · …` meta line.
+ */
+function cooldownTag(userId, itemId) {
+    const remaining = itemCooldowns.getRemaining(userId, itemId);
+    if (remaining <= 0) return '';
+    return ` ·  <:Clock:1473039102113878056> Ready ${itemCooldowns.formatReadyAt(remaining)}`;
+}
+
 function buildInventoryPage(userId, page = 0, guildId = null) {
   const inventory = load();
   const userItems = inventory[userId] || [];
@@ -45,7 +88,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
   const container = createContainer(0x7c3aed);
 
   if (!userItems.length) {
-    addTextDisplay(container, '# 🎒 Your Inventory\n\nYour inventory is empty! Use `shop` to browse items.');
+    addTextDisplay(container, '# <:Box:1473039115581915256> Your Inventory\n\nYour inventory is empty! Use `shop` to browse items.');
     return { container, components: [container] };
   }
 
@@ -57,7 +100,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
   // Header
   const totalItems = userItems.length;
   const uniqueItems = grouped.length;
-  addTextDisplay(container, `# 🎒 Your Inventory\n${coinIcon(guildId)} Wallet: **${formatCoinsAmount(userData.coins, guildId)}**  ·  <:Box:1473039115581915256> ${totalItems} items (${uniqueItems} unique)`);
+  addTextDisplay(container, `# <:Box:1473039115581915256> Your Inventory\n${coinIcon(guildId)} Wallet: **${formatCoinsAmount(userData.coins, guildId)}**  ·  <:Folder:1473039340425973972> ${totalItems} items (${uniqueItems} unique)`);
   addSeparator(container, SeparatorSpacingSize.Small);
 
   // Items list
@@ -69,9 +112,10 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
     }
     const catMeta = CATEGORIES[meta.category];
     const sellVal = meta.sellPrice ? ` ·  ${coinIcon(guildId)} Sell: ${formatNumber(meta.sellPrice)}/ea` : '';
+    const cdTag   = cooldownTag(userId, entry.id);
     addTextDisplay(container, [
       `### ${meta.emoji} ${meta.name}  ×${entry.count}`,
-      `-# ${catMeta?.emoji || '<:Box:1473039115581915256>'} ${catMeta?.label || 'Other'}${sellVal}  ·  \`use ${entry.id}\``,
+      `-# ${catMeta?.emoji || '<:Box:1473039115581915256>'} ${catMeta?.label || 'Other'}${sellVal}${cdTag}  ·  \`use ${entry.id}\``,
     ].join('\n'));
   }
 
@@ -85,18 +129,24 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
   if (grouped.length > 0) {
     const selectItems = grouped.slice(0, 25).map(entry => {
       const meta = ITEMS[entry.id];
-      return {
-        label: `${meta?.name || entry.id} (×${entry.count})`,
-        value: entry.id,
-        emoji: meta?.emoji?.startsWith('<') ? undefined : { name: meta?.emoji || '<:Box:1473039115581915256>' },
-        description: meta?.description?.slice(0, 100) || 'Use this item',
+      const labelName = meta?.name || entry.id;
+      // Discord limits: label ≤ 100 chars, description ≤ 100 chars,
+      // value ≤ 100 chars. We have to clamp because a custom item
+      // name + count could easily blow past the label cap.
+      const opt = {
+        label: clampSelect(`${labelName} (×${entry.count})`, 100),
+        value: clampSelect(entry.id, 100),
+        description: clampSelect(meta?.description || 'Use this item', 100),
       };
+      const parsed = parseSelectEmoji(meta?.emoji);
+      if (parsed) opt.emoji = parsed;
+      return opt;
     });
 
     const selectRow = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('inv_use')
-        .setPlaceholder('⚡ Quick Use — Select an item')
+        .setPlaceholder('Quick Use — Select an item')
         .setMinValues(1)
         .setMaxValues(1)
         .addOptions(selectItems)
@@ -119,7 +169,7 @@ function buildInventoryPage(userId, page = 0, guildId = null) {
         .setDisabled(true),
       new ButtonBuilder()
         .setCustomId(`inv_page_${page + 1}`)
-        .setEmoji('<:Skipnext:1473039269726785737>').setLabel('Next')
+        .setEmoji('<:Caretright:1473038207221502106>').setLabel('Next')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(page >= totalPages - 1)
     );

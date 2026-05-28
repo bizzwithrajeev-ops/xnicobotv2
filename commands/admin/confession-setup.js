@@ -349,6 +349,21 @@ module.exports = {
             return true;
         }
 
+        // ── Premium gate ───────────────────────────────────────────
+        // The slash dispatcher gates `/confession-setup` at command
+        // entry, but panel buttons / modals route here directly. Re-
+        // validate so the setup panel fails closed if the server
+        // loses premium after the panel was opened.
+        const premiumManager = require('../../utils/premiumManager');
+        if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+            const { buildPremiumGate } = require('../../utils/responseBuilder');
+            await interaction.reply({
+                components: [buildPremiumGate('/confession-setup')],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            }).catch(() => {});
+            return true;
+        }
+
         const action = id.replace(SETUP_PREFIX + '_', '');
         const guildId = interaction.guild.id;
 

@@ -91,9 +91,9 @@ function buildAutomodPanel(guild, cfg, expanded = false, btnPrefix = 'amc') {
     let settings = '### <:Settings:1473037894703779851> Global Settings\n';
     const ignoredRoles = cfg?.ignoredRoles?.length || 0;
     const ignoredChannels = cfg?.ignoredChannels?.length || 0;
-    settings += `▸ **Ignored Roles:** \`${ignoredRoles}\` • **Ignored Channels:** \`${ignoredChannels}\`\n`;
-    settings += `▸ **Bypass Role:** ${cfg?.bypassRoleId ? `<@&${cfg.bypassRoleId}>` : '`None`'}\n`;
-    settings += `▸ **Log Channel:** ${cfg?.logChannel ? `<#${cfg.logChannel}>` : '`Not Set`'}`;
+    settings += `<:Caretright:1473038207221502106> **Ignored Roles:** \`${ignoredRoles}\` • **Ignored Channels:** \`${ignoredChannels}\`\n`;
+    settings += `<:Caretright:1473038207221502106> **Bypass Role:** ${cfg?.bypassRoleId ? `<@&${cfg.bypassRoleId}>` : '`None`'}\n`;
+    settings += `<:Caretright:1473038207221502106> **Log Channel:** ${cfg?.logChannel ? `<#${cfg.logChannel}>` : '`Not Set`'}`;
 
     const summary = `-# ${THEME.EMOJIS.SHIELD} ${activeCount}/${MODULES.length} modules active • ${ignoredRoles} ignored roles • ${ignoredChannels} ignored channels`;
 

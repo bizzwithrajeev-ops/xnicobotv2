@@ -184,17 +184,12 @@ const HANDLERS = {
 
     'media-only'() { /* read-through via utils/interactionHandlers */ },
 
-    welcomer(data) {
-        // welcomer config is read by message handlers and slash command,
-        // each does its own jsonStore.read('welcomer'). The cache used by
-        // the bot for member-join logic is index.js's local welcomerCache.
-        if (typeof global.updateWelcomerCache === 'function') {
-            rebuildPerGuildCache(
-                () => global.welcomerCache,
-                (gid, cfg) => global.updateWelcomerCache(gid, cfg),
-                data
-            );
-        }
+    welcomer() {
+        // Welcomer is read-through: every guildMemberAdd/Remove handler
+        // calls jsonStore.peek('welcomer') directly, so there's no
+        // in-memory cache that needs invalidating. No-op kept here so
+        // notifyModuleUpdate('welcomer', …) routes to a documented
+        // entry rather than falling off the table.
     },
 
     'economy-settings'() {
@@ -259,7 +254,9 @@ const HANDLERS = {
     birthdays() { /* utils/birthdayManager reads jsonStore on demand */ },
     applications() { /* commands/admin/application reads jsonStore on demand */ },
     'application-responses'() { /* read on demand */ },
-    statusrole() { /* read on demand by the presenceUpdate listener */ },
+    statusrole() { /* requires the GuildPresences intent (not enabled by default).
+                       When the intent is on, add a `client.on(Events.PresenceUpdate, …)`
+                       listener that reads jsonStore.peek('statusrole') on each event. */ },
     botblock() { /* read on demand by the messageCreate listener */ },
     vanityguard() { /* read on demand by guildUpdate listener */ },
     nightmode() { /* read on demand */ },

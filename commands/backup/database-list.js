@@ -76,7 +76,7 @@ function buildList(entries, page, filterType, guildId, uid) {
     // Nav buttons
     ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`dbl:prev:${sid}`).setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-        new ButtonBuilder().setCustomId(`dbl:next:${sid}`).setEmoji('<:Skipnext:1473039269726785737>').setStyle(ButtonStyle.Secondary).setDisabled(page >= pages - 1),
+        new ButtonBuilder().setCustomId(`dbl:next:${sid}`).setEmoji('<:Caretright:1473038207221502106>').setStyle(ButtonStyle.Secondary).setDisabled(page >= pages - 1),
         new ButtonBuilder().setCustomId(`dbl:refresh:${sid}`).setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Secondary)
     ));
     return { ctr, page, pages, sid };

@@ -4,6 +4,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const { EMOJIS, getPlatformInfo, truncateText } = require('../../utils/musicPanel');
 const { formatTime } = require('../../utils/musicHelpers');
 const jsonStore = require('../../utils/jsonStore');
+const premiumManager = require('../../utils/premiumManager');
 const {
     preflightPlayer, musicSuccess, musicError, replyMusic,
 } = require('../../utils/musicResponse');
@@ -12,6 +13,10 @@ const MAX_SKIP = 25;
 
 function read247(guildId) {
     try {
+        // 24/7 is premium-only — non-premium servers fall through to the
+        // normal "destroy player when queue empty" branch even if the
+        // saved config still says enabled.
+        if (!premiumManager.isServerPremium(guildId)) return false;
         if (!jsonStore.has('musicpanel-247')) return false;
         const cfg = jsonStore.read('musicpanel-247');
         return !!cfg?.[guildId]?.enabled;

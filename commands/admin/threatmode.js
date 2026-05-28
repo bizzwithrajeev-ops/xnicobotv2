@@ -32,23 +32,23 @@ function buildThreatPanel(guildConfig, guildName) {
     const isActive = guildConfig.threatMode || false;
     const superActive = guildConfig.superThreatMode || false;
 
-    const headerText = `# <:Infotriangle:1473038460456800459> Threat Mode\n-# Enhanced security for **${guildName}**`;
+    const headerText = `# <:Shield:1473038669831995494> Threat Mode\n-# Enhanced security for **${guildName}**`;
 
     let statusText;
     if (superActive) {
-        statusText = `<:Toggleoff:1473038582813032590> **Super Threat Mode is active** — it overrides Threat Mode.\nDisable Super Threat Mode first to use Threat Mode.`;
+        statusText = `<:Cancel:1473037949187657818> **Super Threat Mode is active** — it overrides Threat Mode.\nDisable Super Threat Mode first to use Threat Mode.`;
     } else if (isActive) {
-        statusText = `<:Infotriangle:1473038460456800459> **THREAT MODE ACTIVE**\nStricter limits — faster response, action: \`kick\``;
+        statusText = `<:Toggleon:1473038585501581312> **THREAT MODE ACTIVE**\nStricter limits — faster response, action: \`kick\``;
     } else {
         statusText = `${THEME.EMOJIS.SUCCESS} **Threat Mode Inactive**\nNormal protection limits are active`;
     }
 
     const descText = `### <:Document:1473039496995143731> What Threat Mode Does\n` +
-        `▸ Sets **protection limits** to \`1-2\`\n` +
-        `▸ Sets **all time windows** to \`30 seconds\`\n` +
-        `▸ Sets **all actions** to \`kick\`\n` +
-        `▸ **Force-enables** all protections + antinuke system\n` +
-        `▸ Bot add action stays as \`kick_bot\`\n\n` +
+        `<:Caretright:1473038207221502106> Sets **protection limits** to \`1-2\`\n` +
+        `<:Caretright:1473038207221502106> Sets **all time windows** to \`30 seconds\`\n` +
+        `<:Caretright:1473038207221502106> Sets **all actions** to \`kick\`\n` +
+        `<:Caretright:1473038207221502106> **Force-enables** all protections + antinuke system\n` +
+        `<:Caretright:1473038207221502106> Bot add action stays as \`kick_bot\`\n\n` +
         `-# <:Lightbulbalt:1473038470787240009> For maximum lockdown, use \`superthreatmode\` instead (limits: 1, action: ban)`;
 
     const currentText = isActive

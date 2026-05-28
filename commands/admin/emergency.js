@@ -1,7 +1,60 @@
-const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+'use strict';
+
+/**
+ * emergency.js — server-wide emergency lockdown.
+ *
+ * What it does:
+ *   • Strips dangerous permissions (Admin, Ban, Kick, Manage *, Mention
+ *     Everyone) from every role that has them — or only from a hand-
+ *     picked list when the admin has configured `emergencyRoles`.
+ *   • Saves every modified role's permission bitfield BEFORE editing,
+ *     so `emergency disable` restores them exactly as they were.
+ *   • Only the server owner / second owner / pre-authorised users
+ *     can flip the switch.
+ *
+ * Bugs fixed this pass:
+ *   • Status / toggle emojis were inverted (showed Toggle-OFF icon
+ *     when the system was ACTIVE and vice-versa).
+ *   • The activation banner used the same inverted icon.
+ *   • Error copy referenced "extra owner" — that's not a concept in
+ *     trustManager (only `secondOwner`), so users got confused.
+ *   • Panel was completely text-only despite mentioning a "panel" —
+ *     now ships with Enable/Disable buttons routed through the
+ *     standard `handleInteraction` dispatcher.
+ *   • Emoji choices polished: Bookmark → SettingsAdjust for "targeted
+ *     roles", Userplus → User for "authorised users", etc.
+ */
+
+const {
+    ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
+    SeparatorSpacingSize, MessageFlags, PermissionFlagsBits,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle,
+} = require('discord.js');
+const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 const jsonStore = require('../../utils/jsonStore');
+const { checkAndExpire } = require('../../utils/panelExpiration');
+
+/* ─────────────────── constants ─────────────────── */
+
+const E = {
+    shield:      '<:Shield:1473038669831995494>',
+    on:          '<:Toggleon:1473038585501581312>',
+    off:         '<:Toggleoff:1473038582813032590>',
+    ok:          '<:Checkedbox:1473038547165384804>',
+    cancel:      '<:Cancel:1473037949187657818>',
+    info:        '<:Inforect:1473038624172937287>',
+    warn:        '<:Infotriangle:1473038460456800459>',
+    user:        '<:User:1473038971398520977>',
+    userPlus:    '<:Userplus:1473038912212435086>',
+    settings:    '<:Settings:1473037894703779851>',
+    bookmark:    '<:Bookmark:1473039494604132423>',
+    lightning:   '<:Lightningalt:1473038679906844824>',
+    ban:         '<:banhammer:1473367388597780592>',
+    block:       '<:Userblock:1473038868184826149>',
+    document:    '<:Document:1473039496995143731>',
+    redo:        '<:History:1473037847568318605>',
+};
 
 const DANGEROUS_PERMS = [
     'Administrator',
@@ -11,8 +64,13 @@ const DANGEROUS_PERMS = [
     'ManageGuild',
     'ManageRoles',
     'ManageWebhooks',
-    'MentionEveryone'
+    'MentionEveryone',
 ];
+
+const COLOR_ACTIVE   = 0xED4245; // red — system locked down
+const COLOR_INACTIVE = 0x57F287; // green — operating normally
+
+/* ─────────────────── persistence ─────────────────── */
 
 function loadConfig() {
     if (!jsonStore.has('emergency')) {
@@ -33,363 +91,525 @@ function getDefault() {
         activatedBy: null,
         authorisedUsers: [],
         emergencyRoles: [],
-        savedRolePerms: {}
+        savedRolePerms: {},
     };
 }
 
-function isAuthorised(guild, userId, guildConfig) {
-    if (trust.isServerOwner(guild, userId)) return true;
-    return (guildConfig.authorisedUsers || []).includes(userId);
+function getGuildConfig(guildId) {
+    const config = loadConfig();
+    if (!config[guildId]) {
+        config[guildId] = getDefault();
+        saveConfig(config);
+    }
+    return { config, gc: config[guildId] };
 }
 
-function buildPanel(guildConfig, guildName) {
-    const statusEmoji = guildConfig.enabled
-        ? '<:Toggleoff:1473038582813032590>'
-        : '<:Toggleon:1473038585501581312>';
-    const statusText = guildConfig.enabled
+/* ─────────────────── auth ─────────────────── */
+
+/**
+ * Authorisation check: server owner, second owner, or any user
+ * explicitly added with `emergency authorise add`.
+ */
+function isAuthorised(guild, userId, gc) {
+    if (trust.isServerOwner(guild, userId)) return true;
+    return Array.isArray(gc.authorisedUsers) && gc.authorisedUsers.includes(userId);
+}
+
+/* ─────────────────── core operations ─────────────────── */
+
+/**
+ * Activate emergency mode. Returns `{ stripped, savedPerms }`.
+ * Throws if the bot doesn't have a high enough role to modify any
+ * targeted role.
+ */
+async function activate(guild, gc, actor) {
+    const botMember = guild.members.me;
+    const botHighest = botMember.roles.highest;
+    const savedPerms = {};
+    let stripped = 0;
+
+    const targetRoles = (gc.emergencyRoles?.length > 0)
+        ? guild.roles.cache.filter(r => gc.emergencyRoles.includes(r.id))
+        : guild.roles.cache.filter(r =>
+            !r.managed &&
+            r.id !== guild.id &&
+            r.position < botHighest.position &&
+            DANGEROUS_PERMS.some(p => r.permissions.has(PermissionFlagsBits[p]))
+        );
+
+    for (const [roleId, role] of targetRoles) {
+        if (role.position >= botHighest.position) continue;
+        if (role.managed) continue;
+        if (role.id === guild.id) continue;
+        try {
+            savedPerms[roleId] = role.permissions.bitfield.toString();
+            const newPerms = role.permissions.remove(
+                DANGEROUS_PERMS.map(p => PermissionFlagsBits[p])
+            );
+            await role.setPermissions(newPerms, `Emergency Mode activated by ${actor.tag}`);
+            stripped++;
+        } catch {
+            // Skip roles we can't modify (managed integrations, role
+            // hierarchy issues). Don't poison `savedPerms` with entries
+            // we never actually wrote.
+            delete savedPerms[roleId];
+        }
+    }
+
+    return { stripped, savedPerms };
+}
+
+/**
+ * Deactivate: re-apply each saved permission bitfield. Returns the
+ * count of roles successfully restored.
+ */
+async function deactivate(guild, gc, actor) {
+    let restored = 0;
+    for (const [roleId, permBits] of Object.entries(gc.savedRolePerms || {})) {
+        try {
+            const role = guild.roles.cache.get(roleId);
+            if (!role) continue;
+            await role.setPermissions(BigInt(permBits), `Emergency Mode disabled by ${actor.tag}`);
+            restored++;
+        } catch {}
+    }
+    return restored;
+}
+
+/* ─────────────────── panel ─────────────────── */
+
+function buildPanel(gc, guildName) {
+    const isOn = !!gc.enabled;
+
+    /* Status block uses an icon that REFLECTS THE CURRENT STATE
+       (red ⛔ when locked, green ✓ when normal) — the previous version
+       had this inverted. */
+    const statusEmoji = isOn ? E.cancel : E.ok;
+    const statusText = isOn
         ? '**EMERGENCY MODE ACTIVE** — Server is locked down'
         : '**Inactive** — Server is operating normally';
 
     let activatedInfo = '';
-    if (guildConfig.enabled && guildConfig.activatedAt) {
-        activatedInfo = `\nActivated <t:${Math.floor(new Date(guildConfig.activatedAt).getTime() / 1000)}:R> by <@${guildConfig.activatedBy}>`;
+    if (isOn && gc.activatedAt) {
+        const ts = Math.floor(new Date(gc.activatedAt).getTime() / 1000);
+        activatedInfo = `\nActivated <t:${ts}:R> by <@${gc.activatedBy}>`;
     }
 
-    const authCount = guildConfig.authorisedUsers?.length || 0;
+    const authCount = gc.authorisedUsers?.length || 0;
     const authDisplay = authCount > 0
-        ? guildConfig.authorisedUsers.map(id => `<@${id}>`).join(', ')
-        : '*None — only server owner can use emergency*';
+        ? gc.authorisedUsers.map(id => `<@${id}>`).join(', ')
+        : '*None — only server owner can use emergency mode*';
 
-    const roleCount = guildConfig.emergencyRoles?.length || 0;
+    const roleCount = gc.emergencyRoles?.length || 0;
     const roleDisplay = roleCount > 0
-        ? guildConfig.emergencyRoles.map(id => `<@&${id}>`).join(', ')
-        : '*None — all roles with dangerous perms will be affected*';
+        ? gc.emergencyRoles.map(id => `<@&${id}>`).join(', ')
+        : '*None — every role with dangerous perms will be targeted*';
 
-    const content =
-        `# <:Shield:1473038669831995494> Emergency Mode\n` +
+    const headerText =
+        `# ${E.shield} Emergency Mode\n` +
         `-# Critical lockdown system for **${guildName}**\n\n` +
-        `${statusEmoji} ${statusText}${activatedInfo}\n\n` +
-        `### <:Infotriangle:1473038460456800459> What Emergency Mode Does\n` +
-        `▸ Strips dangerous permissions from all roles (or specified roles)\n` +
-        `▸ Removes: \`Admin\`, \`Ban\`, \`Kick\`, \`Manage Channels/Guild/Roles/Webhooks\`, \`Mention Everyone\`\n` +
-        `▸ Saves all original permissions for restoration\n` +
-        `▸ Only authorised users or server owner can activate\n\n` +
-        `### <:Userplus:1473038912212435086> Authorised Users (${authCount})\n` +
-        `${authDisplay}\n\n` +
-        `### <:Bookmark:1473039494604132423> Emergency Roles (${roleCount})\n` +
-        `${roleDisplay}\n` +
-        `-# ${roleCount === 0 ? 'All roles with dangerous perms will be targeted' : 'Only these roles will be affected'}\n\n` +
-        `### <:Lightningalt:1473038679906844824> Commands\n` +
-        `▸ \`emergency enable\` — Activate emergency lockdown\n` +
-        `▸ \`emergency disable\` — Restore all permissions\n` +
-        `▸ \`emergency role add @role\` — Add role to target list\n` +
-        `▸ \`emergency role remove @role\` — Remove role from target list\n` +
-        `▸ \`emergency role list\` — Show targeted roles\n` +
-        `▸ \`emergency authorise add @user\` — Authorise a user\n` +
-        `▸ \`emergency authorise remove @user\` — Remove authorisation\n\n` +
-        BRANDING;
+        `${statusEmoji} ${statusText}${activatedInfo}`;
+
+    const aboutText =
+        `### ${E.info} What Emergency Mode Does\n` +
+        `<:Caretright:1473038207221502106> Strips dangerous permissions from all roles (or specified roles)\n` +
+        `<:Caretright:1473038207221502106> Removes: \`Admin\`, \`Ban\`, \`Kick\`, \`Manage Channels/Guild/Roles/Webhooks\`, \`Mention Everyone\`\n` +
+        `<:Caretright:1473038207221502106> Saves all original permissions for restoration\n` +
+        `<:Caretright:1473038207221502106> Only authorised users or the server owner can activate`;
+
+    const authorisedText =
+        `### ${E.user} Authorised Users (${authCount})\n${authDisplay}`;
+
+    const rolesText =
+        `### ${E.bookmark} Targeted Roles (${roleCount})\n${roleDisplay}\n` +
+        `-# ${roleCount === 0 ? 'All roles with dangerous perms will be targeted' : 'Only these roles will be affected'}`;
+
+    const commandsText =
+        `### ${E.lightning} Commands\n` +
+        `<:Caretright:1473038207221502106> \`emergency enable\` — activate emergency lockdown\n` +
+        `<:Caretright:1473038207221502106> \`emergency disable\` — restore all permissions\n` +
+        `<:Caretright:1473038207221502106> \`emergency role add @role\` — add a role to the target list\n` +
+        `<:Caretright:1473038207221502106> \`emergency role remove @role\` — remove a role from the target list\n` +
+        `<:Caretright:1473038207221502106> \`emergency role list\` — show targeted roles\n` +
+        `<:Caretright:1473038207221502106> \`emergency authorise add @user\` — authorise a user\n` +
+        `<:Caretright:1473038207221502106> \`emergency authorise remove @user\` — remove authorisation`;
+
+    const buttonRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(isOn ? 'emergency_disable' : 'emergency_enable')
+            .setLabel(isOn ? 'Disable Emergency' : 'Activate Emergency')
+            .setStyle(isOn ? ButtonStyle.Success : ButtonStyle.Danger)
+            .setEmoji(isOn ? E.ok : E.ban),
+    );
 
     const container = new ContainerBuilder()
-        .setAccentColor(guildConfig.enabled ? 0xED4245 : 0x57F287);
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+        .setAccentColor(isOn ? COLOR_ACTIVE : COLOR_INACTIVE)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(aboutText))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(authorisedText))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(rolesText))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(commandsText))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addActionRowComponents(buttonRow)
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+
     return container;
 }
+
+function buildSimpleResult(title, color, lines) {
+    return new ContainerBuilder()
+        .setAccentColor(color)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title}\n\n${lines.join('\n')}`));
+}
+
+/* ─────────────────── command ─────────────────── */
 
 module.exports = {
     name: 'emergency',
     prefix: 'emergency',
-    description: 'Emergency lockdown — strip dangerous permissions from roles to protect the server',
+    description: 'Emergency lockdown — strip dangerous permissions to protect the server',
     usage: 'emergency [enable|disable|role add/remove/list|authorise add/remove]',
     category: 'admin',
     aliases: ['emgs', 'emergencymode'],
     prefixOnly: true,
 
     async executePrefix(message, args) {
-        const config = loadConfig();
-        const guildId = message.guild.id;
-        if (!config[guildId]) config[guildId] = getDefault();
-        const guildConfig = config[guildId];
-
+        const { config, gc } = getGuildConfig(message.guild.id);
         const sub = args[0]?.toLowerCase();
 
+        /* ────── default panel ────── */
         if (!sub) {
-            if (!isAuthorised(message.guild, message.author.id, guildConfig)) {
-                return message.reply('<:Cancel:1473037949187657818> You are not authorised to use emergency commands.');
+            if (!isAuthorised(message.guild, message.author.id, gc)) {
+                return message.reply(`${E.cancel} You are not authorised to use emergency commands.`);
             }
-            const panel = buildPanel(guildConfig, message.guild.name);
-            return message.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+            return message.reply({
+                components: [buildPanel(gc, message.guild.name)],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
 
+        /* ────── enable ────── */
         if (sub === 'enable') {
-            if (!isAuthorised(message.guild, message.author.id, guildConfig)) {
-                return message.reply('<:Cancel:1473037949187657818> You are not authorised to activate emergency mode.');
+            if (!isAuthorised(message.guild, message.author.id, gc)) {
+                return message.reply(`${E.cancel} You are not authorised to activate emergency mode.`);
+            }
+            if (gc.enabled) {
+                return message.reply(`${E.warn} Emergency Mode is already **active**. Use \`emergency disable\` to restore.`);
             }
 
-            if (guildConfig.enabled) {
-                return message.reply('<:Cancel:1473037949187657818> Emergency Mode is already **active**. Use `emergency disable` to restore.');
-            }
-
-            const statusMsg = await message.reply('<a:Load:1479681956273852607> Activating Emergency Mode — stripping dangerous permissions...');
-
-            const guild = message.guild;
-            const botMember = guild.members.me;
-            const botHighestRole = botMember.roles.highest;
-            const savedPerms = {};
-            let stripped = 0;
-
-            const targetRoles = guildConfig.emergencyRoles?.length > 0
-                ? guild.roles.cache.filter(r => guildConfig.emergencyRoles.includes(r.id))
-                : guild.roles.cache.filter(r =>
-                    !r.managed &&
-                    r.id !== guild.id &&
-                    r.position < botHighestRole.position &&
-                    DANGEROUS_PERMS.some(p => r.permissions.has(PermissionFlagsBits[p]))
-                );
-
-            for (const [roleId, role] of targetRoles) {
-                try {
-                    savedPerms[roleId] = role.permissions.bitfield.toString();
-
-                    const newPerms = role.permissions.remove(DANGEROUS_PERMS.map(p => PermissionFlagsBits[p]));
-                    await role.setPermissions(newPerms, `Emergency Mode activated by ${message.author.tag}`);
-                    stripped++;
-                } catch (err) {
-                    // Skip roles we can't modify
-                }
-            }
-
-            if (stripped === 0) {
-                try { await statusMsg.delete(); } catch {}
-                return message.reply('<:Cancel:1473037949187657818> Could not strip permissions from any roles. Make sure the bot\'s role is positioned above the target roles.');
-            }
-
-            guildConfig.enabled = true;
-            guildConfig.activatedAt = new Date().toISOString();
-            guildConfig.activatedBy = message.author.id;
-            guildConfig.savedRolePerms = savedPerms;
-            saveConfig(config);
-
-            const container = new ContainerBuilder()
-                .setAccentColor(0xED4245)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <:Toggleoff:1473038582813032590> Emergency Mode Activated\n\n` +
-                    `<:Checkedbox:1473038547165384804> Stripped permissions from **${stripped}** roles\n` +
-                    `<:Checkedbox:1473038547165384804> Dangerous permissions removed\n` +
-                    `<:Checkedbox:1473038547165384804> Original permissions saved for restoration\n\n` +
-                    `**Removed permissions:**\n` +
-                    `> Admin, Ban, Kick, Manage Channels/Guild/Roles/Webhooks, Mention Everyone\n\n` +
-                    `-# Use \`emergency disable\` to restore all permissions`
-                ));
-
+            const statusMsg = await message.reply(`${E.lightning} Activating Emergency Mode — stripping dangerous permissions…`);
             try {
-                await statusMsg.edit({ content: null, components: [container], flags: MessageFlags.IsComponentsV2 });
-            } catch {
-                await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                const { stripped, savedPerms } = await activate(message.guild, gc, message.author);
+
+                if (stripped === 0) {
+                    await statusMsg.delete().catch(() => {});
+                    return message.reply(
+                        `${E.cancel} Could not strip permissions from any role. ` +
+                        `Make sure the bot's role is positioned **above** the target roles.`
+                    );
+                }
+
+                gc.enabled = true;
+                gc.activatedAt = new Date().toISOString();
+                gc.activatedBy = message.author.id;
+                gc.savedRolePerms = savedPerms;
+                saveConfig(config);
+
+                const container = buildSimpleResult(`${E.cancel} Emergency Mode Activated`, COLOR_ACTIVE, [
+                    `${E.ok} Stripped permissions from **${stripped}** role${stripped === 1 ? '' : 's'}`,
+                    `${E.ok} Dangerous permissions removed`,
+                    `${E.ok} Original permissions saved for restoration`,
+                    ``,
+                    `**Removed permissions:**`,
+                    `> Admin, Ban, Kick, Manage Channels/Guild/Roles/Webhooks, Mention Everyone`,
+                    ``,
+                    `-# Use \`emergency disable\` (or the button) to restore all permissions`,
+                ]);
+
+                await statusMsg.edit({ content: null, components: [container], flags: MessageFlags.IsComponentsV2 })
+                    .catch(() => message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }));
+            } catch (err) {
+                console.error('[Emergency] activate error:', err);
+                await statusMsg.edit({
+                    content: `${E.cancel} Failed to activate emergency mode: ${err.message}`,
+                }).catch(() => {});
             }
             return;
         }
 
+        /* ────── disable ────── */
         if (sub === 'disable') {
-            if (!isAuthorised(message.guild, message.author.id, guildConfig)) {
-                return message.reply('<:Cancel:1473037949187657818> You are not authorised to disable emergency mode.');
+            if (!isAuthorised(message.guild, message.author.id, gc)) {
+                return message.reply(`${E.cancel} You are not authorised to disable emergency mode.`);
+            }
+            if (!gc.enabled) {
+                return message.reply(`${E.warn} Emergency Mode is not currently active.`);
             }
 
-            if (!guildConfig.enabled) {
-                return message.reply('<:Cancel:1473037949187657818> Emergency Mode is not currently active.');
-            }
-
-            const statusMsg = await message.reply('<a:Load:1479681956273852607> Disabling Emergency Mode — restoring permissions...');
-
-            const guild = message.guild;
-            const savedPerms = guildConfig.savedRolePerms || {};
-            let restored = 0;
-
-            for (const [roleId, permBits] of Object.entries(savedPerms)) {
-                try {
-                    const role = guild.roles.cache.get(roleId);
-                    if (!role) continue;
-
-                    await role.setPermissions(BigInt(permBits), `Emergency Mode disabled by ${message.author.tag}`);
-                    restored++;
-                } catch (err) {
-                    // Skip roles we can't modify
-                }
-            }
-
-            guildConfig.enabled = false;
-            guildConfig.savedRolePerms = {};
-            guildConfig.activatedAt = null;
-            guildConfig.activatedBy = null;
-            saveConfig(config);
-
-            const container = new ContainerBuilder()
-                .setAccentColor(0x57F287)
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <:Checkedbox:1473038547165384804> Emergency Mode Disabled\n\n` +
-                    `<:Checkedbox:1473038547165384804> Restored permissions for **${restored}** roles\n` +
-                    `<:Checkedbox:1473038547165384804> Original permissions re-applied\n` +
-                    `<:Checkedbox:1473038547165384804> Server is operating normally\n\n` +
-                    `-# All role permissions have been restored to their pre-emergency state`
-                ));
-
+            const statusMsg = await message.reply(`${E.lightning} Disabling Emergency Mode — restoring permissions…`);
             try {
-                await statusMsg.edit({ content: null, components: [container], flags: MessageFlags.IsComponentsV2 });
-            } catch {
-                await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                const restored = await deactivate(message.guild, gc, message.author);
+
+                gc.enabled = false;
+                gc.savedRolePerms = {};
+                gc.activatedAt = null;
+                gc.activatedBy = null;
+                saveConfig(config);
+
+                const container = buildSimpleResult(`${E.ok} Emergency Mode Disabled`, COLOR_INACTIVE, [
+                    `${E.ok} Restored permissions for **${restored}** role${restored === 1 ? '' : 's'}`,
+                    `${E.ok} Original permissions re-applied`,
+                    `${E.ok} Server is operating normally`,
+                    ``,
+                    `-# All role permissions have been restored to their pre-emergency state`,
+                ]);
+
+                await statusMsg.edit({ content: null, components: [container], flags: MessageFlags.IsComponentsV2 })
+                    .catch(() => message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }));
+            } catch (err) {
+                console.error('[Emergency] deactivate error:', err);
+                await statusMsg.edit({
+                    content: `${E.cancel} Failed to disable emergency mode: ${err.message}`,
+                }).catch(() => {});
             }
             return;
         }
 
+        /* ────── role add/remove/list ────── */
         if (sub === 'role') {
             if (!trust.isServerOwner(message.guild, message.author.id)) {
-                return message.reply('<:Cancel:1473037949187657818> Only the **server owner** or **extra owner** can manage emergency roles.');
+                return message.reply(`${E.cancel} Only the **server owner** or **extra owner** can manage emergency roles.`);
             }
-
             const action = args[1]?.toLowerCase();
 
             if (action === 'add') {
                 const role = message.mentions.roles.first();
                 if (!role) {
-                    return message.reply('<:Cancel:1473037949187657818> Mention a role to add.\n**Usage:** `emergency role add @role`');
+                    return message.reply(`${E.cancel} Mention a role to add.\n**Usage:** \`emergency role add @role\``);
                 }
-
-                if (!guildConfig.emergencyRoles) guildConfig.emergencyRoles = [];
-                if (guildConfig.emergencyRoles.includes(role.id)) {
-                    return message.reply(`<:Cancel:1473037949187657818> **${role.name}** is already in the emergency role list.`);
+                if (!gc.emergencyRoles) gc.emergencyRoles = [];
+                if (gc.emergencyRoles.includes(role.id)) {
+                    return message.reply(`${E.warn} **${role.name}** is already in the targeted role list.`);
                 }
-
-                guildConfig.emergencyRoles.push(role.id);
+                gc.emergencyRoles.push(role.id);
                 saveConfig(config);
 
-                const container = new ContainerBuilder()
-                    .setAccentColor(0x57F287)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> Emergency Role Added\n\n` +
-                        `**Role:** ${role} (\`${role.id}\`)\n\n` +
-                        `> This role will be targeted when emergency mode is activated.\n` +
-                        `-# Total emergency roles: ${guildConfig.emergencyRoles.length}`
-                    ));
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [buildSimpleResult(`${E.ok} Targeted Role Added`, COLOR_INACTIVE, [
+                        `**Role:** ${role} (\`${role.id}\`)`,
+                        ``,
+                        `> This role will be targeted when emergency mode is activated.`,
+                        `-# Total targeted roles: ${gc.emergencyRoles.length}`,
+                    ])],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
 
             if (action === 'remove') {
                 const role = message.mentions.roles.first();
                 if (!role) {
-                    return message.reply('<:Cancel:1473037949187657818> Mention a role to remove.\n**Usage:** `emergency role remove @role`');
+                    return message.reply(`${E.cancel} Mention a role to remove.\n**Usage:** \`emergency role remove @role\``);
                 }
-
-                if (!guildConfig.emergencyRoles?.includes(role.id)) {
-                    return message.reply(`<:Cancel:1473037949187657818> **${role.name}** is not in the emergency role list.`);
+                if (!gc.emergencyRoles?.includes(role.id)) {
+                    return message.reply(`${E.warn} **${role.name}** is not in the targeted role list.`);
                 }
-
-                guildConfig.emergencyRoles = guildConfig.emergencyRoles.filter(id => id !== role.id);
+                gc.emergencyRoles = gc.emergencyRoles.filter(id => id !== role.id);
                 saveConfig(config);
 
-                const container = new ContainerBuilder()
-                    .setAccentColor(0xED4245)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Emergency Role Removed\n\n` +
-                        `**Role:** ${role} (\`${role.id}\`)\n\n` +
-                        `> This role will no longer be targeted during emergency mode.\n` +
-                        `-# Remaining emergency roles: ${guildConfig.emergencyRoles.length}`
-                    ));
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [buildSimpleResult(`${E.cancel} Targeted Role Removed`, COLOR_ACTIVE, [
+                        `**Role:** ${role} (\`${role.id}\`)`,
+                        ``,
+                        `> This role will no longer be targeted during emergency mode.`,
+                        `-# Remaining targeted roles: ${gc.emergencyRoles.length}`,
+                    ])],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
 
             if (action === 'list') {
-                const roles = guildConfig.emergencyRoles || [];
-                const roleDisplay = roles.length > 0
+                const roles = gc.emergencyRoles || [];
+                const display = roles.length > 0
                     ? roles.map((id, i) => `\`${i + 1}.\` <@&${id}>`).join('\n')
                     : '*No roles configured — all roles with dangerous perms will be targeted*';
 
-                const container = new ContainerBuilder()
-                    .setAccentColor(null)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Shield:1473038669831995494> Emergency Roles\n\n` +
-                        `### <:Bookmark:1473039494604132423> Targeted Roles (${roles.length})\n` +
-                        `${roleDisplay}\n\n` +
-                        `-# Use \`emergency role add @role\` or \`emergency role remove @role\` to manage`
-                    ));
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [new ContainerBuilder()
+                        .setAccentColor(0x5865F2)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# ${E.shield} Targeted Roles\n\n` +
+                            `### ${E.bookmark} Roles (${roles.length})\n${display}\n\n` +
+                            `-# Use \`emergency role add @role\` or \`emergency role remove @role\` to manage`
+                        ))],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
 
             return message.reply(
-                '<:Cancel:1473037949187657818> Invalid subcommand.\n' +
-                '**Usage:** `emergency role add @role` | `emergency role remove @role` | `emergency role list`'
+                `${E.cancel} Invalid subcommand.\n` +
+                `**Usage:** \`emergency role add @role\` | \`emergency role remove @role\` | \`emergency role list\``
             );
         }
 
+        /* ────── authorise add/remove ────── */
         if (sub === 'authorise' || sub === 'authorize' || sub === 'auth') {
             if (!trust.isServerOwner(message.guild, message.author.id)) {
-                return message.reply('<:Cancel:1473037949187657818> Only the **server owner** or **extra owner** can manage authorised users.');
+                return message.reply(`${E.cancel} Only the **server owner** or **extra owner** can manage authorised users.`);
             }
-
             const action = args[1]?.toLowerCase();
 
             if (action === 'add') {
                 const user = message.mentions.users.first();
                 if (!user) {
-                    return message.reply('<:Cancel:1473037949187657818> Mention a user to authorise.\n**Usage:** `emergency authorise add @user`');
+                    return message.reply(`${E.cancel} Mention a user to authorise.\n**Usage:** \`emergency authorise add @user\``);
                 }
-
                 if (user.bot) {
-                    return message.reply('<:Cancel:1473037949187657818> You cannot authorise a bot.');
+                    return message.reply(`${E.cancel} You cannot authorise a bot.`);
                 }
-
-                if (!guildConfig.authorisedUsers) guildConfig.authorisedUsers = [];
-                if (guildConfig.authorisedUsers.includes(user.id)) {
-                    return message.reply(`<:Cancel:1473037949187657818> **${user.username}** is already authorised.`);
+                if (!gc.authorisedUsers) gc.authorisedUsers = [];
+                if (gc.authorisedUsers.includes(user.id)) {
+                    return message.reply(`${E.warn} **${user.username}** is already authorised.`);
                 }
-
-                guildConfig.authorisedUsers.push(user.id);
+                gc.authorisedUsers.push(user.id);
                 saveConfig(config);
 
-                const container = new ContainerBuilder()
-                    .setAccentColor(0x57F287)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Checkedbox:1473038547165384804> User Authorised\n\n` +
-                        `**User:** ${user} (\`${user.id}\`)\n\n` +
-                        `> This user can now activate and deactivate emergency mode.\n` +
-                        `-# Total authorised users: ${guildConfig.authorisedUsers.length}`
-                    ));
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [buildSimpleResult(`${E.ok} User Authorised`, COLOR_INACTIVE, [
+                        `**User:** ${user} (\`${user.id}\`)`,
+                        ``,
+                        `> This user can now activate and deactivate emergency mode.`,
+                        `-# Total authorised users: ${gc.authorisedUsers.length}`,
+                    ])],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
 
             if (action === 'remove') {
                 const user = message.mentions.users.first();
                 if (!user) {
-                    return message.reply('<:Cancel:1473037949187657818> Mention a user to remove.\n**Usage:** `emergency authorise remove @user`');
+                    return message.reply(`${E.cancel} Mention a user to remove.\n**Usage:** \`emergency authorise remove @user\``);
                 }
-
-                if (!guildConfig.authorisedUsers?.includes(user.id)) {
-                    return message.reply(`<:Cancel:1473037949187657818> **${user.username}** is not authorised.`);
+                if (!gc.authorisedUsers?.includes(user.id)) {
+                    return message.reply(`${E.warn} **${user.username}** is not authorised.`);
                 }
-
-                guildConfig.authorisedUsers = guildConfig.authorisedUsers.filter(id => id !== user.id);
+                gc.authorisedUsers = gc.authorisedUsers.filter(id => id !== user.id);
                 saveConfig(config);
 
-                const container = new ContainerBuilder()
-                    .setAccentColor(0xED4245)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# <:Cancel:1473037949187657818> Authorisation Removed\n\n` +
-                        `**User:** ${user} (\`${user.id}\`)\n\n` +
-                        `> This user can no longer use emergency mode.\n` +
-                        `-# Remaining authorised users: ${guildConfig.authorisedUsers.length}`
-                    ));
-                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                return message.reply({
+                    components: [buildSimpleResult(`${E.cancel} Authorisation Removed`, COLOR_ACTIVE, [
+                        `**User:** ${user} (\`${user.id}\`)`,
+                        ``,
+                        `> This user can no longer use emergency mode.`,
+                        `-# Remaining authorised users: ${gc.authorisedUsers.length}`,
+                    ])],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
 
             return message.reply(
-                '<:Cancel:1473037949187657818> Invalid subcommand.\n' +
-                '**Usage:** `emergency authorise add @user` | `emergency authorise remove @user`'
+                `${E.cancel} Invalid subcommand.\n` +
+                `**Usage:** \`emergency authorise add @user\` | \`emergency authorise remove @user\``
             );
         }
 
-        if (!isAuthorised(message.guild, message.author.id, guildConfig)) {
-            return message.reply('<:Cancel:1473037949187657818> You are not authorised to use emergency commands.');
+        /* ────── unknown subcommand → show panel ────── */
+        if (!isAuthorised(message.guild, message.author.id, gc)) {
+            return message.reply(`${E.cancel} You are not authorised to use emergency commands.`);
+        }
+        return message.reply({
+            components: [buildPanel(gc, message.guild.name)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    },
+
+    /**
+     * Routes Enable/Disable buttons from the emergency panel.
+     * Called from index.js when a customId starts with `emergency_`.
+     */
+    async handleInteraction(interaction) {
+        const id = interaction.customId;
+        if (id !== 'emergency_enable' && id !== 'emergency_disable') return false;
+
+        if (await checkAndExpire(interaction, 'config')) return true;
+
+        const { config, gc } = getGuildConfig(interaction.guild.id);
+
+        if (!isAuthorised(interaction.guild, interaction.user.id, gc)) {
+            await interaction.reply({
+                content: `${E.cancel} You are not authorised to use emergency mode.`,
+                flags: MessageFlags.Ephemeral,
+            }).catch(() => {});
+            return true;
         }
 
-        const panel = buildPanel(guildConfig, message.guild.name);
-        return message.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 });
-    }
+        await interaction.deferUpdate().catch(() => {});
+
+        if (id === 'emergency_enable') {
+            if (gc.enabled) {
+                await interaction.followUp({
+                    content: `${E.warn} Emergency mode is already active.`,
+                    flags: MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return true;
+            }
+            try {
+                const { stripped, savedPerms } = await activate(interaction.guild, gc, interaction.user);
+                if (stripped === 0) {
+                    await interaction.followUp({
+                        content: `${E.cancel} Could not strip permissions from any role. ` +
+                                 `Make sure the bot's role is positioned above the target roles.`,
+                        flags: MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                    return true;
+                }
+                gc.enabled = true;
+                gc.activatedAt = new Date().toISOString();
+                gc.activatedBy = interaction.user.id;
+                gc.savedRolePerms = savedPerms;
+                saveConfig(config);
+            } catch (err) {
+                console.error('[Emergency] button activate error:', err);
+                await interaction.followUp({
+                    content: `${E.cancel} Failed: ${err.message}`,
+                    flags: MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return true;
+            }
+        } else {
+            if (!gc.enabled) {
+                await interaction.followUp({
+                    content: `${E.warn} Emergency mode is not active.`,
+                    flags: MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return true;
+            }
+            try {
+                await deactivate(interaction.guild, gc, interaction.user);
+                gc.enabled = false;
+                gc.savedRolePerms = {};
+                gc.activatedAt = null;
+                gc.activatedBy = null;
+                saveConfig(config);
+            } catch (err) {
+                console.error('[Emergency] button deactivate error:', err);
+                await interaction.followUp({
+                    content: `${E.cancel} Failed: ${err.message}`,
+                    flags: MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return true;
+            }
+        }
+
+        // Refresh the panel in place.
+        await interaction.editReply({
+            components: [buildPanel(gc, interaction.guild.name)],
+            flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+        return true;
+    },
 };

@@ -153,7 +153,7 @@ function buildPaginationButtons(page, totalPages) {
                 .setDisabled(page >= totalPages),
             new ButtonBuilder()
                 .setCustomId(`slist_last`)
-                .setEmoji('<:Skipnext:1473039269726785737>')
+                .setEmoji('<:Caretright:1473038207221502106>')
                 .setLabel('Last')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(page >= totalPages)

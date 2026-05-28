@@ -49,7 +49,7 @@ const E = {
     // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     sandwatch:'<:Sandwatch:1473038580094861545>',
     settings: '<:Settings:1473037894703779851>',
-    skipnext: '<:Skipnext:1473039269726785737>',
+    skipnext: '<:Caretright:1473038207221502106>',
     grid:     '<:Box:1473039115581915256>',
     star:     '<:Star:1473038501766369300>',
     chart:    '<:transfer:1479780506718437396>',

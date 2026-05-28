@@ -1,29 +1,232 @@
 'use strict';
 
+/**
+ * /leaderboard — Unified server/global rankings as a Components V2 panel.
+ *
+ * Professional rebuild of the leaderboard panel. Renders a polished
+ * Components V2 container with:
+ *   • Branded header with scope/type chips + live counters
+ *   • A dedicated top-3 podium (gold / silver / bronze) with avatar thumbs,
+ *     visual percent bar, and "you" highlight
+ *   • Ranked list 4–10 in a clean, monospaced layout
+ *   • Stat-type select menu (leveling / messages / voice / invites / economy)
+ *   • Server ↔ Global toggle + paginated controls + refresh
+ *   • Requester standing card with gap-to-rank-above
+ *
+ * No canvas, no PNG generation — just rich text and Components V2 builders
+ * so the panel renders instantly and stays well under Discord's 40-component
+ * cap on every page.
+ */
+
 const {
-    SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    StringSelectMenuBuilder, AttachmentBuilder, MessageFlags,
-    ContainerBuilder, TextDisplayBuilder
+    SlashCommandBuilder,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SectionBuilder,
+    ThumbnailBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    MessageFlags,
 } = require('discord.js');
+
 const { getLeaderboard, getGlobalLeaderboard } = require('../../utils/database');
-const { generateStatsLeaderboard, STAT_TYPE_CONFIG } = require('../../utils/statsLeaderboardCard');
-const { buildLoadingResponse } = require('../../utils/responseBuilder');
 const economyManager = require('../../utils/economyManager');
+const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
+
+/* ─────────────────────────── Constants ─────────────────────────── */
 
 const PER_PAGE = 10;
 const PREFIX = 'ulb';
 
-const LB_TYPES = {
-    leveling:  { field: 'leveling.xp',              globalField: 'xp',            menuLabel: 'Leveling',   menuEmoji: '1473038391632203887', menuDesc: 'XP & level rankings' },
-    messages:  { field: 'analytics.totalMessages',   globalField: 'totalMessages', menuLabel: 'Messages',   menuEmoji: '1473038576391557130', menuDesc: 'Most active chatters' },
-    voice:     { field: 'analytics.voiceTime',       globalField: 'voiceTime',     menuLabel: 'Voice Time', menuEmoji: '1473039290136002844', menuDesc: 'Longest voice sessions' },
-    invites:   { field: 'invites.invites',           globalField: 'invites',       menuLabel: 'Invites',    menuEmoji: '1473038903157199093', menuDesc: 'Top server inviters' },
-    economy:   { field: null,                        globalField: null,            menuLabel: 'Economy',    menuEmoji: '1473038248493453352', menuDesc: 'Richest users by net worth' },
+// Custom emoji palette — single source of truth.  Keep this list aligned
+// with the project's theme.js so the leaderboard stays visually
+// consistent with the rest of the bot's panels.
+const E = {
+    // Stat type icons
+    leveling:  '<:Award:1473038391632203887>',
+    messages:  '<:Chat:1473038936241864865>',
+    voice:     '<:Volumeup:1473039290136002844>',
+    invites:   '<:Bullhorn:1473038903157199093>',
+    economy:   '<:Money:1473377877239140529>',
+
+    // Scope / branding
+    server:    '<:Folderopen:1473039552783323348>',
+    globe:     '<:Globe:1473039496995143731>',
+    bots:      '<:bots:1473368718120849500>',
+    brand:     '<:xnico:1486755083390550036>',
+
+    // Podium / status
+    crown:     '<:Crown:1506010837368963142>',
+    trophy:    '<:Award:1473038391632203887>',
+    fire:      '<:Fire:1473038604812161218>',
+    spark:     '<:Lightning:1473038797540298792>',
+    diamond:   '<:Sketch:1473038248493453352>',
+    star:      '<:Star:1473038501766369300>',
+    medal1:    '🥇',
+    medal2:    '🥈',
+    medal3:    '🥉',
+
+    // UI / controls
+    pin:       '<:pin:1473038806612447500>',
+    you:       '<:User:1473038971398520977>',
+    history:   '<:History:1473037847568318605>',
+    skipNext:  '<:Caretright:1473038207221502106>',
+    refresh:   '<:Refresh:1473037911581528165>',
+    cancel:    '<:Cancel:1473037949187657818>',
+    info:      '<:Inforect:1473038624172937287>',
+    arrow:     '<:Caretright:1473038207221502106>',
 };
 
-async function resolveEntries(client, rawEntries) {
+// Each leaderboard "type" knows how to source its data, label itself,
+// and format its values. Keeping the configs colocated lets us jump
+// between them via a single select menu and keeps the dispatch logic
+// dead simple (one switch on a string key).
+const LB_TYPES = {
+    leveling: {
+        label: 'Leveling',
+        emoji: E.leveling,
+        accent: 0xFBBF24,
+        menuDesc: 'XP and level rankings',
+        format: (v) => `Lv ${Math.floor(0.1 * Math.sqrt(v || 0))}  ·  ${formatNumber(v)} XP`,
+        unit: 'XP',
+        unitLabel: 'XP earned',
+        field: 'leveling.xp',
+        globalField: 'xp',
+    },
+    messages: {
+        label: 'Messages',
+        emoji: E.messages,
+        accent: 0x5865F2,
+        menuDesc: 'Most active chatters',
+        format: (v) => `${formatNumber(v)} messages`,
+        unit: 'msgs',
+        unitLabel: 'messages sent',
+        field: 'analytics.totalMessages',
+        globalField: 'totalMessages',
+    },
+    voice: {
+        label: 'Voice Time',
+        emoji: E.voice,
+        accent: 0xA78BFA,
+        menuDesc: 'Longest voice sessions',
+        format: (v) => formatVoiceTime(v),
+        unit: 'time',
+        unitLabel: 'voice time logged',
+        field: 'analytics.voiceTime',
+        globalField: 'voiceTime',
+    },
+    invites: {
+        label: 'Invites',
+        emoji: E.invites,
+        accent: 0x34D399,
+        menuDesc: 'Top server inviters',
+        format: (v) => `${formatNumber(v)} invites`,
+        unit: 'invites',
+        unitLabel: 'invites tracked',
+        field: 'invites.invites',
+        globalField: 'invites',
+    },
+    economy: {
+        label: 'Economy',
+        emoji: E.economy,
+        accent: 0xF1C40F,
+        menuDesc: 'Richest users by net worth',
+        format: (v, guildId) => `${coinIcon(guildId)} ${formatCoins(v, guildId)}`,
+        unit: 'coins',
+        unitLabel: 'net worth',
+        field: null,         // economy uses its own loader
+        globalField: null,
+    },
+};
+
+/* ─────────────────────────── Formatters ─────────────────────────── */
+
+function formatNumber(n) {
+    n = Number(n) || 0;
+    if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+    if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return n.toLocaleString();
+}
+
+function formatVoiceTime(seconds) {
+    seconds = Math.max(0, Number(seconds) || 0);
+    if (seconds < 60) return `${Math.floor(seconds)}s`;
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+}
+
+/**
+ * Render a 10-segment progress bar.  Used to visually show how a
+ * podium entry compares to the leader's value.
+ */
+function progressBar(pct, length = 10) {
+    const safe = Math.max(0, Math.min(1, Number(pct) || 0));
+    const filled = Math.round(safe * length);
+    return '▰'.repeat(filled) + '▱'.repeat(length - filled);
+}
+
+function rankBadge(rank) {
+    if (rank === 1) return E.medal1;
+    if (rank === 2) return E.medal2;
+    if (rank === 3) return E.medal3;
+    return `\`#${String(rank).padStart(2, '0')}\``;
+}
+
+function escapeMarkdown(text) {
+    return String(text || '').replace(/[*_~`|>\\]/g, (m) => `\\${m}`);
+}
+
+/* ─────────────────────────── Data loaders ─────────────────────────── */
+
+function getEconomyEntries(guild, scope) {
+    const economy = economyManager.loadEconomy();
+    let entries = Object.entries(economy)
+        .map(([userId, raw]) => {
+            const coins = Number(raw.coins) || 0;
+            const bank = Number(raw.bank) || 0;
+            return { userId, value: coins + bank };
+        })
+        .filter((e) => e.value > 0);
+
+    if (scope === 'server' && guild) {
+        const memberIds = new Set(guild.members.cache.keys());
+        entries = entries.filter((e) => memberIds.has(e.userId));
+    }
+    entries.sort((a, b) => b.value - a.value);
+    return entries;
+}
+
+async function loadAllEntries(guild, type, scope) {
+    const cfg = LB_TYPES[type];
+    if (!cfg) return [];
+
+    if (type === 'economy') return getEconomyEntries(guild, scope);
+
+    if (scope === 'global') {
+        const rows = getGlobalLeaderboard(cfg.globalField, 99999) || [];
+        return rows.filter((e) => Number(e.value) > 0);
+    }
+
+    const rows = (await getLeaderboard(guild.id, cfg.field, 99999)) || [];
+    const [table, subField] = cfg.field.split('.');
+    return rows
+        .map((entry) => ({ userId: entry.userId, value: Number(entry[table]?.[subField] || 0) }))
+        .filter((e) => e.value > 0);
+}
+
+async function resolveUsers(client, entries) {
     return Promise.all(
-        rawEntries.map(async (entry) => {
+        entries.map(async (entry) => {
             let username = 'Unknown User';
             let avatarURL = null;
             try {
@@ -36,117 +239,305 @@ async function resolveEntries(client, rawEntries) {
     );
 }
 
-function getEconomyEntries(guild, scope) {
-    const economy = economyManager.loadEconomy();
-    let entries = Object.entries(economy).map(([userId, raw]) => {
-        const coins = Number(raw.coins) || 0;
-        const bank = Number(raw.bank) || 0;
-        return { userId, value: coins + bank };
-    }).filter(e => e.value > 0);
+/* ─────────────────────────── Panel renderer ─────────────────────────── */
 
-    if (scope === 'server' && guild) {
-        const memberIds = new Set(guild.members.cache.keys());
-        entries = entries.filter(e => memberIds.has(e.userId));
+function buildPanel({
+    client, guild, type, scope, page, totalPages, totalCount,
+    pageEntries, requesterEntry, requesterRank, gapText, leaderValue,
+}) {
+    const cfg = LB_TYPES[type];
+    const accent = cfg.accent;
+    const guildId = guild?.id;
+
+    const container = new ContainerBuilder().setAccentColor(accent);
+
+    /* ────────────────────────── Header ────────────────────────── */
+    const scopeLabel = scope === 'global' ? 'Global Network' : (guild?.name || 'This Server');
+    const scopeIcon  = scope === 'global' ? E.globe : E.server;
+    const iconUrl = scope === 'server'
+        ? guild?.iconURL({ size: 256 })
+        : client?.user?.displayAvatarURL?.({ size: 256 });
+
+    // Build the main header. We keep it compact and information-dense:
+    // title row, then a "chips" sub-line with three pieces of info.
+    const headerLines = [
+        `# ${cfg.emoji}  ${cfg.label} Leaderboard`,
+        `### ${scopeIcon} ${escapeMarkdown(scopeLabel)}`,
+        `> ${E.spark} \`${cfg.label}\`  ·  ${E.pin} \`${totalCount.toLocaleString()} ranked\`  ·  ${E.history} \`Page ${page + 1}/${totalPages}\``,
+    ];
+    const headerText = headerLines.join('\n');
+
+    // SectionBuilder requires a thumbnail/button accessory — without an
+    // icon URL we fall back to a plain TextDisplay so the panel still
+    // renders for guilds with no icon and for global scope when the bot
+    // avatar lookup fails.  Otherwise discord.js throws.
+    if (iconUrl) {
+        try {
+            const headerSection = new SectionBuilder()
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText))
+                .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: iconUrl } }));
+            container.addSectionComponents(headerSection);
+        } catch {
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText));
+        }
+    } else {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText));
+    }
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+
+    /* ─────────────────────── Empty state ──────────────────────── */
+    if (pageEntries.length === 0) {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### ${E.info} No ranked users yet\n` +
+            `> Earn ${cfg.unit} by chatting, joining voice, inviting friends, or playing the economy — your name will show up here once you're on the board.`
+        ));
+        container.addSeparatorComponents(
+            new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+        );
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `-# ${E.brand} xNico Leaderboard  ·  Live rankings`
+        ));
+        return container;
     }
 
-    entries.sort((a, b) => b.value - a.value);
-    return entries;
+    /* ─────────────────────── Top 3 podium ─────────────────────── */
+    const podium = pageEntries.filter((e) => e.rank <= 3);
+    const rest   = pageEntries.filter((e) => e.rank >= 4);
+
+    if (podium.length > 0 && page === 0) {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### ${E.crown} Hall of Fame  ·  Top 3`
+        ));
+
+        for (const entry of podium) {
+            const isYou = entry.userId === requesterEntry?.userId;
+            const accentEmoji =
+                entry.rank === 1 ? E.medal1 :
+                entry.rank === 2 ? E.medal2 : E.medal3;
+            const rankLabel =
+                entry.rank === 1 ? 'Champion' :
+                entry.rank === 2 ? 'Runner-up' : 'Third Place';
+            const valueStr = cfg.format(entry.value, guildId);
+
+            // Visual bar shows this entry's value relative to #1.
+            const pct = leaderValue > 0 ? entry.value / leaderValue : 0;
+            const bar = progressBar(pct, 12);
+            const pctText = `${Math.round(pct * 100)}%`;
+
+            const youBadge = isYou ? `  ${E.you} *you*` : '';
+            const lines = [
+                `### ${accentEmoji}  **${escapeMarkdown(entry.username)}**${youBadge}`,
+                `> ${E.arrow} **${rankLabel}**  ·  Rank \`#${entry.rank}\``,
+                `> ${E.spark} ${valueStr}`,
+                `> \`${bar}\`  \`${pctText}\``,
+            ];
+
+            if (entry.avatarURL) {
+                try {
+                    const sec = new SectionBuilder()
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))
+                        .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: entry.avatarURL } }));
+                    container.addSectionComponents(sec);
+                    continue;
+                } catch {
+                    /* fall through to text-only */
+                }
+            }
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+        }
+    } else if (podium.length > 0) {
+        // On pages > 0 we still might catch ranks 1-3 if PER_PAGE changes,
+        // but in normal operation these are simple list entries.
+        const lines = podium.map((entry) => {
+            const isYou = entry.userId === requesterEntry?.userId;
+            const valueStr = cfg.format(entry.value, guildId);
+            const youTag = isYou ? `  ${E.you} *you*` : '';
+            return `${rankBadge(entry.rank)}  **${escapeMarkdown(entry.username)}** — ${valueStr}${youTag}`;
+        });
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+    }
+
+    /* ──────────────────── Ranks 4-10 (compact) ─────────────────── */
+    if (rest.length > 0) {
+        if (podium.length > 0) {
+            container.addSeparatorComponents(
+                new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+            );
+        }
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### ${E.star} Rankings`
+        ));
+
+        const lines = rest.map((entry) => {
+            const isYou = entry.userId === requesterEntry?.userId;
+            const valueStr = cfg.format(entry.value, guildId);
+            const youTag = isYou ? `  ${E.you} *you*` : '';
+            return `${rankBadge(entry.rank)}  **${escapeMarkdown(entry.username)}**  —  ${valueStr}${youTag}`;
+        });
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+    }
+
+    /* ───────────────────── Requester standing ──────────────────── */
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+    if (requesterRank) {
+        const onPage = pageEntries.some((e) => e.userId === requesterEntry?.userId);
+        const valueStr = cfg.format(requesterEntry.value, guildId);
+        if (!onPage) {
+            const standing = [
+                `### ${E.pin}  Your Standing`,
+                `> ${E.you} Rank \`#${requesterRank}\` of \`${totalCount.toLocaleString()}\``,
+                `> ${E.spark} ${valueStr}`,
+                gapText ? `> ${E.fire} ${gapText}` : null,
+            ].filter(Boolean).join('\n');
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(standing));
+        } else {
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `-# ${E.pin} You're on this page  ·  Rank \`#${requesterRank}\`  ·  ${valueStr}`
+            ));
+        }
+    } else {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### ${E.pin}  Not Ranked Yet\n` +
+            `> Earn some ${cfg.unit} (${cfg.unitLabel}) to claim a spot on the board.`
+        ));
+    }
+
+    /* ───────────────────────── Footer ─────────────────────────── */
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `-# ${E.brand} xNico  ·  ${E.spark} Live rankings  ·  Updates as users earn`
+    ));
+
+    return container;
 }
 
-async function buildUnifiedLeaderboard(client, guild, type, scope, page) {
-    const validType = LB_TYPES[type] ? type : 'leveling';
-    const cfg = LB_TYPES[validType];
-    let allEntries;
-
-    if (validType === 'economy') {
-        allEntries = getEconomyEntries(guild, scope);
-    } else if (scope === 'global') {
-        allEntries = getGlobalLeaderboard(cfg.globalField, 99999);
-    } else {
-        const lb = await getLeaderboard(guild.id, cfg.field, 99999);
-        allEntries = lb.map((entry) => {
-            const [table, subField] = cfg.field.split('.');
-            const value = Number(entry[table]?.[subField] || 0);
-            return { userId: entry.userId, value };
-        }).filter(e => e.value > 0);
-    }
-
-    const totalPages = Math.max(1, Math.ceil(allEntries.length / PER_PAGE));
-    page = Math.max(0, Math.min(page, totalPages - 1));
-
-    const pageEntries = allEntries.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
-    const resolved = await resolveEntries(client, pageEntries);
-
-    const scopeLabel = scope === 'global' ? 'Global' : guild.name;
-    const statCfg = STAT_TYPE_CONFIG[validType] || STAT_TYPE_CONFIG.messages;
-    const title = scope === 'global'
-        ? `Global ${statCfg.label} Leaderboard`
-        : `${scopeLabel} — ${statCfg.label}`;
-
-    const buffer = await generateStatsLeaderboard({
-        title,
-        iconURL: scope === 'server' ? (guild.iconURL({ size: 256 }) || null) : null,
-        entries: resolved,
-        statType: validType,
-        scope,
-        page,
-        totalPages
-    });
-
-    const attachment = new AttachmentBuilder(buffer, { name: 'leaderboard.png' });
+function buildControls(type, scope, page, totalPages) {
+    const otherScope = scope === 'server' ? 'global' : 'server';
 
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId(`${PREFIX}_type_${scope}_${page}`)
-        .setPlaceholder(`${statCfg.emoji ? '' : ''}${statCfg.label} Leaderboard`)
+        .setPlaceholder(`📊  Switch leaderboard category`)
         .setMinValues(1)
         .setMaxValues(1);
 
     for (const [key, meta] of Object.entries(LB_TYPES)) {
-        selectMenu.addOptions({
-            label: meta.menuLabel,
-            value: key,
-            emoji: meta.menuEmoji,
-            description: meta.menuDesc,
-            default: key === validType
-        });
-    }
-
-    const selectRow = new ActionRowBuilder().addComponents(selectMenu);
-
-    const btnRow = new ActionRowBuilder();
-
-    const otherScope = scope === 'server' ? 'global' : 'server';
-    btnRow.addComponents(
-        new ButtonBuilder()
-            .setCustomId(`${PREFIX}_scope_${otherScope}_${validType}_0`)
-            .setLabel(scope === 'server' ? 'Global' : 'Server')
-            .setEmoji(scope === 'server' ? '1473038903157199093' : '1473038576391557130')
-            .setStyle(ButtonStyle.Secondary)
-    );
-
-    if (totalPages > 1) {
-        btnRow.addComponents(
-            new ButtonBuilder()
-                .setCustomId(`${PREFIX}_page_${scope}_${validType}_${page - 1}`)
-                .setEmoji('<:History:1473037847568318605>')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(page === 0),
-            new ButtonBuilder()
-                .setCustomId(`${PREFIX}_info`)
-                .setLabel(`${page + 1} / ${totalPages}`)
-                .setStyle(ButtonStyle.Primary)
-                .setDisabled(true),
-            new ButtonBuilder()
-                .setCustomId(`${PREFIX}_page_${scope}_${validType}_${page + 1}`)
-                .setEmoji('<:Skipnext:1473039269726785737>')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(page >= totalPages - 1)
+        selectMenu.addOptions(
+            new StringSelectMenuOptionBuilder()
+                .setLabel(meta.label)
+                .setValue(key)
+                .setEmoji(meta.emoji)
+                .setDescription(meta.menuDesc)
+                .setDefault(key === type)
         );
     }
 
-    const components = [selectRow, btnRow];
-    return { files: [attachment], components };
+    const ctrlRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`${PREFIX}_scope_${otherScope}_${type}_0`)
+            .setLabel(scope === 'server' ? 'Global' : 'Server')
+            .setEmoji(scope === 'server' ? E.globe : E.server)
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId(`${PREFIX}_page_${scope}_${type}_${page - 1}`)
+            .setEmoji(E.history)
+            .setLabel('Prev')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === 0),
+        new ButtonBuilder()
+            .setCustomId(`${PREFIX}_info`)
+            .setLabel(`${page + 1} / ${totalPages}`)
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true),
+        new ButtonBuilder()
+            .setCustomId(`${PREFIX}_page_${scope}_${type}_${page + 1}`)
+            .setEmoji(E.skipNext)
+            .setLabel('Next')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page >= totalPages - 1),
+        new ButtonBuilder()
+            .setCustomId(`${PREFIX}_page_${scope}_${type}_${page}`)
+            .setEmoji(E.refresh)
+            .setLabel('Refresh')
+            .setStyle(ButtonStyle.Success)
+    );
+
+    return [
+        new ActionRowBuilder().addComponents(selectMenu),
+        ctrlRow,
+    ];
 }
+
+/* ─────────────────────────── Top-level builder ─────────────────────────── */
+
+async function buildLeaderboardReply(client, guild, type, scope, page, requesterId) {
+    const validType = LB_TYPES[type] ? type : 'leveling';
+    const validScope = scope === 'global' ? 'global' : 'server';
+    const cfg = LB_TYPES[validType];
+
+    const allEntries = await loadAllEntries(guild, validType, validScope);
+    const totalCount = allEntries.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
+    const safePage = Math.max(0, Math.min(page, totalPages - 1));
+    const leaderValue = allEntries[0]?.value || 0;
+
+    const slice = allEntries.slice(safePage * PER_PAGE, (safePage + 1) * PER_PAGE);
+    const resolved = await resolveUsers(client, slice);
+    const pageEntries = resolved.map((entry, i) => ({ ...entry, rank: safePage * PER_PAGE + i + 1 }));
+
+    /* Requester position */
+    const requesterIdx = requesterId
+        ? allEntries.findIndex((e) => e.userId === requesterId)
+        : -1;
+    const requesterEntry = requesterIdx >= 0 ? allEntries[requesterIdx] : null;
+    const requesterRank = requesterIdx >= 0 ? requesterIdx + 1 : null;
+
+    let gapText = null;
+    if (requesterEntry && requesterIdx > 0) {
+        const above = allEntries[requesterIdx - 1];
+        const gap = (above?.value || 0) - (requesterEntry.value || 0);
+        if (gap > 0) {
+            const formatted = validType === 'voice' ? formatVoiceTime(gap) : formatNumber(gap);
+            gapText = `${formatted} behind rank \`#${requesterIdx}\``;
+        }
+    }
+
+    const container = buildPanel({
+        client, guild,
+        type: validType,
+        scope: validScope,
+        page: safePage,
+        totalPages,
+        totalCount,
+        pageEntries,
+        requesterEntry,
+        requesterRank,
+        gapText,
+        leaderValue,
+    });
+
+    return {
+        components: [container, ...buildControls(validType, validScope, safePage, totalPages)],
+        flags: MessageFlags.IsComponentsV2,
+    };
+}
+
+function buildErrorContainer(message) {
+    return new ContainerBuilder()
+        .setAccentColor(0xED4245)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# ${E.cancel}  Leaderboard Failed\n\n` +
+            `Couldn't generate the leaderboard right now.\n` +
+            `> -# ${message || 'Unknown error'}`
+        ));
+}
+
+/* ─────────────────────────── Command export ─────────────────────────── */
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -157,11 +548,11 @@ module.exports = {
                 .setDescription('Leaderboard category')
                 .setRequired(false)
                 .addChoices(
-                    { name: '🏆 Leveling',   value: 'leveling' },
-                    { name: '💬 Messages',   value: 'messages' },
-                    { name: '🔊 Voice Time', value: 'voice' },
-                    { name: '📨 Invites',    value: 'invites' },
-                    { name: '💰 Economy',    value: 'economy' }
+                    { name: '🏆 Leveling',    value: 'leveling' },
+                    { name: '💬 Messages',    value: 'messages' },
+                    { name: '🔊 Voice Time',  value: 'voice'    },
+                    { name: '📨 Invites',     value: 'invites'  },
+                    { name: '💰 Economy',     value: 'economy'  },
                 )
         )
         .addStringOption(o =>
@@ -170,69 +561,84 @@ module.exports = {
                 .setRequired(false)
                 .addChoices(
                     { name: '🏠 Server', value: 'server' },
-                    { name: '🌍 Global', value: 'global' }
+                    { name: '🌍 Global', value: 'global' },
                 )
         ),
 
     prefix: 'leaderboard',
-    aliases: ['top', 'board', 'rankings'],
-    description: 'View the unified leaderboard with dropdown selection',
+    aliases: ['top', 'board', 'rankings', 'lb'],
+    description: 'View the unified leaderboard with stat-type select and pagination',
     usage: 'leaderboard [leveling|messages|voice|invites|economy] [server|global]',
     category: 'leveling',
 
     async execute(interaction) {
         await interaction.deferReply();
-
         const type = interaction.options.getString('type') || 'leveling';
         const scope = interaction.options.getString('scope') || 'server';
-
         try {
-            const reply = await buildUnifiedLeaderboard(interaction.client, interaction.guild, type, scope, 0);
+            const reply = await buildLeaderboardReply(
+                interaction.client, interaction.guild, type, scope, 0, interaction.user.id
+            );
             await interaction.editReply(reply);
         } catch (err) {
-            console.error('leaderboard error:', err);
-            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate the leaderboard.' });
+            console.error('[leaderboard] slash error:', err);
+            await interaction.editReply({
+                components: [buildErrorContainer(err.message)],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
     },
 
     async executePrefix(message, args) {
         const validTypes = Object.keys(LB_TYPES);
         const type = validTypes.includes(args[0]?.toLowerCase()) ? args[0].toLowerCase() : 'leveling';
-        const scope = (args[1]?.toLowerCase() === 'global') ? 'global' : 'server';
-
-        const loadMsg = await message.reply({
-            components: [buildLoadingResponse('Leaderboard', 'Generating canvas leaderboard...')],
-            flags: MessageFlags.IsComponentsV2
-        });
-
+        const scope = args[1]?.toLowerCase() === 'global' ? 'global' : 'server';
         try {
-            const reply = await buildUnifiedLeaderboard(message.client, message.guild, type, scope, 0);
-            await loadMsg.delete().catch(() => {});
+            const reply = await buildLeaderboardReply(
+                message.client, message.guild, type, scope, 0, message.author.id
+            );
             await message.reply(reply);
         } catch (err) {
-            console.error('leaderboard prefix error:', err);
-            await loadMsg.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Error\n\nFailed to generate the leaderboard.'))], flags: MessageFlags.IsComponentsV2 });
+            console.error('[leaderboard] prefix error:', err);
+            await message.reply({
+                components: [buildErrorContainer(err.message)],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
     },
 
     async handleButton(interaction) {
-        const match = interaction.customId.match(/^ulb_(?:scope|page)_(\w+)_(\w+)_(-?\d+)$/);
-        if (!match) {
-            await interaction.deferUpdate();
+        // Refresh / page / scope all share the same shape: ulb_<action>_<scope>_<type>_<page>
+        // The "info" button is disabled but Discord still emits an event,
+        // so we no-op on it.
+        if (interaction.customId === `${PREFIX}_info`) {
+            await interaction.deferUpdate().catch(() => {});
             return true;
         }
 
-        const [, scope, statType, pageStr] = match;
-        const page = parseInt(pageStr);
-        const validScope = scope === 'global' ? 'global' : 'server';
-        const validType = LB_TYPES[statType] ? statType : 'leveling';
+        const match = interaction.customId.match(/^ulb_(?:scope|page)_(\w+)_(\w+)_(-?\d+)$/);
+        if (!match) {
+            await interaction.deferUpdate().catch(() => {});
+            return true;
+        }
+
+        const [, scope, type, pageStr] = match;
+        const page = Math.max(0, parseInt(pageStr, 10) || 0);
 
         try {
             await interaction.deferUpdate();
-            const reply = await buildUnifiedLeaderboard(interaction.client, interaction.guild, validType, validScope, Math.max(0, page));
+            const reply = await buildLeaderboardReply(
+                interaction.client, interaction.guild, type, scope, page, interaction.user.id
+            );
             await interaction.editReply(reply);
         } catch (err) {
-            console.error('leaderboard button error:', err);
+            console.error('[leaderboard] button error:', err);
+            try {
+                await interaction.editReply({
+                    components: [buildErrorContainer(err.message)],
+                    flags: MessageFlags.IsComponentsV2,
+                });
+            } catch {}
         }
         return true;
     },
@@ -241,18 +647,27 @@ module.exports = {
         const match = interaction.customId.match(/^ulb_type_(\w+)_(\d+)$/);
         if (!match) return false;
 
-        const [, scope, ] = match;
-        const selectedType = interaction.values[0];
-        const validScope = scope === 'global' ? 'global' : 'server';
-        const validType = LB_TYPES[selectedType] ? selectedType : 'leveling';
-
+        const [, scope] = match;
+        const type = interaction.values[0];
         try {
             await interaction.deferUpdate();
-            const reply = await buildUnifiedLeaderboard(interaction.client, interaction.guild, validType, validScope, 0);
+            const reply = await buildLeaderboardReply(
+                interaction.client, interaction.guild, type, scope, 0, interaction.user.id
+            );
             await interaction.editReply(reply);
         } catch (err) {
-            console.error('leaderboard select error:', err);
+            console.error('[leaderboard] select error:', err);
+            try {
+                await interaction.editReply({
+                    components: [buildErrorContainer(err.message)],
+                    flags: MessageFlags.IsComponentsV2,
+                });
+            } catch {}
         }
         return true;
-    }
+    },
+
+    // Re-exported so /statboard can share the implementation
+    buildLeaderboardReply,
+    LB_TYPES,
 };

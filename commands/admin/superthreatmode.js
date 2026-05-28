@@ -31,18 +31,18 @@ const SUPER_THREAT_LIMITS = {
 function buildSuperThreatPanel(guildConfig, guildName) {
     const isActive = guildConfig.superThreatMode || false;
 
-    const headerText = `# <:Toggleoff:1473038582813032590> Super Threat Mode\n-# Maximum lockdown for **${guildName}**`;
+    const headerText = `# <:Shield:1473038669831995494> Super Threat Mode\n-# Maximum lockdown for **${guildName}**`;
 
     const statusText = isActive
-        ? `<:dnd:1485248263857639424> **SUPER THREAT MODE ACTIVE**\nZero tolerance — all protections at maximum, action: \`ban\``
+        ? `<:Toggleon:1473038585501581312> **SUPER THREAT MODE ACTIVE**\nZero tolerance — all protections at maximum, action: \`ban\``
         : `${THEME.EMOJIS.SUCCESS} **Super Threat Mode Inactive**\nNormal protection limits are active`;
 
     const descText = `### <:Infotriangle:1473038460456800459> What Super Threat Mode Does\n` +
-        `▸ Sets **all protection limits** to \`1\`\n` +
-        `▸ Sets **all time windows** to \`30 seconds\`\n` +
-        `▸ Sets **all actions** to \`ban\`\n` +
-        `▸ **Force-enables** all protections + antinuke system\n` +
-        `▸ Bot add action stays as \`kick_bot\`\n\n` +
+        `<:Caretright:1473038207221502106> Sets **all protection limits** to \`1\`\n` +
+        `<:Caretright:1473038207221502106> Sets **all time windows** to \`30 seconds\`\n` +
+        `<:Caretright:1473038207221502106> Sets **all actions** to \`ban\`\n` +
+        `<:Caretright:1473038207221502106> **Force-enables** all protections + antinuke system\n` +
+        `<:Caretright:1473038207221502106> Bot add action stays as \`kick_bot\`\n\n` +
         `-# <:Infotriangle:1473038460456800459> Your original limits are saved and restored when you disable this mode`;
 
     const currentText = isActive

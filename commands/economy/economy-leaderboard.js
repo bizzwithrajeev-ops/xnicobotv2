@@ -173,7 +173,7 @@ async function buildResponse(client, guild, scope, sortBy, page, requesterId) {
             .setDisabled(true),
         new ButtonBuilder()
             .setCustomId(`elb_page_${scope}_${sortBy}_${page + 1}`)
-            .setEmoji('<:Skipnext:1473039269726785737>')
+            .setEmoji('<:Caretright:1473038207221502106>')
             .setLabel('Next')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(page >= totalPages - 1)

@@ -20,6 +20,7 @@ const {
     buildErrorResponse, buildSuccessResponse, buildInvalidUsage
 } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 const MAX_STATUS_LENGTH = 500;
 const STORE_NAME = 'vcstatus-persist';
@@ -272,11 +273,16 @@ module.exports = {
                 });
             }
 
-            let listText = `# <:Volumeup:1473039290136002844> Active Voice Statuses\n\n`;
-            for (const [chId, entry] of guildEntries) {
-                listText += `> <#${chId}> — \`${entry.status}\` <:Lock:1473038513749491773>\n`;
-            }
-            listText += `\n-# <:Lock:1473038513749491773> = Permanent · Use \`vcstatus clear #channel\` to remove`;
+            const lineEntries = guildEntries.map(([chId, entry]) =>
+                `> <#${chId}> — \`${entry.status}\` <:Lock:1473038513749491773>`
+            );
+            const { content: listText } = buildSafeListText({
+                header: '# <:Volumeup:1473039290136002844> Active Voice Statuses',
+                lines: lineEntries,
+                separator: '\n',
+                footer: '\n-# <:Lock:1473038513749491773> = Permanent · Use `vcstatus clear #channel` to remove',
+                overflowHint: '\n-# +${n} more not shown — clear some channels to see them',
+            });
 
             const container = new ContainerBuilder()
                 .setAccentColor(0x5865F2)

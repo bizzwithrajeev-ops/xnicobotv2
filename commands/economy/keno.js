@@ -43,7 +43,7 @@ const E = {
     warn:     '<:Infotriangle:1473038460456800459>',
     // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     chart:    '<:transfer:1479780506718437396>',
-    skipnext: '<:Skipnext:1473039269726785737>',
+    skipnext: '<:Caretright:1473038207221502106>',
     star:     '<:Star:1473038501766369300>',
     fire:     '<:Fire:1473038604812161218>',
     crown:    '<:Crown:1506010837368963142>',

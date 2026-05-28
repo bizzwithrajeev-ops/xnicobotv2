@@ -494,19 +494,67 @@ function pageSetup() {
                 <div class="st" style="color:var(--warning)">Not invited</div>
             </div>
             <p>Invite xNico to start configuring modules.</p>
-            <a class="btn primary mt-2" href="${inviteUrl(g.id)}" target="_blank">${icon('user-plus')} Invite xNico</a>
-            <p class="text-xs mt-2">The dashboard will reload automatically after inviting.</p>
+            <a class="btn primary mt-2" href="${inviteUrl(g.id)}" target="_blank" id="setup-invite-btn">${icon('user-plus')} Invite xNico</a>
+            <button class="btn mt-2" id="setup-recheck-btn" style="margin-left:.5rem">${icon('refresh')} Already invited? Recheck</button>
+            <p class="text-xs mt-2" id="setup-status">The dashboard will reload automatically after inviting.</p>
         </div>
     `;
-    // Poll for presence after invite
-    setTimeout(async () => {
-        const fresh = await api('/api/guilds/me');
-        if (Array.isArray(fresh)) {
-            state.guilds = fresh;
-            const updated = fresh.find(x => x.id === g.id);
-            if (updated?.botPresent) location.reload();
-        }
-    }, 10000);
+
+    let cancelled = false;
+    let attempts = 0;
+
+    async function recheck(force = false) {
+        try {
+            if (force) {
+                await api('/api/guilds/refresh', { method: 'POST' }).catch(() => {});
+            }
+            const fresh = await api('/api/guilds/me' + (force ? '?refresh=1' : ''));
+            if (Array.isArray(fresh)) {
+                state.guilds = fresh;
+                const updated = fresh.find(x => x.id === g.id);
+                if (updated?.botPresent) {
+                    location.reload();
+                    return true;
+                }
+            }
+        } catch {}
+        return false;
+    }
+
+    // Manual recheck button — forces an immediate cache-bypass refresh.
+    const btn = document.getElementById('setup-recheck-btn');
+    if (btn) {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            const status = document.getElementById('setup-status');
+            if (status) status.textContent = 'Checking…';
+            const found = await recheck(true);
+            if (!found) {
+                if (status) status.textContent = 'xNico is still not in this server. Make sure the invite was completed and try again in a few seconds.';
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // Auto-poll: faster early then back off, force-refresh every 3rd try
+    // so we beat the server-side cache once the user finishes inviting.
+    function poll() {
+        if (cancelled) return;
+        attempts++;
+        const force = attempts % 3 === 0;
+        const delay = attempts < 6 ? 3000 : (attempts < 15 ? 5000 : 15000);
+        setTimeout(async () => {
+            const found = await recheck(force);
+            if (!found) poll();
+        }, delay);
+    }
+    poll();
+
+    // Stop polling if the user navigates away.
+    window.addEventListener('hashchange', function stop() {
+        cancelled = true;
+        window.removeEventListener('hashchange', stop);
+    }, { once: true });
 }
 
 // ───── Page: server overview (module grid) ───────────────

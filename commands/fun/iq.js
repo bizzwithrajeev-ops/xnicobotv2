@@ -30,7 +30,8 @@ async function buildAndSend(targetUser, displayName) {
         title: 'IQ Test',
         subjectName: displayName || targetUser.username,
         avatarURL: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
-        percent: iq,             // shown as the big number; bar fills proportionally to iq/200
+        percent: iq,             // shown as the big number
+        barMax: 200,             // scale ring + bar against an IQ-of-200 cap
         verdict,
         unit: '',
     });

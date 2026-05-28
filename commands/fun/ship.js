@@ -1,5 +1,17 @@
 'use strict';
 
+/**
+ * /ship — Compatibility card between two users.
+ *
+ * Visually consistent with the percentCard look-and-feel:
+ *  - Same accent palette (red → orange → amber → lime → emerald)
+ *    so the colour responds to the compatibility percent.
+ *  - Same glassy layered background, accent halo, top sweep,
+ *    diagonal lattice texture, and corner brand pill.
+ *  - Two avatar rings with a glowing heart between them, and a
+ *    horizontal compatibility bar with a glowing tip.
+ */
+
 const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder,
     MediaGalleryItemBuilder, MessageFlags, AttachmentBuilder,
@@ -9,31 +21,67 @@ const imageCache = require('../../utils/imageCache');
 const { registerAllFonts, getFontHelpers } = require('../../utils/fontRegistry');
 const { hashPercent, pickVerdict } = require('../../utils/percentCommandFactory');
 const { colorForPercent } = require('../../utils/percentCard');
+const { drawTextWithEmoji } = require('../../utils/emojiCanvasHelper');
 
 try { registerAllFonts(); } catch (_) {}
 
-const W = 900;
-const H = 380;
+const W = 1100;
+const H = 460;
+const PAD = 32;
+const RADIUS = 28;
 
 function roundedRect(ctx, x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
 }
 
-async function drawCircleAvatar(ctx, url, cx, cy, r, ringColor) {
-    // Glow ring
+function drawTracked(ctx, text, x, y, tracking = 0) {
+    if (!tracking) { ctx.fillText(text, x, y); return; }
+    let cursor = x;
+    for (const ch of text) {
+        ctx.fillText(ch, cursor, y);
+        cursor += ctx.measureText(ch).width + tracking;
+    }
+}
+
+function truncate(ctx, text, max) {
+    let s = String(text || '');
+    while (ctx.measureText(s).width > max && s.length > 1) s = s.slice(0, -1);
+    if (s.length < (text || '').length) s = s.slice(0, -1) + '…';
+    return s;
+}
+
+async function drawAvatarRing(ctx, url, cx, cy, r, accent) {
+    // Halo behind ring
+    const halo = ctx.createRadialGradient(cx, cy, r - 4, cx, cy, r + 50);
+    halo.addColorStop(0, accent.rgba(0.42));
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
-    ctx.strokeStyle = ringColor;
+    ctx.arc(cx, cy, r + 50, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ring track
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 7, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // Solid accent ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 7, 0, Math.PI * 2);
+    ctx.strokeStyle = accent.hex;
     ctx.lineWidth = 6;
     ctx.stroke();
 
@@ -47,13 +95,25 @@ async function drawCircleAvatar(ctx, url, cx, cy, r, ringColor) {
             ctx.clip();
             ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
             ctx.restore();
-            return;
+        } else {
+            ctx.fillStyle = '#1f2937';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
         }
-    } catch {}
-    ctx.fillStyle = '#1f2937';
+    } catch {
+        ctx.fillStyle = '#1f2937';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Inner highlight
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 }
 
 const tiers = [
@@ -67,78 +127,173 @@ const tiers = [
 
 async function renderShipCard(user1, user2, name1, name2, percent) {
     const accent = colorForPercent(percent);
-    const fonts = getFontHelpers('Inter');
+    const display = getFontHelpers('Outfit');
+    const ui      = getFontHelpers('Inter');
 
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 
-    // Background
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, '#0f0f23');
-    bg.addColorStop(1, '#1a0a30');
-    ctx.fillStyle = bg;
+    /* ── Background ── */
+    const base = ctx.createLinearGradient(0, 0, W, H);
+    base.addColorStop(0,   '#0f0a22');
+    base.addColorStop(0.5, '#0b0820');
+    base.addColorStop(1,   '#070514');
+    ctx.fillStyle = base;
     ctx.fillRect(0, 0, W, H);
 
-    // Heart-shaped glow in centre
-    const glow = ctx.createRadialGradient(W / 2, H / 2, 30, W / 2, H / 2, 320);
-    glow.addColorStop(0, `rgba(${accent.rgb.join(',')},0.45)`);
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow;
+    // Centred accent halo (heart glow)
+    const heartGlow = ctx.createRadialGradient(W / 2, H / 2 - 30, 30, W / 2, H / 2 - 30, 360);
+    heartGlow.addColorStop(0,    accent.rgba(0.55));
+    heartGlow.addColorStop(0.35, accent.rgba(0.18));
+    heartGlow.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.fillStyle = heartGlow;
     ctx.fillRect(0, 0, W, H);
 
-    // Card frame
-    roundedRect(ctx, 16, 16, W - 32, H - 32, 22);
-    ctx.fillStyle = 'rgba(20, 20, 50, 0.55)';
+    // Diagonal lattice
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.018)';
+    ctx.lineWidth = 1;
+    for (let i = -H; i < W + H; i += 32) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + H, H);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // Top sweep
+    const sweep = ctx.createLinearGradient(0, 0, W, 0);
+    sweep.addColorStop(0,    'rgba(0,0,0,0)');
+    sweep.addColorStop(0.22, accent.rgba(0.30));
+    sweep.addColorStop(0.65, accent.rgba(0.10));
+    sweep.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.fillStyle = sweep;
+    ctx.fillRect(0, 0, W, 3);
+
+    // Bottom vignette
+    const vig = ctx.createLinearGradient(0, H - 220, 0, H);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.42)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+
+    /* ── Card frame ── */
+    roundedRect(ctx, PAD / 2, PAD / 2, W - PAD, H - PAD, RADIUS);
+    ctx.fillStyle = 'rgba(15,18,28,0.55)';
     ctx.fill();
-    ctx.strokeStyle = `rgba(${accent.rgb.join(',')},0.4)`;
     ctx.lineWidth = 1.5;
+    ctx.strokeStyle = accent.rgba(0.35);
     ctx.stroke();
 
-    // Two avatars
-    const avatarRadius = 80;
-    const cy = 150;
-    await drawCircleAvatar(ctx, user1.displayAvatarURL({ extension: 'png', size: 256 }), 200, cy, avatarRadius, accent.hex);
-    await drawCircleAvatar(ctx, user2.displayAvatarURL({ extension: 'png', size: 256 }), W - 200, cy, avatarRadius, accent.hex);
-
-    // Heart in the middle
-    ctx.font = fonts.getBoldFont(72);
-    ctx.fillStyle = accent.hex;
+    /* ── Title (eyebrow) ── */
+    ctx.font = ui.getSemiBoldFont(15);
+    ctx.fillStyle = accent.rgba(0.85);
+    ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'center';
-    ctx.fillText('💗', W / 2, cy + 24);
+    drawTracked(ctx, 'COMPATIBILITY', W / 2 - 70, 80, 2.5);
     ctx.textAlign = 'left';
 
-    // Names
-    ctx.font = fonts.getSemiBoldFont(22);
+    /* ── Two avatars ── */
+    const avatarRadius = 84;
+    const cy = 200;
+    await drawAvatarRing(ctx, user1.displayAvatarURL({ extension: 'png', size: 256 }), 230, cy, avatarRadius, accent);
+    await drawAvatarRing(ctx, user2.displayAvatarURL({ extension: 'png', size: 256 }), W - 230, cy, avatarRadius, accent);
+
+    /* ── Heart in the middle ── */
+    ctx.save();
+    ctx.shadowColor = accent.rgba(0.6);
+    ctx.shadowBlur = 28;
+    ctx.font = display.getBoldFont(72);
+    ctx.fillStyle = accent.hex;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    await drawTextWithEmoji(ctx, '💗', W / 2, cy, 72, 64);
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+
+    /* ── Names below avatars ── */
+    ctx.font = display.getSemiBoldFont(22);
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(truncate(ctx, name1, 220), 200, cy + avatarRadius + 36);
-    ctx.fillText(truncate(ctx, name2, 220), W - 200, cy + avatarRadius + 36);
-
-    // Big percent
-    ctx.font = fonts.getBoldFont(60);
-    ctx.fillStyle = accent.hex;
-    ctx.fillText(`${percent}%`, W / 2, 304);
-
-    // Verdict
-    ctx.font = fonts.getMediumFont(20);
-    ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(pickVerdict(percent, tiers), W / 2, 338);
-
-    // Brand
-    ctx.font = fonts.getFont(13);
-    ctx.fillStyle = '#6b7280';
-    ctx.textAlign = 'right';
-    ctx.fillText('xNico  •  by Rexzy', W - 32, H - 28);
+    ctx.fillText(truncate(ctx, name1, 240), 230, cy + avatarRadius + 38);
+    ctx.fillText(truncate(ctx, name2, 240), W - 230, cy + avatarRadius + 38);
     ctx.textAlign = 'left';
 
-    return canvas.toBuffer('image/png');
-}
+    /* ── Hero percent ── */
+    const pctStr = `${percent}%`;
+    ctx.font = display.getBoldFont(64);
+    ctx.textAlign = 'center';
+    const pctW = ctx.measureText(pctStr).width;
+    const pctX = W / 2;
+    const pctY = 360;
+    ctx.save();
+    ctx.shadowColor = accent.rgba(0.55);
+    ctx.shadowBlur = 24;
+    const grad = ctx.createLinearGradient(pctX - pctW / 2, pctY - 50, pctX + pctW / 2, pctY);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(1, accent.hex);
+    ctx.fillStyle = grad;
+    ctx.fillText(pctStr, pctX, pctY);
+    ctx.restore();
+    ctx.textAlign = 'left';
 
-function truncate(ctx, text, max) {
-    let s = text || '';
-    while (ctx.measureText(s).width > max && s.length > 1) s = s.slice(0, -1);
-    if (s.length < (text || '').length) s = s.slice(0, -1) + '…';
-    return s;
+    /* ── Compatibility bar ── */
+    const barW = 520;
+    const barH = 14;
+    const barX = (W - barW) / 2;
+    const barY = pctY + 16;
+    roundedRect(ctx, barX, barY, barW, barH, barH / 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+
+    if (percent > 0) {
+        ctx.save();
+        const fillW = Math.max(barH, (barW * percent) / 100);
+        roundedRect(ctx, barX, barY, fillW, barH, barH / 2);
+        ctx.clip();
+        const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+        barGrad.addColorStop(0, accent.rgba(0.55));
+        barGrad.addColorStop(0.6, accent.rgba(0.95));
+        barGrad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = barGrad;
+        ctx.fillRect(barX, barY, fillW, barH);
+        ctx.restore();
+    }
+
+    /* ── Verdict ── */
+    ctx.font = display.getMediumFont(18);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.textAlign = 'center';
+    await drawTextWithEmoji(ctx, `“${pickVerdict(percent, tiers)}”`, W / 2, barY + 42, 18);
+    ctx.textAlign = 'left';
+
+    /* ── Brand pill ── */
+    const brandText = 'XNICO';
+    ctx.font = ui.getSemiBoldFont(12);
+    const brandTextW = ctx.measureText(brandText).width;
+    const dotR = 4;
+    const padX = 14;
+    const pillW = brandTextW + dotR * 2 + 10 + padX * 2;
+    const pillH = 24;
+    const pillX = W - PAD - pillW;
+    const pillY = H - PAD - pillH;
+    roundedRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(pillX + padX + dotR, pillY + pillH / 2, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = accent.hex;
+    ctx.fill();
+    ctx.fillStyle = '#9ca3af';
+    ctx.textBaseline = 'middle';
+    drawTracked(ctx, brandText, pillX + padX + dotR * 2 + 10, pillY + pillH / 2 + 1, 1.2);
+    ctx.textBaseline = 'alphabetic';
+
+    return canvas.toBuffer('image/png');
 }
 
 function shipPercent(a, b) {

@@ -4,6 +4,18 @@ const jsonStore = require('../../utils/jsonStore');
 module.exports = {
     name: 'customcmd',
     description: 'Create a custom command',
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the prefix
+     * command dispatcher in index.js — non-premium servers get the
+     * standard premium gate instead of execution.
+     *
+     * Note: this only gates CREATION of new custom commands. Running
+     * an existing custom command (e.g. `-mycmd`) is dispatched
+     * earlier in the prefix handler via the `customcmds` lookup, so
+     * members on a non-premium server can still use the commands an
+     * admin set up while premium was active.
+     */
+    premiumOnly: true,
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('<:Cancel:1473037949187657818> You need the **Administrator** permission!');

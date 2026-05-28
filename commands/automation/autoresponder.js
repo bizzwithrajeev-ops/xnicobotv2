@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 function loadConfig() {
     if (!jsonStore.has('autoresponder')) {
@@ -231,15 +232,22 @@ module.exports = {
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
-        let listText = `# <:Fire:1473038604812161218> Autoresponse List\n\n`;
-        listText += `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
-
-        guildConfig.responses.forEach((item, index) => {
+        // Build response lines first, then trim to fit Discord's 4 000-char
+        // per-TextDisplay cap. With many or long responses, the naive
+        // concat would exceed the cap and Discord would reject the panel.
+        const lineEntries = guildConfig.responses.map((item, index) => {
             const truncResponse = item.response.substring(0, 50);
-            listText += `**${index + 1}.** \`${item.trigger}\`\n-# → ${truncResponse}${item.response.length > 50 ? '...' : ''}\n\n`;
+            return `**${index + 1}.** \`${item.trigger}\`\n-# → ${truncResponse}${item.response.length > 50 ? '...' : ''}`;
         });
-
-        listText += `-# Use \`/autoresponder remove number:<n>\` to remove a response`;
+        const { content: listText } = buildSafeListText({
+            header:
+                `# <:Fire:1473038604812161218> Autoresponse List\n` +
+                `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`,
+            lines: lineEntries,
+            separator: '\n\n',
+            footer: `-# Use \`/autoresponder remove number:<n>\` to remove a response`,
+            overflowHint: '\n\n-# +${n} more not shown — remove some entries to see them all',
+        });
 
         const container = new ContainerBuilder()
             .setAccentColor(0xCAD7E6)
@@ -325,9 +333,14 @@ module.exports = {
             if (!guildConfig.responses.length) {
                 return message.reply('<:Cancel:1473037949187657818> No autoresponses configured.');
             }
-            let listText = `# <:Fire:1473038604812161218> Autoresponses\n\n`;
-            guildConfig.responses.forEach((item, i) => {
-                listText += `**${i + 1}.** \`${item.trigger}\` → ${item.response.substring(0, 50)}${item.response.length > 50 ? '...' : ''}\n`;
+            const lineEntries = guildConfig.responses.map((item, i) =>
+                `**${i + 1}.** \`${item.trigger}\` → ${item.response.substring(0, 50)}${item.response.length > 50 ? '...' : ''}`
+            );
+            const { content: listText } = buildSafeListText({
+                header: `# <:Fire:1473038604812161218> Autoresponses`,
+                lines: lineEntries,
+                separator: '\n',
+                overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
             });
             const container = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)

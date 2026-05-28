@@ -60,7 +60,7 @@ function buildKeysPage(keys, filter, page) {
                 .setDisabled(true),
             new ButtonBuilder()
                 .setCustomId(`listkeys_${filter}_${page + 1}`)
-                .setEmoji('<:Skipnext:1473039269726785737>')
+                .setEmoji('<:Caretright:1473038207221502106>')
                 .setLabel('Next')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(page >= totalPages - 1)

@@ -427,7 +427,7 @@ module.exports = {
                     .setDisabled(true),
                 new ButtonBuilder()
                     .setCustomId(`clrhist_list_${page + 1}`)
-                    .setEmoji('<:Skipnext:1473039269726785737>')
+                    .setEmoji('<:Caretright:1473038207221502106>')
                     .setLabel('Next')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(page >= totalPages - 1)
@@ -500,7 +500,7 @@ module.exports = {
                     .setDisabled(true),
                 new ButtonBuilder()
                     .setCustomId(`clrhist_detail_${entryIdx}_${page + 1}`)
-                    .setEmoji('<:Skipnext:1473039269726785737>')
+                    .setEmoji('<:Caretright:1473038207221502106>')
                     .setLabel('Next')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(page >= totalPages - 1)

@@ -103,9 +103,9 @@ function buildAutomodPanel(guildConfig) {
 
     // ── Configuration ──
     const configSection = '### <:Settings:1473037894703779851> Configuration\n' +
-        '▸ **Active Filters:** `' + activeCount + '/9` protections\n' +
-        '▸ **Bypass Role:** ' + bypassRole + '\n' +
-        '▸ **Log Channel:** ' + logChannel;
+        '<:Caretright:1473038207221502106> **Active Filters:** `' + activeCount + '/9` protections\n' +
+        '<:Caretright:1473038207221502106> **Bypass Role:** ' + bypassRole + '\n' +
+        '<:Caretright:1473038207221502106> **Log Channel:** ' + logChannel;
 
     const footerText = createFooterText();
 

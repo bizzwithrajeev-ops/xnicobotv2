@@ -5,6 +5,7 @@ const {
     drawRoundedRect, drawText, hexToRgb, formatNumber,
     getNicoLogo, drawNicoBranding, loadEmoji: loadCanvasEmoji
 } = require('./canvasDesign');
+const { drawTextWithEmoji, measureMixedText } = require('./emojiCanvasHelper');
 
 try { registerAllFonts(); } catch {}
 
@@ -65,6 +66,10 @@ function _fallbackCard(user, data) {
     ctx.font = fh.getFont(16);
     ctx.fillStyle = '#8b8fa3';
     const name = user.globalName || user.username || 'User';
+    // Use the synchronous drawText shim — fallback card is a sync
+    // path so we use plain fillText with the name text only (any
+    // emoji in the name will simply render as the system glyph in
+    // this rare error path; real renders go through _renderCard).
     ctx.fillText(`${name} advanced to Level ${data.newLevel || '?'}`, 40, H / 2 + 20);
     return canvas.toBuffer('image/png');
 }
@@ -261,11 +266,17 @@ async function _renderCard(user, data = {}) {
     ctx.font = h.getBoldFont(30);
     ctx.fillStyle = '#f0f0f5';
     let username = user.globalName || user.username;
-    if (ctx.measureText(username).width > tW) {
-        while (ctx.measureText(username + '...').width > tW && username.length > 0) username = username.slice(0, -1);
-        username += '...';
+    // Truncate against the same mixed-text measurement the emoji
+    // helper will use, otherwise an emoji-bearing username can blow
+    // past tW after the emoji image is sized up.
+    while (measureMixedText(ctx, username, 30) > tW && username.length > 0) {
+        username = username.slice(0, -1);
     }
-    ctx.fillText(username, tX, bdgY + bdgH + 34);
+    if (username !== (user.globalName || user.username)) username += '…';
+    // Render through the emoji helper so usernames containing emojis
+    // (custom or Unicode) get drawn as proper images instead of the
+    // monochrome / tofu glyphs raw fillText would produce.
+    await drawTextWithEmoji(ctx, username, tX, bdgY + bdgH + 34, 30);
 
     ctx.font = h.getFont(15);
     ctx.fillStyle = '#8b8fa3';

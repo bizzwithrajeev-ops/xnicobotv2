@@ -95,7 +95,7 @@ module.exports = {
     description: 'Play a Spotify playlist by URL or search',
     usage: 'spotify-playlist <url or query>',
     category: 'music',
-    aliases: ['spotify', 'spl'],
+    aliases: ['spl'],
 
     async execute(interaction, lavalinkManager) {
         return run(interaction, lavalinkManager, interaction.options.getString('query'));

@@ -115,7 +115,7 @@ async function runAdventure(message, biomeData) {
   ].join('\n'));
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`${sessId}_continue`).setEmoji('<:Skipnext:1473039269726785737>').setLabel('Continue').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`${sessId}_continue`).setEmoji('<:Caretright:1473038207221502106>').setLabel('Continue').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`${sessId}_flee`).setLabel('🏃 Flee').setStyle(ButtonStyle.Secondary),
   );
 

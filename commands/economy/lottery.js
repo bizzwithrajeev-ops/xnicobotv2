@@ -1,301 +1,423 @@
+'use strict';
+
+/**
+ * /lottery — Server-wide lottery with an AI participant.
+ *
+ * Architecture
+ *   • Draw scheduler lives in utils/lotteryScheduler.js (started at
+ *     boot from index.js). It runs draws automatically when the
+ *     timer expires, regardless of whether a UI panel is open.
+ *   • This command is a *thin* UI on top of that state — it loads
+ *     the current lottery, lets the user buy a ticket, and re-renders
+ *     the panel on a short interval.
+ *   • Single AI participant ("xNico AI") competes alongside humans
+ *     using utils/lotteryAI.js. It buys tickets at metered intervals,
+ *     never exceeds 35% of the pool, and is eligible to win exactly
+ *     like any human player.
+ *
+ * UI is a Components V2 container with header, jackpot block, draw
+ * timer, your-ticket panel, and a clean entries table including the
+ * AI participant when it has bought in. Buttons: Buy Ticket / Refresh.
+ *
+ * © Rajeev (Rexzy) — xNico
+ */
+
 const {
+    SlashCommandBuilder,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    ActionRowBuilder,
+    MessageFlags,
 } = require('discord.js');
-const fs = require('fs');
-const { formatCoins, formatCoinsShort, coinIcon } = require('../../utils/currencyHelper');
-const path = require('path');
-const {
-    createContainer,
-    addTextDisplay,
-    formatNumber,
-    MessageFlags
-} = require('../../utils/componentHelpers');
+const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
+const { formatNumber } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { gamblingGuard } = require('../../utils/economyGuards');
 
-const jsonStore = require('../../utils/jsonStore');
-/* ===================== PATH ===================== */
+const lotteryAI = require('../../utils/lotteryAI');
+const scheduler = require('../../utils/lotteryScheduler');
 
-const LOTTERY_PATH = path.join(__dirname, '../../data/lottery.json');
+/* ─────────────────────────── Constants ─────────────────────────── */
 
-/* ===================== CONFIG ===================== */
+const REFRESH_RATE = 15_000; // re-render the panel this often
+const COLLECTOR_TIMEOUT = 30 * 60 * 1000; // panel stays interactive for 30 minutes
 
-const LOTTERY_DURATION = 60 * 60 * 1000; // 1 hour
-const GST_RATE = 0.18;
+const {
+    LOTTERY_DURATION,
+    GST_RATE,
+    BASE_TICKET_PRICE,
+    PRICE_STEP,
+    MAX_TICKETS,
+} = scheduler;
 
-const BASE_TICKET_PRICE = 500;
-const PRICE_STEP = 250;
-const MAX_TICKETS = 20;
+/* ─────────────────────────── Helpers ─────────────────────────── */
 
-const REFRESH_RATE = 15_000;
-
-/* ===================== FILE HANDLING ===================== */
-
-function loadLottery() {
-    if (!jsonStore.has('lottery')) {
-        const fresh = {
-            active: false,
-            endsAt: 0,
-            jackpot: 0,
-            lastJackpot: 0,
-            entries: {},
-            history: {
-                endedAt: null,
-                gst: 0,
-                winners: []
-            }
-        };
-        jsonStore.write('lottery', fresh);
-        return fresh;
-    }
-    return jsonStore.read('lottery');
+function formatTimer(ms) {
+    const safe = Math.max(0, ms | 0);
+    const m = Math.floor(safe / 60000);
+    const s = Math.floor((safe % 60000) / 1000);
+    return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
-function saveLottery(data) {
-    jsonStore.write('lottery', data);
+function totalTickets(entries) {
+    return Object.values(entries || {}).reduce((a, b) => a + Number(b || 0), 0);
 }
 
-/* ===================== DRAW LOGIC ===================== */
-
-function pickWinner(entries) {
-    const pool = [];
-    for (const [id, count] of Object.entries(entries)) {
-        for (let i = 0; i < count; i++) pool.push(id);
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
+function userTicketsOf(entries, id) {
+    return Number((entries || {})[id] || 0);
 }
 
-async function tryDraw() {
-    const lottery = loadLottery();
-    if (!lottery.active || Date.now() < lottery.endsAt) return null;
-
-    const totalTickets = Object.values(lottery.entries).reduce((a, b) => a + b, 0);
-    if (!totalTickets) {
-        lottery.active = false;
-        saveLottery(lottery);
-        return null;
-    }
-
-    const economy = economyManager.loadEconomy();
-    const gst = Math.floor(lottery.jackpot * GST_RATE);
-    const pool = lottery.jackpot - gst;
-
-    const tempEntries = { ...lottery.entries };
-    const shares = [0.6, 0.25, 0.15];
-    const winners = [];
-
-    for (let i = 0; i < Math.min(3, Object.keys(tempEntries).length); i++) {
-        const id = pickWinner(tempEntries);
-        delete tempEntries[id];
-
-        const { userData: drawUser } = economyManager.getUser(economy, id);
-        const reward = Math.floor(pool * shares[i]);
-        drawUser.coins += reward;
-
-        winners.push({ id, reward });
-    }
-
-    economyManager.saveEconomy(economy);
-
-    lottery.history = {
-        endedAt: Date.now(),
-        gst,
-        winners
-    };
-
-    lottery.active = false;
-    lottery.endsAt = 0;
-    lottery.jackpot = 0;
-    lottery.lastJackpot = 0;
-    lottery.entries = {};
-
-    saveLottery(lottery);
-    return winners;
+function nextPriceFor(owned) {
+    if (owned >= MAX_TICKETS) return null;
+    return BASE_TICKET_PRICE + owned * PRICE_STEP;
 }
 
-/* ===================== UI ===================== */
+/* ─────────────────────────── Entry table ─────────────────────────── */
 
-function buildUI(lottery, userId, guildId) {
-    const totalTickets = Object.values(lottery.entries).reduce((a, b) => a + b, 0);
-    const userTickets = lottery.entries[userId] || 0;
-    const chance = totalTickets ? ((userTickets / totalTickets) * 100).toFixed(2) : '0.00';
+/**
+ * Build a compact, ranked table of the top participants (capped to
+ * a sensible number so the panel stays under CV2 text-length limits).
+ * Each row shows the ticket count, the player's % of the pool, and
+ * a small badge if the AI is in the row.
+ */
+function renderEntriesTable(lottery) {
+    const entries = lottery.entries || {};
+    const pairs = Object.entries(entries)
+        .filter(([, count]) => Number(count) > 0)
+        .sort((a, b) => b[1] - a[1]);
 
-    const nextPrice =
-        userTickets >= MAX_TICKETS
-            ? 'MAX'
-            : BASE_TICKET_PRICE + (userTickets * PRICE_STEP);
+    if (pairs.length === 0) {
+        return `> *No tickets sold yet — be the first to buy in.*`;
+    }
 
-    const timeLeft = Math.max(0, lottery.endsAt - Date.now());
-    const m = Math.floor(timeLeft / 60000);
-    const s = Math.floor((timeLeft % 60000) / 1000);
+    const total = totalTickets(entries);
+    const TOP = 10;
+    const lines = [];
+    pairs.slice(0, TOP).forEach(([id, count], i) => {
+        const pct = total === 0 ? 0 : (count / total) * 100;
+        const isAI = lotteryAI.isAIEntry(id);
+        const tag  = isAI ? `${lotteryAI.AI_BADGE} **${lotteryAI.AI_USERNAME}**` : `<@${id}>`;
+        const rank = `\`${String(i + 1).padStart(2, '0')}.\``;
+        lines.push(`${rank} ${tag} — \`${count}\` ticket${count === 1 ? '' : 's'} · **${pct.toFixed(1)}%**`);
+    });
+    if (pairs.length > TOP) {
+        lines.push(`-# +${pairs.length - TOP} more participant${pairs.length - TOP === 1 ? '' : 's'} not shown`);
+    }
+    return lines.join('\n');
+}
 
-    const growth = Math.max(0, lottery.jackpot - (lottery._lastJackpotCache || 0));
-    lottery._lastJackpotCache = lottery.jackpot;
+/* ─────────────────────────── Panel renderer ─────────────────────────── */
 
-    const gst = Math.floor(lottery.jackpot * GST_RATE);
+function buildPanel(lottery, viewerId, guildId) {
+    const total = totalTickets(lottery.entries);
+    const owned = userTicketsOf(lottery.entries, viewerId);
+    const chance = total === 0 ? 0 : (owned / total) * 100;
+    const next = nextPriceFor(owned);
+
+    const isActive = !!lottery.active && lottery.endsAt > Date.now();
+    const timeLeft = isActive ? lottery.endsAt - Date.now() : 0;
+
+    const gst    = Math.floor(lottery.jackpot * GST_RATE);
     const payout = lottery.jackpot - gst;
 
-    const c = createContainer(0xF1C40F);
+    // Three split tiers
+    const winnerSplit = [
+        Math.floor(payout * 0.60),
+        Math.floor(payout * 0.25),
+        payout - Math.floor(payout * 0.60) - Math.floor(payout * 0.25),
+    ];
 
-    addTextDisplay(
-        c,
-        [
-            `# 🎟️ Server Lottery`,
-            `*Fair draw · Server-wide · Transparent*\n`,
+    const accent = isActive ? 0xF1C40F : 0x6B7280;
 
-            `## ${coinIcon(guildId)} Jackpot`,
-            `**${formatCoins(lottery.jackpot, guildId)}**`,
-            `📈 Recent Growth: +${formatNumber(growth)}\n`,
+    const aiOwned = userTicketsOf(lottery.entries, lotteryAI.AI_USER_ID);
+    const aiActive = aiOwned > 0;
 
-            `## 🧾 Distribution`,
-            `• GST (18%): ${formatNumber(gst)}`,
-            `• Winner Pool: **${formatNumber(payout)}**\n`,
+    const c = new ContainerBuilder().setAccentColor(accent);
 
-            `## 🎫 Participation`,
-            `• Total Tickets Sold: **${totalTickets}**\n`,
+    // ── Header ──
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `# 🎟️ Server Lottery\n` +
+        `-# Fair · Server-wide · One AI participant joins the pool` +
+        (aiActive ? ` · ${lotteryAI.AI_BADGE} **${lotteryAI.AI_USERNAME}** is in this round` : '')
+    ));
+    c.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-            `## <:User:1473038971398520977> Your Entry`,
-            `• Tickets: **${userTickets}/${MAX_TICKETS}**`,
-            `• Win Chance: **${chance}%**`,
-            `• Next Ticket Cost: **${nextPrice} coins**\n`,
+    // ── Jackpot block ──
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### ${coinIcon(guildId)} Jackpot\n` +
+        `> **${formatCoins(lottery.jackpot, guildId)}**\n` +
+        `> -# Tax (${Math.round(GST_RATE * 100)}%): ${formatNumber(gst)} · Winner pool: **${formatNumber(payout)}**`
+    ));
 
-            `## <:Clock:1473039102113878056> Draw Timer`,
-            `**${m}m ${s}s remaining**\n`,
+    // ── Draw timer + status ──
+    const timerLine = isActive
+        ? `> ⏳ **${formatTimer(timeLeft)}** remaining`
+        : `> ⚪ **No active draw** — buy a ticket to start the next one`;
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### <:Clock:1473039102113878056> Draw Status\n` +
+        timerLine + `\n` +
+        `> Total tickets sold: **${total}**`
+    ));
 
-            `> Buy more tickets to increase your winning chance.`
-        ].join('\n')
-    );
+    // ── Prize split ──
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### <:Present:1473038450465706076> Prize Split\n` +
+        `> 🥇 1st (60%) — **${formatNumber(winnerSplit[0])}**\n` +
+        `> 🥈 2nd (25%) — **${formatNumber(winnerSplit[1])}**\n` +
+        `> 🥉 3rd (15%) — **${formatNumber(Math.max(0, winnerSplit[2]))}**`
+    ));
+
+    c.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+    // ── Your entry ──
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### <:User:1473038971398520977> Your Entry\n` +
+        `> Tickets: **${owned} / ${MAX_TICKETS}**\n` +
+        `> Win chance: **${chance.toFixed(2)}%**\n` +
+        `> Next ticket: ` + (next === null
+            ? `**MAX reached**`
+            : `${coinIcon(guildId)} **${formatNumber(next)} coins**`)
+    ));
+
+    // ── Participants table ──
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### <:Document:1473039496995143731> Participants (${Object.keys(lottery.entries || {}).length})\n` +
+        renderEntriesTable(lottery)
+    ));
+
+    // ── Recent draw history (small footer) ──
+    const hist = lottery.history;
+    if (hist && hist.endedAt && Array.isArray(hist.winners) && hist.winners.length > 0) {
+        const ts = Math.floor(new Date(hist.endedAt).getTime() / 1000);
+        const medals = ['🥇', '🥈', '🥉'];
+        const histLines = hist.winners.map((w, i) => {
+            const isAI = lotteryAI.isAIEntry(w.id);
+            const tag = isAI ? `${lotteryAI.AI_BADGE} ${lotteryAI.AI_USERNAME}` : `<@${w.id}>`;
+            return `> ${medals[i] || '•'} ${tag} — **${formatNumber(w.reward || 0)}**`;
+        });
+        c.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+        c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### 🏆 Last Draw — <t:${ts}:R>\n` + histLines.join('\n')
+        ));
+    }
 
     return c;
 }
 
-/* ===================== COMMAND ===================== */
+function buildButtons(viewerId, lottery) {
+    const owned = userTicketsOf(lottery.entries, viewerId);
+    const next = nextPriceFor(owned);
+    const buyDisabled = next === null;
+
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`lottery_join_${viewerId}`)
+            .setLabel(buyDisabled ? 'Max Tickets Reached' : 'Buy Ticket')
+            .setEmoji('🎫')
+            .setStyle(buyDisabled ? ButtonStyle.Secondary : ButtonStyle.Success)
+            .setDisabled(buyDisabled),
+        new ButtonBuilder()
+            .setCustomId(`lottery_refresh_${viewerId}`)
+            .setLabel('Refresh')
+            .setEmoji('<:History:1473037847568318605>')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`lottery_info_${viewerId}`)
+            .setLabel('How it Works')
+            .setEmoji('<:Lightbulbalt:1473038470787240009>')
+            .setStyle(ButtonStyle.Secondary),
+    );
+}
+
+function buildInfoPanel(guildId) {
+    const c = new ContainerBuilder().setAccentColor(0xF1C40F);
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `# 🎟️ How the Lottery Works\n` +
+        `-# Quick rundown of the rules so there are no surprises.`
+    ));
+    c.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `### <:Document:1473039496995143731> Rules\n` +
+        `> • Each draw runs for **1 hour** once it starts.\n` +
+        `> • Tickets cost **${BASE_TICKET_PRICE}** + **${PRICE_STEP}** per ticket already owned.\n` +
+        `> • You can hold up to **${MAX_TICKETS}** tickets per draw.\n` +
+        `> • Winners are picked weighted by tickets — more tickets = better odds.\n` +
+        `> • Tax of **${Math.round(GST_RATE * 100)}%** is removed before payout.\n` +
+        `> • Winner split: 🥇 60% · 🥈 25% · 🥉 15%.\n\n` +
+
+        `### ${lotteryAI.AI_BADGE} The AI Participant\n` +
+        `> • A single bot — **${lotteryAI.AI_USERNAME}** — competes against you.\n` +
+        `> • It buys tickets at metered intervals, never spam-buys, and never owns more than **${Math.round(lotteryAI._config.MAX_SHARE * 100)}%** of the pool.\n` +
+        `> • If it wins, the prize is recycled into the next jackpot — you never lose coins to it.\n` +
+        `> • Its tickets are eligible like any other entry; the draw never favours it.`
+    ));
+    c.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `-# Currency: ${coinIcon(guildId)} · Powered by xNico`
+    ));
+    return c;
+}
+
+/* ─────────────────────────── Run flow ─────────────────────────── */
+
+async function runLottery(target, replyHandle) {
+    const isInteraction = typeof target.isRepliable === 'function';
+    const userId  = isInteraction ? target.user.id : target.author.id;
+    const guildId = target.guild?.id;
+    const client  = target.client;
+
+    // Ensure scheduler is running. Calling .start() multiple times
+    // is a no-op (it self-guards), so cheap.
+    scheduler.start();
+
+    // The user pressing /lottery should also pre-trigger an overdue
+    // draw if the scheduler hasn't ticked yet for any reason.
+    await scheduler.runDrawIfDue();
+
+    let lottery = scheduler.loadLottery();
+
+    const panel   = buildPanel(lottery, userId, guildId);
+    const buttons = buildButtons(userId, lottery);
+
+    const msg = await replyHandle({
+        components: [panel, buttons],
+        flags: MessageFlags.IsComponentsV2,
+    });
+    if (!msg) return;
+
+    // ── Periodic re-render (so the timer & jackpot stay fresh) ──
+    const interval = setInterval(async () => {
+        const lot = scheduler.loadLottery();
+        try {
+            await msg.edit({
+                components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
+                flags: MessageFlags.IsComponentsV2,
+            });
+        } catch {
+            clearInterval(interval);
+        }
+    }, REFRESH_RATE);
+
+    if (typeof interval.unref === 'function') interval.unref();
+
+    // ── Button collector ──
+    const collector = msg.createMessageComponentCollector({
+        time: COLLECTOR_TIMEOUT,
+        filter: i => i.customId && i.customId.startsWith('lottery_'),
+    });
+
+    collector.on('collect', async (i) => {
+        const cid = i.customId;
+        try {
+            // Permission scoping — only the original requester can drive
+            // the panel buttons. Others get a tiny ephemeral hint.
+            if (!cid.endsWith(`_${i.user.id}`)) {
+                await i.reply({
+                    content: '<:Cancel:1473037949187657818> Run `/lottery` yourself to open your own panel.',
+                    flags: MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return;
+            }
+
+            // Help panel — ephemeral.
+            if (cid.startsWith('lottery_info_')) {
+                await i.reply({
+                    components: [buildInfoPanel(guildId)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                }).catch(() => {});
+                return;
+            }
+
+            await i.deferUpdate().catch(() => {});
+
+            // Refresh — just re-render with the latest state.
+            if (cid.startsWith('lottery_refresh_')) {
+                const lot = scheduler.loadLottery();
+                await msg.edit({
+                    components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
+                return;
+            }
+
+            // Buy — gated on funds + per-user cap, then mutates state.
+            if (cid.startsWith('lottery_join_')) {
+                const economy = economyManager.loadEconomy();
+                let lot = scheduler.loadLottery();
+
+                // Lazy-start the draw if it isn't already running.
+                if (!lot.active || lot.endsAt < Date.now()) {
+                    lot.active = true;
+                    lot.endsAt = Date.now() + LOTTERY_DURATION;
+                    lot.entries = lot.entries || {};
+                    lotteryAI.resetAI(lot);
+                }
+
+                const owned = userTicketsOf(lot.entries, userId);
+                if (owned >= MAX_TICKETS) {
+                    // Re-render so the button shows the disabled state.
+                    await msg.edit({
+                        components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
+                        flags: MessageFlags.IsComponentsV2,
+                    }).catch(() => {});
+                    return;
+                }
+
+                const price = BASE_TICKET_PRICE + owned * PRICE_STEP;
+                const { userData } = economyManager.getUser(economy, userId);
+                if ((userData.coins || 0) < price) {
+                    await i.followUp({
+                        content: `<:Cancel:1473037949187657818> You need **${formatNumber(price)}** coins for the next ticket — your wallet has ${formatNumber(userData.coins || 0)}.`,
+                        flags: MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                    return;
+                }
+
+                userData.coins -= price;
+                lot.entries[userId] = owned + 1;
+                lot.jackpot += price;
+
+                economyManager.saveEconomy(economy);
+                scheduler.saveLottery(lot);
+
+                await msg.edit({
+                    components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
+                return;
+            }
+        } catch (err) {
+            console.error('[lottery] collector error:', err);
+        }
+    });
+
+    collector.on('end', () => clearInterval(interval));
+}
+
+/* ─────────────────────────── Command export ─────────────────────────── */
 
 module.exports = {
-    data: new (require('discord.js').SlashCommandBuilder)()
+    data: new SlashCommandBuilder()
         .setName('lottery')
         .setDescription('Join the server lottery and win big prizes'),
     prefix: 'lottery',
     aliases: ['ticket', 'tickets'],
     category: 'economy',
+    description: 'Join the server lottery and win big prizes',
+    usage: 'lottery',
 
     async executePrefix(message) {
-        const guildId = message.guild?.id;
-        // Slash entrypoint pre-runs the guard; skip the second pass to avoid
-        // duplicate "gambling disabled" replies if the setting flips between calls.
-        if (!message._skipGuard && await gamblingGuard(message)) return;
-        const winners = await tryDraw();
-        if (winners) {
-            let text = '# <:Present:1473038450465706076> Lottery Winners\n\n';
-            const medals = ['🥇', '🥈', '🥉'];
-
-            winners.forEach((w, i) => {
-                text += `${medals[i]} <@${w.id}>\n`;
-                text += `> ${formatCoins(w.reward, guildId)}\n\n`;
-            });
-
-            const c = createContainer(0x57F287);
-            addTextDisplay(c, text);
-            return message.reply({
-                components: [c],
-                flags: MessageFlags.IsComponentsV2
-            });
-        }
-
-        const lottery = loadLottery();
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`lottery_join_${message.author.id}_${Date.now()}`)
-                .setLabel('🎫 Buy Ticket')
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId(`lottery_refresh_${message.author.id}_${Date.now()}`)
-                .setEmoji('<:History:1473037847568318605>')
-                .setLabel('Refresh')
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        const msg = await message.reply({
-            components: [buildUI(lottery, message.author.id, message.guild?.id), row],
-            flags: MessageFlags.IsComponentsV2
-        });
-
-        const interval = setInterval(async () => {
-            const lot = loadLottery();
-            if (!lot.active || Date.now() >= lot.endsAt) {
-                clearInterval(interval);
-                return;
-            }
-
-            await msg.edit({
-                components: [buildUI(lot, message.author.id, message.guild?.id), row],
-                flags: MessageFlags.IsComponentsV2
-            }).catch(() => clearInterval(interval));
-        }, REFRESH_RATE);
-
-        const collector = msg.createMessageComponentCollector({ time: LOTTERY_DURATION });
-
-        collector.on('collect', async i => {
-            await i.deferUpdate();
-
-            const economy = economyManager.loadEconomy();
-            const lottery = loadLottery();
-
-            if (i.customId.startsWith('lottery_join')) {
-                const { userData: lotteryUser } = economyManager.getUser(economy, i.user.id);
-
-                if (!lottery.active) {
-                    lottery.active = true;
-                    lottery.endsAt = Date.now() + LOTTERY_DURATION;
-                }
-
-                const owned = lottery.entries[i.user.id] || 0;
-                if (owned >= MAX_TICKETS) return;
-
-                const price = BASE_TICKET_PRICE + owned * PRICE_STEP;
-                if (lotteryUser.coins < price) return;
-
-                lotteryUser.coins -= price;
-                lottery.entries[i.user.id] = owned + 1;
-                lottery.jackpot += price;
-
-                economyManager.saveEconomy(economy);
-                saveLottery(lottery);
-            }
-
-            await msg.edit({
-                components: [buildUI(lottery, i.user.id, i.guild?.id), row],
-                flags: MessageFlags.IsComponentsV2
-            }).catch(() => {});
-        });
-
-        collector.on('end', () => {
-            clearInterval(interval);
-        });
+        if (await gamblingGuard(message)) return;
+        return runLottery(message, async (payload) => message.reply(payload));
     },
 
     async execute(interaction) {
         if (await gamblingGuard(interaction)) return;
-        // Defer non-ephemeral so the panel stays interactive for the whole guild.
         await interaction.deferReply();
-
-        // Build a Message-shaped shim so the prefix flow keeps working.
-        // The previous shim dropped `guild` (custom currency fell back to
-        // the default emoji) and `client` (some downstream helpers expect
-        // them). `interaction.editReply` returns a real Message, so the
-        // `msg.edit(...)` and `msg.createMessageComponentCollector(...)`
-        // calls inside executePrefix work transparently.
-        const shim = {
-            author: interaction.user,
-            guild:  interaction.guild,
-            client: interaction.client,
-            reply:  (opts) => interaction.editReply(opts),
-            _skipGuard: true,
-        };
-
-        return module.exports.executePrefix(shim);
+        return runLottery(interaction, async (payload) => interaction.editReply(payload));
     },
 };

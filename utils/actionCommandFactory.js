@@ -3,16 +3,19 @@
  * from a simple config object. Each command fetches an anime GIF from
  * nekos.best → waifu.pics → Tenor → GIPHY → hardcoded fallbacks.
  *
- * Professional CV2 container layout:
- *   ┌─────────────────────────────────────────┐
- *   │ [emoji] Author verbed Target!           │
- *   │                                         │
- *   │ ┌─────────────────────────────────────┐ │
- *   │ │           Anime GIF                 │ │
- *   │ └─────────────────────────────────────┘ │
- *   │                                         │
- *   │ -# emoji Author ▸ Target               │
- *   └─────────────────────────────────────────┘
+ * Professional CV2 container layout (3-item MediaGallery):
+ *   ┌──────────────────────────────────────────────────────┐
+ *   │ <emoji> Action Command Executed                      │
+ *   │ -# Author <verb> Target                              │
+ *   │ ┌──────────────────────────┐ ┌──────────────────┐   │
+ *   │ │                          │ │  Author Avatar   │   │
+ *   │ │       Action GIF         │ ├──────────────────┤   │
+ *   │ │      (large, left)       │ │  Target Avatar   │   │
+ *   │ └──────────────────────────┘ └──────────────────┘   │
+ *   │ ──────────────────────────────────────────────────── │
+ *   │ <emoji> Author <:Caretright:1473038207221502106> Target  ·  <t:now:R>                │
+ *   │ -# <:xnico:…> xNico </> · Action System              │
+ *   └──────────────────────────────────────────────────────┘
  */
 
 'use strict';
@@ -23,8 +26,6 @@ const {
     TextDisplayBuilder,
     MediaGalleryBuilder,
     MediaGalleryItemBuilder,
-    SectionBuilder,
-    ThumbnailBuilder,
     SeparatorBuilder,
     SeparatorSpacingSize,
     MessageFlags
@@ -32,13 +33,25 @@ const {
 const { buildErrorResponse } = require('./responseBuilder');
 const { resolveUser } = require('./resolveUser');
 
+// ── Brand constants (kept in sync with utils/responseBuilder.js) ─────────
+const BRAND_EMOJI = '<:xnico:1486755083390550036>';
+const BRAND_LINE  = `${BRAND_EMOJI} **xNico** \`</>\` · Action System`;
+const ARROW_EMOJI = '<:Caretright:1473038207221502106>';
+
 // ── Custom emoji map for professional styling ────────────────────────────
 const ACTION_EMOJIS = {
+    // Love / affection
     hug:       '<a:HeartCross:1506258489960304800>',
     kiss:      '<a:HeartCross:1506258489960304800>',
     cuddle:    '<a:HeartCross:1506258489960304800>',
     handhold:  '<a:HeartCross:1506258489960304800>',
     peck:      '<a:HeartCross:1506258489960304800>',
+    snuggle:   '<a:HeartCross:1506258489960304800>',
+    blowkiss:  '<a:HeartCross:1506258489960304800>',
+    lappillow: '<a:HeartCross:1506258489960304800>',
+    carry:     '<a:HeartCross:1506258489960304800>',
+
+    // Happy / positive
     pat:       '<:Star:1473038501766369300>',
     pet:       '<:Star:1473038501766369300>',
     praise:    '<:Star:1473038501766369300>',
@@ -48,39 +61,81 @@ const ACTION_EMOJIS = {
     salute:    '<:Checkedbox:1473038547165384804>',
     smile:     '<:Checkedbox:1473038547165384804>',
     wink:      '<:Checkedbox:1473038547165384804>',
+    thumbsup:  '<:Checkedbox:1473038547165384804>',
+    nod:       '<:Checkedbox:1473038547165384804>',
+    handshake: '<:Checkedbox:1473038547165384804>',
+    happy:     '<:Star:1473038501766369300>',
+
+    // Fun / playful
     dance:     '<:Music:1473039311057190972>',
     laugh:     '<:Music:1473039311057190972>',
     blush:     '<:Music:1473039311057190972>',
+    spin:      '<:Music:1473039311057190972>',
+    smug:      '<:Lightning:1473038797540298792>',
+    think:     '<:Lightning:1473038797540298792>',
+
+    // Attack / playful violence
     bite:      '<:Fire:1473038604812161218>',
     bonk:      '<:Fire:1473038604812161218>',
     slap:      '<:Fire:1473038604812161218>',
     punch:     '<:Fire:1473038604812161218>',
+    yeet:      '<:Fire:1473038604812161218>',
+    bully:     '<:Fire:1473038604812161218>',
+    baka:      '<:Fire:1473038604812161218>',
+    shoot:     '<:Fire:1473038604812161218>',
+    tableflip: '<:Fire:1473038604812161218>',
+    angry:     '<:Fire:1473038604812161218>',
+
+    // Light teasing / interaction
     poke:      '<:Lightning:1473038797540298792>',
     tickle:    '<:Lightning:1473038797540298792>',
     feed:      '<:Lightning:1473038797540298792>',
+
+    // Sad / passive
     cry:       '<:Cancel:1473037949187657818>',
     facepalm:  '<:Cancel:1473037949187657818>',
     stare:     '<:Eye:1473038435056095242>',
     yawn:      '<:Clock:1473039102113878056>',
     stretch:   '<:Clock:1473039102113878056>',
+    sleep:     '<:Clock:1473039102113878056>',
+    pout:      '<:Cancel:1473037949187657818>',
+    shocked:   '<:Eye:1473038435056095242>',
+    shrug:     '<:Cancel:1473037949187657818>',
+    bored:     '<:Clock:1473039102113878056>',
+    confused:  '<:Eye:1473038435056095242>',
 };
 
 // Accent colors per action mood
 const ACTION_COLORS = {
-    love:    0xE91E63,  // pink — hug, kiss, cuddle, handhold, peck
-    happy:   0x57F287,  // green — pat, pet, praise, highfive, wave, celebrate, salute, smile, wink
-    fun:     0xFEE75C,  // yellow — dance, laugh, blush, tickle, poke, feed
-    attack:  0xED4245,  // red — bite, bonk, slap, punch
-    sad:     0x5865F2,  // blurple — cry, facepalm, stare, yawn, stretch
+    love:   0xE91E63,  // pink
+    happy:  0x57F287,  // green
+    fun:    0xFEE75C,  // yellow
+    attack: 0xED4245,  // red
+    sad:    0x5865F2,  // blurple
 };
 
 const ACTION_MOOD = {
+    // Love
     hug: 'love', kiss: 'love', cuddle: 'love', handhold: 'love', peck: 'love',
+    snuggle: 'love', blowkiss: 'love', lappillow: 'love', carry: 'love',
+
+    // Happy
     pat: 'happy', pet: 'happy', praise: 'happy', highfive: 'happy', wave: 'happy',
     celebrate: 'happy', salute: 'happy', smile: 'happy', wink: 'happy',
+    thumbsup: 'happy', nod: 'happy', handshake: 'happy', happy: 'happy',
+
+    // Fun
     dance: 'fun', laugh: 'fun', blush: 'fun', tickle: 'fun', poke: 'fun', feed: 'fun',
+    spin: 'fun', smug: 'fun', think: 'fun',
+
+    // Attack
     bite: 'attack', bonk: 'attack', slap: 'attack', punch: 'attack',
+    yeet: 'attack', bully: 'attack', baka: 'attack',
+    shoot: 'attack', tableflip: 'attack', angry: 'attack',
+
+    // Sad
     cry: 'sad', facepalm: 'sad', stare: 'sad', yawn: 'sad', stretch: 'sad',
+    sleep: 'sad', pout: 'sad', shocked: 'sad', shrug: 'sad', bored: 'sad', confused: 'sad',
 };
 
 // ── API endpoint sets ────────────────────────────────────────────────────
@@ -103,9 +158,9 @@ const WAIFU_PICS_ENDPOINTS = new Set([
     'pat', 'poke', 'punch', 'slap', 'smile', 'wave', 'wink', 'yeet'
 ]);
 
-// ── GIF fetching (multi-source with fallback) ────────────────────────────
+// ── GIF fetching (API-only: nekos.best → waifu.pics → Tenor → GIPHY) ─────
 
-async function fetchAnimeGif(query, fallbacks, nekosName = null, waifuName = null) {
+async function fetchAnimeGif(query, _legacyFallbacks, nekosName = null, waifuName = null) {
     waifuName = waifuName ?? nekosName;
 
     // 1. nekos.best (free, dedicated anime endpoints)
@@ -130,9 +185,9 @@ async function fetchAnimeGif(query, fallbacks, nekosName = null, waifuName = nul
         } catch { /* fall through */ }
     }
 
-    // 3. Tenor API v2
+    // 3. Tenor API v2 (requires TENOR_API_KEY)
     const tenorKey = process.env.TENOR_API_KEY;
-    if (tenorKey) {
+    if (tenorKey && query) {
         try {
             const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(tenorKey)}&client_key=xnicobot&limit=40&media_filter=tinygif,gif`;
             const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
@@ -146,9 +201,9 @@ async function fetchAnimeGif(query, fallbacks, nekosName = null, waifuName = nul
         } catch { /* fall through */ }
     }
 
-    // 4. GIPHY API
+    // 4. GIPHY API (requires GIPHY_API_KEY)
     const giphyKey = process.env.GIPHY_API_KEY;
-    if (giphyKey) {
+    if (giphyKey && query) {
         try {
             const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(giphyKey)}&q=${encodeURIComponent(query)}&limit=30&rating=pg-13`;
             const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
@@ -162,8 +217,8 @@ async function fetchAnimeGif(query, fallbacks, nekosName = null, waifuName = nul
         } catch { /* fall through */ }
     }
 
-    // 5. Hardcoded fallback
-    return getRandomElement(fallbacks);
+    // No source returned a GIF — container will render avatars only.
+    return null;
 }
 
 function selectMediaUrl(items, isGiphy = false) {
@@ -189,50 +244,141 @@ function getAvatarUrl(user, size = 256) {
 
 function buildActionContainer(author, target, verb, emoji, gifUrl, actionName) {
     const customEmoji = ACTION_EMOJIS[actionName] || emoji;
-    const mood = ACTION_MOOD[actionName] || 'happy';
+    const mood        = ACTION_MOOD[actionName] || 'happy';
     const accentColor = ACTION_COLORS[mood] || 0x2b2d31;
     const authorAvatar = getAvatarUrl(author, 512);
     const targetAvatar = getAvatarUrl(target, 512);
 
-    const container = new ContainerBuilder()
-        .setAccentColor(accentColor);
+    const authorName = author.globalName || author.username;
+    const targetName = target.globalName || target.username;
+    const nowEpoch   = Math.floor(Date.now() / 1000);
 
-    // Header section: action text + author avatar
-    container.addSectionComponents(
-        new SectionBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `${customEmoji} **${author.globalName || author.username}** ${verb} **${target.globalName || target.username}**!`
-                )
-            )
-            .setThumbnailAccessory(
-                new ThumbnailBuilder().setURL(authorAvatar).setDescription(`${author.username}`)
-            )
+    const container = new ContainerBuilder().setAccentColor(accentColor);
+
+    // ── Header ─────────────────────────────────────────────────────────
+    // Bold title + subtitle line stating the action sentence.
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `${customEmoji} **Action Command Executed**\n` +
+            `-# **${escapeMd(authorName)}** ${verb} **${escapeMd(targetName)}**`
+        )
     );
 
-    // GIF visual
+    // ── Hero gallery ───────────────────────────────────────────────────
+    // Discord's MediaGallery auto-arranges 3 items as [big | small/small].
+    // 1: large action GIF (left)   2: author avatar (top-right)
+    //                              3: target avatar (bottom-right)
     if (gifUrl) {
         container.addMediaGalleryComponents(
-            new MediaGalleryBuilder()
-                .addItems(new MediaGalleryItemBuilder().setURL(gifUrl))
+            new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder()
+                    .setURL(gifUrl)
+                    .setDescription(`${authorName} ${verb} ${targetName}`),
+                new MediaGalleryItemBuilder()
+                    .setURL(authorAvatar)
+                    .setDescription(`${author.username} — executor`),
+                new MediaGalleryItemBuilder()
+                    .setURL(targetAvatar)
+                    .setDescription(`${target.username} — target`)
+            )
+        );
+    } else {
+        // No GIF available — keep the layout clean with just the avatars.
+        container.addMediaGalleryComponents(
+            new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder()
+                    .setURL(authorAvatar)
+                    .setDescription(`${author.username} — executor`),
+                new MediaGalleryItemBuilder()
+                    .setURL(targetAvatar)
+                    .setDescription(`${target.username} — target`)
+            )
         );
     }
 
-    // Footer section: subtle info + target avatar
+    // ── Meta line (action summary + timestamp) ─────────────────────────
     container.addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `-# ${customEmoji} **${escapeMd(author.username)}** ${ARROW_EMOJI} ` +
+            `**${escapeMd(target.username)}**  ·  <t:${nowEpoch}:R>`
+        )
     );
 
-    container.addSectionComponents(
-        new SectionBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                    `-# ${customEmoji} **${author.username}** ▸ **${target.username}**`
-                )
+    // ── Branded footer ─────────────────────────────────────────────────
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small)
+    );
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`-# ${BRAND_LINE}`)
+    );
+
+    return container;
+}
+
+// ── Markdown helper ──────────────────────────────────────────────────────
+// Escapes characters that would otherwise break Discord markdown when a
+// user has special chars in their display name (e.g. `_` `*` `~` `|` `\`).
+function escapeMd(str) {
+    if (!str) return '';
+    return String(str).replace(/([\\*_~`|>])/g, '\\$1');
+}
+
+// ── Solo container (no target, e.g. /sleep, /pout, /tableflip) ───────────
+function buildSoloActionContainer(author, verb, emoji, gifUrl, actionName) {
+    const customEmoji = ACTION_EMOJIS[actionName] || emoji;
+    const mood        = ACTION_MOOD[actionName] || 'happy';
+    const accentColor = ACTION_COLORS[mood] || 0x2b2d31;
+    const authorAvatar = getAvatarUrl(author, 512);
+    const authorName   = author.globalName || author.username;
+    const nowEpoch     = Math.floor(Date.now() / 1000);
+
+    const container = new ContainerBuilder().setAccentColor(accentColor);
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `${customEmoji} **Action Command Executed**\n` +
+            `-# **${escapeMd(authorName)}** ${verb}`
+        )
+    );
+
+    if (gifUrl) {
+        container.addMediaGalleryComponents(
+            new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder()
+                    .setURL(gifUrl)
+                    .setDescription(`${authorName} ${verb}`),
+                new MediaGalleryItemBuilder()
+                    .setURL(authorAvatar)
+                    .setDescription(`${author.username} — executor`)
             )
-            .setThumbnailAccessory(
-                new ThumbnailBuilder().setURL(targetAvatar).setDescription(`${target.username}`)
+        );
+    } else {
+        container.addMediaGalleryComponents(
+            new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder()
+                    .setURL(authorAvatar)
+                    .setDescription(`${author.username} — executor`)
             )
+        );
+    }
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `-# ${customEmoji} **${escapeMd(author.username)}**  ·  <t:${nowEpoch}:R>`
+        )
+    );
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(false).setSpacing(SeparatorSpacingSize.Small)
+    );
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`-# ${BRAND_LINE}`)
     );
 
     return container;
@@ -243,23 +389,40 @@ function buildActionContainer(author, target, verb, emoji, gifUrl, actionName) {
 function createActionCommand(opts) {
     const nekosName = opts.nekosEndpoint ?? opts.name;
     const waifuName = opts.waifuEndpoint ?? opts.name;
+    const isSolo    = opts.solo === true;
+
+    const slash = new SlashCommandBuilder()
+        .setName(opts.name)
+        .setDescription(opts.description);
+
+    if (!isSolo) {
+        slash.addUserOption(option =>
+            option.setName('user')
+                .setDescription(`The user to ${opts.name}`)
+                .setRequired(true));
+    }
 
     return {
-        data: new SlashCommandBuilder()
-            .setName(opts.name)
-            .setDescription(opts.description)
-            .addUserOption(option =>
-                option.setName('user')
-                    .setDescription(`The user to ${opts.name}`)
-                    .setRequired(true)),
+        data: slash,
         prefix: opts.name,
         description: opts.description,
-        usage: `${opts.name} <@user>`,
+        usage: isSolo ? opts.name : `${opts.name} <@user>`,
         category: 'action',
         aliases: opts.aliases || [],
         dmAllowed: true,
 
         async execute(interaction) {
+            // ── Solo action path ───────────────────────────────────────
+            if (isSolo) {
+                await interaction.deferReply();
+                const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
+                const container = buildSoloActionContainer(
+                    interaction.user, opts.verb, opts.emoji, gif, opts.name
+                );
+                return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            }
+
+            // ── Targeted action path ───────────────────────────────────
             const target = interaction.options.getUser('user');
 
             if (!opts.selfAllowed && target.id === interaction.user.id) {
@@ -274,7 +437,7 @@ function createActionCommand(opts) {
             }
 
             await interaction.deferReply();
-            const gif = await fetchAnimeGif(opts.searchQuery, opts.fallbackGifs, nekosName, waifuName);
+            const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
             const container = buildActionContainer(
                 interaction.user, target, opts.verb, opts.emoji, gif, opts.name
             );
@@ -282,6 +445,16 @@ function createActionCommand(opts) {
         },
 
         async executePrefix(message, args) {
+            // ── Solo action path ───────────────────────────────────────
+            if (isSolo) {
+                const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
+                const container = buildSoloActionContainer(
+                    message.author, opts.verb, opts.emoji, gif, opts.name
+                );
+                return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            }
+
+            // ── Targeted action path ───────────────────────────────────
             const target = await resolveUser(message, args);
 
             if (!target) {
@@ -307,7 +480,7 @@ function createActionCommand(opts) {
                 });
             }
 
-            const gif = await fetchAnimeGif(opts.searchQuery, opts.fallbackGifs, nekosName, waifuName);
+            const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
             const container = buildActionContainer(
                 message.author, target, opts.verb, opts.emoji, gif, opts.name
             );
@@ -316,4 +489,11 @@ function createActionCommand(opts) {
     };
 }
 
-module.exports = { createActionCommand, fetchAnimeGif, buildActionContainer, getRandomElement, selectMediaUrl };
+module.exports = {
+    createActionCommand,
+    fetchAnimeGif,
+    buildActionContainer,
+    buildSoloActionContainer,
+    getRandomElement,
+    selectMediaUrl
+};

@@ -492,9 +492,9 @@ function buildPremiumGate(commandName) {
         content += `This feature is premium-only.\n`;
     }
     content += `\n### How to unlock\n`;
-    content += `▸ \`/redeemkey <KEY>\` — activate **user** premium for yourself\n`;
-    content += `▸ \`/redeemserverkey <KEY>\` — activate **server** premium for everyone in this server\n`;
-    content += `▸ Owner: \`/genkey\` to generate a key, then share it with the user / server admin\n\n`;
+    content += `<:Caretright:1473038207221502106> \`/redeemkey <KEY>\` — activate **user** premium for yourself\n`;
+    content += `<:Caretright:1473038207221502106> \`/redeemserverkey <KEY>\` — activate **server** premium for everyone in this server\n`;
+    content += `<:Caretright:1473038207221502106> Owner: \`/genkey\` to generate a key, then share it with the user / server admin\n\n`;
     content += `-# Premium also bypasses command cooldowns and unlocks bot customization, custom currency, custom shop, loans, and more.`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));

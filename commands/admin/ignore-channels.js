@@ -216,7 +216,7 @@ function buildChannelListPanel(guildConfig, guild, page = 0) {
             .setDisabled(currentPage === 0),
         new ButtonBuilder()
             .setCustomId(`ignorech_channels_page_${currentPage + 1}`)
-            .setEmoji('<:Skipnext:1473039269726785737>')
+            .setEmoji('<:Caretright:1473038207221502106>')
             .setLabel('Next')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1),
@@ -287,7 +287,7 @@ function buildCategoryListPanel(guildConfig, guild, page = 0) {
             .setDisabled(currentPage === 0),
         new ButtonBuilder()
             .setCustomId(`ignorech_categories_page_${currentPage + 1}`)
-            .setEmoji('<:Skipnext:1473039269726785737>')
+            .setEmoji('<:Caretright:1473038207221502106>')
             .setLabel('Next')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1),

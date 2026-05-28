@@ -270,6 +270,95 @@ function readBotStore(storeName) {
     return jsonStore.read(storeName);
 }
 
+// ── Bot guild membership resolver ───────────────────────────────────────────
+// Discord's GET /users/@me/guilds caps results at 200 per page, so a bot
+// in 200+ servers would silently drop guilds and the dashboard would
+// incorrectly show "Invite Bot" for guilds the bot is already in. This
+// helper paginates the Discord API, caches the result, and falls back
+// to the local guild_members store on API failure.
+const BOT_GUILDS_TTL_MS = 30_000;
+let _botGuildsCache = { ids: null, fetchedAt: 0, refreshing: null };
+
+async function fetchAllBotGuildIds() {
+    if (!BOT_TOKEN) return new Set();
+
+    const ids = new Set();
+    let after = null;
+    // Defensive cap (~ 20k guilds) so a malformed response can never
+    // turn into an infinite loop.
+    for (let page = 0; page < 100; page++) {
+        const url = new URL('https://discord.com/api/users/@me/guilds');
+        url.searchParams.set('limit', '200');
+        if (after) url.searchParams.set('after', after);
+
+        const r = await fetch(url, { headers: { Authorization: `Bot ${BOT_TOKEN}` } });
+        if (!r.ok) break;
+        const batch = await r.json();
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        for (const g of batch) ids.add(g.id);
+        if (batch.length < 200) break;
+        after = batch[batch.length - 1].id;
+    }
+    return ids;
+}
+
+function readBotGuildIdsFromLocalStore() {
+    // Fallback: any guild the bot has ever recorded a member for is
+    // a guild the bot is (or was) in. Better than nothing if the API
+    // call fails.
+    const ids = new Set();
+    try {
+        const members = readBotStore('guild_members') || [];
+        const arr = Array.isArray(members) ? members : Object.values(members || {});
+        for (const m of arr) {
+            const gid = m?.guild_id || m?.guildId;
+            if (gid) ids.add(String(gid));
+        }
+    } catch {}
+    try {
+        const guilds = readBotStore('guilds') || [];
+        const arr = Array.isArray(guilds) ? guilds : [];
+        for (const g of arr) {
+            const gid = g?.guild_id || g?.guildId || g?.id;
+            if (gid) ids.add(String(gid));
+        }
+    } catch {}
+    return ids;
+}
+
+async function getBotGuildIds({ force = false } = {}) {
+    const now = Date.now();
+    if (!force && _botGuildsCache.ids && (now - _botGuildsCache.fetchedAt) < BOT_GUILDS_TTL_MS) {
+        return _botGuildsCache.ids;
+    }
+    // Coalesce concurrent refreshes into one in-flight request.
+    if (_botGuildsCache.refreshing) return _botGuildsCache.refreshing;
+
+    _botGuildsCache.refreshing = (async () => {
+        try {
+            const ids = await fetchAllBotGuildIds();
+            if (ids.size > 0) {
+                _botGuildsCache.ids = ids;
+                _botGuildsCache.fetchedAt = Date.now();
+                return ids;
+            }
+        } catch (e) {
+            console.warn('[botGuilds] Discord API fetch failed:', e?.message || e);
+        }
+        // API failed — fall back to local store, but don't cache the
+        // fallback result for long so we'll retry the API soon.
+        const local = readBotGuildIdsFromLocalStore();
+        if (local.size > 0) {
+            _botGuildsCache.ids = local;
+            _botGuildsCache.fetchedAt = now - (BOT_GUILDS_TTL_MS - 5000); // expire in 5s
+            return local;
+        }
+        return _botGuildsCache.ids || new Set();
+    })().finally(() => { _botGuildsCache.refreshing = null; });
+
+    return _botGuildsCache.refreshing;
+}
+
 /**
  * Write a store and wait until it's actually been persisted to
  * PostgreSQL (or the local file in fallback mode).
@@ -571,36 +660,42 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 
 // ── User's Discord Guilds ────────────────────────────────────────────────────
 app.get('/api/guilds/me', authMiddleware, async (req, res) => {
-    if (req.user.discordId) {
-        // Get saved guilds
-        let guilds = readJSON(`guilds_${req.user.discordId}.json`, []);
-        // Try refresh from Discord API
-        if (req.user.accessToken) {
-            try {
-                const r = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${req.user.accessToken}` } });
-                if (r.ok) {
-                    const all = await r.json();
-                    guilds = all.filter(g => (g.permissions & 0x8) === 0x8 || (g.permissions & 0x20) === 0x20);
-                    writeJSON(`guilds_${req.user.discordId}.json`, guilds);
-                }
-            } catch { }
-        }
-        // Get bot guilds to mark which ones bot is in
-        let botGuildIds = new Set();
-        if (BOT_TOKEN) {
-            try {
-                const r = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bot ${BOT_TOKEN}` } });
-                if (r.ok) { const bg = await r.json(); bg.forEach(g => botGuildIds.add(g.id)); }
-            } catch { }
-        }
-        const result = guilds.map(g => ({
-            ...g,
-            icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-            botPresent: botGuildIds.has(g.id)
-        }));
-        return res.json(result);
+    if (!req.user.discordId) return res.json([]);
+
+    // Get saved guilds (admin/manage only — written at login)
+    let guilds = readJSON(`guilds_${req.user.discordId}.json`, []);
+    // Try refresh from Discord API
+    if (req.user.accessToken) {
+        try {
+            const r = await fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${req.user.accessToken}` } });
+            if (r.ok) {
+                const all = await r.json();
+                guilds = all.filter(g => (g.permissions & 0x8) === 0x8 || (g.permissions & 0x20) === 0x20);
+                writeJSON(`guilds_${req.user.discordId}.json`, guilds);
+            }
+        } catch { }
     }
-    res.json([]);
+
+    const force = req.query.refresh === '1';
+    const botGuildIds = await getBotGuildIds({ force });
+
+    const result = guilds.map(g => ({
+        ...g,
+        icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
+        botPresent: botGuildIds.has(g.id)
+    }));
+    return res.json(result);
+});
+
+// Manual refresh — bypasses cache, used by the "Invite Bot" page after
+// the user invites the bot so the UI flips to "Manage" immediately.
+app.post('/api/guilds/refresh', authMiddleware, async (req, res) => {
+    try {
+        const ids = await getBotGuildIds({ force: true });
+        return res.json({ ok: true, count: ids.size });
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e?.message || 'refresh failed' });
+    }
 });
 
 // ── Guild Config (Welcomer, AutoMod, etc.) ───────────────────────────────────
@@ -759,7 +854,7 @@ const MODULE_DEFAULTS = {
     voice: () => ({ enabled: false, j2cChannelId: null, j2cCategoryId: null, j2cUserLimit: 0, j2cBitrate: 64000, voiceRoles: {} }),
     reactionroles: () => ({ enabled: false, panels: [] }),
     giveaway: () => ({ enabled: true }),
-    'bot-customize': () => ({ nickname: null, avatarUrl: null, prefix: null, embedColor: '#5865F2', footerText: null, language: 'en', commandCooldown: 5, deleteCommands: false, ephemeralResponses: false }),
+    'bot-customize': () => ({ nickname: null, avatarUrl: null, bannerUrl: null, aboutText: null, prefix: null, embedColor: 'default', footerText: null, footerIcon: null, language: 'en', dmOnJoin: false, dmMessage: null, commandCooldown: 3, deleteCommands: false, ephemeralResponses: false }),
     'botignore-config': () => ({ enabled: false, ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], ignoreAllBots: false, ignorePrefix: false }),
     'social-notify': () => ({ youtube: { enabled: false, channels: [], notifyChannel: null, pingRole: null, message: '{channel} uploaded a new video!\n\n**{title}**\n{url}', liveMessage: '🔴 **{channel}** is now LIVE!\n{url}', liveEnabled: true } }),
     'vote-config': () => ({ enabled: false, channelId: null, pingRoleId: null }),
@@ -1165,13 +1260,18 @@ app.get('/api/guild/:guildId/bot-customize-config', authMiddleware, async (req, 
     res.json({
         nickname: cfg.nickname || null,
         avatarUrl: cfg.avatarUrl || null,
+        bannerUrl: cfg.bannerUrl || null,
+        aboutText: cfg.aboutText || null,
         prefix: cfg.prefix || null,
-        embedColor: cfg.embedColor || '#5865F2',
+        embedColor: cfg.embedColor || 'default',
         footerText: cfg.footerText || null,
+        footerIcon: cfg.footerIcon || null,
         language: cfg.language || 'en',
-        commandCooldown: cfg.commandCooldown || 5,
+        dmOnJoin: cfg.dmOnJoin || false,
+        dmMessage: cfg.dmMessage || null,
+        commandCooldown: cfg.commandCooldown ?? 3,
         deleteCommands: cfg.deleteCommands || false,
-        ephemeralResponses: cfg.ephemeralResponses || false
+        ephemeralResponses: cfg.ephemeralResponses || false,
     });
 });
 app.put('/api/guild/:guildId/bot-customize-config', authMiddleware, async (req, res) => {
@@ -1182,11 +1282,21 @@ app.put('/api/guild/:guildId/bot-customize-config', authMiddleware, async (req, 
     const data = readBotStore('bot-customize') || {};
     if (!data[gid]) data[gid] = {};
     const cfg = data[gid];
+
+    // Same field set the slash panel writes — keeps the dashboard in
+    // lock-step with /bot-customize so admins can edit either surface
+    // and see the change applied everywhere.
     if (typeof body.nickname === 'string' || body.nickname === null) cfg.nickname = body.nickname;
+    if (typeof body.avatarUrl === 'string' || body.avatarUrl === null) cfg.avatarUrl = body.avatarUrl;
+    if (typeof body.bannerUrl === 'string' || body.bannerUrl === null) cfg.bannerUrl = body.bannerUrl;
+    if (typeof body.aboutText === 'string' || body.aboutText === null) cfg.aboutText = body.aboutText;
     if (typeof body.prefix === 'string' || body.prefix === null) cfg.prefix = body.prefix;
     if (typeof body.embedColor === 'string') cfg.embedColor = body.embedColor;
     if (typeof body.footerText === 'string' || body.footerText === null) cfg.footerText = body.footerText;
+    if (typeof body.footerIcon === 'string' || body.footerIcon === null) cfg.footerIcon = body.footerIcon;
     if (typeof body.language === 'string') cfg.language = body.language;
+    if (typeof body.dmOnJoin === 'boolean') cfg.dmOnJoin = body.dmOnJoin;
+    if (typeof body.dmMessage === 'string' || body.dmMessage === null) cfg.dmMessage = body.dmMessage;
     if (Number.isFinite(Number(body.commandCooldown))) cfg.commandCooldown = Math.max(0, Math.min(60, Number(body.commandCooldown)));
     if (typeof body.deleteCommands === 'boolean') cfg.deleteCommands = body.deleteCommands;
     if (typeof body.ephemeralResponses === 'boolean') cfg.ephemeralResponses = body.ephemeralResponses;
@@ -1228,6 +1338,88 @@ app.put('/api/guild/:guildId/bot-customize-config', authMiddleware, async (req, 
             headers: { 'Authorization': `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ nick: body.nickname || '' })
         }).catch(() => { });
+    }
+
+    // Live update per-server avatar via Discord API. The slash panel
+    // does this synchronously, so doing it here keeps the dashboard at
+    // parity. Body shapes:
+    //   - { avatarUrl: 'https://…' }   → fetch + base64 + PATCH
+    //   - { avatarUrl: 'data:image/…' } → PATCH directly
+    //   - { avatarUrl: null }          → reset to global avatar
+    if (Object.prototype.hasOwnProperty.call(body, 'avatarUrl') && BOT_TOKEN) {
+        (async () => {
+            try {
+                let payloadAvatar = null;
+                if (typeof body.avatarUrl === 'string' && body.avatarUrl.length > 0) {
+                    if (body.avatarUrl.startsWith('data:')) {
+                        payloadAvatar = body.avatarUrl;
+                    } else {
+                        const r = await fetch(body.avatarUrl);
+                        if (r.ok) {
+                            const buf = Buffer.from(await r.arrayBuffer());
+                            const ct = r.headers.get('content-type') || 'image/png';
+                            payloadAvatar = `data:${ct};base64,${buf.toString('base64')}`;
+                        }
+                    }
+                }
+                await fetch(`https://discord.com/api/v10/guilds/${gid}/members/@me`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ avatar: payloadAvatar }),
+                });
+            } catch (e) {
+                console.error('[Dashboard] Failed to push guild avatar:', e?.message || e);
+            }
+        })();
+    }
+
+    // Live update per-server banner via Discord API. Same endpoint as
+    // avatar, just targeting the `banner` field. Discord may reject
+    // (some guild contexts don't allow it for bots) — when that happens
+    // the local store value still drives /botinfo and /botprofile.
+    if (Object.prototype.hasOwnProperty.call(body, 'bannerUrl') && BOT_TOKEN) {
+        (async () => {
+            try {
+                let payloadBanner = null;
+                if (typeof body.bannerUrl === 'string' && body.bannerUrl.length > 0) {
+                    if (body.bannerUrl.startsWith('data:')) {
+                        payloadBanner = body.bannerUrl;
+                    } else {
+                        const r = await fetch(body.bannerUrl);
+                        if (r.ok) {
+                            const buf = Buffer.from(await r.arrayBuffer());
+                            const ct = r.headers.get('content-type') || 'image/png';
+                            payloadBanner = `data:${ct};base64,${buf.toString('base64')}`;
+                        }
+                    }
+                }
+                await fetch(`https://discord.com/api/v10/guilds/${gid}/members/@me`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ banner: payloadBanner }),
+                });
+            } catch (e) {
+                console.error('[Dashboard] Failed to push guild banner:', e?.message || e);
+            }
+        })();
+    }
+
+    // Best-effort bio push. Discord has no per-guild bio for bots, so
+    // this almost always 400s — but we try anyway. The local value is
+    // what our own commands render, so success here is purely additive.
+    if (Object.prototype.hasOwnProperty.call(body, 'aboutText') && BOT_TOKEN) {
+        (async () => {
+            try {
+                await fetch('https://discord.com/api/v10/users/@me', {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bio: String(body.aboutText || '').slice(0, 190) }),
+                });
+            } catch (e) {
+                // Silent — dashboard doesn't need to surface this since
+                // /botinfo and /botprofile render the local value anyway.
+            }
+        })();
     }
     res.json(cfg);
 });
@@ -1504,29 +1696,80 @@ app.get('/api/guild/:guildId/afk-config', authMiddleware, (req, res) => {
 });
 
 // ── Sticky Messages CRUD ─────────────────────────────────────────────────────
+// Bot schema (canonical): { [gid]: { enabled, messages: { [channelId]: { content, type, messageId } } } }
+// Read at index.js:8813 as `cfg.messages?.[channelId]`. Anything written
+// outside the `.messages` envelope is ignored by the runtime, so we
+// normalize on read AND write.
 app.get('/api/guild/:guildId/sticky-config', authMiddleware, (req, res) => {
     const data = readBotStore('sticky') || {};
-    const cfg = data[req.params.guildId] || {};
-    const messages = Object.entries(cfg).map(([channelId, m]) => ({
-        channelId,
-        content: typeof m === 'string' ? m : (m?.content || m?.message || ''),
-        type: m?.type || 'text'
-    }));
-    res.json({ messages });
+    const cfg  = data[req.params.guildId] || {};
+    const map  = (cfg && typeof cfg === 'object' && cfg.messages && typeof cfg.messages === 'object')
+        ? cfg.messages
+        : cfg; // legacy shape — keys at the top level
+
+    const messages = Object.entries(map || {})
+        .filter(([k]) => k !== 'enabled' && k !== 'messages') // skip legacy stray keys
+        .map(([channelId, m]) => ({
+            channelId,
+            content: typeof m === 'string' ? m : (m?.content || m?.message || ''),
+            type:    m?.type || 'text',
+            messageId: m?.messageId || null
+        }));
+    res.json({
+        enabled: cfg?.enabled !== false && messages.length > 0,
+        messages
+    });
 });
 app.put('/api/guild/:guildId/sticky-config', authMiddleware, (req, res) => {
-    const gid = req.params.guildId;
+    const gid  = req.params.guildId;
     const body = req.body || {};
     const data = readBotStore('sticky') || {};
-    if (!data[gid]) data[gid] = {};
+    if (!data[gid] || typeof data[gid] !== 'object') {
+        data[gid] = { enabled: true, messages: {} };
+    }
+    if (!data[gid].messages || typeof data[gid].messages !== 'object') {
+        data[gid].messages = {};
+    }
+
+    // Migrate any legacy top-level channel entries into .messages.
+    for (const k of Object.keys(data[gid])) {
+        if (k === 'enabled' || k === 'messages') continue;
+        if (typeof data[gid][k] === 'object' && data[gid][k] !== null) {
+            data[gid].messages[k] = data[gid][k];
+        }
+        delete data[gid][k];
+    }
+
+    if (typeof body.enabled === 'boolean') data[gid].enabled = body.enabled;
+
     // Add a sticky
     if (body.add && body.add.channelId && body.add.content) {
-        data[gid][body.add.channelId] = { content: body.add.content, type: body.add.type || 'text', messageId: null };
+        data[gid].messages[body.add.channelId] = {
+            content: String(body.add.content).slice(0, 4000),
+            type: body.add.type || 'text',
+            messageId: null
+        };
+        if (data[gid].enabled !== false) data[gid].enabled = true;
     }
     // Remove a sticky
     if (body.remove && body.remove.channelId) {
-        delete data[gid][body.remove.channelId];
+        delete data[gid].messages[body.remove.channelId];
     }
+
+    // Bulk replace
+    if (body.messages && typeof body.messages === 'object' && !Array.isArray(body.messages)) {
+        const clean = {};
+        for (const [chId, m] of Object.entries(body.messages)) {
+            if (!chId || typeof m !== 'object') continue;
+            clean[chId] = {
+                content: String(m.content || '').slice(0, 4000),
+                type: m.type || 'text',
+                messageId: m.messageId || null
+            };
+        }
+        data[gid].messages = clean;
+    }
+
     writeBotStore('sticky', data);
     res.json({ success: true });
 });
@@ -1809,32 +2052,48 @@ app.put('/api/guild/:guildId/starboard-config', authMiddleware, (req, res) => {
 });
 
 // ── Counting CRUD ────────────────────────────────────────────────────────────
-app.get('/api/guild/:guildId/counting-config', authMiddleware, (req, res) => {
-    const data = readBotStore('counting') || {};
-    const cfg = data[req.params.guildId] || {};
-    res.json({
-        enabled: !!cfg.channelId,
-        channelId: cfg.channelId || null,
-        currentCount: cfg.currentCount || 0,
-        highScore: cfg.highScore || 0,
-        totalCounts: cfg.totalCounts || 0,
-        fails: cfg.fails || 0,
-        lastUserId: cfg.lastUserId || null
-    });
-});
-app.put('/api/guild/:guildId/counting-config', authMiddleware, (req, res) => {
-    const gid = req.params.guildId;
-    const body = req.body || {};
-    const data = readBotStore('counting') || {};
-    if (body.enabled === false || !body.channelId) {
-        delete data[gid];
-    } else {
-        if (!data[gid]) data[gid] = { currentCount: 0, lastUserId: null, highScore: 0, totalCounts: 0, fails: 0 };
-        if (body.channelId) data[gid].channelId = body.channelId;
-        if (body.reset) { data[gid].currentCount = 0; data[gid].lastUserId = null; }
+// IMPORTANT: the bot's counting handler reads/writes via
+// utils/database.db.{get,set}('counting_<guildId>') (a custom_data PG row),
+// NOT via jsonStore. The previous dashboard used jsonStore('counting')
+// which was a parallel store the bot never read — every dashboard write
+// was orphaned. Both endpoints now route through the same db helper.
+app.get('/api/guild/:guildId/counting-config', authMiddleware, async (req, res) => {
+    try {
+        const { db } = require('../utils/database');
+        const cfg = (await db.get(`counting_${req.params.guildId}`)) || {};
+        res.json({
+            enabled: !!cfg.channelId,
+            channelId: cfg.channelId || null,
+            currentCount: cfg.currentCount || 0,
+            highScore: cfg.highScore || 0,
+            totalCounts: cfg.totalCounts || 0,
+            fails: cfg.fails || 0,
+            lastUserId: cfg.lastUserId || null
+        });
+    } catch (e) {
+        res.json({ enabled: false, channelId: null, currentCount: 0, highScore: 0, totalCounts: 0, fails: 0, lastUserId: null });
     }
-    writeBotStore('counting', data);
-    res.json({ success: true });
+});
+app.put('/api/guild/:guildId/counting-config', authMiddleware, async (req, res) => {
+    const gid  = req.params.guildId;
+    const body = req.body || {};
+    try {
+        const { db } = require('../utils/database');
+        if (body.enabled === false || !body.channelId) {
+            await db.delete(`counting_${gid}`);
+            return res.json({ success: true, disabled: true });
+        }
+        const existing = (await db.get(`counting_${gid}`)) || {
+            channelId: null, currentCount: 0, lastUserId: null,
+            highScore: 0, totalCounts: 0, fails: 0
+        };
+        if (body.channelId) existing.channelId = String(body.channelId);
+        if (body.reset)     { existing.currentCount = 0; existing.lastUserId = null; }
+        await db.set(`counting_${gid}`, existing);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e?.message || 'counting update failed' });
+    }
 });
 
 // ── Autoreact CRUD ───────────────────────────────────────────────────────────

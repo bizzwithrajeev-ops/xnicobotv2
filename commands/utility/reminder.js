@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -124,10 +125,15 @@ module.exports = {
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
-            let content = `# <:Document:1473039496995143731> Your Reminders\n\n`;
-            reminders.forEach((r, i) => {
-                content += `**${i + 1}.** ${r.message}\n`;
-                content += `> <:Alarm:1473039068546732214> <t:${Math.floor(r.time / 1000)}:R>\n\n`;
+            // Trim to fit Discord's 4 000-char per-TextDisplay cap.
+            const lineEntries = reminders.map((r, i) =>
+                `**${i + 1}.** ${r.message}\n> <:Alarm:1473039068546732214> <t:${Math.floor(r.time / 1000)}:R>`
+            );
+            const { content } = buildSafeListText({
+                header: '# <:Document:1473039496995143731> Your Reminders',
+                lines: lineEntries,
+                separator: '\n\n',
+                overflowHint: '\n\n-# +${n} more not shown — delete some reminders to see them all',
             });
 
             const container = new ContainerBuilder()
@@ -199,10 +205,15 @@ module.exports = {
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
-            let content = `# <:Document:1473039496995143731> Your Reminders\n\n`;
-            reminders.forEach((r, i) => {
-                content += `**${i + 1}.** ${r.message}\n`;
-                content += `> <:Alarm:1473039068546732214> <t:${Math.floor(r.time / 1000)}:R>\n\n`;
+            // Trim to fit Discord's 4 000-char per-TextDisplay cap.
+            const lineEntries = reminders.map((r, i) =>
+                `**${i + 1}.** ${r.message}\n> <:Alarm:1473039068546732214> <t:${Math.floor(r.time / 1000)}:R>`
+            );
+            const { content } = buildSafeListText({
+                header: '# <:Document:1473039496995143731> Your Reminders',
+                lines: lineEntries,
+                separator: '\n\n',
+                overflowHint: '\n\n-# +${n} more not shown — delete some reminders to see them all',
             });
 
             const container = new ContainerBuilder()

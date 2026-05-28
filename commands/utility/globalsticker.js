@@ -18,6 +18,12 @@ const {
     EMOJIS: E,
 } = require('../../utils/globalAssetBrowser');
 
+// Discord caps a Components V2 message at 40 total components (containers,
+// sections, separators, action rows, buttons, etc. all counted). The browser
+// chrome (header, separators, 3 action rows + buttons, footer) burns ~19
+// slots, and each sticker entry costs 3 (section + text display + thumbnail).
+// PAGE_SIZE = 5 keeps us at ~34/40 once the inter-item separators are
+// removed (see render loop below) — comfortable headroom under the cap.
 const PAGE_SIZE = 5;
 const ID_PREFIX = 'gstick';
 const STEAL_LIMIT = 5;
@@ -84,9 +90,9 @@ function buildBrowserPayload(state) {
                 ))
                 .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: s.url } }));
             container.addSectionComponents(section);
-            if (i < slice.length - 1) {
-                container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false));
-            }
+            // Note: previously a spacing-only separator was inserted between
+            // entries. Removed to stay under Discord's 40-component CV2 cap —
+            // sections render with their own padding.
         }
     }
 

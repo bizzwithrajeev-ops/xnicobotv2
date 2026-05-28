@@ -48,17 +48,17 @@ function buildPanel(guildConfig, guildName) {
         `<:Document:1473039496995143731> **Log channel:** ${logChDisplay}\n` +
         `<:Lightningalt:1473038679906844824> **Action on violation:** ${actionDisplay}\n\n` +
         `### What Vanity Guard Does\n` +
-        `▸ Monitors vanity URL changes via guildUpdate + audit log\n` +
-        `▸ Reverts unauthorized changes (boost tier 3 required)\n` +
-        `▸ Optionally kicks/bans the offender\n` +
-        `▸ Sends an alert to your log channel\n\n` +
+        `<:Caretright:1473038207221502106> Monitors vanity URL changes via guildUpdate + audit log\n` +
+        `<:Caretright:1473038207221502106> Reverts unauthorized changes (boost tier 3 required)\n` +
+        `<:Caretright:1473038207221502106> Optionally kicks/bans the offender\n` +
+        `<:Caretright:1473038207221502106> Sends an alert to your log channel\n\n` +
         `### <:Userplus:1473038912212435086> Whitelisted Users (${wlCount})\n` +
         `${wlDisplay}\n\n` +
         `### Commands\n` +
-        `▸ \`vanityguard enable / disable\`\n` +
-        `▸ \`vanityguard wl @user\` — Toggle whitelist\n` +
-        `▸ \`vanityguard log #channel\` — Set alert channel\n` +
-        `▸ \`vanityguard action none|kick|ban\` — Punishment on violation\n\n` +
+        `<:Caretright:1473038207221502106> \`vanityguard enable / disable\`\n` +
+        `<:Caretright:1473038207221502106> \`vanityguard wl @user\` — Toggle whitelist\n` +
+        `<:Caretright:1473038207221502106> \`vanityguard log #channel\` — Set alert channel\n` +
+        `<:Caretright:1473038207221502106> \`vanityguard action none|kick|ban\` — Punishment on violation\n\n` +
         BRANDING;
 
     const container = new ContainerBuilder()

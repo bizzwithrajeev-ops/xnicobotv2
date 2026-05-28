@@ -52,7 +52,7 @@ function buildList(backups, guild, page, uid) {
 
     const nav = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`bkp:prev:${uid}`).setEmoji('<:History:1473037847568318605>').setLabel('Previous').setStyle(ButtonStyle.Secondary).setDisabled(pg === 0),
-        new ButtonBuilder().setCustomId(`bkp:next:${uid}`).setEmoji('<:Skipnext:1473039269726785737>').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(pg >= total - 1),
+        new ButtonBuilder().setCustomId(`bkp:next:${uid}`).setEmoji('<:Caretright:1473038207221502106>').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(pg >= total - 1),
         new ButtonBuilder().setCustomId(`bkp:new:${uid}`).setEmoji('<:Add:1473038100862337035>').setLabel('Create Backup').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`bkp:refresh:${uid}`).setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
     );

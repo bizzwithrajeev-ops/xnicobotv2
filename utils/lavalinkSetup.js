@@ -872,7 +872,7 @@ async function initLavalink(client, lavalinkManager) {
             log.warning('Lavalink • No nodes connected yet — will retry automatically');
         }
 
-        // Auto-reconnect to 24/7 voice channels
+        // Auto-reconnect to 24/7 voice channels (premium-only)
         if (jsonStore.has('musicpanel-247')) {
             let config247;
             try {
@@ -882,11 +882,17 @@ async function initLavalink(client, lavalinkManager) {
                 config247 = {};
             }
 
+            // Lazy-load to avoid a circular require with this util.
+            const premiumManager = require('./premiumManager');
+
             let reconnected = 0;
             let configChanged = false;
 
             for (const [guildId, data] of Object.entries(config247)) {
                 if (data.enabled && data.voiceChannelId) {
+                    // 24/7 is premium-only — skip non-premium servers
+                    // even if their saved config still says enabled.
+                    if (!premiumManager.isServerPremium(guildId)) continue;
                     try {
                         const guild = client.guilds.cache.get(guildId);
                         if (!guild) {

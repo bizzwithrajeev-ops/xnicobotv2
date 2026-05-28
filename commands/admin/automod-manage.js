@@ -68,11 +68,11 @@ function buildConfigDisplay(guildConfig) {
         `${formatCheck(guildConfig.caps?.enabled)} **Caps Lock** — \`${guildConfig.caps?.percentage || 70}%+\` → \`${guildConfig.caps?.action || 'delete'}\``;
 
     const settingsText =
-        `▸ **Active Filters:** \`${activeCount}/9\`\n` +
-        `▸ **Bypass Role:** ${bypassRole}\n` +
-        `▸ **Log Channel:** ${logChannel}\n` +
-        `▸ **Ignored Roles:** \`${ignoredRoles}\`\n` +
-        `▸ **Ignored Channels:** \`${ignoredChannels}\``;
+        `<:Caretright:1473038207221502106> **Active Filters:** \`${activeCount}/9\`\n` +
+        `<:Caretright:1473038207221502106> **Bypass Role:** ${bypassRole}\n` +
+        `<:Caretright:1473038207221502106> **Log Channel:** ${logChannel}\n` +
+        `<:Caretright:1473038207221502106> **Ignored Roles:** \`${ignoredRoles}\`\n` +
+        `<:Caretright:1473038207221502106> **Ignored Channels:** \`${ignoredChannels}\``;
 
     return new ContainerBuilder()
         .setAccentColor(guildConfig.enabled ? 0x57F287 : 0xED4245)

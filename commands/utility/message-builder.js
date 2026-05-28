@@ -61,6 +61,169 @@ function saveTemplates(templates) {
     jsonStore.write('user-templates', templates);
 }
 
+// Built-in starter templates so the loader always has something to apply,
+// even before the user has saved any of their own. Mirrors the welcomer
+// command's approach so the UX is consistent across both builders.
+function getBuiltInTemplates() {
+    return {
+        'cv2-modern-frost': {
+            name: 'CV2 • Modern Frost',
+            template: {
+                mode: 'components',
+                content: '# 👋 Hello {user}\n{separator:small}\nWelcome to **{server}**.\nYou are member **#{membercount}**.',
+                color: '#bcf1e4',
+                colorless: false,
+                images: ['https://images.unsplash.com/photo-1519750783826-e2420f4d687f?auto=format&fit=crop&w=1400&q=80'],
+                thumbnail: '{useravatar}',
+                footer: 'Account created: {usercreated}',
+                imagePosition: 'top',
+                fields: [],
+                buttons: [],
+                actionButtons: []
+            }
+        },
+        'cv2-clean-sidebar': {
+            name: 'CV2 • Clean Sidebar',
+            template: {
+                mode: 'components',
+                content: '### Welcome, {displayname}!\n{separator:small}\nCheck the server guide and say hi in chat.',
+                color: '#7289da',
+                colorless: false,
+                images: ['https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80'],
+                thumbnail: '{servericon}',
+                footer: 'Now serving {membercount} members',
+                imagePosition: 'side',
+                fields: [],
+                buttons: [],
+                actionButtons: []
+            }
+        },
+        'cv2-minimal-colorless': {
+            name: 'CV2 • Minimal Colorless',
+            template: {
+                mode: 'components',
+                content: 'Hey {user}, welcome to **{server}**!\n{separator:medium}\nEnjoy your stay.',
+                color: '#bcf1e4',
+                colorless: true,
+                images: [],
+                thumbnail: '{useravatar}',
+                footer: 'Need help? Ask our staff team',
+                imagePosition: 'bottom',
+                fields: [],
+                buttons: [],
+                actionButtons: []
+            }
+        },
+        'cv2-community-hub': {
+            name: 'CV2 • Community Hub',
+            template: {
+                mode: 'components',
+                content: '## Welcome aboard, {username}!\n{separator:small}\n• Introduce yourself\n• Pick your roles\n• Read the server rules',
+                color: '#faa61a',
+                colorless: false,
+                images: ['https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1400&q=80'],
+                thumbnail: '{useravatar}',
+                footer: 'Members: {membercount}',
+                imagePosition: 'bottom',
+                fields: [],
+                buttons: [],
+                actionButtons: []
+            }
+        },
+        'cv2-announcement': {
+            name: 'CV2 • Announcement',
+            template: {
+                mode: 'components',
+                content: '# 📢 Announcement\n{separator:small}\nReplace this text with your announcement.\n{separator:small}\n-# Posted by {displayname}',
+                color: '#5865f2',
+                colorless: false,
+                images: [],
+                thumbnail: '{servericon}',
+                footer: '{server}',
+                imagePosition: 'bottom',
+                fields: [],
+                buttons: [],
+                actionButtons: []
+            }
+        },
+        'embed-classic-green': {
+            name: 'Embed • Classic Green',
+            template: {
+                mode: 'embed',
+                title: 'Welcome to {server}!',
+                description: 'Hey {user}, glad to have you here.\nWe now have **{membercount}** members.',
+                color: '#bcf1e4',
+                images: ['https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1400&q=80'],
+                thumbnail: '{useravatar}',
+                footer: 'User ID: {userid}',
+                author: '{displayname} joined',
+                fields: [],
+                content: ''
+            }
+        },
+        'embed-professional-blue': {
+            name: 'Embed • Professional Blue',
+            template: {
+                mode: 'embed',
+                title: 'New Member Joined',
+                description: 'Please welcome **{displayname}** to **{server}**.\nJoined: {userjoined}',
+                color: '#5865f2',
+                images: ['https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=80'],
+                thumbnail: '{servericon}',
+                footer: 'Total members: {membercount}',
+                author: 'Server Notification',
+                fields: [],
+                content: ''
+            }
+        },
+        'embed-minimal-clean': {
+            name: 'Embed • Minimal Clean',
+            template: {
+                mode: 'embed',
+                title: 'Welcome, {username}',
+                description: 'You are now part of **{server}**.\nHave a great time!',
+                color: '#99aab5',
+                images: [],
+                thumbnail: '{useravatar}',
+                footer: 'Joined at {userjoined}',
+                author: '',
+                fields: [],
+                content: ''
+            }
+        },
+        'embed-gaming-vibe': {
+            name: 'Embed • Gaming Vibe',
+            template: {
+                mode: 'embed',
+                title: '🎮 Party just got bigger!',
+                description: '{user} entered the lobby.\nCurrent player count: **{membercount}**',
+                color: '#ed4245',
+                images: ['https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1400&q=80'],
+                thumbnail: '{useravatar}',
+                footer: 'Ready up and enjoy!',
+                author: '',
+                fields: [],
+                content: ''
+            }
+        },
+        'embed-premium-gold': {
+            name: 'Embed • Premium Gold',
+            template: {
+                mode: 'embed',
+                title: '⭐ Premium Welcome',
+                description: 'A warm welcome to {user}.\nServer: **{server}**\nBoosts: **{boostcount}**',
+                color: '#faa61a',
+                images: ['https://images.unsplash.com/photo-1487014679447-9f8336841d58?auto=format&fit=crop&w=1400&q=80'],
+                thumbnail: '{servericon}',
+                footer: 'Member #{membercount}',
+                author: '{server} Welcomer',
+                fields: [],
+                content: ''
+            }
+        }
+    };
+}
+
 function getDefaultData() {
     return {
         mode: 'components',
@@ -328,7 +491,25 @@ function createTemplateRow() {
         );
 }
 
-function buildPreviewSection(container, data) {
+// Sanitize a URL for the in-builder live preview.
+// - If a context is provided, unresolved placeholders are resolved.
+// - Strings still containing unresolved {placeholders} or that don't start
+//   with http(s):// or attachment:// are dropped (returned as null) so the
+//   preview never feeds an invalid URL into a discord.js builder.
+function safePreviewUrl(url, ctx) {
+    if (!url || typeof url !== 'string') return null;
+    let value = url.trim();
+    if (!value) return null;
+    if (ctx && (ctx.user || ctx.guild || ctx.channel)) {
+        value = replacePlaceholders(value, ctx.user, ctx.guild, ctx.channel);
+    }
+    if (!value) return null;
+    if (/\{[^}]+\}/.test(value)) return null;
+    if (!/^(https?:|attachment:)/i.test(value)) return null;
+    return value;
+}
+
+function buildPreviewSection(container, data, ctx = null) {
     const mode = data.mode || 'components';
 
     if (mode === 'components') {
@@ -340,8 +521,9 @@ function buildPreviewSection(container, data) {
             return;
         }
 
-        const processedThumb = data.thumbnail || null;
-        const imageList = (data.images?.length ? data.images : (data.image ? [data.image] : [])).filter(Boolean);
+        const processedThumb = safePreviewUrl(data.thumbnail, ctx);
+        const rawImageList = (data.images?.length ? data.images : (data.image ? [data.image] : [])).filter(Boolean);
+        const imageList = rawImageList.map(u => safePreviewUrl(u, ctx)).filter(Boolean);
         const imgPos = data.imagePosition || 'bottom';
 
         let imageGallery = null;
@@ -465,7 +647,7 @@ function buildPreviewSection(container, data) {
         }
 
         const embedImage = data.images?.length ? data.images[0] : (data.image || '');
-        const mediaUrls = [data.thumbnail, embedImage].filter(Boolean);
+        const mediaUrls = [safePreviewUrl(data.thumbnail, ctx), safePreviewUrl(embedImage, ctx)].filter(Boolean);
         if (mediaUrls.length > 0) {
             const gallery = new MediaGalleryBuilder();
             for (const url of mediaUrls) {
@@ -476,7 +658,7 @@ function buildPreviewSection(container, data) {
     }
 }
 
-function buildContainer(data) {
+function buildContainer(data, ctx = null) {
     const colorValue = data.color ? parseInt(data.color.replace('#', ''), 16) : 0xCAD7E6;
     
     const container = new ContainerBuilder()
@@ -490,7 +672,7 @@ function buildContainer(data) {
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
 
-    buildPreviewSection(container, data);
+    buildPreviewSection(container, data, ctx);
     
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
@@ -705,31 +887,66 @@ function createPreviewContainer(data, user, guild, channel) {
 }
 
 function buildTemplatePickerContainer(userTemplates) {
-    const templateNames = Object.keys(userTemplates);
+    const userNames = Object.keys(userTemplates);
+    const builtIn = getBuiltInTemplates();
+    const builtInEntries = Object.entries(builtIn);
     const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
 
-    let listText = `# <:Folderopen:1473039552783323348> Load Template\nSelect a saved template to apply to the builder.\n\n`;
-    templateNames.slice(0, 10).forEach((name, i) => {
-        const t = userTemplates[name];
-        const mode = t.mode || 'components';
-        const modeIcon = mode === 'components' ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
-        listText += `**${i + 1}.** ${modeIcon} **${name}**\n`;
+    let listText = `# <:Folderopen:1473039552783323348> Load Template\nPick a template to apply to the builder.\n\n`;
+    listText += `### ✨ Built-in Starters\n`;
+    builtInEntries.forEach(([, payload]) => {
+        const t = payload.template || {};
+        const modeIcon = (t.mode || 'components') === 'components'
+            ? '<:Fire:1473038604812161218>'
+            : '<:Document:1473039496995143731>';
+        listText += `• ${modeIcon} **${payload.name}**\n`;
     });
-    if (templateNames.length > 10) {
-        listText += `-# ...and ${templateNames.length - 10} more`;
+
+    if (userNames.length > 0) {
+        listText += `\n### <:Clipboard:1473039573037617162> Your Saved Templates\n`;
+        userNames.slice(0, 10).forEach((name, i) => {
+            const t = userTemplates[name];
+            const mode = t.mode || 'components';
+            const modeIcon = mode === 'components' ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
+            listText += `**${i + 1}.** ${modeIcon} **${name}**\n`;
+        });
+        if (userNames.length > 10) {
+            listText += `-# ...and ${userNames.length - 10} more`;
+        }
+    } else {
+        listText += `\n-# You haven't saved any templates yet. Click **Save** on the builder to add your own.`;
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
+    const options = [];
+    // Built-in options use a "default:" prefix so the load handler can
+    // distinguish them from user templates that happen to share a name.
+    builtInEntries.slice(0, 25).forEach(([key, payload]) => {
+        const t = payload.template || {};
+        const mode = (t.mode || 'components') === 'components' ? 'Built-in • Components V2' : 'Built-in • Embed';
+        options.push({
+            label: payload.name.substring(0, 100),
+            value: `default:${key}`,
+            description: mode.substring(0, 100)
+        });
+    });
+    const remaining = Math.max(0, 25 - options.length);
+    userNames.slice(0, remaining).forEach(name => {
+        const t = userTemplates[name];
+        const mode = (t.mode || 'components') === 'components' ? 'Saved • Components V2' : 'Saved • Embed';
+        options.push({
+            label: name.substring(0, 100),
+            value: `user:${name}`,
+            description: mode.substring(0, 100)
+        });
+    });
+
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId('msgbuilder_select_load_template')
         .setPlaceholder('Choose a template to load...')
-        .addOptions(templateNames.slice(0, 25).map(name => ({
-            label: name.substring(0, 100),
-            value: name,
-            description: `Mode: ${userTemplates[name].mode || 'components'}`
-        })));
+        .addOptions(options);
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMenu));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
@@ -756,7 +973,8 @@ module.exports = {
         const data = { ...getDefaultData() };
         builderData.set(key, data);
         
-        const container = buildContainer(data);
+        const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
+        const container = buildContainer(data, ctx);
         
         const reply = await interaction.reply({ 
             components: [container], 
@@ -798,7 +1016,8 @@ module.exports = {
         const data = { ...getDefaultData() };
         builderData.set(key, data);
         
-        const container = buildContainer(data);
+        const ctx = { user: message.author, guild: message.guild, channel: message.channel };
+        const container = buildContainer(data, ctx);
         
         const reply = await message.reply({ 
             components: [container], 
@@ -847,11 +1066,12 @@ module.exports = {
         
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         let data = builderData.get(key) || { ...getDefaultData() };
+        const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
         
         if (customId === 'msgbuilder_mode_components') {
             data.mode = 'components';
             builderData.set(key, data);
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
@@ -859,7 +1079,7 @@ module.exports = {
         if (customId === 'msgbuilder_mode_embed') {
             data.mode = 'embed';
             builderData.set(key, data);
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
@@ -1015,7 +1235,7 @@ module.exports = {
             data.colorless = !data.colorless;
             builderData.set(key, data);
             
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try {
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             } catch (e) {
@@ -1032,7 +1252,7 @@ module.exports = {
             data.imagePosition = current === 'bottom' ? 'top' : current === 'top' ? 'side' : 'bottom';
             builderData.set(key, data);
             
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try {
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             } catch (e) {
@@ -1182,7 +1402,7 @@ module.exports = {
         
         if (customId === 'msgbuilder_reset') {
             builderData.set(key, { ...getDefaultData() });
-            const container = buildContainer(getDefaultData());
+            const container = buildContainer(getDefaultData(), ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
@@ -1209,23 +1429,16 @@ module.exports = {
             const templates = loadTemplates();
             const userId = interaction.user.id;
             const userTemplates = templates[userId] || {};
-            const templateNames = Object.keys(userTemplates);
-            
-            if (templateNames.length === 0) {
-                await interaction.reply({
-                    content: '<:Cancel:1473037949187657818> You have no saved templates. Create a message first, then click **Save Template**!',
-                    flags: MessageFlags.Ephemeral
-                });
-                return true;
-            }
-            
+
+            // Built-in templates are always available, so we no longer
+            // block the picker when the user hasn't saved any of their own.
             const pickerContainer = buildTemplatePickerContainer(userTemplates);
             await interaction.update({ components: [pickerContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
         
         if (customId === 'msgbuilder_template_picker_back') {
-            const container = buildContainer(builderData.get(key) || { ...getDefaultData() });
+            const container = buildContainer(builderData.get(key) || { ...getDefaultData() }, ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
@@ -1308,7 +1521,7 @@ module.exports = {
         if (customId === 'msgbuilder_clear_fields') {
             data.fields = [];
             builderData.set(key, data);
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
@@ -1423,25 +1636,69 @@ module.exports = {
         
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         const userId = interaction.user.id;
+        const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
         
         if (customId === 'msgbuilder_select_load_template') {
-            const templateName = interaction.values[0];
+            const selectedValue = interaction.values[0] || '';
             const templates = loadTemplates();
             const userTemplates = templates[userId] || {};
-            const template = userTemplates[templateName];
-            
+            const builtIn = getBuiltInTemplates();
+
+            let template = null;
+            let templateLabel = selectedValue;
+            let source = 'saved';
+
+            if (selectedValue.startsWith('default:')) {
+                const key = selectedValue.slice('default:'.length);
+                if (builtIn[key]) {
+                    template = builtIn[key].template;
+                    templateLabel = builtIn[key].name;
+                    source = 'built-in';
+                }
+            } else if (selectedValue.startsWith('user:')) {
+                const name = selectedValue.slice('user:'.length);
+                template = userTemplates[name];
+                templateLabel = name;
+            } else {
+                // Backwards compatibility: bare template name (older option values)
+                template = userTemplates[selectedValue]
+                    || (builtIn[selectedValue] && builtIn[selectedValue].template);
+                if (!userTemplates[selectedValue] && builtIn[selectedValue]) {
+                    templateLabel = builtIn[selectedValue].name;
+                    source = 'built-in';
+                }
+            }
+
             if (!template) {
-                // Template gone — go back to builder
-                const container = buildContainer(builderData.get(key) || { ...getDefaultData() });
+                // Template gone — go back to builder with a hint
+                const container = buildContainer(builderData.get(key) || { ...getDefaultData() }, ctx);
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.followUp({
+                        content: '<:Cancel:1473037949187657818> That template could not be found.',
+                        flags: MessageFlags.Ephemeral
+                    }).catch(() => {});
+                }
                 return true;
             }
-            
+
+            // Preserve any in-progress edit target so loading a template
+            // doesn't break "Push Edit" on a message the user was editing.
+            const current = builderData.get(key) || { ...getDefaultData() };
             const merged = normalizeImages({ ...getDefaultData(), ...template });
+            merged.editingMessageId = current.editingMessageId || null;
+            merged.editingChannelId = current.editingChannelId || null;
             builderData.set(key, merged);
-            
-            const container = buildContainer(merged);
+
+            const container = buildContainer(merged, ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+
+            // Light, ephemeral confirmation so the user gets clear feedback.
+            const sourceLabel = source === 'built-in' ? 'Built-in' : 'Saved';
+            await interaction.followUp({
+                content: `<:Checkedbox:1473038547165384804> Loaded **${templateLabel}** (${sourceLabel}).`,
+                flags: MessageFlags.Ephemeral
+            }).catch(() => {});
             return true;
         }
         
@@ -1472,13 +1729,14 @@ module.exports = {
         
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         let data = builderData.get(key) || { ...getDefaultData() };
+        const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
         
         if (customId === 'msgbuilder_modal_content') {
             data.content = interaction.fields.getTextInputValue('content') || '';
             data.footer = interaction.fields.getTextInputValue('footer') || '';
             builderData.set(key, data);
             
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try { 
                 if (interaction.message) {
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
@@ -1503,7 +1761,7 @@ module.exports = {
             data.authorIcon = interaction.fields.getTextInputValue('author_icon') || '';
             builderData.set(key, data);
             
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try { 
                 if (interaction.message) {
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
@@ -1547,7 +1805,7 @@ module.exports = {
                 ? `<:Checkedbox:1473038547165384804> Media updated! **${imgCount}** image${imgCount > 1 ? 's' : ''} in gallery.`
                 : '<:Checkedbox:1473038547165384804> Media updated!';
 
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try { 
                 if (interaction.message) {
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
@@ -1574,7 +1832,7 @@ module.exports = {
             data.footerIcon = interaction.fields.getTextInputValue('footer_icon') || '';
             builderData.set(key, data);
             
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try { 
                 if (interaction.message) {
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
@@ -1622,7 +1880,7 @@ module.exports = {
             builderData.set(key, data);
             
             const total = buttons.length + actionButtons.length;
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try {
                 if (interaction.message) {
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1766,7 +2024,7 @@ module.exports = {
                 }
 
                 builderData.set(key, existingData);
-                const container = buildContainer(existingData);
+                const container = buildContainer(existingData, ctx);
                 await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 await interaction.reply({ content: '<:Checkedbox:1473038547165384804> Message loaded into builder! Make your changes, then click **Push Edit** to save.', flags: MessageFlags.Ephemeral });
             } catch (error) {
@@ -1801,7 +2059,7 @@ module.exports = {
 
             try {
                 if (interaction.message) {
-                    const container = buildContainer(data);
+                    const container = buildContainer(data, ctx);
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
                 if (interaction.replied || interaction.deferred) {
@@ -1837,7 +2095,7 @@ module.exports = {
             data.fields.push({ name: fieldName, value: fieldValue, inline });
             builderData.set(key, data);
             
-            const container = buildContainer(data);
+            const container = buildContainer(data, ctx);
             try {
                 if (interaction.message) {
                     await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1887,7 +2145,7 @@ module.exports = {
                 }
                 
                 builderData.set(key, sanitized);
-                const container = buildContainer(sanitized);
+                const container = buildContainer(sanitized, ctx);
                 
                 try {
                     if (interaction.message) {

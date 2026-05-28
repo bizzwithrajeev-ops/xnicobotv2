@@ -27,7 +27,7 @@ module.exports = {
     description: 'Replay the current track from the beginning',
     usage: 'replay',
     category: 'music',
-    aliases: ['restart'],
+    aliases: ['replay-track'],
 
     async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
     async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },

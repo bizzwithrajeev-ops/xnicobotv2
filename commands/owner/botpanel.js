@@ -519,7 +519,7 @@ function buildActivityManagerPanel(client, page = 0) {
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId(`activity_page_${currentPage + 1}`)
-            .setEmoji('<:Skipnext:1473039269726785737>')
+            .setEmoji('<:Caretright:1473038207221502106>')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1)
     );
@@ -707,7 +707,7 @@ function buildCustomStatusManagerPanel(client, page = 0) {
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(`custom_page_${currentPage + 1}`)
-            .setEmoji('<:Skipnext:1473039269726785737>')
+            .setEmoji('<:Caretright:1473038207221502106>')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1)
     );

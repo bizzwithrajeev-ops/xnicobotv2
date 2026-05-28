@@ -107,6 +107,49 @@ function getGuildPrefix(guildId) {
     return DEFAULT_PREFIX;
 }
 
+/**
+ * Inject a custom footer line into every Components V2 container in
+ * `components`, and apply the guild's accent color when one isn't
+ * already set.
+ *
+ * Discord's CV2 schema doesn't include a "footer" slot for containers,
+ * so we add the footer text as the very last child — a TextDisplay
+ * (component type 10) formatted like Discord's own quiet "small text"
+ * convention (`-# …`). The line is only added once per container, so
+ * re-patching the same payload is a no-op.
+ *
+ * Used by both the slash and prefix response patchers below.
+ */
+function _injectCv2Footer(components, accentColor, footerText) {
+    if (!Array.isArray(components) || !footerText) return;
+    const sentinel = '__xnicoFooterApplied';
+    const footerLine = `-# ${String(footerText).slice(0, 100)}`;
+    for (const c of components) {
+        if (!c || typeof c !== 'object') continue;
+        if (c?.data?.type !== 17) continue; // 17 = container
+        if (c.data.accent_color === undefined && Number.isFinite(accentColor)) {
+            c.data.accent_color = accentColor;
+        }
+        if (c[sentinel]) continue; // already patched
+        try {
+            const TD = require('discord.js').TextDisplayBuilder;
+            const SB = require('discord.js').SeparatorBuilder;
+            const SS = require('discord.js').SeparatorSpacingSize;
+            // Visually break from the previous content with a thin divider.
+            if (typeof c.addSeparatorComponents === 'function') {
+                c.addSeparatorComponents(new SB().setSpacing(SS.Small).setDivider(true));
+            }
+            if (typeof c.addTextDisplayComponents === 'function') {
+                c.addTextDisplayComponents(new TD().setContent(footerLine));
+            } else if (Array.isArray(c.data?.components)) {
+                // Fallback for plain JSON containers: append a raw TextDisplay node.
+                c.data.components.push({ type: 10, content: footerLine });
+            }
+            c[sentinel] = true;
+        } catch (_) {}
+    }
+}
+
 const autoresponderCache = new Map();
 const autoreactCache = new Map();
 const automodCache = new Map();
@@ -1098,6 +1141,21 @@ client.on(Events.ClientReady, async () => {
         log.warning('Continuing without database');
     }
 
+    // ── Canvas asset warmup ──
+    // Pre-fetch the most common emoji glyphs (medals, faces, animals,
+    // money/fire/lightning custom emojis, …) so the very first
+    // welcome / level / profile / economy card render after a fresh
+    // deploy doesn't pay multiple round-trips of CDN latency.
+    // Runs in the background — failures are silent and non-blocking.
+    try {
+        const { warmupCanvasEmojis } = require('./utils/canvasWarmup');
+        warmupCanvasEmojis().then(count => {
+            log.info(`[Canvas] Warmed up ${count} emoji assets`);
+        }).catch(() => {});
+    } catch (e) {
+        log.warning('[Canvas] Warmup skipped: ' + (e?.message || e));
+    }
+
     // ── Top.gg stats auto-poster ──
     // Pushes the live server count to top.gg every 30 minutes (and on
     // every guildCreate/guildDelete with a 5s debounce) so the bot's
@@ -1126,6 +1184,29 @@ client.on(Events.ClientReady, async () => {
 
     // ── Premium badge sync (ensure all active premium users have their badges) ──
     premiumManager.syncPremiumBadges(badgeManager).catch(() => { });
+
+    // ── Lottery draw scheduler ──
+    // Runs the draw automatically when the timer expires and gives the
+    // single AI participant ("xNico AI") a chance to buy a ticket each
+    // tick. Survives across restarts because state lives in the JSON
+    // store; if a draw was due while the bot was offline, the next tick
+    // picks winners and persists the history immediately.
+    try {
+        const lotteryScheduler = require('./utils/lotteryScheduler');
+        lotteryScheduler.start({
+            onWinners: async (history) => {
+                // Quiet by default — the panel surfaces the most recent
+                // draw on its own. We only log here for ops visibility.
+                try {
+                    const ids = (history?.winners || []).map(w => w.id).join(', ');
+                    log.info(`[Lottery] Draw complete · pot=${history?.totalPot || 0} · winners=${ids || 'none'}`);
+                } catch (_) {}
+            },
+        });
+        log.success('[Lottery] Scheduler started');
+    } catch (err) {
+        log.warning('[Lottery] Scheduler failed to start: ' + (err?.message || err));
+    }
 
     // ── Periodic premium data refresh from database (every 10 minutes) ──
     setInterval(() => {
@@ -1378,7 +1459,7 @@ client.on(Events.ClientReady, async () => {
         log.error(`Music panel refresh failed: ${e.message}`);
     }
 
-    // Auto-reconnect to voice channels with 24/7 mode enabled
+    // Auto-reconnect to voice channels with 24/7 mode enabled (premium-only)
     if (jsonStore.has('musicpanel-247')) {
         try {
             const config247 = jsonStore.read('musicpanel-247');
@@ -1386,6 +1467,11 @@ client.on(Events.ClientReady, async () => {
 
             for (const [guildId, config] of Object.entries(config247)) {
                 if (!config.enabled) continue;
+
+                // Re-validate server premium — `/247` and the music
+                // panel's 24/7 button are premium-gated, but the
+                // saved config keeps reconnecting forever otherwise.
+                if (!premiumManager.isServerPremium(guildId)) continue;
 
                 try {
                     const guild = client.guilds.cache.get(guildId);
@@ -1520,17 +1606,22 @@ client.on('guildMemberAdd', async (member) => {
     // NOTE: Welcomer is handled in the main guildMemberAdd handler below (with anti-nuke, anti-raid, autorole, etc.)
     // Do NOT add welcomer logic here — it would cause duplicate welcome messages.
 
-    // Auto-nickname feature
+    // Auto-nickname feature (premium-only)
     try {
-        if (jsonStore.has('autonick')) {
-            const config = jsonStore.read('autonick');
-            const guildConfig = config[member.guild.id];
+        // Re-validate server premium at runtime — `/autonick setup` is
+        // gated by the dispatcher, but the saved config keeps working
+        // forever otherwise. If the server lost premium, skip.
+        if (premiumManager.isServerPremium(member.guild.id)) {
+            if (jsonStore.has('autonick')) {
+                const config = jsonStore.read('autonick');
+                const guildConfig = config[member.guild.id];
 
-            if (guildConfig && guildConfig.enabled && guildConfig.format) {
-                const nickname = guildConfig.format.replace(/{user}/g, member.user.username);
+                if (guildConfig && guildConfig.enabled && guildConfig.format) {
+                    const nickname = guildConfig.format.replace(/{user}/g, member.user.username);
 
-                if (nickname && member.manageable) {
-                    await member.setNickname(nickname, 'Auto-nickname system');
+                    if (nickname && member.manageable) {
+                        await member.setNickname(nickname, 'Auto-nickname system');
+                    }
                 }
             }
         }
@@ -1538,15 +1629,24 @@ client.on('guildMemberAdd', async (member) => {
         log.error('AutoNick error', error);
     }
 
-    // DM on Join feature from bot customization
+    // DM on Join feature from bot customization (premium-only)
     try {
-        const guildCfg = botCustomize.getConfig(member.guild.id);
-        if (guildCfg.dmOnJoin && guildCfg.dmMessage) {
-            const dmContent = guildCfg.dmMessage
-                .replace(/{user}/g, member.user.username)
-                .replace(/{server}/g, member.guild.name)
-                .replace(/{memberCount}/g, member.guild.memberCount.toString());
-            await member.send(dmContent).catch(() => { });
+        // `/bot-customize` is premium-gated, but the persisted dmOnJoin
+        // setting keeps firing for free servers after premium lapsed.
+        if (premiumManager.isServerPremium(member.guild.id)) {
+            const guildCfg = botCustomize.getConfig(member.guild.id);
+            if (guildCfg.dmOnJoin && guildCfg.dmMessage) {
+                // Route through the canonical message-builder placeholder
+                // table so admins can use any of the documented tokens
+                // ({user}, {username}, {servername}, {membercount}, …)
+                // case-insensitively. Previously this only swapped three
+                // tokens with case-sensitive matching, which broke
+                // {memberCount} typed with a different casing than the
+                // hard-coded variant and ignored every other token.
+                const { replacePlaceholders: dmReplace } = require('./utils/actionMessageBuilder');
+                const dmContent = dmReplace(guildCfg.dmMessage, member.user, member.guild, member.guild.systemChannel);
+                await member.send(dmContent).catch(() => { });
+            }
         }
     } catch (error) {
         log.error('DM on Join error', error);
@@ -2799,17 +2899,13 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             }
-            // Route stats leaderboard buttons (type, scope, page)
+            // Legacy stats leaderboard buttons (slb_*) — `statboard` now
+            // delegates to the unified `ulb_*` handler, so old in-flight
+            // messages with `slb_` ids just defer cleanly. New `statboard`
+            // sessions emit `ulb_*` so they hit the unified handler below.
             if (interaction.customId.startsWith('slb_')) {
-                const statboardCmd = client.commands.get('statboard');
-                if (statboardCmd && statboardCmd.handleButton) {
-                    try {
-                        const handled = await statboardCmd.handleButton(interaction);
-                        if (handled) return;
-                    } catch (error) {
-                        log.error(`Stats Leaderboard Button Error: ${error.message}`, error);
-                    }
-                }
+                try { await interaction.deferUpdate(); } catch {}
+                return;
             }
             if (interaction.customId.startsWith('ulb_')) {
                 const ulbCmd = client.commands.get('leaderboard');
@@ -2947,9 +3043,9 @@ client.on('interactionCreate', async (interaction) => {
             // as bet-based commands, each handling its own button prefix.
             // Each entry: { prefix, command name }.
             //
-            // Challenge prefixes (tttch_, c4ch_, rpsch_) and the RPS pick
-            // prefix (rps_) are routed to the same module that owns the
-            // game (tictactoe / connect4 / rps). Each module's
+            // Challenge prefixes (tttch_, c4ch_, rpsch_, btlch_) and
+            // game-specific prefixes (rps_, ttt_, c4_, …) are routed to
+            // the same module that owns the game. Each module's
             // handleButton dispatches internally between challenge and
             // game-state buttons.
             const ECONOMY_GAME_BUTTONS = [
@@ -2963,7 +3059,8 @@ client.on('interactionCreate', async (interaction) => {
                 { prefix: 'c4ch_',       cmd: 'connect4'   },
                 { prefix: 'c4_',         cmd: 'connect4'   },
                 { prefix: 'rpsch_',      cmd: 'rps'        },
-                { prefix: 'rps_',        cmd: 'rps'        }
+                { prefix: 'rps_',        cmd: 'rps'        },
+                { prefix: 'btlch_',      cmd: 'battle'     }
             ];
             const ecoGame = ECONOMY_GAME_BUTTONS.find(g => interaction.customId.startsWith(g.prefix));
             if (ecoGame) {
@@ -3274,6 +3371,20 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
+            if (interaction.customId.startsWith('emergency_')) {
+                const emergencyCmd = client.commands.get('emergency');
+                if (emergencyCmd && emergencyCmd.handleInteraction) {
+                    try {
+                        await emergencyCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Emergency Button: ${error.message}`, error);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                        }
+                    }
+                }
+                return;
+            }
 
             // Handle button maker action editor buttons
             if (interaction.customId.startsWith('btn_action_') || interaction.customId.startsWith('btnmsg:') || interaction.customId.startsWith('btn_edit_action:') || interaction.customId.startsWith('btn_del_action:')) {
@@ -3383,17 +3494,22 @@ client.on('interactionCreate', async (interaction) => {
                     let successCount = 0;
                     let errorCount = 0;
 
-                    // Helper function to replace placeholders
-                    const replacePlaceholders = (text) => {
-                        if (!text) return text;
-                        return text
-                            .replace(/{user}/g, interaction.member?.displayName || interaction.user.username)
-                            .replace(/{userId}/g, interaction.user.id)
-                            .replace(/{userMention}/g, `<@${interaction.user.id}>`)
-                            .replace(/{server}/g, interaction.guild.name)
-                            .replace(/{membercount}/g, interaction.guild.memberCount.toString())
-                            .replace(/{number}/g, Date.now().toString());
-                    };
+                    // Helper function to replace placeholders.
+                    // Delegates to the canonical implementation in
+                    // utils/actionMessageBuilder so the runtime supports
+                    // EVERY token the builder UI documents — {user},
+                    // {username}, {displayname}, {userid}, {useravatar},
+                    // {server}, {servername}, {serverid}, {servericon},
+                    // {membercount}, {channel}, {channelname},
+                    // {boostcount}, {boostlevel}, {date}, {time},
+                    // {timestamp} — and is case-insensitive. Previously
+                    // the local copy only handled six tokens with
+                    // case-sensitive matching, so anything else the
+                    // user typed (e.g. {username} or {servername}) came
+                    // through unreplaced.
+                    const { replacePlaceholders: amBuilderReplace, buildComponentsV2Message } = require('./utils/actionMessageBuilder');
+                    const replacePlaceholders = (text) =>
+                        amBuilderReplace(text, interaction.user, interaction.guild, interaction.channel);
 
                     // Collect ephemeral message content (used when button is ephemeral)
                     let ephemeralContent = [];
@@ -3402,31 +3518,23 @@ client.on('interactionCreate', async (interaction) => {
 
                     /**
                      * Build a Components V2 container from an action config.
-                     * Mirrors the menu-maker implementation (around line ~5770)
-                     * so both button-maker and select-menu-maker render the
-                     * same way.
+                     * Routes through the shared `buildComponentsV2Message`
+                     * so we get fields, thumbnails, banners and footer
+                     * formatting consistent with the slash /message-builder
+                     * preview, then layers the action's accent color and
+                     * placeholder substitution on top via a synthetic
+                     * data object.
                      */
-                    const buildActionV2Container = (action, replace) => {
-                        const accentHex = (action.color || '#5865F2').replace('#', '');
-                        const v2 = new ContainerBuilder().setAccentColor(parseInt(accentHex, 16) || 0x5865F2);
-                        const resolvedContent = replace(action.content || '');
-                        if (action.thumbnail) {
-                            const section = new SectionBuilder()
-                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent))
-                                .setThumbnailAccessory(new ThumbnailBuilder().setURL(action.thumbnail));
-                            v2.addSectionComponents(section);
-                        } else {
-                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent));
-                        }
-                        if (action.image) {
-                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-                            v2.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(action.image)));
-                        }
-                        if (action.footer) {
-                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${replace(action.footer)}`));
-                        }
-                        return v2;
+                    const buildActionV2Container = (action) => {
+                        const data = {
+                            content: action.content || '',
+                            color: action.color || '#5865F2',
+                            image: action.image || '',
+                            thumbnail: action.thumbnail || '',
+                            footer: action.footer || '',
+                            fields: Array.isArray(action.fields) ? action.fields : [],
+                        };
+                        return buildComponentsV2Message(data, interaction.user, interaction.guild, interaction.channel);
                     };
 
                     for (const action of btnData.actions) {
@@ -3512,7 +3620,7 @@ client.on('interactionCreate', async (interaction) => {
                                     } else if (action.mode === 'components' && action.content) {
                                         // Components V2 ephemeral: reuse the shared builder
                                         if (!responseV2) responseV2 = [];
-                                        responseV2.push(buildActionV2Container(action, replacePlaceholders));
+                                        responseV2.push(buildActionV2Container(action));
                                     } else if (action.message) {
                                         if (!ephemeralContent) ephemeralContent = [];
                                         ephemeralContent.push(replacePlaceholders(action.message));
@@ -3534,7 +3642,7 @@ client.on('interactionCreate', async (interaction) => {
                                     } else {
                                         if (action.mode === 'components' && action.content) {
                                             // Components V2 public send
-                                            const v2Container = buildActionV2Container(action, replacePlaceholders);
+                                            const v2Container = buildActionV2Container(action);
                                             await targetChannel.send({ components: [v2Container], flags: MessageFlags.IsComponentsV2 });
                                         } else if (action.mode === 'embed' && action.embed) {
                                             const embed = new EmbedBuilder();
@@ -4106,7 +4214,7 @@ client.on('interactionCreate', async (interaction) => {
                         new ButtonBuilder().setCustomId(`favorites_prev_${newPage}`).setEmoji('<:Caretleft:1473038193057333409>').setStyle(ButtonStyle.Secondary).setDisabled(newPage === 1),
                         new ButtonBuilder().setCustomId(`favorites_play_${newPage}`).setEmoji({ id: '1473039269726785737', name: 'Skipnext' }).setLabel('Play All').setStyle(ButtonStyle.Success),
                         new ButtonBuilder().setCustomId(`favorites_shuffle_${newPage}`).setEmoji({ id: '1473039298751107213', name: 'Shuffle' }).setLabel('Shuffle').setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder().setCustomId(`favorites_next_${newPage}`).setEmoji('<:Skipnext:1473039269726785737>').setStyle(ButtonStyle.Secondary).setDisabled(newPage === totalPages)
+                        new ButtonBuilder().setCustomId(`favorites_next_${newPage}`).setEmoji('<:Caretright:1473038207221502106>').setStyle(ButtonStyle.Secondary).setDisabled(newPage === totalPages)
                     );
                     container.addActionRowComponents(row);
 
@@ -4587,9 +4695,31 @@ client.on('interactionCreate', async (interaction) => {
 
                     // Build welcome message - use custom if configured, otherwise default
                     const legacyWelcome = guildConfig.welcomeMessage;
-                    if (legacyWelcome && ((legacyWelcome.mode === 'embed' && (legacyWelcome.title || legacyWelcome.description)) || (legacyWelcome.mode === 'simple' && legacyWelcome.content))) {
-                        const { replacePlaceholders: legReplace } = require('./utils/actionMessageBuilder');
-                        if (legacyWelcome.mode === 'embed') {
+                    const legacyWelcomeConfigured = legacyWelcome && (
+                        (legacyWelcome.mode === 'embed' && (legacyWelcome.title || legacyWelcome.description)) ||
+                        (legacyWelcome.mode === 'simple' && legacyWelcome.content) ||
+                        (legacyWelcome.mode === 'components' && legacyWelcome.content)
+                    );
+                    if (legacyWelcomeConfigured) {
+                        const { replacePlaceholders: legReplace, buildComponentsV2Message: buildLegacyV2 } = require('./utils/actionMessageBuilder');
+                        if (legacyWelcome.mode === 'components') {
+                            // Components V2 mode: route through the shared
+                            // builder so the saved layout (sections,
+                            // thumbnail, banner, fields, footer) renders
+                            // exactly like the message-builder preview.
+                            const headerLine = `# <:Document:1473039496995143731> Support Ticket\n` +
+                                `**Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>`;
+                            const v2 = buildLegacyV2(legacyWelcome, interaction.user, interaction.guild, ticketChannel);
+                            try {
+                                v2.spliceComponents(0, 0, new TextDisplayBuilder().setContent(headerLine));
+                            } catch {
+                                v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerLine));
+                            }
+                            v2.addActionRowComponents(ticketButtons);
+                            await ticketChannel.send({ components: [v2], flags: MessageFlags.IsComponentsV2 }).catch(err => {
+                                log.error(`Error sending ticket message: ${err.message}`, err);
+                            });
+                        } else if (legacyWelcome.mode === 'embed') {
                             // embeds + IsComponentsV2 cannot coexist — flatten the embed into V2 text
                             let embedText = `# <:Document:1473039496995143731> Support Ticket\n`;
                             embedText += `**Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
@@ -4815,9 +4945,12 @@ client.on('interactionCreate', async (interaction) => {
 
                             // Check if there are more tracks in the queue
                             if (!player.queue.tracks || player.queue.tracks.length === 0) {
-                                // Check 24/7 mode before destroying player
+                                // Check 24/7 mode before destroying player (premium-only)
                                 let shouldStay = false;
-                                if (jsonStore.has('musicpanel-247')) {
+                                if (
+                                    premiumManager.isServerPremium(interaction.guild.id) &&
+                                    jsonStore.has('musicpanel-247')
+                                ) {
                                     const config247 = jsonStore.read('musicpanel-247');
                                     shouldStay = config247[interaction.guild.id]?.enabled || false;
                                 }
@@ -4843,7 +4976,10 @@ client.on('interactionCreate', async (interaction) => {
                             await interaction.deferUpdate().catch(() => { });
 
                             let is247Enabled = false;
-                            if (jsonStore.has('musicpanel-247')) {
+                            if (
+                                premiumManager.isServerPremium(interaction.guild.id) &&
+                                jsonStore.has('musicpanel-247')
+                            ) {
                                 const config247 = jsonStore.read('musicpanel-247');
                                 is247Enabled = config247[interaction.guild.id]?.enabled || false;
                             }
@@ -5093,6 +5229,20 @@ client.on('interactionCreate', async (interaction) => {
                         }
 
                         if (customId === 'panel_247') {
+                            // ── Premium gate ─────────────────────────
+                            // 24/7 mode is gated on `/247` at the slash
+                            // dispatcher, but the music-panel button
+                            // routes here directly. Re-validate so non-
+                            // premium servers can't enable 24/7 via the
+                            // panel and bypass the slash gate.
+                            if (!premiumManager.hasPremiumAccess(interaction.user.id, interaction.guild?.id)) {
+                                const { buildPremiumGate } = require('./utils/responseBuilder');
+                                return await interaction.reply({
+                                    components: [buildPremiumGate('/247')],
+                                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+                                }).catch(() => {});
+                            }
+
                             let config247 = {};
                             if (jsonStore.has('musicpanel-247')) {
                                 config247 = jsonStore.read('musicpanel-247');
@@ -6203,30 +6353,59 @@ client.on('interactionCreate', async (interaction) => {
                     // with no way for the user or staff to close it).
                     const welcomeMsg = liveGuildConfig.welcomeMessage;
                     let welcomeContainer;
-                    if (welcomeMsg && ((welcomeMsg.mode === 'embed' && (welcomeMsg.title || welcomeMsg.description)) || (welcomeMsg.mode === 'simple' && welcomeMsg.content))) {
-                        const { replacePlaceholders: ticketReplace } = require('./utils/actionMessageBuilder');
-                        let body = headerLine;
-                        if (welcomeMsg.mode === 'embed') {
-                            if (welcomeMsg.author)      body += `*${ticketReplace(welcomeMsg.author,      interaction.user, interaction.guild, ticketChannel)}*\n`;
-                            if (welcomeMsg.title)       body += `### ${ticketReplace(welcomeMsg.title,    interaction.user, interaction.guild, ticketChannel)}\n`;
-                            if (welcomeMsg.description) body += `${ticketReplace(welcomeMsg.description, interaction.user, interaction.guild, ticketChannel)}\n`;
-                            if (welcomeMsg.fields?.length) {
-                                body += '\n';
-                                for (const field of welcomeMsg.fields.slice(0, 25)) {
-                                    body += `**${ticketReplace(field.name, interaction.user, interaction.guild, ticketChannel)}**\n${ticketReplace(field.value, interaction.user, interaction.guild, ticketChannel)}\n\n`;
-                                }
+                    const welcomeIsConfigured = welcomeMsg && (
+                        (welcomeMsg.mode === 'embed' && (welcomeMsg.title || welcomeMsg.description)) ||
+                        (welcomeMsg.mode === 'simple' && welcomeMsg.content) ||
+                        (welcomeMsg.mode === 'components' && welcomeMsg.content)
+                    );
+                    if (welcomeIsConfigured) {
+                        const { replacePlaceholders: ticketReplace, buildComponentsV2Message: buildTicketV2 } = require('./utils/actionMessageBuilder');
+
+                        if (welcomeMsg.mode === 'components') {
+                            // Honour the Components V2 mode the admin picked
+                            // in the message-builder. We build a fresh container
+                            // through the shared helper so thumbnail, banner
+                            // image, fields and footer all render the way the
+                            // preview shows them, then prepend the ticket
+                            // header line and append the ticket action buttons.
+                            const headerDisplay = new TextDisplayBuilder().setContent(headerLine.trimEnd());
+                            const v2 = buildTicketV2(welcomeMsg, interaction.user, interaction.guild, ticketChannel);
+                            // Prepend the ticket header at the start. ContainerBuilder
+                            // exposes .spliceComponents which we use to insert the
+                            // header above whatever buildComponentsV2Message produced.
+                            try {
+                                v2.spliceComponents(0, 0, headerDisplay);
+                            } catch {
+                                // Older discord.js shim — just add at the end if
+                                // splice isn't available; the header still shows.
+                                v2.addTextDisplayComponents(headerDisplay);
                             }
-                            if (welcomeMsg.footer) body += `\n-# ${ticketReplace(welcomeMsg.footer, interaction.user, interaction.guild, ticketChannel)}`;
+                            v2.addActionRowComponents(ticketButtons);
+                            welcomeContainer = v2;
                         } else {
-                            body += ticketReplace(welcomeMsg.content, interaction.user, interaction.guild, ticketChannel);
+                            let body = headerLine;
+                            if (welcomeMsg.mode === 'embed') {
+                                if (welcomeMsg.author)      body += `*${ticketReplace(welcomeMsg.author,      interaction.user, interaction.guild, ticketChannel)}*\n`;
+                                if (welcomeMsg.title)       body += `### ${ticketReplace(welcomeMsg.title,    interaction.user, interaction.guild, ticketChannel)}\n`;
+                                if (welcomeMsg.description) body += `${ticketReplace(welcomeMsg.description, interaction.user, interaction.guild, ticketChannel)}\n`;
+                                if (welcomeMsg.fields?.length) {
+                                    body += '\n';
+                                    for (const field of welcomeMsg.fields.slice(0, 25)) {
+                                        body += `**${ticketReplace(field.name, interaction.user, interaction.guild, ticketChannel)}**\n${ticketReplace(field.value, interaction.user, interaction.guild, ticketChannel)}\n\n`;
+                                    }
+                                }
+                                if (welcomeMsg.footer) body += `\n-# ${ticketReplace(welcomeMsg.footer, interaction.user, interaction.guild, ticketChannel)}`;
+                            } else {
+                                body += ticketReplace(welcomeMsg.content, interaction.user, interaction.guild, ticketChannel);
+                            }
+                            const accent = welcomeMsg.mode === 'embed'
+                                ? (parseInt((welcomeMsg.color || '#5865F2').replace('#', ''), 16) || ticketUI.COLOR.BRAND)
+                                : ticketUI.COLOR.BRAND;
+                            welcomeContainer = new ContainerBuilder()
+                                .setAccentColor(accent)
+                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
+                                .addActionRowComponents(ticketButtons);
                         }
-                        const accent = welcomeMsg.mode === 'embed'
-                            ? (parseInt((welcomeMsg.color || '#5865F2').replace('#', ''), 16) || ticketUI.COLOR.BRAND)
-                            : ticketUI.COLOR.BRAND;
-                        welcomeContainer = new ContainerBuilder()
-                            .setAccentColor(accent)
-                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
-                            .addActionRowComponents(ticketButtons);
                     } else {
                         welcomeContainer = new ContainerBuilder()
                             .setAccentColor(ticketUI.COLOR.BRAND)
@@ -6512,52 +6691,33 @@ client.on('interactionCreate', async (interaction) => {
                     /**
                      * Build a Components V2 container from an action config.
                      * Mirrors the button-maker implementation so both paths
-                     * render identical V2 layouts.
+                     * render identical V2 layouts (including fields,
+                     * thumbnails, and footer) by routing through the
+                     * shared `buildComponentsV2Message` helper.
                      */
-                    const buildActionV2Container = (action, replace) => {
-                        const accentHex = (action.color || '#5865F2').replace('#', '');
-                        const v2 = new ContainerBuilder().setAccentColor(parseInt(accentHex, 16) || 0x5865F2);
-                        const resolvedContent = replace(action.content || '');
-                        if (action.thumbnail) {
-                            const section = new SectionBuilder()
-                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent))
-                                .setThumbnailAccessory(new ThumbnailBuilder().setURL(action.thumbnail));
-                            v2.addSectionComponents(section);
-                        } else {
-                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedContent));
-                        }
-                        if (action.image) {
-                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-                            v2.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(action.image)));
-                        }
-                        if (action.footer) {
-                            v2.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-                            v2.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${replace(action.footer)}`));
-                        }
-                        return v2;
+                    const { replacePlaceholders: amSelectReplace, buildComponentsV2Message: buildSelectV2 } = require('./utils/actionMessageBuilder');
+
+                    const buildActionV2Container = (action) => {
+                        const data = {
+                            content: action.content || '',
+                            color: action.color || '#5865F2',
+                            image: action.image || '',
+                            thumbnail: action.thumbnail || '',
+                            footer: action.footer || '',
+                            fields: Array.isArray(action.fields) ? action.fields : [],
+                        };
+                        return buildSelectV2(data, interaction.user, interaction.guild, interaction.channel);
                     };
 
-                    const replacePlaceholders = (text) => {
-                        if (!text) return text;
-                        return text
-                            .replace(/{user}/g, interaction.member?.displayName || interaction.user.username)
-                            .replace(/{userId}/g, interaction.user.id)
-                            .replace(/{userMention}/g, `<@${interaction.user.id}>`)
-                            .replace(/{server}/g, interaction.guild.name)
-                            .replace(/{membercount}/g, interaction.guild.memberCount.toString())
-                            .replace(/{channel}/g, interaction.channel?.name || 'unknown')
-                            .replace(/{channelId}/g, interaction.channel?.id || '')
-                            .replace(/{channelMention}/g, interaction.channel ? `<#${interaction.channel.id}>` : '#unknown')
-                            .replace(/{username}/g, interaction.user.username)
-                            .replace(/{discriminator}/g, interaction.user.discriminator || '0')
-                            .replace(/{tag}/g, interaction.user.username)
-                            .replace(/{avatar}/g, interaction.user.displayAvatarURL({ dynamic: true }))
-                            .replace(/{serverIcon}/g, interaction.guild.iconURL({ dynamic: true }) || '')
-                            .replace(/{timestamp}/g, `<t:${Math.floor(Date.now() / 1000)}:F>`)
-                            .replace(/{date}/g, new Date().toLocaleDateString())
-                            .replace(/{time}/g, new Date().toLocaleTimeString())
-                            .replace(/{number}/g, Date.now().toString());
-                    };
+                    // Delegate to the canonical placeholder resolver so
+                    // every token documented in the builder UI works
+                    // here too — and case-insensitively, matching the
+                    // builder's preview behaviour. The previous local
+                    // copy had a similar token list but used `g` (case
+                    // sensitive), which silently broke "{userid}" vs
+                    // "{userId}" mismatches between docs and runtime.
+                    const replacePlaceholders = (text) =>
+                        amSelectReplace(text, interaction.user, interaction.guild, interaction.channel);
 
                     for (const selectedValue of selectedValues) {
                         const option = menuData.options.find(o => o.value === selectedValue);
@@ -6636,7 +6796,7 @@ client.on('interactionCreate', async (interaction) => {
                                             // Components V2 ephemeral: build a real container instead
                                             // of flattening to plain text — preserves headings,
                                             // sections, thumbnail, image, and footer.
-                                            responseV2.push(buildActionV2Container(action, replacePlaceholders));
+                                            responseV2.push(buildActionV2Container(action));
                                         } else {
                                             responseMsg.push(`<:Cancel:1473037949187657818> No message content configured`);
                                             errorCount++;
@@ -6651,7 +6811,7 @@ client.on('interactionCreate', async (interaction) => {
                                             errorCount++;
                                         } else {
                                             if (action.mode === 'components' && action.content) {
-                                                const v2Container = buildActionV2Container(action, replacePlaceholders);
+                                                const v2Container = buildActionV2Container(action);
                                                 await targetChannel.send({ components: [v2Container], flags: MessageFlags.IsComponentsV2 });
                                             } else if (action.mode === 'embed' && action.embed) {
                                                 const embed = new EmbedBuilder();
@@ -7486,8 +7646,14 @@ client.on('interactionCreate', async (interaction) => {
             if (_gCfg.ephemeralResponses) {
                 opts.flags = (opts.flags || 0) | MessageFlags.Ephemeral;
             }
-            // Accent color on Components V2 containers (type 17)
-            if (opts.components && Array.isArray(opts.components)) {
+            // Accent color on Components V2 containers (type 17) and
+            // append the custom footer text as a small TextDisplay
+            // (type 10) at the end of the container if one is set.
+            // Discord doesn't have a native "footer" slot for CV2
+            // containers, so we add the footer as a styled `-#` line.
+            if (opts.components && Array.isArray(opts.components) && _gCfg.footerText) {
+                _injectCv2Footer(opts.components, _gColor, _gCfg.footerText);
+            } else if (opts.components && Array.isArray(opts.components)) {
                 for (const c of opts.components) {
                     if (c?.data?.type === 17 && c.data.accent_color === undefined) {
                         c.data.accent_color = _gColor;
@@ -7946,6 +8112,14 @@ client.on('messageCreate', async (message) => {
         const aiChatConfig = jsonStore.peekGuild('aichat', guildId);
 
         if (aiChatConfig?.enabled && aiChatConfig.channelId === message.channel.id) {
+            // ── Premium re-validation ─────────────────────────────
+            // `/aichat-setup` is premium-gated, but the persisted
+            // config keeps producing AI replies forever otherwise.
+            // If the server lost premium, silently stop responding.
+            if (!premiumManager.isServerPremium(guildId)) {
+                return;
+            }
+
             // Only process AI chat if it's NOT a prefix command
             const aiChatPrefix = getGuildPrefix(guildId);
             const isAiChatPrefixCommand = message.content.startsWith(aiChatPrefix);
@@ -8427,39 +8601,83 @@ client.on('messageCreate', async (message) => {
 
                         // --- Execute punishment if any filter triggered ---
                         if (triggered) {
-                            const action = spamCfg.action || 'timeout';
+                            const action = (spamCfg.action || 'timeout').toLowerCase();
                             const fullReason = `Anti-Spam [${triggered}]: ${reason}`;
                             await safeDeleteMessage(message, `antispam:${triggered}`);
 
-                            if (action === 'timeout' && message.member) {
-                                const duration = spamCfg.timeoutDuration || 60000;
-                                await message.member.timeout(duration, fullReason).catch(e => log.error('AntiSpam timeout: ' + e.message));
-                                const msg = await message.channel.send(`<:Shield:1473038669831995494> <@${userId}> has been timed out for **${Math.round(duration / 1000)}s** — ${triggered.toLowerCase()} detected.`).catch(() => null);
-                                if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
-                            } else if (action === 'kick' && message.member) {
-                                await message.member.kick(fullReason).catch(e => log.error('AntiSpam kick: ' + e.message));
-                                await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been kicked — ${triggered.toLowerCase()} detected.`).catch(() => { });
-                            } else if (action === 'ban' && message.member) {
-                                await message.member.ban({ reason: fullReason, deleteMessageSeconds: 60 }).catch(e => log.error('AntiSpam ban: ' + e.message));
-                                await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been banned — ${triggered.toLowerCase()} detected.`).catch(() => { });
-                            } else if (action === 'warn') {
-                                const msg = await message.channel.send(`<:Infotriangle:1473038460456800459> <@${userId}>, stop! ${triggered} detected: ${reason}`).catch(() => null);
-                                if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
+                            // Track whether we successfully applied the
+                            // configured action so the log can show
+                            // pass/fail rather than always claiming the
+                            // action was applied.
+                            let acted = false;
+                            let failureReason = null;
+
+                            try {
+                                if (action === 'timeout' && message.member) {
+                                    if (!message.member.moderatable) {
+                                        failureReason = 'bot lacks Timeout permission or member outranks bot';
+                                    } else {
+                                        const duration = spamCfg.timeoutDuration || 60000;
+                                        await message.member.timeout(duration, fullReason);
+                                        acted = true;
+                                        const msg = await message.channel.send(`<:Shield:1473038669831995494> <@${userId}> has been timed out for **${Math.round(duration / 1000)}s** — ${triggered.toLowerCase()} detected.`).catch(() => null);
+                                        if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
+                                    }
+                                } else if (action === 'kick' && message.member) {
+                                    if (!message.member.kickable) {
+                                        failureReason = 'bot cannot kick this member';
+                                    } else {
+                                        await message.member.kick(fullReason);
+                                        acted = true;
+                                        await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been kicked — ${triggered.toLowerCase()} detected.`).catch(() => { });
+                                    }
+                                } else if (action === 'ban' && message.member) {
+                                    if (!message.member.bannable) {
+                                        failureReason = 'bot cannot ban this member';
+                                    } else {
+                                        await message.member.ban({ reason: fullReason, deleteMessageSeconds: 60 });
+                                        acted = true;
+                                        await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been banned — ${triggered.toLowerCase()} detected.`).catch(() => { });
+                                    }
+                                } else if (action === 'warn') {
+                                    // Warn is "delete + public reminder" —
+                                    // never modifies member state, so
+                                    // it's always considered successful.
+                                    const msg = await message.channel.send(`<:Infotriangle:1473038460456800459> <@${userId}>, stop! ${triggered} detected: ${reason}`).catch(() => null);
+                                    if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
+                                    acted = true;
+                                } else if (action === 'delete') {
+                                    // Pure delete — message was already
+                                    // removed above by safeDeleteMessage.
+                                    acted = true;
+                                } else {
+                                    failureReason = `unknown action "${action}"`;
+                                    log.error(`[AntiSpam] Unknown action "${action}" for guild ${guildId}`);
+                                }
+                            } catch (err) {
+                                failureReason = err.message || 'API error';
+                                log.error(`AntiSpam ${action} failed: ${err.message}`);
                             }
 
                             if (spamCfg.logChannel) {
                                 const logCh = message.guild.channels.cache.get(spamCfg.logChannel);
                                 if (logCh) {
+                                    const statusLine = acted
+                                        ? `<:Checkedbox:1473038547165384804> **Status:** Action applied (\`${action.toUpperCase()}\`)`
+                                        : `<:Cancel:1473037949187657818> **Status:** Action **failed** — ${failureReason || 'unknown'}`;
                                     const logContainer = new ContainerBuilder()
-                                        .setAccentColor(action === 'ban' ? 0xFF0000 : action === 'kick' ? 0xFF6600 : 0xFFA500)
+                                        .setAccentColor(acted
+                                            ? (action === 'ban' ? 0xFF0000 : action === 'kick' ? 0xFF6600 : 0xFFA500)
+                                            : 0xFEE75C)
                                         .addTextDisplayComponents(
                                             new TextDisplayBuilder().setContent(
-                                                `# <:Shield:1473038669831995494> Anti-Spam Action\n\n` +
+                                                `# <:Shield:1473038669831995494> Anti-Spam Detection\n\n` +
                                                 `**User:** ${message.author.username} (<@${userId}>)\n` +
                                                 `**Channel:** <#${message.channel.id}>\n` +
                                                 `**Action:** \`${action.toUpperCase()}\`\n` +
                                                 `**Filter:** ${triggered}\n` +
                                                 `**Reason:** ${reason}\n` +
+                                                `${statusLine}\n` +
                                                 `-# <t:${Math.floor(Date.now() / 1000)}:R>`
                                             )
                                         );
@@ -8551,8 +8769,13 @@ client.on('messageCreate', async (message) => {
         const guildCustom = botCustomize.getConfig(guildId);
         const gPrefix = getGuildPrefix(guildId);
         const accentColor = botCustomize.getEmbedColor(guildId) || 0xCAD7E6;
+        // Use the full per-guild bio (clamped to 600 chars so the home
+        // block stays compact). When unset, fall back to the canned
+        // marketing line. Multi-line bios are rendered verbatim — we
+        // used to drop everything after the first newline which made
+        // the panel look like the bio "wasn't applying".
         const aboutLine = guildCustom.aboutText
-            ? guildCustom.aboutText.split('\n')[0].substring(0, 140)
+            ? guildCustom.aboutText.slice(0, 600)
             : 'All-in-one Discord toolkit — Music, Moderation, Economy, Levels, Tickets & more.';
 
         const headerSection = new SectionBuilder()
@@ -8798,7 +9021,13 @@ client.on('messageCreate', async (message) => {
 
                 // Send new sticky message
                 try {
-                    const newSticky = await message.channel.send(channelSticky.content);
+                    // Resolve placeholders in the stored content so {user},
+                    // {channel}, {servername} and friends actually expand
+                    // in simple-sticky messages — the rich sticky path
+                    // already does this; this branch was missing it.
+                    const { replacePlaceholders: simpleStickyReplace } = require('./utils/actionMessageBuilder');
+                    const resolvedSticky = simpleStickyReplace(channelSticky.content, message.author, message.guild, message.channel);
+                    const newSticky = await message.channel.send(resolvedSticky);
                     // Re-read full store only when we actually need to write back.
                     const simpleStickyConfig = jsonStore.read('simple-sticky');
                     if (!simpleStickyConfig[guildId]) simpleStickyConfig[guildId] = {};
@@ -8956,10 +9185,17 @@ client.on('messageCreate', async (message) => {
                 for (const item of autoresponderConfig.responses) {
                     if (content.includes(item.trigger)) {
                         try {
+                            // Resolve placeholders so admins can use {user},
+                            // {username}, {servername}, {membercount}, etc.
+                            // in their stored response. Without this the
+                            // raw `{user}` / `{server}` template tokens
+                            // were posted verbatim.
+                            const { replacePlaceholders: arReplace } = require('./utils/actionMessageBuilder');
+                            const resolvedResponse = arReplace(item.response, message.author, message.guild, message.channel);
                             const container = new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(item.response)
+                                        .setContent(resolvedResponse)
                                 );
                             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
                         } catch (error) {
@@ -9412,12 +9648,25 @@ client.on('messageCreate', async (message) => {
 
         // console.log(`Prefix command received: ${commandName} by ${message.author.username}`);
 
-        // Check for custom commands first
-        if (guildId) {
+        // Check for custom commands first (premium-only at runtime).
+        // `customcmd` / `delcustomcmd` are premium-gated for creation,
+        // but using a previously-created custom command is dispatched
+        // here BEFORE the regular `premiumOnly` check on built-in
+        // commands. Re-validate server premium so a guild that lost
+        // premium can no longer trigger their custom commands.
+        if (guildId && premiumManager.isServerPremium(guildId)) {
             const customCmdsGuild = jsonStore.peekGuild('customcmds', guildId);
             if (customCmdsGuild && customCmdsGuild[commandName]) {
                 const response = customCmdsGuild[commandName];
-                return message.reply(response).catch(() => { });
+                // Resolve placeholders so admins can write responses
+                // like "-greet" → "Hi {user}, welcome to {servername}!"
+                // and have the tokens expand at reply time. Without this
+                // the raw template string was being sent verbatim.
+                const { replacePlaceholders: ccReplace } = require('./utils/actionMessageBuilder');
+                const resolvedResponse = typeof response === 'string'
+                    ? ccReplace(response, message.author, message.guild, message.channel)
+                    : response;
+                return message.reply(resolvedResponse).catch(() => { });
             }
         }
 
@@ -9507,8 +9756,14 @@ client.on('messageCreate', async (message) => {
             const _patchMsgOpts = (opts) => {
                 if (typeof opts === 'string') opts = { content: opts };
                 if (!opts) opts = {};
-                // Accent color on Components V2 containers (type 17)
-                if (opts.components && Array.isArray(opts.components)) {
+                // Accent color on Components V2 containers (type 17) +
+                // optional footer line. CV2 containers don't have a
+                // native "footer" slot, so we append a TextDisplay
+                // formatted as a small grey line at the very end of
+                // each container when a custom footer is configured.
+                if (opts.components && Array.isArray(opts.components) && _gFoot) {
+                    _injectCv2Footer(opts.components, _gColor, _gFoot);
+                } else if (opts.components && Array.isArray(opts.components)) {
                     for (const c of opts.components) {
                         if (c?.data?.type === 17 && c.data.accent_color === undefined) {
                             c.data.accent_color = _gColor;
@@ -9587,6 +9842,14 @@ async function executeAntiNukePunishment(guild, member, actionType, action, exec
     const botMember = guild.members.me;
     if (!botMember) return false;
 
+    // Server owners are untouchable (Discord won't let us kick/ban them
+    // anyway). Skip early so the call doesn't waste an API request and
+    // log a misleading "Cannot punish" line.
+    if (member.id === guild.ownerId) {
+        log.warning(`Anti-Nuke: Skipping ${member.user?.username || member.id} — guild owner`);
+        return false;
+    }
+
     // Hierarchy check — cannot punish members with equal or higher roles
     if (member.roles?.highest?.position >= botMember.roles.highest.position) {
         log.warning(`Anti-Nuke: Cannot punish ${executor.username || executor.id} — role hierarchy too high`);
@@ -9595,32 +9858,59 @@ async function executeAntiNukePunishment(guild, member, actionType, action, exec
 
     const reason = `Anti-Nuke: Exceeded ${action} limit`;
 
-    if (actionType === 'remove_roles') {
-        const rolesToRemove = member.roles.cache.filter(role =>
-            role.id !== guild.id &&
-            role.position < botMember.roles.highest.position
-        );
-        if (rolesToRemove.size > 0) {
+    try {
+        if (actionType === 'remove_roles') {
+            const rolesToRemove = member.roles.cache.filter(role =>
+                role.id !== guild.id &&
+                !role.managed &&
+                role.position < botMember.roles.highest.position
+            );
+            if (rolesToRemove.size === 0) {
+                // Nothing to strip — report failure instead of pretending
+                // we acted, otherwise the log channel shows "Stripped
+                // roles" with zero actually removed.
+                log.warning(`Anti-Nuke: ${executor.username || executor.id} has no removable roles`);
+                return false;
+            }
             await member.roles.remove(rolesToRemove, reason);
+            log.warning(`Anti-Nuke: Removed ${rolesToRemove.size} role(s) from ${executor.username || executor.id} for ${action}`);
+        } else if (actionType === 'kick') {
+            if (!member.kickable) {
+                log.warning(`Anti-Nuke: Cannot kick ${executor.username || executor.id}`);
+                return false;
+            }
+            await member.kick(reason);
+            log.warning(`Anti-Nuke: Kicked ${executor.username || executor.id} for ${action}`);
+        } else if (actionType === 'ban') {
+            if (!member.bannable) {
+                log.warning(`Anti-Nuke: Cannot ban ${executor.username || executor.id}`);
+                return false;
+            }
+            await member.ban({ reason, deleteMessageSeconds: 0 });
+            log.warning(`Anti-Nuke: Banned ${executor.username || executor.id} for ${action}`);
+        } else if (actionType === 'timeout') {
+            if (!member.moderatable) {
+                log.warning(`Anti-Nuke: Cannot timeout ${executor.username || executor.id}`);
+                return false;
+            }
+            // 1 hour default timeout
+            await member.timeout(3600000, reason);
+            log.warning(`Anti-Nuke: Timed out ${executor.username || executor.id} for ${action}`);
+        } else {
+            // Unknown action — log loud rather than silently no-op
+            log.error(`Anti-Nuke: Unknown actionType "${actionType}" for ${action}`);
+            return false;
         }
-        log.warning(`Anti-Nuke: Removed roles from ${executor.username || executor.id} for ${action}`);
-    } else if (actionType === 'kick') {
-        if (!member.kickable) return false;
-        await member.kick(reason);
-        log.warning(`Anti-Nuke: Kicked ${executor.username || executor.id} for ${action}`);
-    } else if (actionType === 'ban') {
-        if (!member.bannable) return false;
-        await member.ban({ reason, deleteMessageSeconds: 0 });
-        log.warning(`Anti-Nuke: Banned ${executor.username || executor.id} for ${action}`);
-    } else if (actionType === 'timeout') {
-        if (!member.moderatable) return false;
-        // 1 hour default timeout
-        await member.timeout(3600000, reason);
-        log.warning(`Anti-Nuke: Timed out ${executor.username || executor.id} for ${action}`);
-    } else {
+        return true;
+    } catch (err) {
+        // Wrapping each branch's API call inside this catch ensures a
+        // single permission/rate-limit error doesn't bubble out and
+        // crash the caller's flow. The outer try{} in checkAntiNuke also
+        // catches, but doing it here keeps the success bookkeeping
+        // (`success = false`) accurate.
+        log.error(`Anti-Nuke ${actionType} failed for ${executor.username || executor.id}: ${err.message}`);
         return false;
     }
-    return true;
 }
 
 const ANTINUKE_ACTION_LABELS = {
@@ -9728,8 +10018,20 @@ async function checkAntiNuke(guild, action, executor, target = null) {
 
     if (actions.length <= limit) return;
 
+    /* ── In-flight guard ──
+     * If the executor is rapid-firing dangerous actions, multiple
+     * checkAntiNuke calls can land here simultaneously. Without a
+     * lock, each one fetches the member, runs the punishment, and
+     * sends a duplicate log entry. We piggy-back a flag on the
+     * tracked actions array (it's per-key so already isolated). */
+    if (actions._punishing) return;
+    actions._punishing = true;
+
     const member = guild.members.cache.get(executor.id) || await guild.members.fetch(executor.id).catch(() => null);
-    if (!member) return;
+    if (!member) {
+        actions._punishing = false;
+        return;
+    }
 
     const actionType = protectionConfig.action || 'remove_roles';
     const violationCount = actions.length;
@@ -9737,9 +10039,16 @@ async function checkAntiNuke(guild, action, executor, target = null) {
     try {
         const success = await executeAntiNukePunishment(guild, member, actionType, action, executor);
 
-        antinukeTracker.delete(key);
-
+        /* Reset tracking ONLY on successful punishment. The previous
+         * implementation deleted the key whether or not the action
+         * landed — so an offender the bot couldn't punish (role
+         * hierarchy, no permission, owner exempt) would have their
+         * counter reset and could resume nuking immediately.
+         * Keeping the array around lets the next dangerous action
+         * trigger another punishment attempt. */
         if (success) {
+            antinukeTracker.delete(key);
+
             sendAntiNukeLog(guild, config, executor, action, limit, timeWindow, violationCount, actionType, target);
 
             // ── Optional external audit webhook (gated by env var) ──
@@ -9755,7 +10064,7 @@ async function checkAntiNuke(guild, action, executor, target = null) {
                             { name: '👤 Offender', value: `${executor.username || 'Unknown'} (<@${executor.id}>)`, inline: true },
                             { name: '⚡ Threat Action', value: `\`${action}\``, inline: true },
                             { name: '🛡️ Response', value: `\`${actionType.toUpperCase()}\``, inline: true },
-                            { name: '🔁 Violations', value: `\`${actions.length}\` actions in \`${(timeWindow / 1000)}s\` (limit: \`${limit}\`)`, inline: false },
+                            { name: '🔁 Violations', value: `\`${violationCount}\` actions in \`${(timeWindow / 1000)}s\` (limit: \`${limit}\`)`, inline: false },
                             { name: '🎯 Target', value: target ? `\`${target}\`` : 'N/A', inline: true },
                             { name: '👥 Server Members', value: `\`${guild.memberCount.toLocaleString()}\``, inline: true },
                         ],
@@ -9769,9 +10078,21 @@ async function checkAntiNuke(guild, action, executor, target = null) {
                     }).catch(() => { });
                 } catch (_) { /* never let webhook failures break antinuke */ }
             }
+        } else {
+            // Punishment failed — log it once per cycle so admins know
+            // their config is unenforceable, but don't spam the log on
+            // every subsequent dangerous action. We mark the array so
+            // the warn fires only when violations cross the limit
+            // again from a fresh batch.
+            log.warning(`Anti-Nuke: Punishment FAILED for ${executor.username || executor.id} on ${action} — counter retained`);
         }
     } catch (error) {
         log.error(`Anti-Nuke punishment error (${action}):`, error);
+    } finally {
+        // Always release the in-flight flag, even on success/failure/
+        // exception — otherwise the executor's tracker is permanently
+        // wedged and future violations are silently ignored.
+        if (actions) actions._punishing = false;
     }
 }
 
@@ -9829,21 +10150,47 @@ client.on('guildMemberAdd', async (member) => {
                             const executor = botAddLog.executor;
                             if (executor?.id && !isAntiNukeExempt(member.guild, config, executor.id)) {
                                 const action = config.botAdd.action || 'kick_bot';
-                                if (action === 'kick_bot' && member.kickable) {
-                                    await member.kick('Anti-Nuke: Unauthorized bot addition');
-                                    log.warning(`Anti-Nuke: Kicked bot ${member.user.username} added by ${executor.username || executor.id}`);
-                                } else if (action === 'kick_both') {
-                                    if (member.kickable) {
-                                        await member.kick('Anti-Nuke: Unauthorized bot addition');
+                                const reason = 'Anti-Nuke: Unauthorized bot addition';
+                                let acted = false;
+
+                                try {
+                                    if (action === 'kick_bot') {
+                                        if (member.kickable) {
+                                            await member.kick(reason);
+                                            acted = true;
+                                            log.warning(`Anti-Nuke: Kicked bot ${member.user.username} added by ${executor.username || executor.id}`);
+                                        } else {
+                                            log.warning(`Anti-Nuke: Cannot kick bot ${member.user.username} — bot lacks permission`);
+                                        }
+                                    } else if (action === 'kick_both') {
+                                        let botKicked = false, execKicked = false;
+                                        if (member.kickable) {
+                                            await member.kick(reason);
+                                            botKicked = true;
+                                        }
+                                        const executorMember = await member.guild.members.fetch(executor.id).catch(() => null);
+                                        if (executorMember && executorMember.id !== member.guild.ownerId && executorMember.kickable) {
+                                            await executorMember.kick(reason);
+                                            execKicked = true;
+                                        }
+                                        acted = botKicked || execKicked;
+                                        log.warning(`Anti-Nuke: kick_both — bot=${botKicked} executor=${execKicked} (${member.user.username} + ${executor.username || executor.id})`);
+                                    } else if (action === 'ban_bot') {
+                                        if (member.bannable) {
+                                            await member.ban({ reason, deleteMessageSeconds: 0 });
+                                            acted = true;
+                                            log.warning(`Anti-Nuke: Banned bot ${member.user.username} added by ${executor.username || executor.id}`);
+                                        } else {
+                                            log.warning(`Anti-Nuke: Cannot ban bot ${member.user.username} — bot lacks permission`);
+                                        }
+                                    } else {
+                                        log.error(`Anti-Nuke: Unknown botAdd action "${action}"`);
                                     }
-                                    const executorMember = await member.guild.members.fetch(executor.id).catch(() => null);
-                                    if (executorMember?.kickable) {
-                                        await executorMember.kick('Anti-Nuke: Unauthorized bot addition');
-                                    }
-                                    log.warning(`Anti-Nuke: Kicked bot ${member.user.username} and executor ${executor.username || executor.id}`);
-                                } else if (action === 'ban_bot' && member.bannable) {
-                                    await member.ban({ reason: 'Anti-Nuke: Unauthorized bot addition', deleteMessageSeconds: 0 });
-                                    log.warning(`Anti-Nuke: Banned bot ${member.user.username} added by ${executor.username || executor.id}`);
+                                } catch (err) {
+                                    // Don't let a permission/rate-limit error stop us from
+                                    // logging the detection — admins still need to know
+                                    // an unauthorised bot was added.
+                                    log.error(`Anti-Nuke botAdd action ${action} failed:`, err);
                                 }
 
                                 // Send log
@@ -9852,8 +10199,11 @@ client.on('guildMemberAdd', async (member) => {
                                     if (logChannel) {
                                         const actionLabels = { kick_bot: 'Kicked Bot', kick_both: 'Kicked Bot & Executor', ban_bot: 'Banned Bot' };
                                         const nowTs = Math.floor(Date.now() / 1000);
+                                        const statusLine = acted
+                                            ? `<:Checkedbox:1473038547165384804> **Status:** Action applied`
+                                            : `<:Cancel:1473037949187657818> **Status:** Action **failed** — bot lacked permission to apply \`${action}\``;
                                         const container = new ContainerBuilder()
-                                            .setAccentColor(ANTINUKE_PUNISH_COLORS[action] || 0xED4245)
+                                            .setAccentColor(acted ? (ANTINUKE_PUNISH_COLORS[action] || 0xED4245) : 0xFEE75C)
                                             .addTextDisplayComponents(
                                                 new TextDisplayBuilder()
                                                     .setContent(
@@ -9861,7 +10211,8 @@ client.on('guildMemberAdd', async (member) => {
                                                         `<:Userblock:1473038868184826149> **Added by:** <@${executor.id}> (\`${executor.id}\`)\n` +
                                                         `<:bots:1473368718120849500> **Bot:** <@${member.id}> (\`${member.id}\`)\n` +
                                                         `<:Shield:1473038669831995494> **Action:** \`${actionLabels[action] || action}\`\n` +
-                                                        `<:Timer:1473039056710406204> **Time:** <t:${nowTs}:f> (<t:${nowTs}:R>)\n\n` +
+                                                        `<:Timer:1473039056710406204> **Time:** <t:${nowTs}:f> (<t:${nowTs}:R>)\n` +
+                                                        `${statusLine}\n\n` +
                                                         `-# xNico Anti-Nuke Engine`
                                                     )
                                             );
@@ -9892,14 +10243,71 @@ client.on('guildMemberAdd', async (member) => {
                 const minAgeMs = minAgeDays * 24 * 60 * 60 * 1000;
 
                 if (accountAgeMs < minAgeMs) {
+                    // Honour the configured action — old code always
+                    // kicked even when the admin set 'ban' or 'log_only',
+                    // making the per-action setting silently useless.
+                    const action = (antialtConfig.action || 'kick').toLowerCase();
+                    const accountAgeDays = Math.floor(accountAgeMs / (24 * 60 * 60 * 1000));
+                    const reason = `Anti-Alt: Account too new (${accountAgeDays} days old, min: ${minAgeDays} days)`;
+
+                    let acted = false;
+                    let actLabel = action;
                     try {
-                        const accountAgeDays = Math.floor(accountAgeMs / (24 * 60 * 60 * 1000));
-                        await member.kick(`Anti-Alt: Account too new (${accountAgeDays} days old, min: ${minAgeDays} days)`);
-                        log.warning(`Anti-Alt: Kicked ${member.user.username} (account age: ${accountAgeDays} days, required: ${minAgeDays} days)`);
+                        if (action === 'kick') {
+                            if (member.kickable) { await member.kick(reason); acted = true; }
+                            else log.warning(`Anti-Alt: Cannot kick ${member.user.username} — bot lacks permission`);
+                        } else if (action === 'ban') {
+                            if (member.bannable) { await member.ban({ reason }); acted = true; }
+                            else log.warning(`Anti-Alt: Cannot ban ${member.user.username} — bot lacks permission`);
+                        } else if (action === 'log_only') {
+                            // Detection-only mode — never touch the member,
+                            // just write to the log channel below.
+                            actLabel = 'log_only';
+                            acted = true;
+                        } else {
+                            log.error(`Anti-Alt: Unknown action "${action}" for ${member.user.username}`);
+                        }
+
+                        if (acted) {
+                            log.warning(`Anti-Alt: ${actLabel} on ${member.user.username} (account age: ${accountAgeDays}d, required: ${minAgeDays}d)`);
+                        }
                     } catch (err) {
-                        log.error('Anti-Alt kick error', err);
+                        log.error('Anti-Alt action error', err);
                     }
-                    return;
+
+                    // Always log the detection (even when acted=false) so
+                    // the admin can see the bot couldn't apply the action
+                    // and adjust role hierarchy.
+                    if (antialtConfig.logChannel) {
+                        try {
+                            const logChannel = member.guild.channels.cache.get(antialtConfig.logChannel);
+                            if (logChannel) {
+                                const status = acted
+                                    ? `<:Checkedbox:1473038547165384804> Action applied: \`${actLabel}\``
+                                    : `<:Cancel:1473037949187657818> Action **failed** — bot couldn't \`${actLabel}\` (check role hierarchy)`;
+                                const container = new ContainerBuilder()
+                                    .setAccentColor(acted ? 0xED4245 : 0xFEE75C)
+                                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                        `# <:Shield:1473038669831995494> Anti-Alt Detection\n\n` +
+                                        `**User:** ${member.user.username} (\`${member.id}\`)\n` +
+                                        `**Account Age:** ${accountAgeDays} day${accountAgeDays === 1 ? '' : 's'}\n` +
+                                        `**Required:** ${minAgeDays} day${minAgeDays === 1 ? '' : 's'}\n` +
+                                        `${status}`
+                                    ));
+                                await logChannel.send({
+                                    components: [container],
+                                    flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+                                }).catch(() => {});
+                            }
+                        } catch (e) {
+                            log.error('Anti-Alt log error', e);
+                        }
+                    }
+                    // Only return early when we actually acted on the
+                    // user — otherwise (e.g. log_only or failed kick) we
+                    // let downstream join handlers (anti-raid, welcome,
+                    // autoroles) still process the join normally.
+                    if (acted && action !== 'log_only') return;
                 }
             }
         }
@@ -9920,29 +10328,55 @@ client.on('guildMemberAdd', async (member) => {
                         const minAgeMs = minAgeDays * 24 * 60 * 60 * 1000;
 
                         if (accountAgeMs < minAgeMs) {
-                            const action = guildAntiraidConfig.accountAge.action || 'kick';
+                            const action = (guildAntiraidConfig.accountAge.action || 'kick').toLowerCase();
+                            const accountAgeDays = Math.floor(accountAgeMs / (24 * 60 * 60 * 1000));
+                            const reason = `Anti-Raid: Account too new (${accountAgeDays} days old, min: ${minAgeDays} days)`;
+
+                            // Apply the configured action with proper
+                            // kickable/bannable/moderatable checks so a
+                            // failed API call doesn't leave the user in
+                            // the server with no log of the failure.
+                            let acted = false;
+                            let actLabel = action;
                             try {
                                 if (action === 'kick') {
-                                    await member.kick(`Anti-Raid: Account too new (${Math.floor(accountAgeMs / (24 * 60 * 60 * 1000))} days old, min: ${minAgeDays} days)`);
+                                    if (member.kickable) { await member.kick(reason); acted = true; }
                                 } else if (action === 'ban') {
-                                    await member.ban({ reason: `Anti-Raid: Account too new` });
-                                }
-
-                                if (guildAntiraidConfig.logChannel) {
-                                    const logChannel = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
-                                    if (logChannel) {
-                                        const container = new ContainerBuilder()
-                                            .addTextDisplayComponents(
-                                                new TextDisplayBuilder()
-                                                    .setContent(`# <:Shield:1473038669831995494> Anti-Raid: Account Age Protection\n\n**User:** ${member.user.username} (${member.id})\n**Account Age:** ${Math.floor(accountAgeMs / (24 * 60 * 60 * 1000))} days\n**Required:** ${minAgeDays} days\n**Action:** ${action}`)
-                                            );
-                                        await logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
-                                    }
+                                    if (member.bannable) { await member.ban({ reason }); acted = true; }
+                                } else if (action === 'timeout') {
+                                    // 1 hour default — surfaces the
+                                    // alt-likeness without removing them
+                                    // from the server.
+                                    if (member.moderatable) { await member.timeout(60 * 60 * 1000, reason); acted = true; }
+                                } else if (action === 'log_only') {
+                                    actLabel = 'log_only';
+                                    acted = true;
                                 }
                             } catch (err) {
-                                log.error('Anti-Raid account age error', err);
+                                log.error('Anti-Raid account age action error', err);
                             }
-                            return;
+
+                            if (guildAntiraidConfig.logChannel) {
+                                const logChannel = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
+                                if (logChannel) {
+                                    const status = acted
+                                        ? `<:Checkedbox:1473038547165384804> Action applied: \`${actLabel}\``
+                                        : `<:Cancel:1473037949187657818> Action **failed** — bot couldn't \`${actLabel}\``;
+                                    const container = new ContainerBuilder()
+                                        .setAccentColor(acted ? 0xED4245 : 0xFEE75C)
+                                        .addTextDisplayComponents(
+                                            new TextDisplayBuilder()
+                                                .setContent(`# <:Shield:1473038669831995494> Anti-Raid: Account Age Protection\n\n**User:** ${member.user.username} (\`${member.id}\`)\n**Account Age:** ${accountAgeDays} day${accountAgeDays === 1 ? '' : 's'}\n**Required:** ${minAgeDays} day${minAgeDays === 1 ? '' : 's'}\n${status}`)
+                                        );
+                                    await logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
+                                }
+                            }
+
+                            // Only short-circuit downstream join handlers
+                            // when we actually removed/timed-out the user.
+                            // log_only or failed actions should still let
+                            // other systems run.
+                            if (acted && action !== 'log_only' && action !== 'timeout') return;
                         }
                     }
 
@@ -9965,85 +10399,107 @@ client.on('guildMemberAdd', async (member) => {
 
                         const limit = guildAntiraidConfig.joinRate.limit || 10;
                         if (recentJoins.length > limit) {
-                            const action = guildAntiraidConfig.joinRate.action || 'kick';
+                            const action = (guildAntiraidConfig.joinRate.action || 'kick').toLowerCase();
+                            const reason = `Anti-Raid: Join rate limit exceeded (${recentJoins.length}/${limit} joins in ${(timeWindow / 1000)}s)`;
+                            let acted = false;
+                            let actLabel = action;
                             try {
                                 if (action === 'kick') {
-                                    await member.kick('Anti-Raid: Join rate limit exceeded');
+                                    if (member.kickable) { await member.kick(reason); acted = true; }
                                 } else if (action === 'ban') {
-                                    await member.ban({ reason: 'Anti-Raid: Join rate limit exceeded' });
+                                    if (member.bannable) { await member.ban({ reason }); acted = true; }
+                                } else if (action === 'timeout') {
+                                    if (member.moderatable) { await member.timeout(60 * 60 * 1000, reason); acted = true; }
+                                } else if (action === 'log_only') {
+                                    actLabel = 'log_only';
+                                    acted = true;
                                 }
 
                                 // Auto lockdown if threshold reached
                                 if (guildAntiraidConfig.autoLockdown?.enabled) {
                                     const lockdownKey = `lockdown-${member.guild.id}`;
                                     if (!global.lockdownTracker) global.lockdownTracker = new Map();
+                                    if (!global.lockdownActive) global.lockdownActive = new Map();
 
-                                    const lockdownCount = (global.lockdownTracker.get(lockdownKey) || 0) + 1;
-                                    global.lockdownTracker.set(lockdownKey, lockdownCount);
+                                    // Skip everything while a lockdown is already in flight —
+                                    // otherwise every subsequent join during the duration
+                                    // re-locks already-locked channels AND schedules another
+                                    // setTimeout to "restore" them, which would unlock the
+                                    // server before the original lockdown duration elapses.
+                                    if (global.lockdownActive.get(lockdownKey)) {
+                                        // already locked — skip
+                                    } else {
+                                        const lockdownCount = (global.lockdownTracker.get(lockdownKey) || 0) + 1;
+                                        global.lockdownTracker.set(lockdownKey, lockdownCount);
 
-                                    if (lockdownCount >= (guildAntiraidConfig.autoLockdown.threshold || 15)) {
-                                        // Trigger auto lockdown
-                                        const textChannels = member.guild.channels.cache.filter(ch => ch.type === 0);
-                                        for (const [, channel] of textChannels) {
-                                            try {
-                                                await channel.permissionOverwrites.edit(member.guild.roles.everyone, {
-                                                    SendMessages: false
-                                                });
-                                            } catch (e) { }
-                                        }
-
-                                        if (guildAntiraidConfig.logChannel) {
-                                            const logChannel = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
-                                            if (logChannel) {
-                                                const container = new ContainerBuilder()
-                                                    .addTextDisplayComponents(
-                                                        new TextDisplayBuilder()
-                                                            .setContent(`# <:Lock:1473038513749491773> Anti-Raid: Auto Lockdown Triggered\n\n**Reason:** Join rate exceeded threshold (${lockdownCount} incidents)\n**Action:** All text channels locked`)
-                                                    );
-                                                await logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
+                                        if (lockdownCount >= (guildAntiraidConfig.autoLockdown.threshold || 15)) {
+                                            // Mark active so concurrent joinRate violations
+                                            // during the duration are no-ops above.
+                                            global.lockdownActive.set(lockdownKey, true);
+                                            // Trigger auto lockdown
+                                            const textChannels = member.guild.channels.cache.filter(ch => ch.type === 0);
+                                            for (const [, channel] of textChannels) {
+                                                try {
+                                                    await channel.permissionOverwrites.edit(member.guild.roles.everyone, {
+                                                        SendMessages: false
+                                                    });
+                                                } catch (e) { }
                                             }
-                                        }
 
-                                        // Restore permissions after lockdown duration
-                                        const duration = guildAntiraidConfig.autoLockdown.duration || 300000;
-                                        setTimeout(async () => {
-                                            try {
-                                                global.lockdownTracker.set(lockdownKey, 0);
-                                                // Restore channel permissions
-                                                const textChannelsRestore = member.guild.channels.cache.filter(ch => ch.type === 0);
-                                                for (const [, channel] of textChannelsRestore) {
-                                                    try {
-                                                        await channel.permissionOverwrites.edit(member.guild.roles.everyone, {
-                                                            SendMessages: null
-                                                        });
-                                                    } catch (e) { }
+                                            if (guildAntiraidConfig.logChannel) {
+                                                const logChannel = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
+                                                if (logChannel) {
+                                                    const container = new ContainerBuilder()
+                                                        .addTextDisplayComponents(
+                                                            new TextDisplayBuilder()
+                                                                .setContent(`# <:Lock:1473038513749491773> Anti-Raid: Auto Lockdown Triggered\n\n**Reason:** Join rate exceeded threshold (${lockdownCount} incidents)\n**Action:** All text channels locked`)
+                                                        );
+                                                    await logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
                                                 }
+                                            }
 
-                                                if (guildAntiraidConfig.logChannel) {
-                                                    const logCh = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
-                                                    if (logCh) {
-                                                        const restoreContainer = new ContainerBuilder()
-                                                            .addTextDisplayComponents(
-                                                                new TextDisplayBuilder()
-                                                                    .setContent(`# <:Checkedbox:1473038547165384804> Anti-Raid: Lockdown Lifted\n\n**Duration:** ${duration / 1000} seconds\n**Action:** All text channels unlocked`)
-                                                            );
-                                                        await logCh.send({ components: [restoreContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+                                            // Restore permissions after lockdown duration
+                                            const duration = guildAntiraidConfig.autoLockdown.duration || 300000;
+                                            setTimeout(async () => {
+                                                try {
+                                                    global.lockdownTracker.set(lockdownKey, 0);
+                                                    global.lockdownActive.set(lockdownKey, false);
+                                                    // Restore channel permissions
+                                                    const textChannelsRestore = member.guild.channels.cache.filter(ch => ch.type === 0);
+                                                    for (const [, channel] of textChannelsRestore) {
+                                                        try {
+                                                            await channel.permissionOverwrites.edit(member.guild.roles.everyone, {
+                                                                SendMessages: null
+                                                            });
+                                                        } catch (e) { }
                                                     }
-                                                }
-                                            } catch (e) {
-                                                log.error('Anti-Raid lockdown restore error', e);
-                                            }
-                                        }, duration);
 
-                                        // Cleanup old join rate entries to prevent memory growth
-                                        if (global.joinRateTracker && global.joinRateTracker.size > 100) {
-                                            const now = Date.now();
-                                            for (const [key, joins] of global.joinRateTracker.entries()) {
-                                                const recentJoins = joins.filter(j => now - j.time < 60000);
-                                                if (recentJoins.length === 0) {
-                                                    global.joinRateTracker.delete(key);
-                                                } else {
-                                                    global.joinRateTracker.set(key, recentJoins);
+                                                    if (guildAntiraidConfig.logChannel) {
+                                                        const logCh = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
+                                                        if (logCh) {
+                                                            const restoreContainer = new ContainerBuilder()
+                                                                .addTextDisplayComponents(
+                                                                    new TextDisplayBuilder()
+                                                                        .setContent(`# <:Checkedbox:1473038547165384804> Anti-Raid: Lockdown Lifted\n\n**Duration:** ${duration / 1000} seconds\n**Action:** All text channels unlocked`)
+                                                                );
+                                                            await logCh.send({ components: [restoreContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+                                                        }
+                                                    }
+                                                } catch (e) {
+                                                    log.error('Anti-Raid lockdown restore error', e);
+                                                }
+                                            }, duration);
+
+                                            // Cleanup old join rate entries to prevent memory growth
+                                            if (global.joinRateTracker && global.joinRateTracker.size > 100) {
+                                                const now = Date.now();
+                                                for (const [key, joins] of global.joinRateTracker.entries()) {
+                                                    const recentJoins = joins.filter(j => now - j.time < 60000);
+                                                    if (recentJoins.length === 0) {
+                                                        global.joinRateTracker.delete(key);
+                                                    } else {
+                                                        global.joinRateTracker.set(key, recentJoins);
+                                                    }
                                                 }
                                             }
                                         }
@@ -10053,10 +10509,14 @@ client.on('guildMemberAdd', async (member) => {
                                 if (guildAntiraidConfig.logChannel) {
                                     const logChannel = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
                                     if (logChannel) {
+                                        const status = acted
+                                            ? `<:Checkedbox:1473038547165384804> Action applied: \`${actLabel}\``
+                                            : `<:Cancel:1473037949187657818> Action **failed** — bot couldn't \`${actLabel}\``;
                                         const container = new ContainerBuilder()
+                                            .setAccentColor(acted ? 0xED4245 : 0xFEE75C)
                                             .addTextDisplayComponents(
                                                 new TextDisplayBuilder()
-                                                    .setContent(`# <:Shield:1473038669831995494> Anti-Raid: Join Rate Protection\n\n**User:** ${member.user.username} (${member.id})\n**Joins in window:** ${recentJoins.length}/${limit}\n**Action:** ${action}`)
+                                                    .setContent(`# <:Shield:1473038669831995494> Anti-Raid: Join Rate Protection\n\n**User:** ${member.user.username} (\`${member.id}\`)\n**Joins in window:** ${recentJoins.length}/${limit}\n${status}`)
                                             );
                                         await logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
                                     }
@@ -10064,7 +10524,9 @@ client.on('guildMemberAdd', async (member) => {
                             } catch (err) {
                                 log.error('Anti-Raid join rate error', err);
                             }
-                            return;
+                            // Only short-circuit downstream join handlers
+                            // when we actually removed/timed-out the user.
+                            if (acted && action !== 'log_only' && action !== 'timeout') return;
                         }
                     }
 
@@ -10081,21 +10543,33 @@ client.on('guildMemberAdd', async (member) => {
 
                         const isSuspicious = suspiciousPatterns.some(pattern => pattern.test(username));
                         if (isSuspicious) {
-                            const action = guildAntiraidConfig.suspiciousPatterns.action || 'kick';
+                            const action = (guildAntiraidConfig.suspiciousPatterns.action || 'kick').toLowerCase();
+                            const reason = `Anti-Raid: Suspicious username pattern matched`;
+                            let acted = false;
+                            let actLabel = action;
                             try {
                                 if (action === 'kick') {
-                                    await member.kick('Anti-Raid: Suspicious username pattern');
+                                    if (member.kickable) { await member.kick(reason); acted = true; }
                                 } else if (action === 'ban') {
-                                    await member.ban({ reason: 'Anti-Raid: Suspicious username pattern' });
+                                    if (member.bannable) { await member.ban({ reason }); acted = true; }
+                                } else if (action === 'timeout') {
+                                    if (member.moderatable) { await member.timeout(60 * 60 * 1000, reason); acted = true; }
+                                } else if (action === 'log_only') {
+                                    actLabel = 'log_only';
+                                    acted = true;
                                 }
 
                                 if (guildAntiraidConfig.logChannel) {
                                     const logChannel = member.guild.channels.cache.get(guildAntiraidConfig.logChannel);
                                     if (logChannel) {
+                                        const status = acted
+                                            ? `<:Checkedbox:1473038547165384804> Action applied: \`${actLabel}\``
+                                            : `<:Cancel:1473037949187657818> Action **failed** — bot couldn't \`${actLabel}\``;
                                         const container = new ContainerBuilder()
+                                            .setAccentColor(acted ? 0xED4245 : 0xFEE75C)
                                             .addTextDisplayComponents(
                                                 new TextDisplayBuilder()
-                                                    .setContent(`# <:Shield:1473038669831995494> Anti-Raid: Suspicious Pattern Detected\n\n**User:** ${member.user.username} (${member.id})\n**Pattern:** Username matched suspicious criteria\n**Action:** ${action}`)
+                                                    .setContent(`# <:Shield:1473038669831995494> Anti-Raid: Suspicious Pattern Detected\n\n**User:** ${member.user.username} (\`${member.id}\`)\n**Pattern:** Username matched suspicious criteria\n${status}`)
                                             );
                                         await logChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications }).catch(() => { });
                                     }
@@ -10103,7 +10577,7 @@ client.on('guildMemberAdd', async (member) => {
                             } catch (err) {
                                 log.error('Anti-Raid suspicious pattern error', err);
                             }
-                            return;
+                            if (acted && action !== 'log_only' && action !== 'timeout') return;
                         }
                     }
                 }
@@ -11106,9 +11580,12 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                     const humanMembers = voiceChannel.members.filter(m => !m.user.bot).size;
 
                     if (humanMembers === 0) {
-                        // Bot is alone - check 24/7 mode
+                        // Bot is alone - check 24/7 mode (premium-only)
                         let is247Enabled = false;
-                        if (jsonStore.has('musicpanel-247')) {
+                        if (
+                            premiumManager.isServerPremium(voiceGuild.id) &&
+                            jsonStore.has('musicpanel-247')
+                        ) {
                             try {
                                 const config247 = jsonStore.read('musicpanel-247');
                                 is247Enabled = config247[voiceGuild.id]?.enabled || false;
@@ -11384,9 +11861,16 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
     // Update stats when boost tier or other server properties change
     try { await updateServerStats(newGuild); } catch { }
 
-    // ── Vanity Guard Enforcement ──
+    // ── Vanity Guard Enforcement (premium-only) ──
     if (oldGuild.vanityURLCode !== newGuild.vanityURLCode) {
         try {
+            // Re-validate server premium — `/vanityguard` is gated by
+            // the dispatcher, but the saved config keeps enforcing
+            // forever otherwise. If the server lost premium, skip.
+            if (!premiumManager.isServerPremium(newGuild.id)) {
+                // intentional no-op; vanityguard is inactive on
+                // non-premium servers regardless of saved config.
+            } else {
             const vgConfig = jsonStore.has('vanityguard') ? (jsonStore.read('vanityguard') || {}) : {};
             const guildVg = vgConfig[newGuild.id];
             if (guildVg?.enabled) {
@@ -11439,18 +11923,33 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
                         log.warning(`[VanityGuard] Cannot revert vanity in ${newGuild.id} — boost tier ${newGuild.premiumTier} insufficient`);
                     }
 
-                    // Punish executor if configured
-                    if (executorId && executorId !== client.user.id) {
+                    // Punish executor if configured. The action is
+                    // separate from "revert" — a successful revert
+                    // happens regardless of whether we can punish the
+                    // person who tried to change the vanity.
+                    if (executorId && executorId !== client.user.id && guildVg.action && guildVg.action !== 'none') {
                         try {
                             const member = await newGuild.members.fetch(executorId).catch(() => null);
-                            if (member && member.bannable) {
+                            if (member) {
                                 if (guildVg.action === 'ban') {
-                                    await member.ban({ reason: 'Vanity Guard — unauthorized vanity change' });
-                                } else if (guildVg.action === 'kick' && member.kickable) {
-                                    await member.kick('Vanity Guard — unauthorized vanity change');
+                                    if (member.bannable) {
+                                        await member.ban({ reason: 'Vanity Guard — unauthorized vanity change' });
+                                        log.warning(`[VanityGuard] Banned ${member.user?.tag || executorId} in ${newGuild.id}`);
+                                    } else {
+                                        log.warning(`[VanityGuard] Cannot ban ${member.user?.tag || executorId} — bot lacks permission`);
+                                    }
+                                } else if (guildVg.action === 'kick') {
+                                    if (member.kickable) {
+                                        await member.kick('Vanity Guard — unauthorized vanity change');
+                                        log.warning(`[VanityGuard] Kicked ${member.user?.tag || executorId} in ${newGuild.id}`);
+                                    } else {
+                                        log.warning(`[VanityGuard] Cannot kick ${member.user?.tag || executorId} — bot lacks permission`);
+                                    }
                                 }
                             }
-                        } catch {}
+                        } catch (e) {
+                            log.error(`[VanityGuard] Punishment error: ${e.message}`);
+                        }
                     }
 
                     // Send a guard alert via the central security logger so
@@ -11492,6 +11991,7 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
                     } catch {}
                 }
             }
+            } // end premium-gated else
         } catch (err) {
             log.error(`[VanityGuard] Error enforcing vanity guard: ${err.message}`);
         }

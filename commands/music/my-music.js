@@ -129,7 +129,7 @@ function createFavoritesButtons(page, totalPages, hasFavorites) {
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .setCustomId(`mymusic_fav_next_${page}`)
-                .setEmoji('<:Skipnext:1473039269726785737>')
+                .setEmoji('<:Caretright:1473038207221502106>')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(page === totalPages)
         ));

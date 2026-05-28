@@ -64,6 +64,64 @@ function truncateText(text, maxLength = 100) {
     return text.substring(0, maxLength - 3) + '...';
 }
 
+/**
+ * Discord caps a single TextDisplay component at 4000 characters. Lists
+ * built from arbitrary user data (autoresponses, custom-shop items, level
+ * roles, tracked accounts, etc.) can blow past that quickly.
+ *
+ * Joins `lines` with `separator`, prepends `header` and appends `footer`,
+ * and stops adding lines once the next one would push past `maxLength`.
+ * If anything was dropped, a "+N more" hint is appended to the footer so
+ * users always know there's more.
+ *
+ * @param {object}   opts
+ * @param {string}   [opts.header]      Optional title block
+ * @param {string[]} opts.lines         Lines to render
+ * @param {string}   [opts.separator]   String inserted between lines (default '\n')
+ * @param {string}   [opts.footer]      Optional footer block
+ * @param {number}   [opts.maxLength]   Max characters (default 3900 — leaves headroom under Discord's 4000 cap)
+ * @param {string}   [opts.overflowHint] Template for the "more" hint, `${n}` is replaced with the dropped count
+ * @returns {{ content: string, shown: number, dropped: number }}
+ */
+function buildSafeListText({
+    header = '',
+    lines = [],
+    separator = '\n',
+    footer = '',
+    maxLength = 3900,
+    overflowHint = '\n-# +${n} more not shown — narrow the list or use pagination',
+} = {}) {
+    const headerPart = header ? header + (header.endsWith('\n') ? '' : '\n') : '';
+    const footerPart = footer ? (footer.startsWith('\n') ? '' : '\n') + footer : '';
+    let body = '';
+    let shown = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        const candidate = body ? body + separator + lines[i] : lines[i];
+        const dropped = lines.length - (i);
+        const hint = dropped > 0 ? overflowHint.replace('${n}', String(dropped)) : '';
+        // Reserve room for the overflow hint in case the *next* iteration
+        // can't fit. We re-check each step so the final shown count is accurate.
+        if ((headerPart.length + candidate.length + footerPart.length + hint.length) > maxLength) {
+            const droppedNow = lines.length - shown;
+            const finalHint = droppedNow > 0 ? overflowHint.replace('${n}', String(droppedNow)) : '';
+            return {
+                content: headerPart + body + finalHint + footerPart,
+                shown,
+                dropped: droppedNow,
+            };
+        }
+        body = candidate;
+        shown++;
+    }
+
+    return {
+        content: headerPart + body + footerPart,
+        shown,
+        dropped: 0,
+    };
+}
+
 function parseTimeString(str) {
     if (!str) return null;
     const regex = /(\d+)\s*(s|sec|second|seconds|m|min|minute|minutes|h|hr|hour|hours|d|day|days|w|week|weeks)/gi;
@@ -113,6 +171,7 @@ module.exports = {
     formatDuration,
     formatNumber,
     truncateText,
+    buildSafeListText,
     parseTimeString,
     getErrorContainer,
     getSuccessContainer,

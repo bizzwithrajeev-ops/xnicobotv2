@@ -53,7 +53,7 @@ const E = {
     // Coin icon is per-guild — use coinIcon(guildId) at render sites.
     chart:    '<:transfer:1479780506718437396>',
     star:     '<:Star:1473038501766369300>',
-    skipnext: '<:Skipnext:1473039269726785737>',
+    skipnext: '<:Caretright:1473038207221502106>',
     sandwatch:'<:Sandwatch:1473038580094861545>',
     riskSafe: '<:Caretright:1473038207221502106>',
     riskLow:  '<:Caretright:1473038207221502106>',

@@ -108,7 +108,17 @@ function paginate(opts) {
 
     // Page content
     if (pageLines.length > 0) {
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(pageLines.join('\n')));
+        // Discord caps each TextDisplay at 4 000 characters. With a long
+        // header, custom emojis (each ~25 chars) and many lines per page,
+        // the join can exceed that and the API rejects the whole panel.
+        // Trim conservatively (~3 800 chars) so the header & footer still fit.
+        const PAGE_TEXT_BUDGET = 3800;
+        const joined = pageLines.join('\n');
+        const safeJoined = joined.length > PAGE_TEXT_BUDGET
+            ? joined.slice(0, PAGE_TEXT_BUDGET - 60) +
+              `\n-# *…line truncated to fit 4 000-char Discord limit*`
+            : joined;
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(safeJoined));
     } else {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent('*No entries*'));
     }

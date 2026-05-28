@@ -161,7 +161,10 @@ async function createBalanceCard({ username, avatarURL, wallet, bank, total, lev
   // Username + Level badge
   ctx.font = getBoldFont(26);
   ctx.fillStyle = COLORS.white;
-  ctx.fillText(username.length > 18 ? username.slice(0, 18) + '…' : username, 145, H / 2 - 40);
+  // Names may contain emojis (Discord allows them in display names) so
+  // route through the emoji helper for proper image rendering.
+  const truncatedName = username.length > 18 ? username.slice(0, 18) + '\u2026' : username;
+  await drawTextWithEmoji(ctx, truncatedName, 145, H / 2 - 40, 26);
 
   // Level badge
   const lvlText = `Lv.${level || 1}`;
@@ -371,7 +374,8 @@ async function drawPetCard(ctx, box, pet, accentColor, isLeft) {
 
   ctx.font = getBoldFont(18);
   ctx.fillStyle = COLORS.white;
-  ctx.fillText(pet.name, x + 55, y + 30);
+  // Pet names may include emojis from custom skins — render via helper.
+  await drawTextWithEmoji(ctx, pet.name, x + 55, y + 30, 18);
 
   ctx.font = getFont(12);
   ctx.fillStyle = COLORS.muted;
@@ -466,9 +470,11 @@ async function createEconomyProfileCard({ username, avatarURL, tag, wallet, bank
   }
 
   // Username + title
+  // Username + title (display names can include emojis)
   ctx.font = getBoldFont(24);
   ctx.fillStyle = COLORS.white;
-  ctx.fillText(username.length > 20 ? username.slice(0, 20) + '…' : username, 115, 50);
+  const truncatedName2 = username.length > 20 ? username.slice(0, 20) + '\u2026' : username;
+  await drawTextWithEmoji(ctx, truncatedName2, 115, 50, 24);
 
   if (title) {
     ctx.font = getFont(12);
@@ -614,7 +620,8 @@ async function createEconomyProfileCard({ username, avatarURL, tag, wallet, bank
       await drawTextWithEmoji(ctx, p.emoji || '🐾', px, petY + 38, 22);
       ctx.font = getFont(10);
       ctx.fillStyle = COLORS.white;
-      ctx.fillText(p.name, px + 28, petY + 35);
+      // Pet name may contain emojis (custom skins) so route through helper
+      await drawTextWithEmoji(ctx, p.name, px + 28, petY + 35, 10);
       ctx.fillStyle = COLORS.dim;
       ctx.fillText(`Lv.${p.level}`, px + 28, petY + 48);
     }
@@ -675,7 +682,8 @@ async function createHuntCard({ animal, caught, coins, rarity }) {
   // Info
   ctx.font = getBoldFont(22);
   ctx.fillStyle = COLORS.white;
-  ctx.fillText(animal.name, 145, 55);
+  // Animal names may include emoji decorations
+  await drawTextWithEmoji(ctx, animal.name, 145, 55, 22);
 
   // Rarity badge
   ctx.font = getSemiBoldFont(11);
@@ -762,7 +770,8 @@ async function createFishCard({ fish, value, streak, rod }) {
   // Info
   ctx.font = getBoldFont(20);
   ctx.fillStyle = COLORS.white;
-  ctx.fillText(fish.name, 130, 45);
+  // Fish names may include emoji decorations
+  await drawTextWithEmoji(ctx, fish.name, 130, 45, 20);
 
   ctx.font = getSemiBoldFont(10);
   const rtW = ctx.measureText(fish.rarity.toUpperCase()).width + 16;
@@ -974,7 +983,8 @@ async function createAdventureCard({ scene, stages, currentStage, pet, rewards, 
     await drawTextWithEmoji(ctx, pet.emoji || '🐾', 40, 120, 24);
     ctx.font = getSemiBoldFont(14);
     ctx.fillStyle = COLORS.white;
-    ctx.fillText(pet.name, 70, 110);
+    // Pet name may contain emojis (custom skins, breed names with icons)
+    await drawTextWithEmoji(ctx, pet.name, 70, 110, 14);
     ctx.font = getFont(11);
     ctx.fillStyle = COLORS.muted;
     ctx.fillText(`Lv.${pet.level}  HP: ${pet.hp}/${pet.maxHp}`, 70, 128);
@@ -1098,11 +1108,11 @@ async function createLeaderboardCard({ entries, type, title: lbTitle }) {
       drawCircularAvatar(ctx, entry.avatar, padding + 55, ry + 4, 30);
     }
 
-    // Name
+    // Name (may contain emojis)
     ctx.font = getSemiBoldFont(15);
     ctx.fillStyle = COLORS.white;
-    const name = entry.name.length > 18 ? entry.name.slice(0, 18) + '…' : entry.name;
-    ctx.fillText(name, padding + 95, ry + 22);
+    const lbName = entry.name.length > 18 ? entry.name.slice(0, 18) + '\u2026' : entry.name;
+    await drawTextWithEmoji(ctx, lbName, padding + 95, ry + 22, 15);
 
     // Coins
     ctx.font = getBoldFont(15);

@@ -1208,7 +1208,7 @@ module.exports = {
                     .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Welcome Message Saved\n\n` +
-                        `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : '<:Chat:1473038936241864865> Simple'}\n\n` +
+                        `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : data.mode === 'components' ? '<:Settings:1473037894703779851> Components V2' : '<:Chat:1473038936241864865> Simple'}\n\n` +
                         `Will be sent on every new ticket.\n\n` +
                         `### <:Lightbulbalt:1473038470787240009> Placeholders\n` +
                         `\`{user}\` \`{username}\` \`{server}\` \`{timestamp}\` \`{membercount}\` \`{channel}\``

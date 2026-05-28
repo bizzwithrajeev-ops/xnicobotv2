@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 function loadConfig() {
     if (!jsonStore.has('autoreact')) {
@@ -236,14 +237,18 @@ module.exports = {
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
-        let listText = `# 😄 Autoreaction List\n\n`;
-        listText += `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
-
-        guildConfig.reactions.forEach((item, index) => {
-            listText += `**${index + 1}.** \`${item.trigger}\` → ${item.emojis.join(' ')}\n`;
+        const lineEntries = guildConfig.reactions.map((item, index) =>
+            `**${index + 1}.** \`${item.trigger}\` → ${item.emojis.join(' ')}`
+        );
+        const { content: listText } = buildSafeListText({
+            header:
+                `# 😄 Autoreaction List\n` +
+                `**Status:** ${guildConfig.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`,
+            lines: lineEntries,
+            separator: '\n',
+            footer: `\n-# Use \`/autoreact remove number:<n>\` to remove a reaction`,
+            overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
         });
-
-        listText += `\n-# Use \`/autoreact remove number:<n>\` to remove a reaction`;
 
         const container = new ContainerBuilder()
             .setAccentColor(0xCAD7E6)
@@ -329,9 +334,14 @@ module.exports = {
             if (!guildConfig.reactions.length) {
                 return message.reply('<:Cancel:1473037949187657818> No autoreactions configured.');
             }
-            let listText = `# 😄 Autoreactions\n\n`;
-            guildConfig.reactions.forEach((item, i) => {
-                listText += `**${i + 1}.** \`${item.trigger}\` → ${item.emojis.join(' ')}\n`;
+            const lineEntries = guildConfig.reactions.map((item, i) =>
+                `**${i + 1}.** \`${item.trigger}\` → ${item.emojis.join(' ')}`
+            );
+            const { content: listText } = buildSafeListText({
+                header: `# 😄 Autoreactions`,
+                lines: lineEntries,
+                separator: '\n',
+                overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
             });
             const container = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)

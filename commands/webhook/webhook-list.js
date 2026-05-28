@@ -57,7 +57,7 @@ function buildListView(webhooks, guild, page, uid) {
     // Pagination buttons
     const navRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`wh:prev:${uid}`).setEmoji('<:History:1473037847568318605>').setLabel('Previous').setStyle(ButtonStyle.Secondary).setDisabled(pg === 0),
-        new ButtonBuilder().setCustomId(`wh:next:${uid}`).setEmoji('<:Skipnext:1473039269726785737>').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(pg >= totalPages - 1),
+        new ButtonBuilder().setCustomId(`wh:next:${uid}`).setEmoji('<:Caretright:1473038207221502106>').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(pg >= totalPages - 1),
         new ButtonBuilder().setCustomId(`wh:refresh:${uid}`).setEmoji('<:History:1473037847568318605>').setLabel('Refresh').setStyle(ButtonStyle.Primary)
     );
     ctr.addActionRowComponents(navRow);

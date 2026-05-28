@@ -17,6 +17,7 @@ const {
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
 const { getEconomySettings, getCurrency, getCurrencyName, formatCoinsShort, formatCoins, coinIcon } = require('../../utils/currencyHelper');
+const { buildSafeListText } = require('../../utils/componentHelpers');
 
 const STORE = 'custom-shop';
 
@@ -93,15 +94,23 @@ function buildShopPanel(guild, shop, guildId) {
             `> ${E.fire} **custom_reply** — Send custom message in channel`
         ));
     } else {
-        let itemList = `### ${E.cart} Available Items\n\n`;
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
+        // Build the items list as separate lines, then trim to fit Discord's
+        // 4 000-char per-TextDisplay limit. With 25 items × ~250 chars each,
+        // the naive concat would exceed the cap and Discord would reject the
+        // whole panel — buildSafeListText drops overflow with a "+N more" hint.
+        const lineEntries = items.map((item, i) => {
             const actionInfo = ACTION_LABELS[item.action] || { emoji: E.star, label: item.action };
-            itemList += `**${i + 1}.** ${E.star} **${item.name}**\n`;
-            itemList += `> ${currency} \`${item.price.toLocaleString()}\` ${currencyName} · ${actionInfo.emoji} ${actionInfo.label}\n`;
-            if (item.description) itemList += `> -# ${item.description}\n`;
-            itemList += `\n`;
-        }
+            let line = `**${i + 1}.** ${E.star} **${item.name}**\n`;
+            line += `> ${currency} \`${item.price.toLocaleString()}\` ${currencyName} · ${actionInfo.emoji} ${actionInfo.label}`;
+            if (item.description) line += `\n> -# ${item.description}`;
+            return line;
+        });
+        const { content: itemList } = buildSafeListText({
+            header: `### ${E.cart} Available Items`,
+            lines: lineEntries,
+            separator: '\n\n',
+            overflowHint: '\n\n-# +${n} more not shown — use the Buy menu to purchase any item',
+        });
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(itemList));
     }
 

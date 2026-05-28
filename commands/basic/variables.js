@@ -185,7 +185,7 @@ function buildContainer(page, requesterTag) {
             .setDisabled(idx === total - 1),
         new ButtonBuilder()
             .setCustomId('var_last')
-            .setEmoji('<:Skipnext:1473039269726785737>')
+            .setEmoji('<:Caretright:1473038207221502106>')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(idx === total - 1)
     ));

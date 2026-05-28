@@ -4,6 +4,13 @@ const jsonStore = require('../../utils/jsonStore');
 module.exports = {
     name: 'delcustomcmd',
     description: 'Delete a custom command',
+    /**
+     * Premium-gated feature. `premiumOnly` is read by the prefix
+     * command dispatcher in index.js — non-premium servers get the
+     * standard premium gate instead of execution. Pairs with
+     * `customcmd` (creation) which is also premium-gated.
+     */
+    premiumOnly: true,
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('<:Cancel:1473037949187657818> You need the **Administrator** permission!');

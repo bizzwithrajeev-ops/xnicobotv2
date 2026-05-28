@@ -1,26 +1,34 @@
 'use strict';
 
 /**
- * percentCard.js — Professional percentage card generator.
+ * percentCard.js — Premium percentage card generator.
  *
  * Used by /howgay, /howlesbian, /howstraight, /howcute, /howsmart,
- * /howsus, /iq, /pp, /ship, /rate and similar percentage-style fun
- * commands.
+ * /howsus, /howsigma, /howcursed, /howsimp, /howlucky, /howevil,
+ * /howedgy, /howcool, /howhot, /howbraindead, /howrich,
+ * /iq, /pp, /ship, /rate and similar percentage-style commands.
  *
- * Visual design notes:
- *   • 1100×420 canvas with 28px corner radius and a layered, glassy
- *     dark background (gradient + vignette + accent glow + noise).
- *   • Left-aligned avatar with a two-tone progress ring. The ring has
- *     a soft halo behind it that uses the percent-graded accent
- *     colour, so the entire card feels cohesive.
- *   • Right-side typography stack: small uppercase title, heavy
- *     display name, oversized accent-coloured percent, gradient
- *     progress bar with a subtle "indicator" cap, and an italicised
- *     verdict line ending with a soft brand pill in the corner.
- *   • Fonts: Outfit (display + verdict) + Inter (UI text) — both
- *     already shipped with the bot. Orbitron-style numerals are
- *     simulated through letter-spacing on the heavy weight rather
- *     than swapping families, to avoid extra font registration.
+ * Visual design (v2 — professional refresh):
+ *   • 1100×420 canvas, 28px corner radius, layered glassy dark
+ *     background (gradient + diagonal lattice + accent halo +
+ *     vignette). Gives the card a real sense of depth without
+ *     being distracting.
+ *   • Five-stop accent palette (red → orange → amber → lime →
+ *     emerald) interpolated by percentage so the entire card
+ *     re-tones in real time. Mid-range (~50%) lands on a warm
+ *     amber rather than muddy yellow-brown.
+ *   • Avatar block: progress ring around the avatar with a soft
+ *     halo, gradient-filled arc, glowing tip dot, and a thin inner
+ *     stroke for crispness. Falls back to an initial monogram if
+ *     the avatar fails to load.
+ *   • Right column: small uppercase tracked title, display-weight
+ *     name, oversized hero percent (with shadow + gradient text
+ *     fill), value-of-100 helper label, modern segmented progress
+ *     bar with tick marks + chip aligned to the tip, italicised
+ *     verdict line, and a brand pill in the corner with a colour
+ *     dot keyed to the accent.
+ *   • Fonts: Outfit for display, Inter for UI. Both already
+ *     registered by the bot's font registry.
  *
  * © Rajeev (Rexzy) — xNico
  */
@@ -28,6 +36,7 @@
 const { createCanvas } = require('@napi-rs/canvas');
 const imageCache = require('./imageCache');
 const { registerAllFonts, getFontHelpers } = require('./fontRegistry');
+const { drawTextWithEmoji, measureMixedText } = require('./emojiCanvasHelper');
 
 try { registerAllFonts(); } catch (_) {}
 
@@ -82,19 +91,23 @@ function truncate(ctx, text, maxWidth, suffix = '…') {
 
 /**
  * Returns a colour graded by percent.
- *  0%  → red,   25% → orange, 50% → yellow,
- *  75% → mint,  100% → bright green.
+ *  0%   → red       (danger)
+ *  25%  → orange    (warning)
+ *  50%  → amber     (caution)
+ *  75%  → lime      (good)
+ *  100% → emerald   (excellent)
  *
- * Intermediate stops give better perceptual contrast than a
- * pure red→green ramp (which dips through brown/khaki around 50%).
+ * Intermediate stops give better perceptual contrast than a pure
+ * red→green ramp (which dips through brown/khaki around 50%) and
+ * keep the "mid-range" looking warm instead of sickly.
  */
 function colorForPercent(p) {
     const stops = [
         { p: 0,   c: [239, 68,  68 ] }, // red-500
         { p: 25,  c: [249, 115, 22 ] }, // orange-500
-        { p: 50,  c: [234, 179, 8  ] }, // yellow-500
+        { p: 50,  c: [245, 158, 11 ] }, // amber-500
         { p: 75,  c: [132, 204, 22 ] }, // lime-500
-        { p: 100, c: [34,  197, 94 ] }, // green-500
+        { p: 100, c: [16,  185, 129] }, // emerald-500
     ];
     const v = Math.max(0, Math.min(100, p));
     let lo = stops[0], hi = stops[stops.length - 1];
@@ -118,52 +131,61 @@ function colorForPercent(p) {
 
 /**
  * Paint the deep glassy background.
- *   1. Diagonal dark gradient (top-left light, bottom-right deeper).
- *   2. Soft accent radial glow biased to the avatar side.
- *   3. Faint dotted lattice — adds texture without competing for
- *      attention. Drawn at very low alpha.
- *   4. Vignette to anchor the centre.
+ *  1. Layered diagonal dark gradient.
+ *  2. Soft accent radial glow biased to the avatar side.
+ *  3. Cooler glow in the top-right for depth.
+ *  4. Diagonal lattice (very low alpha) for premium texture.
+ *  5. Bottom vignette pulling focus upward to the percent value.
  */
 function paintBackground(ctx, accent) {
-    // Base gradient
+    // Base diagonal gradient
     const base = ctx.createLinearGradient(0, 0, W, H);
-    base.addColorStop(0, '#0e1320');
-    base.addColorStop(0.55, '#0b1020');
-    base.addColorStop(1, '#070a14');
+    base.addColorStop(0,    '#0e1422');
+    base.addColorStop(0.5,  '#0a1020');
+    base.addColorStop(1,    '#060912');
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, W, H);
 
     // Accent glow — left side, behind avatar
     const glow = ctx.createRadialGradient(220, H / 2 - 20, 30, 220, H / 2 - 20, 480);
-    glow.addColorStop(0, accent.rgba(0.55));
+    glow.addColorStop(0,    accent.rgba(0.55));
     glow.addColorStop(0.35, accent.rgba(0.18));
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    glow.addColorStop(1,    'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
-    // Secondary cooler glow — top-right, gives depth
-    const glow2 = ctx.createRadialGradient(W - 80, 80, 40, W - 80, 80, 360);
-    glow2.addColorStop(0, 'rgba(99,102,241,0.18)');
+    // Secondary cooler glow — top-right, gives depth & balance
+    const glow2 = ctx.createRadialGradient(W - 80, 80, 40, W - 80, 80, 380);
+    glow2.addColorStop(0, 'rgba(99,102,241,0.20)');
     glow2.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow2;
     ctx.fillRect(0, 0, W, H);
 
-    // Dot lattice pattern
+    // Diagonal lattice (faint) — adds premium texture without noise
     ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.025)';
-    for (let y = 16; y < H; y += 22) {
-        for (let x = 16; x < W; x += 22) {
-            ctx.beginPath();
-            ctx.arc(x, y, 0.9, 0, Math.PI * 2);
-            ctx.fill();
-        }
+    ctx.strokeStyle = 'rgba(255,255,255,0.018)';
+    ctx.lineWidth = 1;
+    for (let i = -H; i < W + H; i += 32) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + H, H);
+        ctx.stroke();
     }
     ctx.restore();
 
-    // Bottom vignette — pulls focus upward to the percent value
+    // Top accent sweep — 4px highlight at the very top edge
+    const sweep = ctx.createLinearGradient(0, 0, W, 0);
+    sweep.addColorStop(0,    'rgba(0,0,0,0)');
+    sweep.addColorStop(0.22, accent.rgba(0.30));
+    sweep.addColorStop(0.65, accent.rgba(0.10));
+    sweep.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.fillStyle = sweep;
+    ctx.fillRect(0, 0, W, 3);
+
+    // Bottom vignette — pulls focus upward to the hero percent
     const vig = ctx.createLinearGradient(0, H - 220, 0, H);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
-    vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.42)');
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, W, H);
 }
@@ -172,29 +194,30 @@ function paintBackground(ctx, accent) {
 
 /**
  * Glassy avatar tile: halo glow → progress ring (track + filled arc) →
- * avatar circle clipped → inner highlight stroke.
+ * avatar circle clipped → inner highlight stroke. Includes a glowing
+ * tip dot at the end of the progress arc.
  */
 async function drawAvatarBlock(ctx, avatarURL, cx, cy, radius, percent, accent) {
     const ringWidth = 14;
     const trackRadius = radius + ringWidth / 2;
 
-    // ── Halo behind the ring (soft outer glow) ──
-    const halo = ctx.createRadialGradient(cx, cy, radius - 4, cx, cy, radius + 60);
+    // Halo behind the ring
+    const halo = ctx.createRadialGradient(cx, cy, radius - 4, cx, cy, radius + 64);
     halo.addColorStop(0, accent.rgba(0.42));
     halo.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(cx, cy, radius + 60, 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius + 64, 0, Math.PI * 2);
     ctx.fill();
 
-    // ── Background track ──
+    // Background track
     ctx.beginPath();
     ctx.arc(cx, cy, trackRadius, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255,255,255,0.07)';
     ctx.lineWidth = ringWidth;
     ctx.stroke();
 
-    // ── Progress arc (gradient along the ring) ──
+    // Progress arc with gradient
     const start = -Math.PI / 2;
     const end = start + (Math.PI * 2 * percent) / 100;
     if (percent > 0) {
@@ -204,7 +227,7 @@ async function drawAvatarBlock(ctx, avatarURL, cx, cy, radius, percent, accent) 
             cx + Math.cos(end)   * trackRadius,
             cy + Math.sin(end)   * trackRadius,
         );
-        arcGrad.addColorStop(0, accent.rgba(0.65));
+        arcGrad.addColorStop(0, accent.rgba(0.55));
         arcGrad.addColorStop(1, accent.hex);
 
         ctx.beginPath();
@@ -215,20 +238,20 @@ async function drawAvatarBlock(ctx, avatarURL, cx, cy, radius, percent, accent) 
         ctx.stroke();
         ctx.lineCap = 'butt';
 
-        // Glowing dot at the progress tip
+        // Glowing tip dot
         const tipX = cx + Math.cos(end) * trackRadius;
         const tipY = cy + Math.sin(end) * trackRadius;
-        const dot = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 16);
+        const dot = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 18);
         dot.addColorStop(0, '#ffffff');
         dot.addColorStop(0.4, accent.rgba(0.9));
         dot.addColorStop(1, accent.rgba(0));
         ctx.fillStyle = dot;
         ctx.beginPath();
-        ctx.arc(tipX, tipY, 16, 0, Math.PI * 2);
+        ctx.arc(tipX, tipY, 18, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // ── Avatar (clipped to circle) with placeholder fallback ──
+    // Avatar (clipped to circle) with placeholder fallback
     let img = null;
     try { img = await imageCache.loadWithCache(avatarURL, 8000).catch(() => null); } catch {}
     ctx.save();
@@ -254,7 +277,7 @@ async function drawAvatarBlock(ctx, avatarURL, cx, cy, radius, percent, accent) 
     }
     ctx.restore();
 
-    // ── Inner highlight stroke for crispness ──
+    // Inner highlight stroke for crispness
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255,255,255,0.10)';
@@ -266,7 +289,7 @@ async function drawAvatarBlock(ctx, avatarURL, cx, cy, radius, percent, accent) 
 
 /**
  * Modern segmented progress bar with a glow tip.
- *  - Track has a faint inner shadow.
+ *  - Track has a faint inset shadow.
  *  - Fill uses a left-to-right accent gradient with the brightest
  *    point at the tip.
  *  - 25/50/75 ticks across the track for visual rhythm.
@@ -282,7 +305,7 @@ function drawProgressBar(ctx, x, y, w, h, percent, accent) {
     roundedRect(ctx, x, y, w, h, h / 2);
     ctx.clip();
     const inner = ctx.createLinearGradient(0, y, 0, y + h);
-    inner.addColorStop(0, 'rgba(0,0,0,0.35)');
+    inner.addColorStop(0,   'rgba(0,0,0,0.35)');
     inner.addColorStop(0.4, 'rgba(0,0,0,0)');
     ctx.fillStyle = inner;
     ctx.fillRect(x, y, w, h);
@@ -304,15 +327,15 @@ function drawProgressBar(ctx, x, y, w, h, percent, accent) {
         roundedRect(ctx, x, y, fillW, h, h / 2);
         ctx.clip();
         const fillGrad = ctx.createLinearGradient(x, 0, x + w, 0);
-        fillGrad.addColorStop(0, accent.rgba(0.55));
+        fillGrad.addColorStop(0,   accent.rgba(0.55));
         fillGrad.addColorStop(0.6, accent.rgba(0.95));
-        fillGrad.addColorStop(1, '#ffffff');
+        fillGrad.addColorStop(1,   '#ffffff');
         ctx.fillStyle = fillGrad;
         ctx.fillRect(x, y, fillW, h);
 
         // Subtle shine across the top edge of the fill
         const shine = ctx.createLinearGradient(0, y, 0, y + h / 2);
-        shine.addColorStop(0, 'rgba(255,255,255,0.3)');
+        shine.addColorStop(0, 'rgba(255,255,255,0.30)');
         shine.addColorStop(1, 'rgba(255,255,255,0)');
         ctx.fillStyle = shine;
         ctx.fillRect(x, y, fillW, h / 2);
@@ -331,7 +354,7 @@ function drawProgressBar(ctx, x, y, w, h, percent, accent) {
 /* ─────────────────────────── card frame ──────────────────────────── */
 
 function drawCardFrame(ctx, accent) {
-    // Outer edge — slight tint of the accent for cohesion
+    // Outer glassy edge — tinted with the accent for cohesion
     roundedRect(ctx, PAD / 2, PAD / 2, W - PAD, H - PAD, RADIUS);
     ctx.fillStyle = 'rgba(15,18,28,0.55)';
     ctx.fill();
@@ -339,7 +362,7 @@ function drawCardFrame(ctx, accent) {
     ctx.strokeStyle = accent.rgba(0.35);
     ctx.stroke();
 
-    // Inner highlight
+    // Inner highlight stroke for depth
     roundedRect(ctx, PAD / 2 + 1, PAD / 2 + 1, W - PAD - 2, H - PAD - 2, RADIUS - 1);
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(255,255,255,0.05)';
@@ -355,10 +378,14 @@ function drawCardFrame(ctx, accent) {
  * @param {string} opts.title       Card title (e.g. "How Gay?")
  * @param {string} opts.subjectName Display name shown next to avatar
  * @param {string} opts.avatarURL   Avatar URL of the subject
- * @param {number} opts.percent     0–100
+ * @param {number} opts.percent     0–100 (or any number when unit !== '%')
  * @param {string} opts.verdict     Short verdict line
  * @param {string} [opts.unit]      Suffix for the big value (default '%')
- * @param {string} [opts.brand]     Branding text in the corner
+ * @param {string} [opts.brand]     Branding text in the corner (default 'xNico')
+ * @param {number} [opts.barMax]    Override the bar's 100%-equivalent
+ *                                  (e.g. 200 for IQ — keeps the bar
+ *                                  from overflowing for non-percent
+ *                                  metrics).
  * @returns {Promise<Buffer>} PNG buffer
  */
 async function renderPercentCard(opts) {
@@ -370,14 +397,17 @@ async function renderPercentCard(opts) {
         verdict,
         unit = '%',
         brand = 'xNico',
+        barMax = unit === '%' ? 100 : Math.max(100, Math.abs(Number(percent) || 0)),
     } = opts;
 
-    const p = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
-    const accent = colorForPercent(p);
+    const rawValue = Number(percent) || 0;
+    // Bar/ring fill ratio — clamp to 0–100 even for non-percentage units (IQ etc.)
+    const barFill = Math.max(0, Math.min(100, Math.round((rawValue / barMax) * 100)));
+    // Hero number — just clamp to >= 0 and round
+    const hero = Math.max(0, Math.round(rawValue));
+    // Accent always grades against the visual fill (so a 60% IQ bar feels "amber")
+    const accent = colorForPercent(barFill);
 
-    // Outfit reads like a modern UI font; Inter handles secondary copy.
-    // Both ship with the bot; the registry will fall back to Inter if a
-    // family isn't registered yet (during tests, etc.).
     const display = getFontHelpers('Outfit');
     const ui      = getFontHelpers('Inter');
 
@@ -388,11 +418,11 @@ async function renderPercentCard(opts) {
     paintBackground(ctx, accent);
     drawCardFrame(ctx, accent);
 
-    // ─── Avatar with progress ring (left side) ───
+    // ─── Avatar with progress ring (left) ───
     const avatarRadius = 110;
     const avatarCx = 170;
     const avatarCy = H / 2;
-    await drawAvatarBlock(ctx, avatarURL, avatarCx, avatarCy, avatarRadius, p, accent);
+    await drawAvatarBlock(ctx, avatarURL, avatarCx, avatarCy, avatarRadius, barFill, accent);
 
     // ─── Right side text stack ───
     const textX = 340;
@@ -405,17 +435,22 @@ async function renderPercentCard(opts) {
     ctx.textBaseline = 'alphabetic';
     drawTracked(ctx, (title || '').toUpperCase(), textX, 92, 2.5);
 
-    // Subject name (display weight, big)
+    // Subject name (display weight, big) — routed through emoji
+    // helper so usernames containing emojis (e.g. "Rexzy 🚀") render
+    // as proper Twemoji images instead of monochrome glyphs.
     ctx.fillStyle = '#ffffff';
     ctx.font = display.getBoldFont(46);
-    const name = truncate(ctx, subjectName || 'Unknown', textWidth);
-    ctx.fillText(name, textX, 142);
+    let name = subjectName || 'Unknown';
+    while (measureMixedText(ctx, name, 46) > textWidth && name.length > 0) {
+        name = name.slice(0, -1);
+    }
+    if (name !== (subjectName || 'Unknown')) name += '…';
+    await drawTextWithEmoji(ctx, name, textX, 142, 46);
 
-    // Big percent — this is the hero element
-    const valueText = `${p}${unit}`;
+    // Hero percent — gradient text + drop shadow
+    const valueText = `${hero}${unit}`;
     ctx.font = display.getBoldFont(120);
     const valueWidth = ctx.measureText(valueText).width;
-    // Soft drop-glow so the number sits against the background
     ctx.save();
     ctx.shadowColor = accent.rgba(0.55);
     ctx.shadowBlur = 26;
@@ -426,21 +461,21 @@ async function renderPercentCard(opts) {
     ctx.fillText(valueText, textX, 260);
     ctx.restore();
 
-    // Tiny accent label next to the value
+    // Helper label next to the value ("OUT OF 100" / "OUT OF 200")
     ctx.font = ui.getMediumFont(13);
     ctx.fillStyle = '#64748b';
-    drawTracked(ctx, 'OUT OF 100', textX + valueWidth + 14, 224, 1.5);
+    drawTracked(ctx, `OUT OF ${barMax}`, textX + valueWidth + 14, 224, 1.5);
 
     // Progress bar
     const barX = textX;
     const barY = 290;
     const barW = textWidth;
     const barH = 16;
-    drawProgressBar(ctx, barX, barY, barW, barH, p, accent);
+    drawProgressBar(ctx, barX, barY, barW, barH, barFill, accent);
 
     // Bar value chip aligned to the tip
-    const tipX = Math.min(barX + barW - 8, barX + (barW * p) / 100);
-    const chipText = `${p}${unit}`;
+    const tipX = Math.min(barX + barW - 8, barX + (barW * barFill) / 100);
+    const chipText = `${hero}${unit}`;
     ctx.font = ui.getSemiBoldFont(12);
     const chipPadX = 10;
     const chipW = ctx.measureText(chipText).width + chipPadX * 2;
@@ -459,12 +494,17 @@ async function renderPercentCard(opts) {
     ctx.fillText(chipText, chipX + chipPadX, chipY + chipH / 2 + 1);
     ctx.textBaseline = 'alphabetic';
 
-    // Verdict — italic-feeling display medium
+    // Verdict — display medium weight, quoted. Routed through the
+    // emoji helper because verdicts often carry emoji (😬 🤷 🤔 😍 💞 💍✨)
+    // that would otherwise render as monochrome glyphs.
     if (verdict) {
         ctx.font = display.getMediumFont(20);
         ctx.fillStyle = '#cbd5e1';
-        const verdictText = truncate(ctx, `“${verdict}”`, textWidth);
-        ctx.fillText(verdictText, textX, 348);
+        let verdictText = `\u201C${verdict}\u201D`;
+        while (measureMixedText(ctx, verdictText, 20) > textWidth && verdictText.length > 2) {
+            verdictText = verdictText.slice(0, -2) + '\u201D';
+        }
+        await drawTextWithEmoji(ctx, verdictText, textX, 348, 20);
     }
 
     // ─── Corner brand pill ───
@@ -473,7 +513,6 @@ async function renderPercentCard(opts) {
     const brandTextW = ctx.measureText(brandText.toUpperCase()).width;
     const dotR = 4;
     const padX = 14;
-    const padY = 6;
     const pillW = brandTextW + dotR * 2 + 10 + padX * 2;
     const pillH = 24;
     const pillX = W - PAD - pillW;

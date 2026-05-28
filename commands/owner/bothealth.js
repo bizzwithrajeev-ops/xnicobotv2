@@ -156,33 +156,33 @@ module.exports = {
             };
 
             await drawCard(50, 120, 320, 200, '◆ Bot Statistics', [
-                { label: 'Servers', value: client.guilds.cache.size.toLocaleString(), icon: '▸' },
-                { label: 'Users', value: totalMembers.toLocaleString(), icon: '▸' },
-                { label: 'Channels', value: `${totalChannels} (${textChannels}T/${voiceChannels}V)`, icon: '▸' },
-                { label: 'Commands', value: client.commands?.size?.toString() || '517', icon: '▸' },
+                { label: 'Servers', value: client.guilds.cache.size.toLocaleString(), icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Users', value: totalMembers.toLocaleString(), icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Channels', value: `${totalChannels} (${textChannels}T/${voiceChannels}V)`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Commands', value: client.commands?.size?.toString() || '517', icon: '<:Caretright:1473038207221502106>' },
                 { label: 'Ping', value: `${client.ws.ping}ms`, color: client.ws.ping < 100 ? '#3fb950' : client.ws.ping < 200 ? '#d29922' : '#f85149', icon: '●' }
             ]);
 
             await drawCard(390, 120, 320, 200, '◆ Uptime & Activity', [
-                { label: 'Uptime', value: `${days}d ${hours}h ${minutes}m ${seconds}s`, icon: '▸' },
-                { label: 'Voice Time', value: `${voiceHours}h ${voiceMins}m`, icon: '▸' },
-                { label: 'Messages', value: totalMessages.toLocaleString(), icon: '▸' },
-                { label: 'Music Players', value: lavalinkManager?.players?.size?.toString() || '0', icon: '▸' },
-                { label: 'Started', value: new Date(Date.now() - uptime * 1000).toLocaleDateString(), icon: '▸' }
+                { label: 'Uptime', value: `${days}d ${hours}h ${minutes}m ${seconds}s`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Voice Time', value: `${voiceHours}h ${voiceMins}m`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Messages', value: totalMessages.toLocaleString(), icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Music Players', value: lavalinkManager?.players?.size?.toString() || '0', icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Started', value: new Date(Date.now() - uptime * 1000).toLocaleDateString(), icon: '<:Caretright:1473038207221502106>' }
             ]);
 
             await drawCard(730, 120, 320, 200, '◆ System Info', [
-                { label: 'Platform', value: `${os.platform()} ${os.arch()}`, icon: '▸' },
-                { label: 'Node.js', value: process.version, icon: '▸' },
-                { label: 'Discord.js', value: `v${require('discord.js').version}`, icon: '▸' },
-                { label: 'CPU Cores', value: cpuCores.toString(), icon: '▸' },
-                { label: 'Hostname', value: os.hostname().substring(0, 20), icon: '▸' }
+                { label: 'Platform', value: `${os.platform()} ${os.arch()}`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Node.js', value: process.version, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Discord.js', value: `v${require('discord.js').version}`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'CPU Cores', value: cpuCores.toString(), icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Hostname', value: os.hostname().substring(0, 20), icon: '<:Caretright:1473038207221502106>' }
             ]);
 
             await drawCard(1070, 120, 280, 200, '◆ Owner Info', [
-                { label: 'Owner ID', value: process.env.OWNER_ID?.substring(0, 18) || 'Not set', icon: '▸' },
-                { label: 'Bot ID', value: client.user.id.substring(0, 18), icon: '▸' },
-                { label: 'Created', value: client.user.createdAt.toLocaleDateString(), icon: '▸' },
+                { label: 'Owner ID', value: process.env.OWNER_ID?.substring(0, 18) || 'Not set', icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Bot ID', value: client.user.id.substring(0, 18), icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Created', value: client.user.createdAt.toLocaleDateString(), icon: '<:Caretright:1473038207221502106>' },
                 { label: 'Verified', value: client.user.flags?.has('VerifiedBot') ? 'Yes' : 'No', color: '#3fb950', icon: '●' }
             ]);
 
@@ -238,27 +238,27 @@ module.exports = {
                 cpuPercent > 80 ? '#da3633' : cpuPercent > 50 ? '#9e6a03' : '#238636');
 
             await drawCard(50, 440, 660, 180, '◆ Process Memory Details', [
-                { label: 'Heap Used', value: `${heapUsed.toFixed(2)} MB`, color: '#58a6ff', icon: '▸' },
-                { label: 'Heap Total', value: `${heapTotal.toFixed(2)} MB`, icon: '▸' },
-                { label: 'RSS', value: `${rss.toFixed(2)} MB`, icon: '▸' },
-                { label: 'External', value: `${external.toFixed(2)} MB`, icon: '▸' },
+                { label: 'Heap Used', value: `${heapUsed.toFixed(2)} MB`, color: '#58a6ff', icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Heap Total', value: `${heapTotal.toFixed(2)} MB`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'RSS', value: `${rss.toFixed(2)} MB`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'External', value: `${external.toFixed(2)} MB`, icon: '<:Caretright:1473038207221502106>' },
                 { label: 'Usage', value: `${((heapUsed / heapTotal) * 100).toFixed(1)}%`, color: heapUsed / heapTotal > 0.8 ? '#f85149' : '#3fb950', icon: '●' }
             ]);
 
             await drawCard(730, 440, 620, 180, '◆ Network & Sharding', [
                 { label: 'WS Ping', value: `${client.ws.ping}ms`, color: client.ws.ping < 100 ? '#3fb950' : '#d29922', icon: '●' },
                 { label: 'WS Status', value: 'Connected', color: '#3fb950', icon: '●' },
-                { label: 'Shard ID', value: client.shard?.ids?.[0]?.toString() || '0', icon: '▸' },
-                { label: 'Total Shards', value: client.shard?.count?.toString() || '1', icon: '▸' },
-                { label: 'Gateway', value: 'Discord API v10', color: '#58a6ff', icon: '▸' }
+                { label: 'Shard ID', value: client.shard?.ids?.[0]?.toString() || '0', icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Total Shards', value: client.shard?.count?.toString() || '1', icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Gateway', value: 'Discord API v10', color: '#58a6ff', icon: '<:Caretright:1473038207221502106>' }
             ]);
 
             await drawCard(50, 640, 440, 180, '◆ Music System', [
-                { label: 'Active Players', value: lavalinkManager?.players?.size?.toString() || '0', color: '#58a6ff', icon: '▸' },
-                { label: 'Lavalink Nodes', value: lavalinkManager?.nodes?.size?.toString() || '1', icon: '▸' },
+                { label: 'Active Players', value: lavalinkManager?.players?.size?.toString() || '0', color: '#58a6ff', icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Lavalink Nodes', value: lavalinkManager?.nodes?.size?.toString() || '1', icon: '<:Caretright:1473038207221502106>' },
                 { label: 'Node Status', value: 'Connected', color: '#3fb950', icon: '●' },
-                { label: 'Total Voice', value: `${voiceHours}h ${voiceMins}m played`, icon: '▸' },
-                { label: 'Platforms', value: 'YT, Spotify, SC, AM', icon: '▸' }
+                { label: 'Total Voice', value: `${voiceHours}h ${voiceMins}m played`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'Platforms', value: 'YT, Spotify, SC, AM', icon: '<:Caretright:1473038207221502106>' }
             ]);
 
             await drawCard(510, 640, 440, 180, '◆ Security & Features', [
@@ -266,15 +266,15 @@ module.exports = {
                 { label: 'Anti-Raid', value: 'Active', color: '#3fb950', icon: '●' },
                 { label: 'Automod', value: 'Active', color: '#3fb950', icon: '●' },
                 { label: 'Logging', value: 'Enabled', color: '#3fb950', icon: '●' },
-                { label: 'Last Restart', value: new Date(Date.now() - uptime * 1000).toLocaleTimeString(), icon: '▸' }
+                { label: 'Last Restart', value: new Date(Date.now() - uptime * 1000).toLocaleTimeString(), icon: '<:Caretright:1473038207221502106>' }
             ]);
 
             await drawCard(970, 640, 380, 180, '◆ Load Averages', [
                 { label: '1 min', value: cpuLoad[0].toFixed(3), color: cpuLoad[0] > cpuCores ? '#f85149' : '#3fb950', icon: '●' },
                 { label: '5 min', value: cpuLoad[1].toFixed(3), color: cpuLoad[1] > cpuCores ? '#f85149' : '#3fb950', icon: '●' },
                 { label: '15 min', value: cpuLoad[2].toFixed(3), color: cpuLoad[2] > cpuCores ? '#f85149' : '#3fb950', icon: '●' },
-                { label: 'Free Mem', value: `${freeMemory.toFixed(2)} GB`, icon: '▸' },
-                { label: 'OS Uptime', value: `${Math.floor(os.uptime() / 86400)}d`, icon: '▸' }
+                { label: 'Free Mem', value: `${freeMemory.toFixed(2)} GB`, icon: '<:Caretright:1473038207221502106>' },
+                { label: 'OS Uptime', value: `${Math.floor(os.uptime() / 86400)}d`, icon: '<:Caretright:1473038207221502106>' }
             ]);
 
             ctx.fillStyle = '#21262d';

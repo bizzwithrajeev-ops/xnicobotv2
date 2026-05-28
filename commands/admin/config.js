@@ -49,9 +49,9 @@ function buildConfigPanel(guild, an, ar) {
             : `${s} ${p.emoji} **${p.label}** — Limit: \`${prot?.limit || '—'}\` • Window: \`${prot?.timeWindow ? (prot.timeWindow / 1000) + 's' : '—'}\` • Action: \`${prot?.action || 'remove_roles'}\`\n`;
     }
 
-    const anSettings = `▸ **Whitelisted Users:** \`${an?.whitelistedUsers?.length || 0}\`\n` +
-        `▸ **Bypass Role:** ${an?.bypassRoleId ? `<@&${an.bypassRoleId}>` : '`None`'}\n` +
-        `▸ **Log Channel:** ${an?.logChannel ? `<#${an.logChannel}>` : '`Not Set`'}`;
+    const anSettings = `<:Caretright:1473038207221502106> **Whitelisted Users:** \`${an?.whitelistedUsers?.length || 0}\`\n` +
+        `<:Caretright:1473038207221502106> **Bypass Role:** ${an?.bypassRoleId ? `<@&${an.bypassRoleId}>` : '`None`'}\n` +
+        `<:Caretright:1473038207221502106> **Log Channel:** ${an?.logChannel ? `<#${an.logChannel}>` : '`Not Set`'}`;
 
     // --- Antiraid ---
     const arStatus = ar?.enabled
@@ -65,9 +65,9 @@ function buildConfigPanel(guild, an, ar) {
         `${formatCheck(al?.enabled)} <:Lock:1473038513749491773> **Auto Lockdown** — After \`${al?.threshold || '—'}\` violations → \`${al?.duration ? (al.duration / 60000) + 'min' : '—'}\`\n` +
         `${formatCheck(sp?.enabled)} <:Commentblock:1473370739351490794> **Suspicious Patterns** → \`${sp?.action || 'kick'}\``;
 
-    const arSettings = `▸ **Whitelisted Roles:** \`${ar?.whitelistedRoles?.length || 0}\`\n` +
-        `▸ **Bypass Role:** ${ar?.bypassRoleId ? `<@&${ar.bypassRoleId}>` : '`None`'}\n` +
-        `▸ **Log Channel:** ${ar?.logChannel ? `<#${ar.logChannel}>` : '`Not Set`'}`;
+    const arSettings = `<:Caretright:1473038207221502106> **Whitelisted Roles:** \`${ar?.whitelistedRoles?.length || 0}\`\n` +
+        `<:Caretright:1473038207221502106> **Bypass Role:** ${ar?.bypassRoleId ? `<@&${ar.bypassRoleId}>` : '`None`'}\n` +
+        `<:Caretright:1473038207221502106> **Log Channel:** ${ar?.logChannel ? `<#${ar.logChannel}>` : '`Not Set`'}`;
 
     // --- Threat Modes ---
     const tm = an?.threatMode || false, stm = an?.superThreatMode || false;

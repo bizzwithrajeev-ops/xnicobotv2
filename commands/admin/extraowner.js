@@ -17,14 +17,14 @@ function buildPanel(guild, secondOwnerId) {
         `### <:Userplus:1473038912212435086> Current Extra Owner\n` +
         `${statusEmoji} ${ownerDisplay}\n\n` +
         `### <:Document:1473039496995143731> What Extra Owner Gets\n` +
-        `▸ Full access to all security commands\n` +
-        `▸ Can manage antinuke, whitelist, and trust settings\n` +
-        `▸ Treated as server owner in the bot's permission system\n` +
-        `▸ Cannot override the actual server owner\n\n` +
+        `<:Caretright:1473038207221502106> Full access to all security commands\n` +
+        `<:Caretright:1473038207221502106> Can manage antinuke, whitelist, and trust settings\n` +
+        `<:Caretright:1473038207221502106> Treated as server owner in the bot's permission system\n` +
+        `<:Caretright:1473038207221502106> Cannot override the actual server owner\n\n` +
         `### <:Lightningalt:1473038679906844824> Commands\n` +
-        `▸ \`extraowner set @user\` — Set a user as extra owner\n` +
-        `▸ \`extraowner view\` — View current extra owner\n` +
-        `▸ \`extraowner reset\` — Remove the extra owner\n\n` +
+        `<:Caretright:1473038207221502106> \`extraowner set @user\` — Set a user as extra owner\n` +
+        `<:Caretright:1473038207221502106> \`extraowner view\` — View current extra owner\n` +
+        `<:Caretright:1473038207221502106> \`extraowner reset\` — Remove the extra owner\n\n` +
         `-# <:Infotriangle:1473038460456800459> Only the server owner can manage this setting\n\n` +
         BRANDING;
 

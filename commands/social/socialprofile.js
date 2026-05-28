@@ -3,6 +3,7 @@ const ProfileCard = require('../../utils/profileCard');
 const { getUserData, models, getGuildMember } = require('../../utils/database');
 const badgeManager = require('../../utils/badgeManager');
 const premiumManager = require('../../utils/premiumManager');
+const economyManager = require('../../utils/economyManager');
 const { buildLoadingResponse, buildErrorResponse, EMOJIS } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -53,6 +54,15 @@ async function generateProfileCard(user, guild, client) {
             messageCount = memberData.leveling?.messageCount || 0;
             voiceTime = memberData.analytics?.voiceTime || 0;
         }
+    } catch {}
+
+    // Pull wallet + bank from the economy store so the BALANCE stat box
+    // shows real coins instead of always rendering "0".
+    let balance = 0;
+    try {
+        const economy = economyManager.loadEconomy();
+        const { userData: econUser } = economyManager.getUser(economy, user.id);
+        balance = (Number(econUser.coins) || 0) + (Number(econUser.bank) || 0);
     } catch {}
 
     let favoriteSongs = [];
@@ -136,6 +146,7 @@ async function generateProfileCard(user, guild, client) {
         commandsUsed,
         messageCount,
         voiceTime,
+        balance,
         favoriteSongs,
         likedSongs,
         createdAt: user.createdTimestamp,

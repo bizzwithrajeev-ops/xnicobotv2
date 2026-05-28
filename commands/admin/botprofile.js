@@ -27,7 +27,13 @@ module.exports = {
             const hasAbout = !!guildCustom.aboutText;
 
             const globalAvatar = message.client.user.displayAvatarURL({ size: 256 });
-            const serverAvatar = botMember.displayAvatarURL({ size: 256 });
+            // Prefer the URL the admin saved into /bot-customize so the
+            // panel reflects the latest configuration even if Discord's
+            // own member cache hasn't refreshed yet (e.g. immediately
+            // after editMe, or if Discord rejected the live update but
+            // we kept the local value as the source of truth).
+            const serverAvatar = guildCustom.avatarUrl
+                || botMember.displayAvatarURL({ size: 256 });
             const globalName = message.client.user.username;
             const serverName = botMember.nickname || globalName;
 

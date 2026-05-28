@@ -997,7 +997,7 @@ module.exports = {
                 return new AR().addComponents(
                     new BB().setCustomId(`${btnPrefix}_prev`).setEmoji('<:History:1473037847568318605>').setLabel('Prev').setStyle(BS.Primary).setDisabled(page === 0),
                     new BB().setCustomId(`${btnPrefix}_ind`).setLabel(`${page + 1} / ${totalPages}`).setStyle(BS.Secondary).setDisabled(true),
-                    new BB().setCustomId(`${btnPrefix}_next`).setEmoji('<:Skipnext:1473039269726785737>').setLabel('Next').setStyle(BS.Primary).setDisabled(page >= totalPages - 1)
+                    new BB().setCustomId(`${btnPrefix}_next`).setEmoji('<:Caretright:1473038207221502106>').setLabel('Next').setStyle(BS.Primary).setDisabled(page >= totalPages - 1)
                 );
             }
 

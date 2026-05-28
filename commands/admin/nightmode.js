@@ -43,13 +43,13 @@ function buildPanel(guildConfig, guildName) {
         `-# Server lockdown for **${guildName}**\n\n` +
         `${statusEmoji} ${statusText}${activatedInfo}\n\n` +
         `### <:Document:1473039496995143731> What Night Mode Does\n` +
-        `▸ Revokes \`Send Messages\` for \`@everyone\` in all channels\n` +
-        `▸ Prevents new messages from being sent server-wide\n` +
-        `▸ Saves current permissions for restoration on disable\n` +
-        `▸ Staff with \`Manage Messages\` can still communicate\n\n` +
+        `<:Caretright:1473038207221502106> Revokes \`Send Messages\` for \`@everyone\` in all channels\n` +
+        `<:Caretright:1473038207221502106> Prevents new messages from being sent server-wide\n` +
+        `<:Caretright:1473038207221502106> Saves current permissions for restoration on disable\n` +
+        `<:Caretright:1473038207221502106> Staff with \`Manage Messages\` can still communicate\n\n` +
         `### <:Lightningalt:1473038679906844824> Commands\n` +
-        `▸ \`nightmode enable\` — Lock the server down\n` +
-        `▸ \`nightmode disable\` — Restore normal permissions\n\n` +
+        `<:Caretright:1473038207221502106> \`nightmode enable\` — Lock the server down\n` +
+        `<:Caretright:1473038207221502106> \`nightmode disable\` — Restore normal permissions\n\n` +
         `-# <:Infotriangle:1473038460456800459> Use during raids or off-hours to prevent damage\n\n` +
         BRANDING;
 
@@ -101,7 +101,21 @@ module.exports = {
 
             const guild = message.guild;
             const everyoneRole = guild.roles.everyone;
-            const channels = guild.channels.cache.filter(c => c.isTextBased() && !c.isThread() && c.permissionsFor(guild.members.me)?.has(PermissionFlagsBits.ManageChannels));
+            // Only target proper text-style channels — exclude voice
+            // (which has separate Connect/Speak permissions) and threads
+            // (whose perms are inherited from the parent and can't be
+            // overwritten directly).
+            const { ChannelType } = require('discord.js');
+            const TEXT_TYPES = new Set([
+                ChannelType.GuildText,
+                ChannelType.GuildAnnouncement,
+                ChannelType.GuildForum,
+                ChannelType.GuildMedia,
+            ]);
+            const channels = guild.channels.cache.filter(c =>
+                TEXT_TYPES.has(c.type) &&
+                c.permissionsFor(guild.members.me)?.has(PermissionFlagsBits.ManageChannels)
+            );
 
             const savedPerms = {};
             let locked = 0;

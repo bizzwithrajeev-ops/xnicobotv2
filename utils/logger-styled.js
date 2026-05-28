@@ -225,7 +225,7 @@ class StyledLogger {
     static section(title, compact = false) {
         if (currentLevel < LOG_LEVELS.INFO) return;
         if (compact) {
-            writeStdout(`\n  ${c.cyan}▸${c.reset} ${c.bold}${title}${c.reset}`);
+            writeStdout(`\n  ${c.cyan}<:Caretright:1473038207221502106>${c.reset} ${c.bold}${title}${c.reset}`);
         } else {
             writeStdout(`\n  ${c.cyan}━━━${c.reset} ${c.bold}${title}${c.reset} ${c.cyan}━━━${c.reset}`);
         }
@@ -234,7 +234,7 @@ class StyledLogger {
     static header(message) {
         pushLog('info', message);
         if (currentLevel >= LOG_LEVELS.INFO)
-            writeStdout(`\n  ${c.bold}${c.cyan}▸ ${message}${c.reset}`);
+            writeStdout(`\n  ${c.bold}${c.cyan}<:Caretright:1473038207221502106> ${message}${c.reset}`);
     }
 
     static divider() {
