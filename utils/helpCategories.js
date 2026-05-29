@@ -223,7 +223,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'PvP & Mini-Games',    emoji: '<:transfer:1479780506718437396>',   cmds: ['rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
         { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard', 'economystats'] },
         { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift', 'customshop', 'stocks'] },
-        { name: 'Combat & Pets',       emoji: '<:Fire:1473038604812161218>',       cmds: ['battle', 'weapon', 'pets'] },
+        { name: 'Combat & Pets',       emoji: '<:Fire:1473038604812161218>',       cmds: ['battle', 'weapon', 'skill', 'pets'] },
         { name: 'Admin Controls',      emoji: '<:Shield:1473038669831995494>',     cmds: ['addcoins', 'currency'] },
     ],
 
@@ -296,7 +296,7 @@ const FOLDER_FALLBACK = {
    ───────────────────────────────────────────────────────────── */
 
 const CATEGORY_META = {
-    music:      { title: 'Music Commands',           emoji: '<:Music:1473039311057190972>',        footer: '-# <:YoutubeLive:1435331502710722592> YouTube • <:spotify:1473663456182800446> Spotify • <:soundCloud:1435332317341159424> SoundCloud • <:applemusic:1435332305919938680> Apple Music' },
+    music:      { title: 'Music Commands',           emoji: '<:Music:1473039311057190972>',        footer: '-# <:YoutubeLive:1507444089292066907> YouTube • <:spotify:1473663456182800446> Spotify • <:soundCloud:1507444310658912438> SoundCloud • <:applemusic:1507444464334147656> Apple Music' },
     voice:      { title: 'Voice Commands',           emoji: '<:Volumeup:1473039290136002844>',      footer: '-# TTS, J2C, VC moderation, limits, bitrate, autorole & more' },
     moderation: { title: 'Moderation',               emoji: '<:banhammer:1473367388597780592>',     footer: '-# Bans, kicks, mutes, warns, cases & audit logging' },
     security:   { title: 'Server Security',          emoji: '<:Shield:1473038669831995494>',        footer: '-# Anti-raid, anti-spam, anti-nuke & threat detection systems' },

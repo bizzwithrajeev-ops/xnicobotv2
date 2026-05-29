@@ -50,10 +50,10 @@ const THEME = {
         BOTS: '<:bots:1473368718120849500>',
         WAR: '<:Caretright:1473038207221502106>',
         
-        YOUTUBE: '<:YoutubeLive:1435331502710722592>',
+        YOUTUBE: '<:YoutubeLive:1507444089292066907>',
         SPOTIFY: '<:spotify:1473663456182800446>',
-        SOUNDCLOUD: '<:soundCloud:1435332317341159424>',
-        APPLE_MUSIC: '<:applemusic:1435332305919938680>',
+        SOUNDCLOUD: '<:soundCloud:1507444310658912438>',
+        APPLE_MUSIC: '<:applemusic:1507444464334147656>',
         
         LIGHTNING: '<:Lightningalt:1473038679906844824>',
         ANNOUNCE: '<:Bullhorn:1473038903157199093>',

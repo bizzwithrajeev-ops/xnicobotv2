@@ -196,7 +196,9 @@ function viewDetail(user, uid, petId, fromRarity) {
   const isActive = user.activeBattlePet === petId;
   const color = ph.RARITY_COLOR[pet.rarity] || 0x7c3aed;
   const lv = pet.level || 1;
-  const skills = (pet.skills || ['slash']).map(s => ph.SKILL_LABEL[s] || s);
+  const equipped = (pet.skills || ['slash']).map(s => ph.SKILL_LABEL[s] || s);
+  const learnedCount = (pet.learnedSkills || pet.skills || ['slash']).length;
+  const maxEquipped = ph.MAX_EQUIPPED_SKILLS || 3;
 
   const lines = [
     `# ${pet.emoji} ${pet.name}${isActive ? ' ⚔️' : ''}`,
@@ -206,7 +208,8 @@ function viewDetail(user, uid, petId, fromRarity) {
     `<:Invoice:1473039492217835550> Level: **${lv}** ┊ XP: **${pet.exp || 0}/${lv * 100}**`,
     '',
     `🗡️ **Weapon:** ${pet.weapon ? `${pet.weapon.name} (Lv.${pet.weapon.level || 1}) +${pet.weapon.baseAtk} ATK` : 'None'}`,
-    `<:Lightningalt:1473038679906844824> **Skills:** ${skills.join(', ')}`,
+    `<:Lightningalt:1473038679906844824> **Equipped Skills:** ${equipped.join(', ')} *(${equipped.length}/${maxEquipped})*`,
+    `<:Document:1473039496995143731> **Learned:** ${learnedCount} skill${learnedCount === 1 ? '' : 's'} — manage with \`skill\``,
   ];
 
   const ctr = new ContainerBuilder().setAccentColor(color)
@@ -242,28 +245,50 @@ function viewWeapon(user, uid, petId, fromRarity) {
   if (pet.weapon) {
     lines.push(
       `**Equipped:** ${pet.weapon.name}`,
-      `> ⚔️ ATK: +${pet.weapon.baseAtk} ┊ <:Star:1473038501766369300> Level: ${pet.weapon.level || 1}/10`,
-      '', '> Select a different weapon below to replace it.',
+      `> ⚔️ ATK: +${pet.weapon.baseAtk} ┊ <:Star:1473038501766369300> Level: ${pet.weapon.level || 1}/10  ·  Rarity: ${pet.weapon.rarity || 'common'}`,
+      '', '> Pick a different weapon below to switch — purchasing it deducts the catalog price.',
     );
   } else {
-    lines.push('> No weapon equipped. Select one below!', '');
+    lines.push('> No weapon equipped. Pick one below — its catalog price is deducted from your wallet.', '');
   }
 
-  lines.push('', '**Available:**');
-  for (const [, w] of Object.entries(ph.WEAPONS)) lines.push(`> ${w.name}  +${w.baseAtk} ATK`);
+  // The catalog now spans common→legendary, plus drop-only mythics.
+  // The select menu can only show 25 options so we filter to weapons
+  // the user can actually buy (price > 0). Mythic drop-only entries
+  // are surfaced in the description text instead, with a note that
+  // they come from `weapon_crate` only.
+  const buyable = Object.entries(ph.WEAPONS)
+    .filter(([, w]) => (w.price || 0) > 0)
+    .sort((a, b) => (a[1].price || 0) - (b[1].price || 0));
+  const dropOnly = Object.entries(ph.WEAPONS).filter(([, w]) => !w.price);
+
+  lines.push('', '**Catalog:**');
+  for (const [, w] of buyable.slice(0, 12)) {
+    lines.push(`> ${w.name} · +${w.baseAtk} ATK · ${formatCoins(w.price)}`);
+  }
+  if (buyable.length > 12) {
+    lines.push(`> -# …and ${buyable.length - 12} more — pick from the menu below`);
+  }
+  if (dropOnly.length) {
+    lines.push('');
+    lines.push(`-# Drop-only mythics (\`weapon_crate\` only): ${dropOnly.map(([, w]) => w.name).join(', ')}`);
+  }
 
   const ctr = new ContainerBuilder().setAccentColor(color)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
 
-  const wOpts = Object.entries(ph.WEAPONS).map(([id, w]) => ({
-    label: `${w.name.replace(/[^\w\s]/g, '').trim()} (+${w.baseAtk} ATK)`,
+  // Cap at 25 options — the StringSelectMenu hard limit. We sort by
+  // price ascending so the cheapest weapons are always reachable here
+  // even if the catalog grows beyond 25 buyable entries in the future.
+  const wOpts = buyable.slice(0, 25).map(([id, w]) => ({
+    label: `${w.name.replace(/[^\w\s]/g, '').trim()} (+${w.baseAtk} ATK)`.substring(0, 100),
     value: `${id}|${petId}|${fromRarity}`,
-    description: `Equip to ${pet.name}`,
+    description: `${w.rarity} · ${formatCoins(w.price)} coins`.substring(0, 100),
   }));
   ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId(`pets:weq:${uid}`)
-      .setPlaceholder('🗡️ Select weapon to equip')
+      .setPlaceholder('🗡️ Select weapon to equip (deducts coins)')
       .addOptions(wOpts)
   ));
 
@@ -388,7 +413,10 @@ module.exports = {
       return true;
     }
 
-    /* ── WEAPON EQUIP SELECT ── */
+    /* ── WEAPON EQUIP SELECT ──
+       Mirrors the paid-equip flow used by `weapon equip <id>` so the
+       catalog is the single source of truth and selecting a weapon
+       through this menu can't bypass its price. */
     if (interaction.isStringSelectMenu() && action === 'weq') {
       const [weaponId, petId, fromRarity] = interaction.values[0].split('|');
       const pet = user.animals.find(p => p.id === petId);
@@ -397,8 +425,41 @@ module.exports = {
         await interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid selection.', flags: MessageFlags.Ephemeral });
         return true;
       }
-      pet.weapon = { id: weaponId, name: wpDef.name, baseAtk: wpDef.baseAtk, level: 1, rarity: pet.rarity };
+
+      // Drop-only (mythic) weapons can't be bought through this menu.
+      if (!wpDef.price || wpDef.price <= 0) {
+        await interaction.reply({
+          content: `<:Infotriangle:1473038460456800459> **${wpDef.name}** is a drop-only weapon — open a \`weapon_crate\` to roll for it.`,
+          flags: MessageFlags.Ephemeral,
+        });
+        return true;
+      }
+
+      // Same weapon already equipped → don't double-charge.
+      if (pet.weapon?.id === weaponId) {
+        await interaction.reply({
+          content: `<:Infotriangle:1473038460456800459> **${wpDef.name}** is already equipped on this pet.`,
+          flags: MessageFlags.Ephemeral,
+        });
+        return true;
+      }
+
+      const economyManager = require('../../utils/economyManager');
+      const economy = economyManager.loadEconomy();
+      const { userData } = economyManager.getUser(economy, uid);
+      if (userData.coins < wpDef.price) {
+        await interaction.reply({
+          content: `<:Cancel:1473037949187657818> Not enough coins. **${wpDef.name}** costs **${wpDef.price.toLocaleString()}** but you have **${userData.coins.toLocaleString()}**.`,
+          flags: MessageFlags.Ephemeral,
+        });
+        return true;
+      }
+
+      userData.coins -= wpDef.price;
+      pet.weapon = { id: weaponId, name: wpDef.name, baseAtk: wpDef.baseAtk, level: 1, rarity: wpDef.rarity };
       ph.savePets(data);
+      economyManager.saveEconomy(economy);
+
       await interaction.update({ components: [viewDetail(user, uid, petId, fromRarity)], flags: MessageFlags.IsComponentsV2 });
       return true;
     }

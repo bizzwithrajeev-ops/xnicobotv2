@@ -48,6 +48,37 @@ function rand(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/**
+ * Pick a random weapon from the shared catalog, weighted by rarity.
+ * Used by `weapon_box` (common-tilted) and `weapon_crate` (rare+).
+ *
+ * @param {Record<string, number>} weights - rarity → integer weight
+ * @returns {{ id: string, name: string, baseAtk: number, rarity: string }}
+ */
+function rollWeaponFromTable(weights) {
+    const grouped = ph.weaponsByRarity();
+    // Build a flat pool with each weapon weighted by its rarity bucket.
+    const pool = [];
+    for (const [rarity, weight] of Object.entries(weights)) {
+        if (!weight) continue;
+        const list = grouped[rarity] || [];
+        for (const w of list) pool.push({ entry: w, weight });
+    }
+    if (pool.length === 0) {
+        // Defensive fallback so a misconfigured weights map can never
+        // crash the use flow — returns the cheapest common weapon.
+        const fallback = grouped.common?.[0] || { id: 'sword', name: '🗡️ Sword', baseAtk: 10, rarity: 'common' };
+        return fallback;
+    }
+    const total = pool.reduce((s, p) => s + p.weight, 0);
+    let roll = Math.random() * total;
+    for (const p of pool) {
+        roll -= p.weight;
+        if (roll <= 0) return p.entry;
+    }
+    return pool[pool.length - 1].entry;
+}
+
 /* ═══════════════════ ITEM EFFECTS ═══════════════════ */
 
 /**
@@ -308,18 +339,69 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         }
 
         case 'weapon_box': {
-            const weapons = [
-                { id: 'sword', name: '🗡️ Sword',  baseAtk: 10 },
-                { id: 'bow',   name: '🏹 Bow',    baseAtk: 8  },
-                { id: 'staff', name: '🔮 Staff',  baseAtk: 6  },
-            ];
-            const weapon = weapons[Math.floor(Math.random() * weapons.length)];
-            activePet.weapon = { ...weapon, rarity: activePet.rarity, level: 1, xp: 0 };
+            const weapon = rollWeaponFromTable(ph.WEAPON_BOX_WEIGHTS);
+            // Replace the equipped weapon. We carry over the rarity
+            // from the new weapon (not the pet) so its rarity multiplier
+            // for upgrades reflects what the user actually rolled.
+            activePet.weapon = {
+                id: weapon.id,
+                name: weapon.name,
+                baseAtk: weapon.baseAtk,
+                rarity: weapon.rarity,
+                level: 1,
+                xp: 0,
+            };
             return {
                 success: true,
                 title: `${meta.emoji} Weapon Equipped`,
-                result: `${weapon.name} has been equipped to ${activePet.emoji} **${activePet.name}**.`,
+                result: `${weapon.name} *(${weapon.rarity})* has been equipped to ${activePet.emoji} **${activePet.name}**.`,
+                extra: `<:Award:1473038391632203887> Base ATK bonus: **+${weapon.baseAtk}**  ·  Use \`weapon upgrade\` to scale it further.`,
+            };
+        }
+
+        case 'weapon_crate': {
+            // Premium weapon box. Same equip flow as weapon_box but the
+            // drop weights skip common entirely and tilt toward
+            // rare/epic/legendary, with a small mythic chance.
+            const weapon = rollWeaponFromTable(ph.WEAPON_CRATE_WEIGHTS);
+            activePet.weapon = {
+                id: weapon.id,
+                name: weapon.name,
+                baseAtk: weapon.baseAtk,
+                rarity: weapon.rarity,
+                level: 1,
+                xp: 0,
+            };
+            return {
+                success: true,
+                title: `${meta.emoji} Premium Weapon Equipped`,
+                result: `${weapon.name} *(${weapon.rarity})* has been equipped to ${activePet.emoji} **${activePet.name}**.`,
                 extra: `<:Award:1473038391632203887> Base ATK bonus: **+${weapon.baseAtk}**`,
+            };
+        }
+
+        case 'skill_scroll': {
+            // Pull every player-learnable skill the pet doesn't already
+            // own, restrict to ones whose unlockTier is ≤ pet level, and
+            // pick one at random. If none qualify (e.g. a low-level pet
+            // that already knows every available skill at its tier) the
+            // scroll isn't consumed — same shape as VIP badge.
+            const known = new Set(activePet.learnedSkills || activePet.skills || ['slash']);
+            const eligible = ph.playerLearnableSkills().filter(s =>
+                !known.has(s.id) && (s.unlockTier || 1) <= (activePet.level || 1)
+            );
+            if (eligible.length === 0) {
+                return {
+                    error: `${activePet.emoji} **${activePet.name}** already knows every skill available at level ${activePet.level || 1}. Level up the pet to unlock higher-tier skills first.`,
+                };
+            }
+            const learned = eligible[Math.floor(Math.random() * eligible.length)];
+            activePet.learnedSkills = [...known, learned.id];
+            return {
+                success: true,
+                title: `${meta.emoji} New Skill Learned`,
+                result: `${activePet.emoji} **${activePet.name}** learned **${learned.name}**!`,
+                extra: `<:Lightbulbalt:1473038470787240009> Use \`skill equip ${learned.id}\` to bring it into battle.`,
             };
         }
 

@@ -65,20 +65,11 @@ const ENEMIES = [
     { name: 'Void Entity',    emoji: '🌑', tier: 4, baseHp: 500, baseAtk: 50, baseDef: 25, baseSpd: 20, skills: ['dark_strike', 'drain', 'inferno', 'void_collapse'], loot: { minCoins: 800, maxCoins: 1500 } },
 ];
 
-const SKILLS = {
-    slash:         { name: 'Slash',         emoji: '⚔️',  type: 'dmg',        mult: 1.0 },
-    bone_throw:    { name: 'Bone Throw',    emoji: '🦴',  type: 'dmg',        mult: 1.1 },
-    absorb:        { name: 'Absorb',        emoji: '💚',  type: 'heal',       amount: 0.15 },
-    howl:          { name: 'Howl',          emoji: '<:Star:1473038501766369300>', type: 'buff', stat: 'atk', amount: 0.20 },
-    fireball:      { name: 'Fireball',      emoji: '<:Fire:1473038604812161218>', type: 'dmg', mult: 1.5 },
-    drain:         { name: 'Life Drain',    emoji: '🩸',  type: 'drain',      mult: 0.8 },
-    slam:          { name: 'Slam',          emoji: '💥',  type: 'dmg',        mult: 1.3 },
-    fortify:       { name: 'Fortify',       emoji: '<:Shield:1473038669831995494>', type: 'buff', stat: 'def', amount: 0.30 },
-    dark_strike:   { name: 'Dark Strike',   emoji: '🌑',  type: 'dmg',        mult: 1.7 },
-    frost_breath:  { name: 'Frost Breath',  emoji: '❄️',  type: 'dmg_debuff', mult: 1.2, debuff: 'spd', debuffAmt: 0.20 },
-    inferno:       { name: 'Inferno',       emoji: '🌋',  type: 'dmg',        mult: 2.0 },
-    void_collapse: { name: 'Void Collapse', emoji: '🕳️', type: 'dmg',        mult: 2.5 },
-};
+// Battle skill table is sourced from the shared `petHelpers` catalog
+// so /skill, /pets and the battle engine can never disagree on what a
+// skill does. We still keep a local alias so the existing handler
+// switch keeps reading short.
+const SKILLS = ph.SKILL_DEFS;
 
 /* ═══════════════════════════════════════════════════
    PURE COMBAT MATH
@@ -107,6 +98,9 @@ function selectEnemy(petLevel) {
         hp: stats.hp, maxHp: stats.hp,
         atk: stats.atk, def: stats.def, spd: stats.spd,
         rarity: tier === 4 ? 'mythic' : tier === 3 ? 'epic' : tier === 2 ? 'uncommon' : 'common',
+        // Match the per-pet combat trackers so executeTurn's shield/DOT
+        // bookkeeping doesn't crash when targeting an enemy.
+        _dots: [], _shield: 0,
     };
 }
 
@@ -119,9 +113,27 @@ function preparePet(storedPet) {
     pet.spd = pet.baseSpd ? Math.floor(pet.baseSpd * (1 + (level - 1) * 0.06)) : Math.floor(5 + level);
     if (pet.weapon) pet.atk += pet.weapon.baseAtk || 0;
     pet.maxHp = pet.hp;
-    pet.skills = pet.skills || ['slash'];
+
+    // Normalise equipped skills:
+    //   - Drop anything not in the shared catalog (defensive against
+    //     legacy pets / typos in saved data).
+    //   - Strip enemy-only skills (a player pet should never be using
+    //     `inferno` or `void_collapse` even if their save has them).
+    //   - Cap at MAX_EQUIPPED_SKILLS so an over-long list can't overflow.
+    //   - Always guarantee at least `slash` so battle never picks from
+    //     an empty array.
+    const equipped = (Array.isArray(pet.skills) ? pet.skills : ['slash'])
+        .filter(id => SKILLS[id] && !SKILLS[id].enemyOnly)
+        .slice(0, ph.MAX_EQUIPPED_SKILLS || 3);
+    pet.skills = equipped.length ? equipped : ['slash'];
+
     pet.level = level;
     pet.rarity = pet.rarity || 'common';
+
+    // Reset transient combat trackers so successive battles don't
+    // inherit stale shields/DOT entries from cloned data.
+    pet._dots = [];
+    pet._shield = 0;
     return pet;
 }
 
@@ -129,16 +141,53 @@ function executeTurn(attacker, defender, skillId) {
     const skill = SKILLS[skillId] || SKILLS.slash;
     const log = [];
 
+    /* ── Persistent effects (DOT + Shield) tick at the start of the
+       attacker's turn. They live on the combatant object so they
+       carry across rounds without needing a separate tracker. ── */
+    if (Array.isArray(attacker._dots) && attacker._dots.length) {
+        for (const d of attacker._dots) {
+            const tickDmg = Math.max(1, Math.floor(d.dmg));
+            attacker.hp -= tickDmg;
+            d.turns--;
+            log.push(`☠️ ${attacker.name} takes ${tickDmg} poison damage`);
+        }
+        attacker._dots = attacker._dots.filter(d => d.turns > 0);
+        if (attacker.hp <= 0) return log;   // expired before they could act
+    }
+
     const crit = Math.random() < 0.15;
     const miss = Math.random() < Math.max(0.05, 0.15 - (attacker.spd - defender.spd) * 0.01);
+
+    /* Helper: apply a single chunk of damage, honouring an active
+       defender shield. Returns the actual damage dealt after the
+       shield absorbs its share. */
+    const dealDmg = (raw) => {
+        let dmg = Math.max(1, Math.floor(raw));
+        if (defender._shield && defender._shield > 0) {
+            const absorbed = Math.min(dmg, Math.floor(dmg * defender._shield));
+            dmg -= absorbed;
+            // Shield stays at the same percentage but only blocks one
+            // hit before expiring — keeps it from trivialising fights.
+            defender._shield = 0;
+            if (absorbed > 0) log.push(`🛡️ ${defender.name} shield absorbed ${absorbed}`);
+        }
+        defender.hp -= dmg;
+        return dmg;
+    };
 
     switch (skill.type) {
         case 'dmg': {
             if (miss) { log.push(`${skill.emoji} ${attacker.name} → MISS!`); break; }
-            let dmg = Math.max(1, Math.floor(attacker.atk * skill.mult - defender.def * 0.5));
-            if (crit) { dmg = Math.floor(dmg * 1.5); log.push(`${skill.emoji} ${attacker.name} → ${dmg} dmg CRIT!`); }
-            else      { log.push(`${skill.emoji} ${attacker.name} → ${dmg} dmg`); }
-            defender.hp -= dmg;
+            const hits = Math.max(1, skill.hits || 1);
+            for (let i = 0; i < hits; i++) {
+                let dmg = Math.floor(attacker.atk * skill.mult - defender.def * 0.5);
+                if (crit && i === 0) dmg = Math.floor(dmg * 1.5);
+                const dealt = dealDmg(dmg);
+                log.push(hits > 1
+                    ? `${skill.emoji} ${attacker.name} → ${dealt} dmg (hit ${i + 1}/${hits})${crit && i === 0 ? ' CRIT!' : ''}`
+                    : `${skill.emoji} ${attacker.name} → ${dealt} dmg${crit ? ' CRIT!' : ''}`);
+                if (defender.hp <= 0) break;
+            }
             break;
         }
         case 'heal': {
@@ -155,22 +204,51 @@ function executeTurn(attacker, defender, skillId) {
         }
         case 'drain': {
             if (miss) { log.push(`${skill.emoji} ${attacker.name} → MISS!`); break; }
-            let dmg = Math.max(1, Math.floor(attacker.atk * skill.mult - defender.def * 0.3));
+            let dmg = Math.floor(attacker.atk * skill.mult - defender.def * 0.3);
             if (crit) dmg = Math.floor(dmg * 1.5);
-            defender.hp -= dmg;
-            const healed = Math.floor(dmg * 0.4);
+            const dealt = dealDmg(dmg);
+            const healed = Math.floor(dealt * 0.4);
             attacker.hp = Math.min(attacker.maxHp, attacker.hp + healed);
-            log.push(`${skill.emoji} ${attacker.name} → ${dmg} dmg, healed ${healed}${crit ? ' CRIT' : ''}`);
+            log.push(`${skill.emoji} ${attacker.name} → ${dealt} dmg, healed ${healed}${crit ? ' CRIT' : ''}`);
             break;
         }
         case 'dmg_debuff': {
             if (miss) { log.push(`${skill.emoji} ${attacker.name} → MISS!`); break; }
-            let dmg = Math.max(1, Math.floor(attacker.atk * skill.mult - defender.def * 0.4));
+            let dmg = Math.floor(attacker.atk * skill.mult - defender.def * 0.4);
             if (crit) dmg = Math.floor(dmg * 1.5);
-            defender.hp -= dmg;
+            const dealt = dealDmg(dmg);
             const debuffVal = Math.floor(defender[skill.debuff] * skill.debuffAmt);
             defender[skill.debuff] = Math.max(0, defender[skill.debuff] - debuffVal);
-            log.push(`${skill.emoji} ${attacker.name} → ${dmg} dmg, -${debuffVal} ${skill.debuff.toUpperCase()}${crit ? ' CRIT' : ''}`);
+            log.push(`${skill.emoji} ${attacker.name} → ${dealt} dmg, -${debuffVal} ${skill.debuff.toUpperCase()}${crit ? ' CRIT' : ''}`);
+            break;
+        }
+        case 'shield': {
+            // Stash the absorption percentage on the attacker; the next
+            // incoming hit consumes it in `dealDmg` above.
+            attacker._shield = Math.max(attacker._shield || 0, skill.amount);
+            log.push(`${skill.emoji} ${attacker.name} braces (-${Math.round(skill.amount * 100)}% next hit)`);
+            break;
+        }
+        case 'dot': {
+            if (miss) { log.push(`${skill.emoji} ${attacker.name} → MISS!`); break; }
+            let dmg = Math.floor(attacker.atk * skill.mult - defender.def * 0.4);
+            if (crit) dmg = Math.floor(dmg * 1.5);
+            const dealt = dealDmg(dmg);
+            const tickDmg = Math.floor(attacker.atk * (skill.dotMult || 0.10));
+            defender._dots = defender._dots || [];
+            defender._dots.push({ dmg: tickDmg, turns: skill.dotTurns || 3 });
+            log.push(`${skill.emoji} ${attacker.name} → ${dealt} dmg + poison (${skill.dotTurns || 3}t)${crit ? ' CRIT' : ''}`);
+            break;
+        }
+        case 'multi': {
+            // Combo attack — deal a hit then apply a self-buff.
+            if (miss) { log.push(`${skill.emoji} ${attacker.name} → MISS!`); break; }
+            let dmg = Math.floor(attacker.atk * (skill.multAtk || 1.0) - defender.def * 0.4);
+            if (crit) dmg = Math.floor(dmg * 1.5);
+            const dealt = dealDmg(dmg);
+            const defInc = Math.floor(attacker.def * (skill.defBuff || 0));
+            if (defInc > 0) attacker.def += defInc;
+            log.push(`${skill.emoji} ${attacker.name} → ${dealt} dmg${defInc ? `, +${defInc} DEF` : ''}${crit ? ' CRIT' : ''}`);
             break;
         }
     }
@@ -492,19 +570,34 @@ function buildBetlessChallenge({ challengerId, opponentId, challengeId }) {
 /**
  * Resolve an accepted PvP challenge: run the simulation, settle bets,
  * and edit the challenge message with the result.
+ *
+ * Caller contract: this function expects the interaction to already be
+ * deferred via `interaction.deferUpdate()` (see handleButton). All
+ * surface mutations therefore go through `editReply`, not `update` —
+ * calling `update()` after a defer raises InteractionAlreadyReplied on
+ * the gateway and previously made Accept buttons appear to do nothing.
  */
 async function resolveAcceptedChallenge(interaction, ch) {
+    /** Replace the challenge message in-place; safe to call multiple times. */
+    const editPanel = (payload) =>
+        interaction.editReply(payload).catch(err => {
+            // We can't surface this to the user (the original message
+            // is already deferred) but logging the cause beats the
+            // previous silent failure that masked accept bugs.
+            console.error('[battle] editReply failed:', err?.message || err);
+        });
+
     const petsData = ph.loadPets();
     const a = petsData[ch.challengerId];
     const b = petsData[ch.opponentId];
     if (!a?.activeBattlePet || !b?.activeBattlePet) {
-        return interaction.update(pvpError('One of the players no longer has an active pet.')).catch(() => {});
+        return editPanel(pvpError('One of the players no longer has an active pet.'));
     }
 
     const aPet = a.animals.find(p => p.id === a.activeBattlePet);
     const bPet = b.animals.find(p => p.id === b.activeBattlePet);
     if (!aPet || !bPet) {
-        return interaction.update(pvpError('One of the players\' active pets is missing.')).catch(() => {});
+        return editPanel(pvpError('One of the players\' active pets is missing.'));
     }
 
     /* ── Re-validate balances and escrow the bet ── */
@@ -513,60 +606,82 @@ async function resolveAcceptedChallenge(interaction, ch) {
         const cu = economyManager.getUser(economy, ch.challengerId).userData;
         const ou = economyManager.getUser(economy, ch.opponentId).userData;
         if (cu.coins < ch.bet || ou.coins < ch.bet) {
-            return interaction.update(pvpError('One of the players no longer has enough coins for this match.')).catch(() => {});
+            return editPanel(pvpError('One of the players no longer has enough coins for this match.'));
         }
         deductBoth(ch.challengerId, ch.opponentId, ch.bet);
     }
 
-    /* ── Run the simulation ── */
-    const petA = preparePet(aPet);
-    const petB = preparePet(bPet);
-    const { turnLog, petA: finalA, petB: finalB, rounds } = runBattle(petA, petB);
-    const challengerWon = finalA.hp > 0;
-    const winnerId = challengerWon ? ch.challengerId : ch.opponentId;
-    const loserId  = challengerWon ? ch.opponentId  : ch.challengerId;
+    /* ── Run the simulation. Wrap in a try/catch so a bad render or
+       canvas crash can't leave the bet escrowed with no result. ── */
+    try {
+        const petA = preparePet(aPet);
+        const petB = preparePet(bPet);
+        const { turnLog, petA: finalA, petB: finalB, rounds } = runBattle(petA, petB);
+        const challengerWon = finalA.hp > 0;
+        const winnerId = challengerWon ? ch.challengerId : ch.opponentId;
+        const loserId  = challengerWon ? ch.opponentId  : ch.challengerId;
 
-    /* ── Reward bookkeeping ── */
-    let rewards = null;
-    if (ch.bet > 0) {
-        settlePvP({
-            winnerId, loserId,
-            aId: ch.challengerId, bId: ch.opponentId,
-            bet: ch.bet, draw: false,
+        /* ── Reward bookkeeping ── */
+        let rewards = null;
+        if (ch.bet > 0) {
+            settlePvP({
+                winnerId, loserId,
+                aId: ch.challengerId, bId: ch.opponentId,
+                bet: ch.bet, draw: false,
+            });
+            rewards = { coins: ch.bet * 2, exp: 15 };
+        } else {
+            // Friendly duel: small XP only, no coin transfer.
+            const economy = economyManager.loadEconomy();
+            const w = economyManager.getUser(economy, winnerId).userData;
+            const l = economyManager.getUser(economy, loserId).userData;
+            w.battlesWon  = (w.battlesWon  || 0) + 1;
+            l.battlesLost = (l.battlesLost || 0) + 1;
+            const xpResult = economyManager.addXP(economy, winnerId, 10);
+            economyManager.addXP(economy, loserId, 3);
+            if (w.battlesWon === 1)  economyManager.checkAchievement(economy, winnerId, 'first_battle');
+            if (w.battlesWon >= 50)  economyManager.checkAchievement(economy, winnerId, 'battle_50');
+            economyManager.saveEconomy(economy);
+            rewards = { exp: 10, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel };
+        }
+
+        /* ── Render ── */
+        const cardBuffer = await tryRenderCard(petA, petB, finalA, finalB, challengerWon, turnLog, rewards);
+        const fileName = `pvp_battle_${ch.challengerId}_${ch.opponentId}_${Date.now()}.png`;
+
+        const container = buildResultContainer({
+            petA, petB,
+            finalA, finalB,
+            won: challengerWon,
+            turnLog, rounds, rewards,
+            cardBuffer, fileName,
+            headline: `<@${winnerId}> wins!`,
         });
-        rewards = { coins: ch.bet * 2, exp: 15 };
-    } else {
-        // Friendly duel: small XP only, no coin transfer.
-        const economy = economyManager.loadEconomy();
-        const w = economyManager.getUser(economy, winnerId).userData;
-        const l = economyManager.getUser(economy, loserId).userData;
-        w.battlesWon  = (w.battlesWon  || 0) + 1;
-        l.battlesLost = (l.battlesLost || 0) + 1;
-        const xpResult = economyManager.addXP(economy, winnerId, 10);
-        economyManager.addXP(economy, loserId, 3);
-        if (w.battlesWon === 1)  economyManager.checkAchievement(economy, winnerId, 'first_battle');
-        if (w.battlesWon >= 50)  economyManager.checkAchievement(economy, winnerId, 'battle_50');
-        economyManager.saveEconomy(economy);
-        rewards = { exp: 10, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel };
+
+        const opts = { components: [container], flags: MessageFlags.IsComponentsV2 };
+        if (cardBuffer) opts.files = [new AttachmentBuilder(cardBuffer, { name: fileName })];
+
+        await editPanel(opts);
+    } catch (err) {
+        // Best-effort refund if we already escrowed but the simulation
+        // bombed out — keeps the bet from disappearing into the void.
+        if (ch.bet > 0) {
+            try {
+                const economy = economyManager.loadEconomy();
+                const a2 = economyManager.getUser(economy, ch.challengerId).userData;
+                const b2 = economyManager.getUser(economy, ch.opponentId).userData;
+                a2.coins += ch.bet;
+                b2.coins += ch.bet;
+                economyManager.saveEconomy(economy);
+            } catch {}
+        }
+        console.error('[battle] Simulation failed:', err?.message || err);
+        await editPanel(pvpError(
+            ch.bet > 0
+                ? 'The match couldn\'t be resolved due to an internal error. Bets have been refunded.'
+                : 'The match couldn\'t be resolved due to an internal error.'
+        ));
     }
-
-    /* ── Render ── */
-    const cardBuffer = await tryRenderCard(petA, petB, finalA, finalB, challengerWon, turnLog, rewards);
-    const fileName = `pvp_battle_${ch.challengerId}_${ch.opponentId}_${Date.now()}.png`;
-
-    const container = buildResultContainer({
-        petA, petB,
-        finalA, finalB,
-        won: challengerWon,
-        turnLog, rounds, rewards,
-        cardBuffer, fileName,
-        headline: `<@${winnerId}> wins!`,
-    });
-
-    const opts = { components: [container], flags: MessageFlags.IsComponentsV2 };
-    if (cardBuffer) opts.files = [new AttachmentBuilder(cardBuffer, { name: fileName })];
-
-    await interaction.update(opts).catch(() => {});
 }
 
 /* ═══════════════════════════════════════════════════
@@ -618,38 +733,78 @@ module.exports = {
         const id = interaction.customId;
         if (!id.startsWith('btlch_')) return false;
 
-        const accept = id.startsWith('btlch_accept_');
+        const accept  = id.startsWith('btlch_accept_');
         const decline = id.startsWith('btlch_decline_');
         if (!accept && !decline) return false;
 
-        const challengeId = id.replace(accept ? 'btlch_accept_' : 'btlch_decline_', '');
+        // Recover the challengeId. We use slice(prefix.length) instead
+        // of `replace(prefix, '')` so a literal `btlch_accept_` inside
+        // a future challenge ID can never get clobbered.
+        const prefix = accept ? 'btlch_accept_' : 'btlch_decline_';
+        const challengeId = id.slice(prefix.length);
         const ch = challenges.get(challengeId);
 
+        // ── 1. Stale / already-resolved challenge ──
+        // If we use `update()` after another path beat us to a defer,
+        // Discord will throw. Probe interaction state and pick the
+        // matching method so the user always gets feedback.
         if (!ch) {
-            await interaction.update(pvpError('This challenge has expired or already been resolved.')).catch(() => {});
+            const payload = pvpError('This challenge has expired or already been resolved.');
+            try {
+                if (interaction.replied || interaction.deferred) await interaction.editReply(payload);
+                else await interaction.update(payload);
+            } catch {}
             return true;
         }
 
+        // ── 2. Wrong user trying to respond ──
+        // Stays as an ephemeral reply so the original challenge UI
+        // remains intact for the actual opponent.
         if (interaction.user.id !== ch.opponentId) {
-            await interaction.reply({
-                content: '<:Cancel:1473037949187657818> Only the challenged user can respond.',
-                flags: MessageFlags.Ephemeral,
-            }).catch(() => {});
+            try {
+                await interaction.reply({
+                    content: '<:Cancel:1473037949187657818> Only the challenged user can respond.',
+                    flags: MessageFlags.Ephemeral,
+                });
+            } catch {}
             return true;
         }
 
+        // Mark consumed FIRST so a double-click can't double-resolve.
         challenges.delete(challengeId);
 
+        // ── 3. Decline ──
         if (decline) {
             const c = new ContainerBuilder().setAccentColor(0x6b7280)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# ⚔️ Challenge Declined\n\n<@${ch.opponentId}> declined the battle challenge.`
                 ));
-            await interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            const payload = { components: [c], flags: MessageFlags.IsComponentsV2 };
+            try {
+                if (interaction.replied || interaction.deferred) await interaction.editReply(payload);
+                else await interaction.update(payload);
+            } catch (err) {
+                console.error('[battle] decline render failed:', err?.message || err);
+            }
             return true;
         }
 
-        await interaction.deferUpdate().catch(() => {});
+        // ── 4. Accept ──
+        // The simulation can take a beat (canvas render, balance
+        // re-check) so we defer first, then hand off to the resolver
+        // which uses editReply. Without this defer the gateway would
+        // close the interaction before the canvas finished rendering
+        // and the Accept button would visibly do nothing.
+        try {
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.deferUpdate();
+            }
+        } catch (err) {
+            console.error('[battle] deferUpdate failed:', err?.message || err);
+            // If the defer itself failed the interaction is probably
+            // already gone; bail out cleanly.
+            return true;
+        }
         await resolveAcceptedChallenge(interaction, ch);
         return true;
     },

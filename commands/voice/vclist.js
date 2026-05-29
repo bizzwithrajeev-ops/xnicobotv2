@@ -30,7 +30,7 @@ const E = {
     stage:     '<:Microphone:1473039293088927996>',
     mic_off:   '<:Microphoneoff:1473039278438219984>',
     deaf:      '<:Volumeoff:1473039301414621427>',
-    stream:    '<:YoutubeLive:1435331502710722592>',
+    stream:    '<:YoutubeLive:1507444089292066907>',
     camera:    '<:Camera:1473039293088927996>',
     summary:   '<:Invoice:1473039492217835550>',
     none:      '<:Cancel:1473037949187657818>',

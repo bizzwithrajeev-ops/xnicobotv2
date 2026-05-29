@@ -13,6 +13,55 @@ const {
 
 const SEARCH_TIMEOUT_MS = 20_000;
 
+/* ─────────────────────────────────────────────────────────────
+   Source selector
+   ─────────────────────────────────────────────────────────────
+   Discord lets us add a slash-option `source` that maps to one of
+   Lavalink's standard search prefixes. The user picks "YouTube",
+   "Spotify", "SoundCloud", "Apple Music", "Deezer" or "YT Music"
+   and we route the search through that platform instead of the
+   default `ytsearch:`.
+
+   `auto` (default) keeps the legacy behaviour: try YouTube first,
+   fall back to SoundCloud if it returns no results. URLs always
+   bypass the search prefix and play directly so a Spotify URL
+   still resolves through lavasrc even when source=auto.
+   ──────────────────────────────────────────────────────────── */
+const SOURCES = {
+    auto:       { label: 'Auto (YouTube → SoundCloud)', prefix: 'ytsearch',  emoji: '🎵', fallback: 'scsearch' },
+    youtube:    { label: 'YouTube',                      prefix: 'ytsearch',  emoji: '▶️' },
+    youtubemusic:{label: 'YouTube Music',                prefix: 'ytmsearch', emoji: '🎶' },
+    spotify:    { label: 'Spotify',                      prefix: 'spsearch',  emoji: '🟢', fallback: 'ytsearch' },
+    soundcloud: { label: 'SoundCloud',                   prefix: 'scsearch',  emoji: '🟠' },
+    applemusic: { label: 'Apple Music',                  prefix: 'amsearch',  emoji: '🎼', fallback: 'ytsearch' },
+    deezer:     { label: 'Deezer',                       prefix: 'dzsearch',  emoji: '🎧', fallback: 'ytsearch' },
+};
+
+/**
+ * Resolve a user-supplied source label / prefix-text to one of the
+ * SOURCES keys. Accepts the prefix-text alone (e.g. `spotify`,
+ * `sp`, `yt`, `sc`) so prefix-command users have a friendly shortcut
+ * without typing `youtubemusic`.
+ */
+function resolveSource(input) {
+    if (!input) return 'auto';
+    const v = String(input).toLowerCase().trim();
+    if (SOURCES[v]) return v;
+    const aliases = {
+        yt: 'youtube',
+        ytm: 'youtubemusic',
+        ytmusic: 'youtubemusic',
+        sp: 'spotify',
+        spot: 'spotify',
+        sc: 'soundcloud',
+        sound: 'soundcloud',
+        am: 'applemusic',
+        apple: 'applemusic',
+        dz: 'deezer',
+    };
+    return aliases[v] || 'auto';
+}
+
 async function ensurePlayer(target, lavalinkManager, member) {
     let player = lavalinkManager.getPlayer(target.guild.id);
     if (!player) {
@@ -31,22 +80,32 @@ async function ensurePlayer(target, lavalinkManager, member) {
     return player;
 }
 
-async function searchWithFallback(player, query, requester) {
+async function searchWithFallback(player, query, requester, sourceKey = 'auto') {
     const isUrl = /^https?:\/\//i.test(query);
-    const primary = isUrl ? query : `ytsearch:${query}`;
+    const src = SOURCES[sourceKey] || SOURCES.auto;
+
+    // URLs always go straight to Lavalink so a Spotify or SoundCloud
+    // link plays through its native source plugin no matter which
+    // option the user picked.
+    const primary = isUrl ? query : `${src.prefix}:${query}`;
+
     const doSearch = (q) => Promise.race([
         player.search({ query: q }, requester),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Search timeout')), SEARCH_TIMEOUT_MS)),
     ]);
 
     let res = await doSearch(primary);
-    if (!isUrl && (res.loadType === 'empty' || res.loadType === 'error' || !res.tracks?.length)) {
-        res = await doSearch(`scsearch:${query}`);
+
+    // Per-source fallback. We only fall back for non-URL searches —
+    // a failed URL load means the URL itself is dead, not that the
+    // search platform missed.
+    if (!isUrl && src.fallback && (res.loadType === 'empty' || res.loadType === 'error' || !res.tracks?.length)) {
+        res = await doSearch(`${src.fallback}:${query}`).catch(() => res);
     }
-    return { res, isUrl };
+    return { res, isUrl, source: sourceKey };
 }
 
-async function run(target, lavalinkManager, query) {
+async function run(target, lavalinkManager, query, sourceKey = 'auto') {
     const isSlash = typeof target.isRepliable === 'function';
     const member  = target.member;
     const requester = isSlash ? target.user : target.author;
@@ -85,7 +144,7 @@ async function run(target, lavalinkManager, query) {
 
     let res;
     try {
-        ({ res } = await searchWithFallback(player, query.trim(), requester));
+        ({ res } = await searchWithFallback(player, query.trim(), requester, sourceKey));
     } catch (err) {
         const msg = err.message === 'Search timeout'
             ? 'Search timed out. The music server may be slow.'
@@ -156,18 +215,46 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
         .setDescription('Play a song or add to the queue')
-        .addStringOption(o => o.setName('query').setDescription('Song name or URL').setRequired(true)),
+        .addStringOption(o => o.setName('query').setDescription('Song name or URL').setRequired(true))
+        .addStringOption(o => o.setName('source').setDescription('Where to search (default: auto)').setRequired(false)
+            .addChoices(
+                { name: 'Auto (YouTube → SoundCloud)', value: 'auto' },
+                { name: 'YouTube',                      value: 'youtube' },
+                { name: 'YouTube Music',                value: 'youtubemusic' },
+                { name: 'Spotify',                      value: 'spotify' },
+                { name: 'SoundCloud',                   value: 'soundcloud' },
+                { name: 'Apple Music',                  value: 'applemusic' },
+                { name: 'Deezer',                       value: 'deezer' },
+            )),
 
     prefix: 'play',
     description: 'Play a song or add to the queue',
-    usage: 'play <song name or URL>',
+    usage: 'play <song name or URL> [--source=<yt|ytm|spotify|sc|apple|deezer>]',
     category: 'music',
     aliases: ['p'],
 
     async execute(interaction, lavalinkManager) {
-        return run(interaction, lavalinkManager, interaction.options.getString('query'));
+        const sourceKey = resolveSource(interaction.options.getString('source'));
+        return run(interaction, lavalinkManager, interaction.options.getString('query'), sourceKey);
     },
     async executePrefix(message, args, lavalinkManager) {
-        return run(message, lavalinkManager, args.join(' '));
+        // Prefix users get a `--source=spotify` (or `-s spotify`) flag
+        // so the same source picker is reachable without slash. We
+        // strip the flag from the query so the rest of the args is
+        // exactly what they typed minus the source switch.
+        let sourceKey = 'auto';
+        const cleaned = [];
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            const m = /^(?:--source=|-s=|src=|source=)(.+)$/i.exec(arg);
+            if (m) { sourceKey = resolveSource(m[1]); continue; }
+            if (/^(?:--source|-s|src|source)$/i.test(arg) && args[i + 1]) {
+                sourceKey = resolveSource(args[i + 1]);
+                i++;
+                continue;
+            }
+            cleaned.push(arg);
+        }
+        return run(message, lavalinkManager, cleaned.join(' '), sourceKey);
     },
 };

@@ -13,7 +13,8 @@ const RARITY_MULT = {
   uncommon: 1.3,
   rare: 1.6,
   epic: 2,
-  legendary: 2.5
+  legendary: 2.5,
+  mythic: 3.5,
 };
 
 /* ---------------- HELPERS ---------------- */
@@ -60,35 +61,98 @@ module.exports = {
 
     /* ---------- LIST ---------- */
     if (!sub || sub === "list") {
-      const list = Object.entries(WEAPONS)
-        .map(([id, w]) => `• **${id}** — ${w.name} (+${w.baseAtk} ATK)`)
-        .join("\n");
+      // Group by rarity so 20+ weapons stay readable. The catalog
+      // already carries `rarity`, `price` and `description` on every
+      // entry, so we render a compact line per weapon under each
+      // rarity heading and finish with a short usage tip.
+      const byRarity = ph.weaponsByRarity();
+      const rarityEmoji = ph.RARITY_EMOJI || {};
+
+      const lines = ['# 🗡️ Weapons Catalog', ''];
+      for (const r of ph.RARITY_ORDER) {
+        const list = byRarity[r];
+        if (!list?.length) continue;
+        lines.push(`### ${rarityEmoji[r] || '•'} ${r[0].toUpperCase() + r.slice(1)}`);
+        for (const w of list) {
+          const priceStr = w.price > 0
+            ? `${formatCoins(w.price, guildId)}`
+            : '*drop only*';
+          lines.push(`> \`${w.id}\` — ${w.name} · +${w.baseAtk} ATK · ${priceStr}`);
+        }
+        lines.push('');
+      }
+      lines.push(`-# Use \`weapon equip <id>\` to equip · \`weapon upgrade\` to scale a weapon`);
 
       const container = createContainer();
-      addTextDisplay(container, `# 🗡️ Weapons\n\n${list}\n\nUse \`weapon equip <id>\``);
+      addTextDisplay(container, lines.join('\n'));
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     /* ---------- EQUIP ---------- */
+    // `weapon equip <id>` — direct purchase + equip. The catalog now
+    // spans common→legendary with prices ranging from 3k to 165k, so
+    // we charge the user the catalog price up front (one-time) and
+    // equip the weapon onto their active pet. Mythic weapons are
+    // marked `price: 0` and can ONLY be obtained from a `weapon_crate`
+    // drop, never bought directly.
     if (sub === "equip") {
       const id = args[1];
       if (!WEAPONS[id]) {
-        const c = createContainer(0xED4245); addTextDisplay(c, '<:Cancel:1473037949187657818> Weapon not found. Use `weapon list` to see available weapons.');
+        const c = createContainer(0xED4245);
+        addTextDisplay(c, '<:Cancel:1473037949187657818> Weapon not found. Use `weapon list` to see the full catalog.');
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
+      const def = WEAPONS[id];
+      if (!def.price || def.price <= 0) {
+        const c = createContainer(0xFEE75C);
+        addTextDisplay(c, [
+          `<:Infotriangle:1473038460456800459> **${def.name}** is a drop-only weapon.`,
+          '',
+          `It can only be obtained from a \`weapon_crate\` (premium box). Use \`buy weapon_crate\` to try for it.`,
+        ].join('\n'));
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
 
+      // Already-equipped guard: prevents accidentally re-paying when
+      // the same weapon is already on the pet.
+      if (pet.weapon?.id === id) {
+        const c = createContainer(0xFEE75C);
+        addTextDisplay(c, `<:Infotriangle:1473038460456800459> ${pet.emoji} **${pet.name}** already has **${def.name}** equipped.`);
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      const economy = economyManager.loadEconomy();
+      const { userData: wUser } = economyManager.getUser(economy, userId);
+      if (wUser.coins < def.price) {
+        const c = createContainer(0xED4245);
+        addTextDisplay(c, [
+          `<:Cancel:1473037949187657818> Not enough coins to equip **${def.name}**.`,
+          `${coinIcon(guildId)} Cost: **${formatCoinsAmount(def.price, guildId)}**`,
+          `<:Money:1473377877239140529> Wallet: **${formatCoins(wUser.coins, guildId)}**`,
+        ].join('\n'));
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      wUser.coins -= def.price;
       pet.weapon = {
         id,
-        name: WEAPONS[id].name,
-        baseAtk: WEAPONS[id].baseAtk,
+        name: def.name,
+        baseAtk: def.baseAtk,
+        rarity: def.rarity,
         level: 1,
-        rarity: pet.rarity
       };
 
       ph.savePets(pets);
+      economyManager.saveEconomy(economy);
 
       const container = createContainer();
-      addTextDisplay(container, `# 🗡️ Weapon Equipped\n\n<:Checkedbox:1473038547165384804> Equipped **${WEAPONS[id].name}** to ${pet.emoji} **${pet.name}**`);
+      addTextDisplay(container, [
+        `# 🗡️ Weapon Equipped`,
+        '',
+        `<:Checkedbox:1473038547165384804> Equipped **${def.name}** *(${def.rarity})* to ${pet.emoji} **${pet.name}**`,
+        `${coinIcon(guildId)} Cost: ${formatCoinsAmount(def.price, guildId)}`,
+        `⚔️ Base ATK bonus: **+${def.baseAtk}**`,
+      ].join('\n'));
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 

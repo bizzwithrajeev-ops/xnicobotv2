@@ -39,12 +39,18 @@ const ITEM_COOLDOWNS = {
     /* ── Loot boxes — capped to once per cooldown period regardless of stack ── */
     mystery_box:  60 * 60 * 1000,        // 1 hour
     crystal_box:  90 * 60 * 1000,        // 1.5 hours (more valuable rewards)
-    // Weapon boxes were originally 30m, which felt punishing because
-    // the reward is just a random Sword/Bow/Staff that the player will
-    // probably re-roll anyway. Drop to 5m so equipping a new weapon
-    // for an active pet doesn't feel like a chore.
-    weapon_box:   5 * 60 * 1000,         // 5 minutes
+    // Weapon boxes are the primary way to roll new weapons for your
+    // active pet. Keep them snappy so trying out the new expanded
+    // weapon catalog feels rewarding rather than chore-gated. The
+    // premium `weapon_crate` carries a much longer cooldown because
+    // its drop pool tilts toward rare/epic/legendary/mythic.
+    weapon_box:   60 * 1000,             // 1 minute
+    weapon_crate: 30 * 60 * 1000,        // 30 minutes
     dragon_egg:   12 * 60 * 60 * 1000,   // 12 hours (legendary pet)
+
+    /* ── Skill scroll — gentle gating so a stack can't blanket-fill
+     * a pet's learned-skills pool in a single click. ── */
+    skill_scroll: 90 * 1000,             // 90 seconds
 
     /* ── Coin bag — gentle gating so it can't print money in a loop ── */
     coin_bag:     15 * 60 * 1000,        // 15 minutes

@@ -110,6 +110,22 @@ const ITEMS = {
         stackable: true,
         maxOwn: 10,
     },
+    skill_scroll: {
+        // Teaches a random skill the active pet doesn't already know,
+        // weighted toward the pet's tier. The catalog gates picks via
+        // unlockTier (≤ pet.level) so a level-1 pet won't accidentally
+        // be handed Meteor Strike.
+        name: 'Skill Scroll',
+        emoji: '<:Document:1473039496995143731>',
+        price: 7500,
+        sellPrice: 3000,
+        description: 'Teaches your active pet a random new skill · 90s cooldown',
+        category: 'consumable',
+        type: 'use',
+        stackable: true,
+        maxOwn: 30,
+        requiresPet: true,
+    },
 
     /* ═══════════════ BOOSTS ═══════════════════
      * type: 'stat' — permanent stacking stat bonus (capped)
@@ -215,11 +231,26 @@ const ITEMS = {
         emoji: '<:Caretright:1473038207221502106>',
         price: 15000,
         sellPrice: 7500,
-        description: 'Random weapon (Sword / Bow / Staff) for your active pet · 5m cooldown',
+        description: 'Random weapon (common→legendary tilt) for your active pet · 60s cooldown',
         category: 'loot',
         type: 'loot',
         stackable: true,
         maxOwn: 99,
+        requiresPet: true,
+    },
+    weapon_crate: {
+        // Premium variant of weapon_box. Drops only uncommon+ weapons,
+        // with a real chance at legendary/mythic. Higher cost, longer
+        // cooldown so it doesn't trivialise the gear progression.
+        name: 'Weapon Crate',
+        emoji: '<:Box:1473039115581915256>',
+        price: 60000,
+        sellPrice: 25000,
+        description: 'Premium box: rare→mythic weapon for your active pet · 30m cooldown',
+        category: 'loot',
+        type: 'loot',
+        stackable: true,
+        maxOwn: 25,
         requiresPet: true,
     },
     crystal_box: {
