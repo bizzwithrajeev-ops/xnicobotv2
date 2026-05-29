@@ -61,6 +61,20 @@ module.exports = {
     const { userData } = economyManager.getUser(economy, userId);
     inventory[userId] ||= [];
 
+    /* ── VIP guard ── once a user has activated the VIP flag, the badge
+     * is permanent and they should not be able to waste coins on a
+     * second one. The badge has maxOwn:1 already, but the use flow
+     * consumes the item, leaving room to repurchase. */
+    if (itemId === 'vip_badge' && userData.vip) {
+      const c = createContainer(0xFEE75C);
+      addTextDisplay(c, [
+        '<:Infotriangle:1473038460456800459> **You already have VIP status.**',
+        '',
+        `${item.emoji} ${item.name} is a permanent activation — buying another won't grant anything.`,
+      ].join('\n'));
+      return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+    }
+
     /* ── Max-own check ── */
     const owned = inventory[userId].filter(i => i.id === itemId).length;
     if (owned + qty > item.maxOwn) {

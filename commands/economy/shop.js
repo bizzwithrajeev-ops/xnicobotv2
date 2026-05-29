@@ -131,12 +131,18 @@ function buildShopPage(category, userId, guildId) {
     items.forEach((item, i) => {
       const owned = userInv.filter(x => x.id === item.id).length;
       const affordable = wallet >= item.price;
-      const atMax = owned >= item.maxOwn;
+      // VIP badge has a parallel `userData.vip` flag — once activated
+      // the user owns it for the lifetime of the account regardless
+      // of inventory contents. Treat that as "MAX" so it doesn't
+      // appear buyable after activation.
+      const vipOwned = item.id === 'vip_badge' && userData.vip;
+      const atMax = vipOwned || owned >= item.maxOwn;
+      const ownedDisplay = vipOwned ? `${item.maxOwn}/${item.maxOwn} (active)` : `${owned}/${item.maxOwn}`;
 
       const card = [
         `### ${item.emoji} ${item.name} ${affordBadge(affordable, atMax)}`,
         `> ${item.description}`,
-        `-# ${icon} **${formatCoinsAmount(item.price, guildId)}**  ·  <:Box:1473039115581915256> Owned ${owned}/${item.maxOwn}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
+        `-# ${icon} **${formatCoinsAmount(item.price, guildId)}**  ·  <:Box:1473039115581915256> Owned ${ownedDisplay}  ·  <:Fileuser:1473039570630348810> ID \`${item.id}\``
       ].join('\n');
       addTextDisplay(container, card);
     });
@@ -214,6 +220,7 @@ module.exports = {
         { name: 'Special', value: 'special' },
         { name: 'Seeds', value: 'seeds' },
         { name: 'Mining Gear', value: 'mining' },
+        { name: 'Fishing Gear', value: 'fishing' },
         { name: 'Materials', value: 'materials' },
         { name: 'Custom Shop', value: 'custom' },
       )),

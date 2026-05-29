@@ -1,15 +1,41 @@
 'use strict';
 
-const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
+/**
+ * gift — Send an item from your inventory to another user.
+ *
+ * Items in this bot live in the global inventory jsonStore as
+ *   `[{ id, boughtAt }, ...]`
+ * keyed by user ID — the same store /buy, /shop and /inventory
+ * use. The previous version of this command read and wrote a
+ * legacy `userData.inventory` object map, so gifts silently
+ * vanished and the recipient never received anything. We now
+ * operate on the real store, with a legacy-map fallback so any
+ * stragglers still land somewhere sensible.
+ */
+
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
-const { createContainer, addTextDisplay, formatNumber, SeparatorSpacingSize, addSeparator } = require('../../utils/componentHelpers');
+const { createContainer, addTextDisplay, formatNumber, addSeparator, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
 const { getItem } = require('../../utils/shopItems');
 const { resolveUser } = require('../../utils/resolveUser');
+const jsonStore = require('../../utils/jsonStore');
 
 const COOLDOWN = 60 * 1000;
 const cooldowns = new Map();
+
+function loadInv()      { return jsonStore.has('inventory') ? (jsonStore.read('inventory') || {}) : {}; }
+function saveInv(data)  { jsonStore.write('inventory', data); }
+
+function ownedQty(inv, userId, userData, itemId) {
+  const slots = Array.isArray(inv?.[userId]) ? inv[userId] : [];
+  const fromGlobal = slots.filter(it => it && it.id === itemId).length;
+  const legacyMap  = userData.inventory;
+  const fromLegacy = (legacyMap && typeof legacyMap === 'object' && !Array.isArray(legacyMap))
+    ? Number(legacyMap[itemId] || 0) : 0;
+  return { fromGlobal, fromLegacy, total: fromGlobal + fromLegacy };
+}
 
 async function handleGift(reply, senderId, target, itemId, quantity, guildId) {
   if (!target || target.id === senderId || target.bot) {
@@ -23,19 +49,26 @@ async function handleGift(reply, senderId, target, itemId, quantity, guildId) {
     addTextDisplay(c, [
       `# ${EMOJIS.present} Gift an Item`,
       '',
-      `**Usage:** \`/gift @user <item_id> [quantity]\``,
+      `**Usage:** \`gift @user <item_id> [quantity]\``,
       '',
       `Gift any item from your inventory to another player.`,
-      `Use \`/inventory\` to see your items and their IDs.`,
+      `Use \`inventory\` to see your items and their IDs.`,
     ].join('\n'));
+    return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+  }
+
+  const itemInfo = getItem(itemId);
+  if (!itemInfo) {
+    const c = createContainer(0xED4245);
+    addTextDisplay(c, `${EMOJIS.cancel} Unknown item \`${itemId}\`. Use \`inventory\` to see valid IDs.`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 
   const now = Date.now();
   const lastUsed = cooldowns.get(senderId) || 0;
-  const remaining = COOLDOWN - (now - lastUsed);
-  if (remaining > 0) {
-    const secs = Math.ceil(remaining / 1000);
+  const remainingCd = COOLDOWN - (now - lastUsed);
+  if (remainingCd > 0) {
+    const secs = Math.ceil(remainingCd / 1000);
     const c = createContainer(0xED4245);
     addTextDisplay(c, `# ${EMOJIS.sandwatch} Gift Cooldown\n\n${EMOJIS.alarm} Wait **${secs}s** before gifting again.`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -43,42 +76,74 @@ async function handleGift(reply, senderId, target, itemId, quantity, guildId) {
 
   const qty = Math.max(1, Math.min(quantity || 1, 100));
   const economy = economyManager.loadEconomy();
-  const { userData: sender } = economyManager.getUser(economy, senderId);
+  const { userData: sender }   = economyManager.getUser(economy, senderId);
+  const { userData: receiver } = economyManager.getUser(economy, target.id);
 
-  const inv = sender.inventory || {};
-  const haveQty = typeof inv === 'object' && !Array.isArray(inv) ? (inv[itemId] || 0) : 0;
+  const inv = loadInv();
+  const have = ownedQty(inv, senderId, sender, itemId);
 
-  if (haveQty < qty) {
+  if (have.total < qty) {
     const c = createContainer(0xED4245);
-    addTextDisplay(c, `${EMOJIS.cancel} You only have **${haveQty}x \`${itemId}\`** but tried to gift **${qty}**.`);
+    addTextDisplay(c, `${EMOJIS.cancel} You only have **${have.total}× ${itemInfo.name}** but tried to gift **${qty}**.`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 
-  const itemInfo = getItem(itemId);
-  const itemName = itemInfo?.name || itemId;
-  const itemEmoji = itemInfo?.emoji || EMOJIS.present;
+  // Receiver max-own check — keep them under the per-item cap so we
+  // don't quietly waste gifts that exceed the limit.
+  const recvHave = ownedQty(inv, target.id, receiver, itemId);
+  const cap      = Number(itemInfo.maxOwn || Infinity);
+  const allowed  = Math.max(0, cap - recvHave.total);
+  if (qty > allowed) {
+    const c = createContainer(0xFEE75C);
+    addTextDisplay(c, [
+      `# ${EMOJIS.warn || '<:Infotriangle:1473038460456800459>'} Recipient At Cap`,
+      '',
+      `**${target.username}** can only hold **${cap}× ${itemInfo.name}** — they already have **${recvHave.total}**.`,
+      `You can send at most **${allowed}** more.`,
+    ].join('\n'));
+    return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+  }
 
   cooldowns.set(senderId, now);
 
-  inv[itemId] -= qty;
-  if (inv[itemId] <= 0) delete inv[itemId];
-  sender.inventory = inv;
+  // Consume from the sender — global slots first, legacy map second.
+  inv[senderId] ||= [];
+  inv[target.id] ||= [];
+  let toRemove = qty;
+  for (let i = 0; i < inv[senderId].length && toRemove > 0; ) {
+    if (inv[senderId][i] && inv[senderId][i].id === itemId) {
+      inv[senderId].splice(i, 1);
+      toRemove--;
+    } else {
+      i++;
+    }
+  }
+  if (toRemove > 0) {
+    const legacyMap = sender.inventory;
+    if (legacyMap && typeof legacyMap === 'object' && !Array.isArray(legacyMap)) {
+      const take = Math.min(toRemove, legacyMap[itemId] || 0);
+      legacyMap[itemId] -= take;
+      toRemove -= take;
+      if (legacyMap[itemId] <= 0) delete legacyMap[itemId];
+    }
+  }
 
-  const { userData: receiver } = economyManager.getUser(economy, target.id);
-  const recvInv = (typeof receiver.inventory === 'object' && !Array.isArray(receiver.inventory))
-    ? receiver.inventory : {};
-  recvInv[itemId] = (recvInv[itemId] || 0) + qty;
-  receiver.inventory = recvInv;
+  // Credit the receiver in the global store (uniform format).
+  for (let i = 0; i < qty; i++) {
+    inv[target.id].push({ id: itemId, boughtAt: now, gift: true, from: senderId });
+  }
 
   sender.giftsSent = (sender.giftsSent || 0) + qty;
   economyManager.checkAllAchievements(economy, senderId);
+
+  saveInv(inv);
   economyManager.saveEconomy(economy);
 
   const c = createContainer(0xCAD7E6);
   addTextDisplay(c, [
     `# ${EMOJIS.present} Gift Sent!`,
     '',
-    `${itemEmoji} **${target.username}** received **${qty}x ${itemName}** from you!`,
+    `${itemInfo.emoji} **${target.username}** received **${qty}× ${itemInfo.name}** from you!`,
     '',
     `🎀 **Total gifts sent:** ${formatNumber(sender.giftsSent)}`,
     `-# Cooldown: 1 minute`,

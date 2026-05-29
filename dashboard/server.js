@@ -276,7 +276,15 @@ function readBotStore(storeName) {
 // incorrectly show "Invite Bot" for guilds the bot is already in. This
 // helper paginates the Discord API, caches the result, and falls back
 // to the local guild_members store on API failure.
-const BOT_GUILDS_TTL_MS = 30_000;
+//
+// Cache TTL note: 10s is a deliberate trade-off. Higher values (we used
+// 30s previously) reduce Discord-API load but leave the dashboard
+// showing "Invite Bot" for that long after the user actually invited
+// the bot — a classic "did it work?" moment that looks broken even
+// when the bot is in the guild. The frontend's recheck poll calls the
+// `/api/guilds/refresh` force endpoint anyway, so the cache here is
+// only a backstop for unforced GETs.
+const BOT_GUILDS_TTL_MS = 10_000;
 let _botGuildsCache = { ids: null, fetchedAt: 0, refreshing: null };
 
 async function fetchAllBotGuildIds() {
@@ -1404,16 +1412,19 @@ app.put('/api/guild/:guildId/bot-customize-config', authMiddleware, async (req, 
         })();
     }
 
-    // Best-effort bio push. Discord has no per-guild bio for bots, so
-    // this almost always 400s — but we try anyway. The local value is
-    // what our own commands render, so success here is purely additive.
+    // Per-guild bio push. Discord exposes a `bio` field on
+    // PATCH /guilds/{guild_id}/members/@me, the same endpoint used for
+    // the per-guild avatar/banner just above. Targeting it here keeps
+    // the bio scoped to this guild only — earlier we hit /users/@me
+    // which mutated the bot's global account bio for every server.
     if (Object.prototype.hasOwnProperty.call(body, 'aboutText') && BOT_TOKEN) {
         (async () => {
             try {
-                await fetch('https://discord.com/api/v10/users/@me', {
+                const trimmed = String(body.aboutText || '').slice(0, 190);
+                await fetch(`https://discord.com/api/v10/guilds/${gid}/members/@me`, {
                     method: 'PATCH',
                     headers: { 'Authorization': `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bio: String(body.aboutText || '').slice(0, 190) }),
+                    body: JSON.stringify({ bio: trimmed.length ? trimmed : null }),
                 });
             } catch (e) {
                 // Silent — dashboard doesn't need to surface this since

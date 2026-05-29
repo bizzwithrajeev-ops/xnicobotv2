@@ -448,7 +448,10 @@ async function pageServers() {
                 <h1>Your Servers</h1>
                 <p>Pick a server to manage. Servers you manage with xNico appear first.</p>
             </div>
-            <a class="btn primary" href="${inviteUrl()}" target="_blank">${icon('user-plus')} Add to Server</a>
+            <div class="flex gap-2">
+                <button class="btn" id="server-list-refresh-btn" title="Re-check which servers xNico is in">${icon('refresh')} Refresh</button>
+                <a class="btn primary" href="${inviteUrl()}" target="_blank">${icon('user-plus')} Add to Server</a>
+            </div>
         </div>
 
         ${withBot.length ? `<h3 class="mb-2">Managed</h3>
@@ -461,6 +464,30 @@ async function pageServers() {
             ${withoutBot.map(g => serverCard(g)).join('')}
         </div>` : ''}
     `;
+
+    // Manual refresh button — bypasses both the user's saved-guild cache
+    // and the bot-guild-ids cache so a freshly-invited bot flips to
+    // "Managed" immediately. Without this users had to either wait out
+    // the TTL or hard-reload the page.
+    const refreshBtn = document.getElementById('server-list-refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            const original = refreshBtn.innerHTML;
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = `${icon('refresh')} Checking…`;
+            try {
+                await api('/api/guilds/refresh', { method: 'POST' }).catch(() => {});
+                const fresh = await api('/api/guilds/me?refresh=1');
+                if (Array.isArray(fresh)) {
+                    state.guilds = fresh;
+                    pageServers();
+                    return;
+                }
+            } catch {}
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = original;
+        });
+    }
 }
 
 function serverCard(g) {
@@ -536,12 +563,17 @@ function pageSetup() {
         });
     }
 
-    // Auto-poll: faster early then back off, force-refresh every 3rd try
-    // so we beat the server-side cache once the user finishes inviting.
+    // Auto-poll: tight schedule for the first ~30 seconds (the typical
+    // window where a user has just clicked "Invite", finished the
+    // OAuth flow, and is staring at the dashboard waiting for it to
+    // catch up). Every poll forces a cache-bypass refresh so we beat
+    // both our local cache and any stale Discord API edge.
     function poll() {
         if (cancelled) return;
         attempts++;
-        const force = attempts % 3 === 0;
+        // Always force-refresh during the first 10 attempts (~30s).
+        // After that the user has likely walked away — back off.
+        const force = attempts < 10 ? true : (attempts % 3 === 0);
         const delay = attempts < 6 ? 3000 : (attempts < 15 ? 5000 : 15000);
         setTimeout(async () => {
             const found = await recheck(force);

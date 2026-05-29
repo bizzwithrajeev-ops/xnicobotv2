@@ -61,167 +61,68 @@ function saveTemplates(templates) {
     jsonStore.write('user-templates', templates);
 }
 
-// Built-in starter templates so the loader always has something to apply,
-// even before the user has saved any of their own. Mirrors the welcomer
-// command's approach so the UX is consistent across both builders.
+// Built-in starter templates were intentionally removed — every server
+// should design and save its own templates instead of falling back to
+// generic stock library content. Returning `{}` keeps the loader UI
+// rendering an empty section gracefully.
 function getBuiltInTemplates() {
-    return {
-        'cv2-modern-frost': {
-            name: 'CV2 • Modern Frost',
-            template: {
-                mode: 'components',
-                content: '# 👋 Hello {user}\n{separator:small}\nWelcome to **{server}**.\nYou are member **#{membercount}**.',
-                color: '#bcf1e4',
-                colorless: false,
-                images: ['https://images.unsplash.com/photo-1519750783826-e2420f4d687f?auto=format&fit=crop&w=1400&q=80'],
-                thumbnail: '{useravatar}',
-                footer: 'Account created: {usercreated}',
-                imagePosition: 'top',
-                fields: [],
-                buttons: [],
-                actionButtons: []
-            }
-        },
-        'cv2-clean-sidebar': {
-            name: 'CV2 • Clean Sidebar',
-            template: {
-                mode: 'components',
-                content: '### Welcome, {displayname}!\n{separator:small}\nCheck the server guide and say hi in chat.',
-                color: '#7289da',
-                colorless: false,
-                images: ['https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80'],
-                thumbnail: '{servericon}',
-                footer: 'Now serving {membercount} members',
-                imagePosition: 'side',
-                fields: [],
-                buttons: [],
-                actionButtons: []
-            }
-        },
-        'cv2-minimal-colorless': {
-            name: 'CV2 • Minimal Colorless',
-            template: {
-                mode: 'components',
-                content: 'Hey {user}, welcome to **{server}**!\n{separator:medium}\nEnjoy your stay.',
-                color: '#bcf1e4',
-                colorless: true,
-                images: [],
-                thumbnail: '{useravatar}',
-                footer: 'Need help? Ask our staff team',
-                imagePosition: 'bottom',
-                fields: [],
-                buttons: [],
-                actionButtons: []
-            }
-        },
-        'cv2-community-hub': {
-            name: 'CV2 • Community Hub',
-            template: {
-                mode: 'components',
-                content: '## Welcome aboard, {username}!\n{separator:small}\n• Introduce yourself\n• Pick your roles\n• Read the server rules',
-                color: '#faa61a',
-                colorless: false,
-                images: ['https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1400&q=80'],
-                thumbnail: '{useravatar}',
-                footer: 'Members: {membercount}',
-                imagePosition: 'bottom',
-                fields: [],
-                buttons: [],
-                actionButtons: []
-            }
-        },
-        'cv2-announcement': {
-            name: 'CV2 • Announcement',
-            template: {
-                mode: 'components',
-                content: '# 📢 Announcement\n{separator:small}\nReplace this text with your announcement.\n{separator:small}\n-# Posted by {displayname}',
-                color: '#5865f2',
-                colorless: false,
-                images: [],
-                thumbnail: '{servericon}',
-                footer: '{server}',
-                imagePosition: 'bottom',
-                fields: [],
-                buttons: [],
-                actionButtons: []
-            }
-        },
-        'embed-classic-green': {
-            name: 'Embed • Classic Green',
-            template: {
-                mode: 'embed',
-                title: 'Welcome to {server}!',
-                description: 'Hey {user}, glad to have you here.\nWe now have **{membercount}** members.',
-                color: '#bcf1e4',
-                images: ['https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1400&q=80'],
-                thumbnail: '{useravatar}',
-                footer: 'User ID: {userid}',
-                author: '{displayname} joined',
-                fields: [],
-                content: ''
-            }
-        },
-        'embed-professional-blue': {
-            name: 'Embed • Professional Blue',
-            template: {
-                mode: 'embed',
-                title: 'New Member Joined',
-                description: 'Please welcome **{displayname}** to **{server}**.\nJoined: {userjoined}',
-                color: '#5865f2',
-                images: ['https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=80'],
-                thumbnail: '{servericon}',
-                footer: 'Total members: {membercount}',
-                author: 'Server Notification',
-                fields: [],
-                content: ''
-            }
-        },
-        'embed-minimal-clean': {
-            name: 'Embed • Minimal Clean',
-            template: {
-                mode: 'embed',
-                title: 'Welcome, {username}',
-                description: 'You are now part of **{server}**.\nHave a great time!',
-                color: '#99aab5',
-                images: [],
-                thumbnail: '{useravatar}',
-                footer: 'Joined at {userjoined}',
-                author: '',
-                fields: [],
-                content: ''
-            }
-        },
-        'embed-gaming-vibe': {
-            name: 'Embed • Gaming Vibe',
-            template: {
-                mode: 'embed',
-                title: '🎮 Party just got bigger!',
-                description: '{user} entered the lobby.\nCurrent player count: **{membercount}**',
-                color: '#ed4245',
-                images: ['https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1400&q=80'],
-                thumbnail: '{useravatar}',
-                footer: 'Ready up and enjoy!',
-                author: '',
-                fields: [],
-                content: ''
-            }
-        },
-        'embed-premium-gold': {
-            name: 'Embed • Premium Gold',
-            template: {
-                mode: 'embed',
-                title: '⭐ Premium Welcome',
-                description: 'A warm welcome to {user}.\nServer: **{server}**\nBoosts: **{boostcount}**',
-                color: '#faa61a',
-                images: ['https://images.unsplash.com/photo-1487014679447-9f8336841d58?auto=format&fit=crop&w=1400&q=80'],
-                thumbnail: '{servericon}',
-                footer: 'Member #{membercount}',
-                author: '{server} Welcomer',
-                fields: [],
-                content: ''
+    return {};
+}
+
+/**
+ * Pull link buttons out of an ActionRow (raw component data, either
+ * a built/serialized component or the raw payload from a fetched
+ * message) and merge them into the builder's `data.buttons` slot.
+ *
+ * Why only link buttons? Non-link buttons require a custom_id wired
+ * to a live interaction handler. The builder has no way to round-trip
+ * those (the user would need to re-select the action button by ID
+ * from the configured list), so we leave them alone — the load handler
+ * still preserves their existence on the message via "Push Edit"
+ * which only updates the V2 container, not the buttons row.
+ */
+function extractButtonsFromActionRow(row, existingData) {
+    const components = row?.components || row?.data?.components || [];
+    if (!Array.isArray(components) || components.length === 0) return;
+    if (!Array.isArray(existingData.buttons)) existingData.buttons = [];
+
+    for (const child of components) {
+        const ctype = child.type ?? child.data?.type;
+        if (ctype !== 2) continue; // 2 = Button
+        const style = child.style ?? child.data?.style;
+        // Style 5 = Link button — the only kind we can faithfully
+        // round-trip through the builder. Custom-id buttons (1-4 +
+        // primary/secondary/success/danger) need an action handler.
+        if (style !== 5) continue;
+
+        const url = child.url || child.data?.url;
+        if (!url) continue;
+
+        const labelRaw = child.label || child.data?.label || 'Link';
+        const label = String(labelRaw).slice(0, 80);
+
+        // Discord button emojis come in either shape:
+        //   { id, name, animated }   (from API payloads)
+        //   string                   (Unicode emoji name)
+        let emoji = null;
+        const rawEmoji = child.emoji || child.data?.emoji;
+        if (rawEmoji) {
+            if (typeof rawEmoji === 'string') {
+                emoji = rawEmoji;
+            } else if (rawEmoji.id) {
+                emoji = rawEmoji.animated
+                    ? `<a:${rawEmoji.name || '_'}:${rawEmoji.id}>`
+                    : `<:${rawEmoji.name || '_'}:${rawEmoji.id}>`;
+            } else if (rawEmoji.name) {
+                emoji = rawEmoji.name;
             }
         }
-    };
+
+        // Builder caps at 5 link buttons per message — drop overflow
+        // silently rather than crashing on the next render.
+        if (existingData.buttons.length >= 5) break;
+        existingData.buttons.push({ label, url, emoji });
+    }
 }
 
 function getDefaultData() {
@@ -893,14 +794,17 @@ function buildTemplatePickerContainer(userTemplates) {
     const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
 
     let listText = `# <:Folderopen:1473039552783323348> Load Template\nPick a template to apply to the builder.\n\n`;
-    listText += `### ✨ Built-in Starters\n`;
-    builtInEntries.forEach(([, payload]) => {
-        const t = payload.template || {};
-        const modeIcon = (t.mode || 'components') === 'components'
-            ? '<:Fire:1473038604812161218>'
-            : '<:Document:1473039496995143731>';
-        listText += `• ${modeIcon} **${payload.name}**\n`;
-    });
+
+    if (builtInEntries.length > 0) {
+        listText += `### ✨ Built-in Starters\n`;
+        builtInEntries.forEach(([, payload]) => {
+            const t = payload.template || {};
+            const modeIcon = (t.mode || 'components') === 'components'
+                ? '<:Fire:1473038604812161218>'
+                : '<:Document:1473039496995143731>';
+            listText += `• ${modeIcon} **${payload.name}**\n`;
+        });
+    }
 
     if (userNames.length > 0) {
         listText += `\n### <:Clipboard:1473039573037617162> Your Saved Templates\n`;
@@ -943,11 +847,21 @@ function buildTemplatePickerContainer(userTemplates) {
         });
     });
 
-    const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('msgbuilder_select_load_template')
-        .setPlaceholder('Choose a template to load...')
-        .addOptions(options);
-    container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMenu));
+    // Discord rejects a StringSelectMenu with zero options
+    // (BASE_TYPE_BAD_LENGTH). When the user has no saved templates and
+    // built-ins are disabled, render an empty-state message instead of
+    // a broken select.
+    if (options.length === 0) {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            '\n-# <:Inforect:1473038624172937287> Nothing to load yet — design a message and click **Save** to create your first template.'
+        ));
+    } else {
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('msgbuilder_select_load_template')
+            .setPlaceholder('Choose a template to load...')
+            .addOptions(options);
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMenu));
+    }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addActionRowComponents(
@@ -1994,8 +1908,20 @@ module.exports = {
                                     if (acc && (acc.type === 11 || acc.data?.type === 11)) {
                                         existingData.thumbnail = acc.media?.url || acc.data?.media?.url || '';
                                     }
+                                } else if (t === 1) {
+                                    // ActionRow nested INSIDE the V2 container — extract
+                                    // any link buttons so the user keeps them in the
+                                    // builder and the "Buttons" config slot reflects
+                                    // what's actually on the message. We only care
+                                    // about link buttons here because non-link buttons
+                                    // belong to the bot's interaction system and can't
+                                    // round-trip through the builder safely.
+                                    extractButtonsFromActionRow(child, existingData);
                                 }
                             }
+                        } else if (comp.type === 1 || comp.data?.type === 1) {
+                            // ActionRow at the top level (sibling of the container).
+                            extractButtonsFromActionRow(comp, existingData);
                         }
                     }
                     existingData.content = textParts.filter(Boolean).join('\n') || '';
@@ -2018,9 +1944,21 @@ module.exports = {
                             inline: f.inline || false
                         }));
                     }
+                    // Embeds may sit alongside top-level action rows for
+                    // link buttons — pull those out the same way.
+                    for (const comp of message.components || []) {
+                        if (comp.type === 1 || comp.data?.type === 1) {
+                            extractButtonsFromActionRow(comp, existingData);
+                        }
+                    }
                 } else {
                     existingData.mode = 'components';
                     existingData.content = message.content || '';
+                    for (const comp of message.components || []) {
+                        if (comp.type === 1 || comp.data?.type === 1) {
+                            extractButtonsFromActionRow(comp, existingData);
+                        }
+                    }
                 }
 
                 builderData.set(key, existingData);

@@ -326,6 +326,9 @@ async function handlePVE(reply, userId, guildId) {
         const economy = economyManager.loadEconomy();
         const ecoUser = economyManager.getUser(economy, userId).userData;
         ecoUser.coins += coinReward;
+        // Track lifetime earnings the same way fish/hunt/adventure do
+        // so the /profile card and leaderboards show consistent numbers.
+        ecoUser.totalEarned = (ecoUser.totalEarned || 0) + coinReward;
         ecoUser.battlesWon = (ecoUser.battlesWon || 0) + 1;
         const xpResult = economyManager.addXP(economy, userId, 10 + enemy.tier * 5);
         if (ecoUser.battlesWon === 1)  economyManager.checkAchievement(economy, userId, 'first_battle');
@@ -337,6 +340,9 @@ async function handlePVE(reply, userId, guildId) {
         const economy = economyManager.loadEconomy();
         const u = economyManager.getUser(economy, userId).userData;
         u.battlesLost = (u.battlesLost || 0) + 1;
+        // Even on a loss, award a tiny XP nibble so the user feels the
+        // round mattered — they brought a pet to fight, that's effort.
+        economyManager.addXP(economy, userId, 3);
         economyManager.saveEconomy(economy);
     }
 
@@ -409,7 +415,13 @@ async function handlePVP(message, target, betArg, guildId) {
     if (betArg) {
         const balance = getBalance(message.author.id);
         const r = parseBet(betArg, balance);
-        if (!r.ok) return message.reply(pvpError(r.message));
+        // parseBet returns { valid, amount, error } — NOT { ok, message }.
+        // The previous version checked `r.ok`, which was always falsy, so
+        // any PvP battle with a bet silently fell through and replied
+        // with `pvpError(undefined)`.
+        if (!r.valid) {
+            return message.reply(r.error);
+        }
         bet = r.amount;
 
         const v = validateOpponent(message.author.id, target, bet);

@@ -1,8 +1,28 @@
 'use strict';
 
+/**
+ * globalemoji — interactive cross-server emoji browser & cloner.
+ *
+ * UI design notes
+ * ───────────────
+ * The previous version rendered each emoji as its own SectionBuilder
+ * with a ThumbnailBuilder accessory. That worked but it looked busy
+ * (one chunky preview tile per row, jagged spacing, 3-component cost
+ * per entry against Discord's 40-component CV2 cap). The new layout
+ * uses a single dense markdown table inside one TextDisplayBuilder
+ * — every entry is a one-liner with type/state/server/ID and a live
+ * inline emoji preview when usable. That keeps the panel readable
+ * and roughly halves the component budget so we can fit 12 entries
+ * per page without nearing the cap.
+ *
+ * Each row format:
+ *   01. <:name:id>  `:name:`
+ *   ` ` type · state · server · ID
+ */
+
 const {
     SlashCommandBuilder, PermissionFlagsBits, MessageFlags,
-    ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder,
+    ContainerBuilder, TextDisplayBuilder,
     SeparatorBuilder, SeparatorSpacingSize,
     ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle,
@@ -18,13 +38,11 @@ const {
     EMOJIS: E,
 } = require('../../utils/globalAssetBrowser');
 
-// Discord caps a Components V2 message at 40 total components (containers,
-// sections, separators, action rows, buttons, etc. all counted). The browser
-// chrome (header, separators, 3 action rows + buttons, footer) already burns
-// ~19 slots, and each emoji entry costs 3 (section + text display + thumbnail).
-// Keeping PAGE_SIZE at 6 leaves comfortable headroom (≈37/40) and avoids the
-// "Invalid Form Body / too many components" rejection that earlier sizes hit.
-const PAGE_SIZE = 6;
+// Component budget: header(1) + filters(1) + sep(1) + table(1) + sep(1)
+// + nav(1) + actions(1) + steal-select(1) + sep(1) + footer(1) = 10.
+// Inside the container that's well under the 40-cap, so we can comfortably
+// list more entries per page than the old per-section layout allowed.
+const PAGE_SIZE = 12;
 const ID_PREFIX = 'gemoji';
 const STEAL_LIMIT = 10;
 
@@ -43,6 +61,34 @@ function checkExpressionPerms(member) {
 
 /* ─────────────────────── Page rendering ─────────────────────── */
 
+/**
+ * Render a single emoji row as a one-liner. Uses the live `<:tag:id>`
+ * when the bot can actually render it (usable + accessible) so users
+ * see the real preview inline; falls back to a name-only line for
+ * locked/unavailable emojis with a clear badge so the row still
+ * communicates what they're looking at.
+ */
+function renderEmojiRow(e, indexLabel) {
+    const typeBadge  = e.animated
+        ? `${E.animated} \`GIF\``
+        : `${E.static} \`PNG\``;
+    const stateBadge = !e.available
+        ? `${E.unavailable} \`unavailable\``
+        : e.restricted
+            ? `${E.locked} \`role-locked\``
+            : `${E.usable} \`usable\``;
+
+    // Inline preview only when the bot can resolve the emoji — otherwise
+    // Discord renders a literal `<:name:id>` text on the user's client
+    // and it looks broken.
+    const preview = e.usable ? `${e.tag} ` : '';
+
+    return [
+        `\`${indexLabel}\` ${preview}**\`:${e.name}:\`**`,
+        `> ${typeBadge} • ${stateBadge} • ${escapeMd(e.guildName)} • \`${e.id}\``,
+    ].join('\n');
+}
+
 function buildBrowserPayload(state) {
     const { items, page, totalPages, opts, guildsScanned } = state;
     const start = page * PAGE_SIZE;
@@ -50,16 +96,22 @@ function buildBrowserPayload(state) {
 
     const container = new ContainerBuilder().setAccentColor(COLORS.INFO);
 
-    let header = `# ${E.brand} Global Emoji Library\n`;
+    // ── Header
+    const headerLines = [`# ${E.brand} Global Emoji Library`];
     if (items.length === 0) {
-        header += `-# No emojis matched your filters across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}.`;
+        headerLines.push(`-# Scanned **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'} — nothing matched your filters.`);
     } else {
         const lockedCount = items.filter(e => !e.usable).length;
-        const lockedHint = lockedCount > 0 ? ` • ${lockedCount} locked/unavailable` : '';
-        header += `-# Showing **${start + 1}-${start + slice.length}** of **${items.length}** emojis across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}${lockedHint}`;
+        const lockedTag = lockedCount > 0 ? ` · ${lockedCount} locked` : '';
+        headerLines.push(
+            `-# **${start + 1}–${start + slice.length}** of **${items.length}** ` +
+            `across **${guildsScanned}** server${guildsScanned === 1 ? '' : 's'}${lockedTag} ` +
+            `· Page **${page + 1}/${totalPages}**`
+        );
     }
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(header));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerLines.join('\n')));
 
+    // ── Filter chips
     const filterChips = [];
     if (opts.search) filterChips.push(`\`search: ${opts.search}\``);
     if (opts.animatedOnly) filterChips.push('`animated only`');
@@ -73,55 +125,25 @@ function buildBrowserPayload(state) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
+    // ── Body — all rows merged into a single TextDisplay so the
+    // component budget stays predictable regardless of PAGE_SIZE.
     if (slice.length === 0) {
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `*Nothing matches the current filters.*\n\n` +
-            `Try **Search** to filter by name, or **Reset** to clear filters and start over.`
-        ));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent([
+            `*No emojis match the current filters.*`,
+            ``,
+            `Use **Search** to filter by name or server, or **Reset** to clear filters.`,
+        ].join('\n')));
     } else {
-        // Render each emoji as a Section with a CDN-thumbnail accessory.
-        // Inline `<:tag:id>` only renders cross-server when the bot can use
-        // the emoji (i.e. unrestricted + available + the bot shares a guild
-        // that grants access). The CDN thumbnail is unconditional, so every
-        // entry shows a real preview even when role-locked or from a guild
-        // that lost boosts.
-        for (let i = 0; i < slice.length; i++) {
-            const e = slice[i];
-            const idx = String(start + i + 1).padStart(3, '0');
-
-            const typeBadge = e.animated ? `${E.animated} \`animated\`` : `${E.static} \`static\``;
-            const stateBadge = !e.available
-                ? `${E.unavailable} \`unavailable\``
-                : e.restricted
-                    ? `${E.locked} \`role-locked\``
-                    : `${E.usable} \`usable\``;
-
-            const lines = [
-                `\`${idx}.\` **\`:${e.name}:\`**`,
-                `> ${typeBadge} • ${stateBadge}`,
-                `> Server: **${escapeMd(e.guildName)}**`,
-                `> ID: \`${e.id}\``,
-            ];
-            if (e.restricted) {
-                lines.push(`> -# *Locked behind ${e.roleIds.length} role${e.roleIds.length === 1 ? '' : 's'} in source server — preview only, but stealable.*`);
-            } else if (!e.available) {
-                lines.push(`> -# *Source server lost the boost slot — preview only, but stealable.*`);
-            }
-
-            const section = new SectionBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))
-                .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: e.url } }));
-            container.addSectionComponents(section);
-
-            // Note: previously a spacing-only separator was inserted between
-            // entries. Removed to stay under Discord's 40-component CV2 cap —
-            // sections already render with their own padding.
-        }
+        const rowText = slice.map((e, i) => {
+            const idx = String(start + i + 1).padStart(2, '0');
+            return renderEmojiRow(e, idx);
+        }).join('\n\n');
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(rowText));
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
-    // Nav row
+    // ── Navigation row
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_first`).setLabel('First').setStyle(ButtonStyle.Secondary).setDisabled(page === 0 || items.length === 0),
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_prev`).setLabel('Prev').setStyle(ButtonStyle.Primary).setEmoji(E.prev).setDisabled(page === 0 || items.length === 0),
@@ -130,28 +152,25 @@ function buildBrowserPayload(state) {
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_last`).setLabel('Last').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1 || items.length === 0),
     ));
 
-    // Action row: search / by-id / reset / help
-    const actionRow = new ActionRowBuilder().addComponents(
+    // ── Action row
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_search`).setLabel('Search').setStyle(ButtonStyle.Primary).setEmoji(E.search),
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_byid`).setLabel('Steal by ID').setStyle(ButtonStyle.Success).setEmoji(E.byid),
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_reset`).setLabel('Reset').setStyle(ButtonStyle.Secondary).setEmoji(E.reset).setDisabled(!hasFilters(opts)),
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_help`).setLabel('Help').setStyle(ButtonStyle.Secondary).setEmoji(E.help),
-    );
-    container.addActionRowComponents(actionRow);
+    ));
 
-    // Steal-from-page select
+    // ── Steal-from-page select
     if (slice.length > 0) {
         const select = new StringSelectMenuBuilder()
             .setCustomId(`${ID_PREFIX}_steal`)
-            .setPlaceholder('Pick one or more emojis on this page to steal')
+            .setPlaceholder(`Pick up to ${Math.min(slice.length, STEAL_LIMIT)} emoji${slice.length === 1 ? '' : 's'} on this page to clone`)
             .setMinValues(1)
             .setMaxValues(Math.min(slice.length, STEAL_LIMIT))
             .addOptions(slice.map((e, i) => {
-                // Discord validates the option's emoji icon against the bot's
-                // accessible emojis. Role-locked or unavailable emojis fail
-                // that check and would null the entire payload, so we only
-                // attach the live tag for usable entries — locked ones are
-                // labeled with a static badge instead.
+                // Discord validates the option's icon against the bot's
+                // accessible emojis. Locked/unavailable entries are added
+                // without an icon to avoid crashing the dropdown.
                 const opt = {
                     label: `:${e.name}:`.slice(0, 100),
                     description: `${e.animated ? 'GIF' : 'PNG'} • ${e.guildName}`.slice(0, 100),

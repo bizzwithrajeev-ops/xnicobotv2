@@ -27,6 +27,7 @@ const CATEGORIES = {
     special:    { label: 'Special',     emoji: '<:Star:1473038501766369300>',      color: 0xec4899 },
     seeds:      { label: 'Seeds',       emoji: '🌱',                                color: 0x16a34a },
     mining:     { label: 'Mining Gear', emoji: '<:Sketch:1473038248493453352>',    color: 0x78716c },
+    fishing:    { label: 'Fishing Gear', emoji: '🎣',                                color: 0x06b6d4 },
     materials:  { label: 'Materials',   emoji: '<:Caretright:1473038207221502106>',color: 0x57534e },
 };
 
@@ -214,7 +215,7 @@ const ITEMS = {
         emoji: '<:Caretright:1473038207221502106>',
         price: 15000,
         sellPrice: 7500,
-        description: 'Random weapon (Sword / Bow / Staff) for your active pet · 30m cooldown',
+        description: 'Random weapon (Sword / Bow / Staff) for your active pet · 5m cooldown',
         category: 'loot',
         type: 'loot',
         stackable: true,
@@ -376,6 +377,61 @@ const ITEMS = {
         stackable: false,
         maxOwn: 1,
         miningBonus: 0.50,
+    },
+
+    /* ═══════════════ FISHING GEAR ═══════════════
+     * type: 'passive' — equip once, applies automatically while fishing.
+     * Buying a higher-tier rod doesn't refund the lower tier; the
+     * fish command picks the best rod the user currently owns.
+     * ════════════════════════════════════════════ */
+
+    iron_rod: {
+        name: 'Iron Rod',
+        emoji: '🎣',
+        price: 4000,
+        sellPrice: 1500,
+        description: 'Passive: +15% catch value · slightly fewer junk pulls',
+        category: 'fishing',
+        type: 'passive',
+        stackable: false,
+        maxOwn: 1,
+        rodLevel: 1,
+    },
+    gold_rod: {
+        name: 'Gold Rod',
+        emoji: '🎣',
+        price: 12000,
+        sellPrice: 5000,
+        description: 'Passive: +30% catch value · better at hooking rare fish',
+        category: 'fishing',
+        type: 'passive',
+        stackable: false,
+        maxOwn: 1,
+        rodLevel: 2,
+    },
+    diamond_rod: {
+        name: 'Diamond Rod',
+        emoji: '🎣',
+        price: 35000,
+        sellPrice: 14000,
+        description: 'Passive: +50% catch value · noticeably more rare/epic catches',
+        category: 'fishing',
+        type: 'passive',
+        stackable: false,
+        maxOwn: 1,
+        rodLevel: 3,
+    },
+    legendary_rod: {
+        name: 'Legendary Rod',
+        emoji: '🎣',
+        price: 80000,
+        sellPrice: 30000,
+        description: 'Passive: +100% catch value · the only rod that pulls Mythic fish reliably',
+        category: 'fishing',
+        type: 'passive',
+        stackable: false,
+        maxOwn: 1,
+        rodLevel: 4,
     },
 
     /* ═══════════════ MATERIALS ══════════════════

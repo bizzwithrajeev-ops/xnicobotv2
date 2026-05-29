@@ -192,10 +192,16 @@ function getGuildConfig(guildId) {
 // modal opening and submission).
 //
 // Bio:
-//   Discord does not expose a per-guild bot bio. We attempt PATCH
-//   /applications/@me with the description for the rare case where the
-//   bot account allows a global bio update — but the source of truth
-//   for our per-guild rendering is always the local `aboutText`.
+//   Discord exposes a per-guild bot bio through the same endpoint as
+//   avatar/banner: PATCH /guilds/{guild.id}/members/@me with `{ bio }`.
+//   discord.js 14.x's `editMe()` already passes that field through, so
+//   we set it on the guild member, not on the global application
+//   description. The local `aboutText` is still the source of truth
+//   for our own surfaces (/botprofile, /botinfo, home panel) so the
+//   rendering stays consistent even on guilds where Discord rejects
+//   the API call (e.g. account flags, transient outages).
+
+const BIO_LIMIT = 190; // Discord's server profile bio cap
 
 async function setGuildAvatar(guild, imageUrl) {
     try {
@@ -252,15 +258,33 @@ async function resetGuildBanner(guild) {
 }
 
 /**
- * Push a bio to the bot's application description (the closest Discord
- * has to a per-bot bio). Discord does not currently accept a per-guild
- * bio for bots — there's no `bio` field on the guild_member endpoint.
- * Local per-guild value is authoritative for our own rendering. Returns
+ * Push a bio to the bot's per-guild member. Same endpoint as the
+ * avatar/banner setters, just targeting the `bio` field. Returns
  * `{ success, applied, error? }`.
+ *
+ * Discord enforces a 190-char cap on the server profile bio; we slice
+ * defensively so we never send something the API will reject. The
+ * local per-guild `aboutText` (which we render up to 500 chars on our
+ * own panels) is independent of this — Discord just won't show the
+ * tail beyond 190.
  */
-async function setBotBio(client, text) {
+async function setGuildBio(guild, text) {
     try {
-        await client.application.edit({ description: String(text || '').slice(0, 400) });
+        const me = guild.members.me ?? await guild.members.fetchMe().catch(() => null);
+        if (!me) return { success: false, applied: false, error: 'Bot member not found in this guild.' };
+        const trimmed = String(text ?? '').slice(0, BIO_LIMIT);
+        await guild.members.editMe({ bio: trimmed.length ? trimmed : null });
+        await guild.members.fetchMe({ force: true }).catch(() => {});
+        return { success: true, applied: true };
+    } catch (error) {
+        return { success: false, applied: false, error: prettyApiError(error) };
+    }
+}
+
+async function resetGuildBio(guild) {
+    try {
+        await guild.members.editMe({ bio: null });
+        await guild.members.fetchMe({ force: true }).catch(() => {});
         return { success: true, applied: true };
     } catch (error) {
         return { success: false, applied: false, error: prettyApiError(error) };
@@ -579,7 +603,8 @@ module.exports = {
     resetGuildAvatar,
     setGuildBanner,
     resetGuildBanner,
-    setBotBio,
+    setGuildBio,
+    resetGuildBio,
 
     /* ───────────────────── Interaction handler ───────────────────── */
 
@@ -823,18 +848,17 @@ module.exports = {
             guildConfig.aboutText = aboutText || null;
             saveConfig(config);
 
-            // Best-effort push to Discord. Per-guild bios aren't a real
-            // Discord feature for bots, so this almost always falls into
-            // the "applied: false" branch. The local per-guild value is
-            // still authoritative for our own commands.
-            const apiResult = await setBotBio(interaction.client, aboutText || '');
+            // Push the per-guild bio through Discord's guild_member
+            // endpoint so it shows on the bot's server profile inside
+            // this guild only — no global side-effect on other servers.
+            const apiResult = await setGuildBio(interaction.guild, aboutText || '');
 
             const baseLine = aboutText
                 ? `${E.success} Bot about/bio saved for this server.`
                 : `${E.success} Bot about/bio cleared for this server.`;
             const liveNote = apiResult.applied
-                ? `\n-# ${E.success} Discord profile bio also updated.`
-                : `\n-# Discord doesn't expose a per-guild bot bio, so this only shows in our own commands like \`/botinfo\` and \`/botprofile\`.`;
+                ? `\n-# ${E.success} Discord server profile bio also updated${aboutText && aboutText.length > BIO_LIMIT ? ` (trimmed to ${BIO_LIMIT} chars for Discord; full text shown on \`/botinfo\` and \`/botprofile\`)` : ''}.`
+                : `\n-# ${E.cancel} Discord declined the live bio update: \`${apiResult.error || 'unknown'}\` — local panels still render the new text.`;
             await interaction.editReply({ content: baseLine + liveNote });
             await rerender('profile');
             return true;
@@ -844,9 +868,9 @@ module.exports = {
             await interaction.deferUpdate();
             guildConfig.aboutText = null;
             saveConfig(config);
-            // Best-effort: try to also clear it from the Discord profile.
-            // Failure is silent — the local clear is what /botinfo reads.
-            await setBotBio(interaction.client, '').catch(() => {});
+            // Clear the per-guild bio on Discord too. Failure is silent
+            // — the local clear is what /botinfo and the home panel read.
+            await resetGuildBio(interaction.guild).catch(() => {});
             await interaction.editReply({
                 components: [buildCustomizePanel(guildConfig, interaction.guild, interaction.client, 'profile')],
                 flags: MessageFlags.IsComponentsV2,

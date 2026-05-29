@@ -1,30 +1,58 @@
 'use strict';
 
-const { pickVerdict, hashPercent } = require('../../utils/percentCommandFactory');
+/**
+ * /iq — Visual IQ card with a stable per-user score in 60–200.
+ *
+ * Uses the same canvas renderer as the rest of the percent-card
+ * family so the look-and-feel stays consistent. Tiers gained an
+ * optional `detail` line so the card has a primary verdict + a
+ * longer, slightly more thoughtful subtitle underneath.
+ */
+
 const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder,
     MediaGalleryItemBuilder, MessageFlags, AttachmentBuilder
 } = require('discord.js');
 const { renderPercentCard } = require('../../utils/percentCard');
+const { hashPercent, pickTier } = require('../../utils/percentCommandFactory');
 
-// IQ ranges roughly 60–200 — clamp to a stable per-user value
+// IQ ranges roughly 60–200 — clamp to a stable per-user value so
+// running /iq twice gives the same number unless the user changes.
 function userIQ(userId) {
     const p = hashPercent(`iq:${userId}`);   // 0–100
     return 60 + Math.round((p / 100) * 140); // 60–200
 }
 
 const tiers = [
-    { max: 79,  text: 'Looking confused most days 🤔' },
-    { max: 99,  text: 'Solidly average 🙂' },
-    { max: 119, text: 'A cut above the rest ⚡' },
-    { max: 139, text: 'Sharp thinker 🧠' },
-    { max: 159, text: 'Big brain certified 🎓' },
-    { max: 200, text: 'Galaxy-brain genius 🌌' },
+    { max: 70,
+      text:   'Booting from scratch 🧊',
+      detail: 'Currently enjoying the simulation\'s tutorial mode. Hasn\'t found the skip button.' },
+    { max: 84,
+      text:   'Looking confused most days 🤔',
+      detail: 'Confidently explains topics you didn\'t ask about, with conviction we admire.' },
+    { max: 99,
+      text:   'Solidly average 🙂',
+      detail: 'Knows about the same number of facts as the wifi router. Reliable.' },
+    { max: 114,
+      text:   'A cut above the rest ⚡',
+      detail: 'Picks up new tools fast. Wins arguments by quoting documentation.' },
+    { max: 129,
+      text:   'Sharp thinker 🧠',
+      detail: 'Reads patch notes on a Friday night. Spots typos in subtitles.' },
+    { max: 144,
+      text:   'Big-brain certified 🎓',
+      detail: 'Probably has a calendar app *and* uses it. Knows about compound interest.' },
+    { max: 165,
+      text:   'Dangerously articulate 📚',
+      detail: 'Pronounces "Worcestershire" without thinking and corrects others gently.' },
+    { max: 200,
+      text:   'Galaxy-brain genius 🌌',
+      detail: 'Universities cite you in passing. The IQ scale itself is asking for tips.' },
 ];
 
 async function buildAndSend(targetUser, displayName) {
     const iq = userIQ(targetUser.id);
-    const verdict = pickVerdict(iq, tiers);
+    const tier = pickTier(iq, tiers);
 
     const buffer = await renderPercentCard({
         title: 'IQ Test',
@@ -32,7 +60,8 @@ async function buildAndSend(targetUser, displayName) {
         avatarURL: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         percent: iq,             // shown as the big number
         barMax: 200,             // scale ring + bar against an IQ-of-200 cap
-        verdict,
+        verdict: tier.text || '',
+        detail:  tier.detail || '',
         unit: '',
     });
 

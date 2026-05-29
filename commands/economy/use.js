@@ -405,10 +405,15 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
         }
 
         case 'vip_badge': {
+            // Permanent flag — if already VIP we DON'T consume the badge.
+            // Returning an error here aborts the consume+save flow in
+            // useItem(), so the user keeps the item (and can re-sell or
+            // gift it via the shop).
             if (userData.vip) {
-                return { error: `${meta.emoji} You already have **VIP status** on your profile.` };
+                return { error: `${meta.emoji} You already have **VIP status** on your profile. The badge wasn't consumed.` };
             }
             userData.vip = true;
+            userData.vipSince = Date.now();
             return {
                 success: true,
                 title: `${meta.emoji} VIP Badge Activated`,

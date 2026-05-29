@@ -57,6 +57,8 @@ module.exports = {
         const economy = economyManager.loadEconomy();
         const { userData: robber } = economyManager.getUser(economy, message.author.id);
         const { userData: victim } = economyManager.getUser(economy, target.id);
+        victim.boosts = victim.boosts || {};
+        robber.boosts = robber.boosts || {};
 
         const now = Date.now();
         if (now - robber.lastRob < COOLDOWN) {
@@ -69,6 +71,25 @@ module.exports = {
         if (victim.coins < 100) {
             const c = createContainer(0xED4245);
             addTextDisplay(c, '<:Cancel:1473037949187657818> This user doesn\'t have enough coins to rob!');
+            return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        // Honour the victim's `shield` boost — buying a Shield Token
+        // (use shield) sets `victim.boosts.shield` to a 24h expiry.
+        // Without this the paid protection did nothing.
+        const shieldUntil = Number(victim.boosts?.shield || 0);
+        if (shieldUntil > now) {
+            const left = shieldUntil - now;
+            const hrs  = Math.floor(left / 3_600_000);
+            const mins = Math.floor((left % 3_600_000) / 60_000);
+            const c = createContainer(0xFEE75C);
+            addTextDisplay(c, [
+                `# <:Shield:1473038669831995494> Target Protected`,
+                '',
+                `**${target.username}** has an active **Shield Token** — their coins are immune for **${hrs > 0 ? `${hrs}h ` : ''}${mins}m**.`,
+                '',
+                `-# Shields are bought from the shop with \`buy shield\` and used with \`use shield\`.`,
+            ].join('\n'));
             return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
         }
 

@@ -2,8 +2,19 @@
 
 /**
  * percentCommandFactory.js — Factory for "How X?"-style percentage
- * commands.  Produces a complete command module (slash + prefix +
+ * commands. Produces a complete command module (slash + prefix +
  * canvas image + verdict) from a small config object.
+ *
+ * Each tier supports an optional `detail` line — a longer, more
+ * professionally written sentence that gives the percentage some
+ * context. The card renderer paints it under the headline verdict
+ * in a smaller muted style so the visual stays clean.
+ *
+ *   tiers: [
+ *     { max: 25, text: 'Mostly straight 🙂',
+ *       detail: 'Body language reads sincere and grounded — no signals here.' },
+ *     ...
+ *   ]
  *
  * © Rajeev (Rexzy) — xNico
  */
@@ -20,15 +31,21 @@ const {
 const { renderPercentCard } = require('./percentCard');
 
 /**
- * Pick a verdict tier based on percentage.
+ * Pick the matching tier based on a percentage. Returns the entire
+ * tier object so callers can pull both `text` and `detail`.
  * @param {number} p – percentage 0–100
- * @param {Array<{max:number, text:string}>} tiers – sorted ascending by max
+ * @param {Array<{max:number, text:string, detail?:string}>} tiers – sorted ascending by max
  */
-function pickVerdict(p, tiers) {
+function pickTier(p, tiers) {
     for (const t of tiers) {
-        if (p <= t.max) return t.text;
+        if (p <= t.max) return t;
     }
-    return tiers[tiers.length - 1]?.text || '';
+    return tiers[tiers.length - 1] || { text: '', detail: '' };
+}
+
+/** Back-compat: only the headline. New code should use `pickTier`. */
+function pickVerdict(p, tiers) {
+    return pickTier(p, tiers).text || '';
 }
 
 /**
@@ -55,7 +72,7 @@ function hashPercent(seed) {
  * @param {string} cfg.description Slash + prefix description
  * @param {string} [cfg.usage]     Usage hint
  * @param {string[]} [cfg.aliases] Prefix aliases
- * @param {Array<{max:number,text:string}>} cfg.tiers  Verdict tiers
+ * @param {Array<{max:number,text:string,detail?:string}>} cfg.tiers Verdict tiers
  * @param {string} [cfg.unit='%']  Unit shown after value
  * @param {boolean} [cfg.random]   Use Math.random() per call instead of hash
  * @param {string} [cfg.fileName]  Output PNG name
@@ -78,14 +95,16 @@ function createPercentCommand(cfg) {
     async function run(targetUser, displayName) {
         const seed = `${name}:${targetUser.id}`;
         const percent = random ? Math.floor(Math.random() * 101) : hashPercent(seed);
-        const verdict = pickVerdict(percent, tiers);
+        const tier = pickTier(percent, tiers);
 
         const buffer = await renderPercentCard({
             title,
             subjectName: displayName || targetUser.username || 'Unknown',
             avatarURL: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
             percent,
-            verdict,
+            verdict: tier.text || '',
+            detail: tier.detail || '',
+            tierLabel: tier.label || '',
             unit,
         });
 
@@ -141,4 +160,4 @@ function createPercentCommand(cfg) {
     };
 }
 
-module.exports = { createPercentCommand, pickVerdict, hashPercent };
+module.exports = { createPercentCommand, pickTier, pickVerdict, hashPercent };

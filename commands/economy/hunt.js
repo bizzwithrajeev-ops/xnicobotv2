@@ -31,16 +31,35 @@ async function handleHunt(reply, userId, guildId) {
 
   ph.ensureUser(pets, userId);
   const { userData } = economyManager.getUser(economy, userId);
+  userData.boosts = userData.boosts || {};
+
+  // Lucky charm — buys +15% loot quality on the next hunt or fish.
+  // Stored as an expiry timestamp on userData.boosts.luckyCharm.
+  // Consumed (regardless of outcome) so the next session is fresh.
+  const luckyCharmActive = Number(userData.boosts.luckyCharm || 0) > now;
+
+  // Skew the encounter table when the charm is up: shift weight from
+  // "common" toward the higher-rarity tiers so legendary catches are
+  // meaningfully more likely without being guaranteed.
+  const tableForRoll = luckyCharmActive
+    ? animals.map(a => ({
+        ...a,
+        rate: a.rarity === 'common' ? Math.max(20, a.rate - 30)
+            : a.rarity === 'uncommon' ? a.rate + 10
+            : a.rarity === 'rare'     ? a.rate + 8
+            :                            a.rate + 4,
+      }))
+    : animals;
 
   const roll = Math.random() * 100;
   let animal;
   let cumulative = 0;
-  const shuffled = [...animals].sort((a, b) => a.rate - b.rate);
+  const shuffled = [...tableForRoll].sort((a, b) => a.rate - b.rate);
   for (const a of shuffled) {
     cumulative += a.rate;
     if (roll <= cumulative) { animal = a; break; }
   }
-  if (!animal) animal = animals[0];
+  if (!animal) animal = tableForRoll[0];
 
   const caught = Math.random() * 100 <= animal.rate;
 
@@ -63,8 +82,10 @@ async function handleHunt(reply, userId, guildId) {
 
     const xpResult = economyManager.addXP(economy, userId, 10);
     userData.huntCount = (userData.huntCount || 0) + 1;
+    if (luckyCharmActive) delete userData.boosts.luckyCharm;
     economyManager.saveEconomy(economy);
 
+    const charmTag = luckyCharmActive ? `\n-# 🍀 **Lucky Charm** consumed (+15% loot quality applied).` : '';
     const container = createContainer(ph.RARITY_COLOR[animal.rarity] || 0xCAD7E6);
     addTextDisplay(container, [
       `# <:Checkedbox:1473038547165384804> Hunt — Caught!`,
@@ -72,26 +93,33 @@ async function handleHunt(reply, userId, guildId) {
       `You encountered **${animal.emoji} ${animal.name}** and caught it!`,
       `> Rarity: **${animal.rarity}** | HP: **${animal.baseHp}** | ATK: **${animal.baseAtk}**`,
       `> <:Fire:1473038604812161218> +10 XP${xpResult.leveledUp ? ` — **Level Up! Lv.${xpResult.newLevel}**` : ''}`,
+      charmTag,
       '',
       `-# Use \`pets\` to manage your collection`,
-    ].join('\n'));
+    ].filter(Boolean).join('\n'));
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   } else {
-    userData.coins += animal.value;
+    // The charm boosts loot value too — pay extra coins on the
+    // consolation prize so the user feels the effect.
+    const charmedValue = luckyCharmActive ? Math.floor(animal.value * 1.15) : animal.value;
+    userData.coins += charmedValue;
     userData.huntCount = (userData.huntCount || 0) + 1;
+    if (luckyCharmActive) delete userData.boosts.luckyCharm;
     economyManager.addXP(economy, userId, 5);
     economyManager.saveEconomy(economy);
 
+    const charmTag = luckyCharmActive ? `\n-# 🍀 **Lucky Charm** consumed (+15% reward applied).` : '';
     const container = createContainer(0xED4245);
     addTextDisplay(container, [
       `# <:Cancel:1473037949187657818> Hunt — Escaped!`,
       '',
       `You encountered **${animal.emoji} ${animal.name}** but it got away.`,
-      `> Earned **${formatCoins(animal.value, guildId)}** as consolation.`,
+      `> Earned **${formatCoins(charmedValue, guildId)}** as consolation.`,
       `> <:Fire:1473038604812161218> +5 XP`,
+      charmTag,
       '',
       `-# Try hunting again in 30 seconds`,
-    ].join('\n'));
+    ].filter(Boolean).join('\n'));
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   }
 }

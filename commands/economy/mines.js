@@ -272,19 +272,40 @@ function buildGameGrid(game, reveal = false) {
 }
 
 /**
- * Builds the action row(s) below the live grid: the cashout button
- * (and optionally a "reveal info" line). Returned as a separate
- * function so the live and end-state renders can decide whether to
- * append it without juggling the row index inside `buildGameGrid`.
+ * Builds the action row(s) below the live grid: the cashout button.
+ * Returned as a separate function so the live and end-state renders
+ * can decide whether to append it without juggling row indexes inside
+ * `buildGameGrid`.
+ *
+ * The cashout button is *always* present during a live game so the
+ * player has a clear, predictable "exit" they can find at a glance —
+ * even before the first reveal. When no tiles are revealed yet it is
+ * disabled with a hint label, instead of being hidden entirely (the
+ * old behaviour, which made players think the button was missing).
  */
 function buildCashoutRow(game) {
-    if (game.ended || game.revealed.size === 0) return null;
-    const mult = calculateMultiplier(game.revealed.size, game.gridKey, game.risk);
+    if (game.ended) return null;
+
+    const revealed = game.revealed.size;
+    const mult = revealed > 0
+        ? calculateMultiplier(revealed, game.gridKey, game.risk)
+        : 1;
     const payout = Math.floor(game.bet * mult);
+
     const cashoutBtn = new ButtonBuilder()
         .setCustomId(`mines_${game.userId}_cashout`)
-        .setLabel(`Cash Out · ${mult}x = ${formatNumber(payout)}`)
         .setStyle(ButtonStyle.Primary);
+
+    if (revealed === 0) {
+        cashoutBtn
+            .setLabel('Cash Out · pick a tile first')
+            .setDisabled(true);
+    } else {
+        cashoutBtn
+            .setLabel(`Cash Out · ${mult}x = ${formatNumber(payout)}`)
+            .setDisabled(false);
+    }
+
     const safeIcon = coinEmoji(game.guildId);
     if (safeIcon) cashoutBtn.setEmoji(safeIcon);
     return new ActionRowBuilder().addComponents(cashoutBtn);
@@ -625,7 +646,24 @@ async function startGame(interaction, game) {
     const cashoutRow = buildCashoutRow(game);
     if (cashoutRow) container.addActionRowComponents(cashoutRow);
 
-    return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    try {
+        return await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } catch (err) {
+        // If we can't render the live panel (interaction token expired,
+        // network blip, message deleted), refund the bet rather than
+        // leaving the user paying for a game they can't play.
+        console.error('[MINES] startGame render failed, refunding:', err);
+        try {
+            const eco = economyManager.loadEconomy();
+            const { userData: ud } = economyManager.getUser(eco, game.userId);
+            ud.coins += game.bet;
+            ud.totalGambled = Math.max(0, (ud.totalGambled || 0) - game.bet);
+            economyManager.saveEconomy(eco);
+        } catch {}
+        clearTimeout(game.expireTimer);
+        activeGames.delete(game.userId);
+        return null;
+    }
 }
 
 async function revealTile(interaction, game, tileIdx) {
@@ -664,9 +702,12 @@ async function revealTile(interaction, game, tileIdx) {
 
         game.revealed.add(tileIdx);
 
-        // Auto cash-out when every safe tile is revealed.
+        // Auto cash-out when every safe tile is revealed. Pass
+        // `internal: true` so cashOut doesn't re-acquire the
+        // `_processing` lock we already hold here — otherwise it
+        // would short-circuit and silently skip the payout.
         if (game.revealed.size >= game.totalSafe) {
-            return await cashOut(interaction, game, 'won');
+            return await cashOut(interaction, game, 'won', { internal: true });
         }
 
         const container = buildGameContainer(game, 'playing');
@@ -687,37 +728,75 @@ async function revealTile(interaction, game, tileIdx) {
     }
 }
 
-async function cashOut(interaction, game, status = 'won') {
-    if (game.ended || game._cashedOut) return interaction.deferUpdate().catch(() => {});
+async function cashOut(interaction, game, status = 'won', { internal = false } = {}) {
+    // Guard against stacked clicks: a user spamming Cash Out, or a
+    // tile click that's mid-flight when Cash Out lands. The
+    // `_processing` flag is shared with `revealTile`, so neither
+    // can interleave with the other.
+    //
+    // The `internal` option lets `revealTile` call into us as the
+    // tail of an auto-clear without tripping its own _processing
+    // guard — it has already locked, validated and committed the
+    // safe-tile reveal that triggered the auto-cashout.
+    if (game.ended || game._cashedOut) {
+        return interaction.deferUpdate().catch(() => {});
+    }
+    if (!internal && game._processing) {
+        return interaction.deferUpdate().catch(() => {});
+    }
+    if (game.revealed.size === 0) {
+        // The button should be disabled in this case, but defend
+        // against custom-id replays from the network anyway.
+        return interaction.reply({
+            content: `${E.warn} Reveal at least one tile before cashing out.`,
+            flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+    }
+
+    if (!internal) game._processing = true;
     game._cashedOut = true;
     game.ended = true;
     clearTimeout(game.expireTimer);
     activeGames.delete(game.userId);
 
-    const multiplier = calculateMultiplier(game.revealed.size, game.gridKey, game.risk);
-    const payout = Math.floor(game.bet * multiplier);
-    const profit = payout - game.bet;
+    try {
+        const multiplier = calculateMultiplier(game.revealed.size, game.gridKey, game.risk);
+        const payout = Math.floor(game.bet * multiplier);
+        const profit = payout - game.bet;
 
-    const economy = economyManager.loadEconomy();
-    const { userData } = economyManager.getUser(economy, game.userId);
-    userData.coins += payout;
-    if (profit > 0) {
-        userData.totalWon = (userData.totalWon || 0) + profit;
+        const economy = economyManager.loadEconomy();
+        const { userData } = economyManager.getUser(economy, game.userId);
+        userData.coins += payout;
+        // Track lifetime earnings the same way fish/hunt/scratch/battle do
+        // so the /profile and /economystats cards stay consistent — the
+        // previous version skipped this and mines wins never showed up
+        // under "lifetime earned".
+        if (payout > 0) {
+            userData.totalEarned = (userData.totalEarned || 0) + payout;
+        }
+        if (profit > 0) {
+            userData.totalWon = (userData.totalWon || 0) + profit;
+        }
+        // Cap the XP reward so a fully-cleared 5×6 board doesn't
+        // mass-grant levels in one round.
+        economyManager.addXP(economy, game.userId, Math.min(20, game.revealed.size * 2));
+        economyManager.checkAllAchievements(economy, game.userId);
+        economyManager.saveEconomy(economy);
+
+        const container = buildGameContainer(game, status);
+        addSeparator(container, SeparatorSpacingSize.Small);
+        addTextDisplay(container,
+            `${coinIcon(game.guildId)} **Balance:** ${formatCoinsAmount(userData.coins, game.guildId)}\n`
+            + `-# Revealed ${game.revealed.size}/${game.totalSafe} safe tiles`);
+        for (const row of buildGameGrid(game, true)) container.addActionRowComponents(row);
+
+        return await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } finally {
+        // Always release the lock if we acquired it. `revealTile`'s
+        // own finally block clears `_processing` for the internal
+        // call path so we don't double-release here.
+        if (!internal) game._processing = false;
     }
-    // Cap the XP reward so a fully-cleared 5×6 board doesn't
-    // mass-grant levels in one round.
-    economyManager.addXP(economy, game.userId, Math.min(20, game.revealed.size * 2));
-    economyManager.checkAllAchievements(economy, game.userId);
-    economyManager.saveEconomy(economy);
-
-    const container = buildGameContainer(game, status);
-    addSeparator(container, SeparatorSpacingSize.Small);
-    addTextDisplay(container,
-        `${coinIcon(game.guildId)} **Balance:** ${formatCoinsAmount(userData.coins, game.guildId)}\n`
-        + `-# Revealed ${game.revealed.size}/${game.totalSafe} safe tiles`);
-    for (const row of buildGameGrid(game, true)) container.addActionRowComponents(row);
-
-    return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 /**
@@ -741,6 +820,7 @@ async function settleAutoCashout(game) {
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, game.userId);
     userData.coins += payout;
+    if (payout > 0) userData.totalEarned = (userData.totalEarned || 0) + payout;
     if (profit > 0) userData.totalWon = (userData.totalWon || 0) + profit;
     economyManager.checkAllAchievements(economy, game.userId);
     economyManager.saveEconomy(economy);

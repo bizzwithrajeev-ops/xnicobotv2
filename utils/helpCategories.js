@@ -36,6 +36,13 @@ const NEW_COMMANDS = new Set([
     'birthday', 'birthday-setup',
     // ── Latest additions ──
     'automeme', 'afk', 'afklist', 'vcmod', 'vcmods',
+    // ── New "How X?" personality meters ──
+    'howtoxic', 'howweeb', 'howgamer', 'howbroke', 'howsleepy',
+    'howannoying', 'howfunny', 'howfriendly', 'howcaring',
+    'howbaby', 'howmature', 'howcrazy', 'howlazy', 'howkind',
+    'howdramatic', 'howemo',
+    // ── Economy stats overview ──
+    'economystats',
 ]);
 
 /* ─────────────────────────────────────────────────────────────
@@ -182,6 +189,20 @@ const CATEGORY_GROUP_RULES = {
     // ── 18. Fun ───────────────────────────────────────────────
     fun: [
         { name: 'Entertainment',        emoji: '<:Fire:1473038604812161218>',      cmds: ['meme', 'joke', 'fact', 'quote', 'advice', 'gif', 'fortune', 'riddle', 'roast', 'compliment', 'pickup-line', 'pickupline', 'choose', 'roll', 'random-yes-no', 'yesno'] },
+        { name: 'Personality Meters',   emoji: '<:Star:1473038501766369300>',      cmds: [
+            // Identity / orientation
+            'howgay', 'howstraight', 'howlesbian',
+            // Social vibes
+            'howcute', 'howcool', 'howhot', 'howfunny', 'howkind', 'howcaring', 'howfriendly',
+            // Disposition
+            'howsmart', 'howmature', 'howbaby', 'howsleepy', 'howlazy', 'howdramatic',
+            // Personality archetypes
+            'howsigma', 'howedgy', 'howemo', 'howweeb', 'howgamer',
+            // Vibe / mood
+            'howcursed', 'howevil', 'howcrazy', 'howsus', 'howannoying', 'howtoxic',
+            // Status
+            'howrich', 'howbroke', 'howlucky', 'howbraindead', 'howsimp',
+        ] },
         { name: 'Social Fun',          emoji: '<:Money:1473377877239140529>',      cmds: ['ship', 'rate', 'pp', 'magic-number', 'magicnumber', 'iq'] },
         { name: 'Pranks & Misc',       emoji: '<:Caretright:1473038207221502106>', cmds: ['fkick', 'reaction', 'confession', 'confess', 'nitro', 'faketweet'] },
         { name: 'Text Fun',            emoji: '<:Envelope:1473038885364695113>',   cmds: ['ascii', 'clap', 'mock', 'reverse'] },
@@ -200,7 +221,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Classic Gambling',    emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slots', 'betflip', 'gamble', 'rob', 'lottery', 'highlow', 'scratch', 'dice', 'blackjack', 'roulette'] },
         { name: 'Bet Games — Setup',   emoji: '<:Lightning:1473038797540298792>',  cmds: ['mines', 'crash', 'plinko', 'wheel', 'limbo', 'tower', 'keno'] },
         { name: 'PvP & Mini-Games',    emoji: '<:transfer:1479780506718437396>',   cmds: ['rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
-        { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard'] },
+        { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard', 'economystats'] },
         { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift', 'customshop', 'stocks'] },
         { name: 'Combat & Pets',       emoji: '<:Fire:1473038604812161218>',       cmds: ['battle', 'weapon', 'pets'] },
         { name: 'Admin Controls',      emoji: '<:Shield:1473038669831995494>',     cmds: ['addcoins', 'currency'] },

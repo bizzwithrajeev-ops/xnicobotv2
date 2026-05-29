@@ -32,7 +32,12 @@ const DEFAULT_USER_DATA = {
   workCount: 0,
   miningCount: 0,
   oreInventory: {},
-  crops: [],
+  // crops is a slot-keyed object: `{ slot_<n>: { seedId, plantedAt,
+  // readyAt }, ... }`. The legacy default was `[]` (array) and the
+  // normaliser below enforced array shape on every load — which
+  // wiped out planted crops as soon as `farm.js` populated them
+  // with named slot keys.
+  crops: {},
   lastMine: 0,
   lastFarm: 0,
   loans: [],
@@ -120,7 +125,13 @@ function normalizeUserData(data) {
   if (!Array.isArray(data.inventory)) { data.inventory = []; changed = true; }
   if (!Array.isArray(data.achievements)) { data.achievements = []; changed = true; }
   if (!Array.isArray(data.loans)) { data.loans = []; changed = true; }
-  if (!Array.isArray(data.crops)) { data.crops = []; changed = true; }
+  // crops is a slot-keyed object — `{ slot_<n>: { seedId, plantedAt,
+  // readyAt }, ... }`. If older data has an array (legacy default)
+  // or anything that isn't an object, reset it to an empty object.
+  if (typeof data.crops !== 'object' || Array.isArray(data.crops) || data.crops === null) {
+    data.crops = {};
+    changed = true;
+  }
   if (typeof data.oreInventory !== 'object' || Array.isArray(data.oreInventory)) { data.oreInventory = {}; changed = true; }
   if (typeof data.stockPortfolio !== 'object' || Array.isArray(data.stockPortfolio)) { data.stockPortfolio = {}; changed = true; }
   if (typeof data.bonuses !== 'object' || data.bonuses === null) {
@@ -176,7 +187,22 @@ function xpForLevel(level) {
 
 function addXP(economy, userId, amount) {
   const { userData } = getUser(economy, userId);
-  userData.xp = (userData.xp || 0) + amount;
+
+  // Honour an active xp_boost (set by `use xp_boost` in commands/economy/use.js).
+  // The boost is a single field on `userData.boosts.xpBoost` containing the
+  // expiry timestamp; if it's in the future we apply +50% to incoming XP.
+  // When the timer has elapsed we lazily clear the flag so it doesn't
+  // accumulate stale data on the user record.
+  let bonusFromBoost = 0;
+  const boostExpiry = Number(userData.boosts?.xpBoost || 0);
+  if (boostExpiry > Date.now()) {
+    bonusFromBoost = Math.floor((amount || 0) * 0.5);
+  } else if (boostExpiry > 0) {
+    delete userData.boosts.xpBoost;
+  }
+
+  const finalAmount = (amount || 0) + bonusFromBoost;
+  userData.xp = (userData.xp || 0) + finalAmount;
   userData.level = userData.level || 1;
 
   let leveledUp = false;
@@ -191,7 +217,7 @@ function addXP(economy, userId, amount) {
     needed = xpForLevel(userData.level);
   }
 
-  return { leveledUp, newLevel };
+  return { leveledUp, newLevel, boosted: bonusFromBoost > 0, bonusFromBoost };
 }
 
 /* ═══════════════════════════════════════════════════════

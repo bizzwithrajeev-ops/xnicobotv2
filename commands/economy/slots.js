@@ -101,9 +101,21 @@ async function handleSlots(reply, userId, args, guildId) {
 
   cooldowns.set(userId, now + COOLDOWN);
 
-  const spinResults = [spinReel(), spinReel(), spinReel()];
-  const reelEmojis = spinResults.map(r => r.emoji);
-  const multiplier = getMultiplier(reelEmojis);
+  // star_booster gives a small win-rate boost on slots & betflip.
+  // We implement it as a "lucky-spin re-roll": if the first spin
+  // is a loss, there's a `slotsBonus` chance to re-spin. This makes
+  // the boost meaningful without warping the published payout table.
+  const slotsBonus = Number(userData.bonuses?.slots) || 0;
+  let spinResults = [spinReel(), spinReel(), spinReel()];
+  let reelEmojis = spinResults.map(r => r.emoji);
+  let multiplier = getMultiplier(reelEmojis);
+  let rerolled = false;
+  if (multiplier === 0 && slotsBonus > 0 && Math.random() < slotsBonus) {
+    spinResults = [spinReel(), spinReel(), spinReel()];
+    reelEmojis = spinResults.map(r => r.emoji);
+    multiplier = getMultiplier(reelEmojis);
+    rerolled = true;
+  }
   const winnings = Math.floor(bet * multiplier);
   const isJackpot = reelEmojis[0] === '🌟' && reelEmojis[1] === '🌟' && reelEmojis[2] === '🌟';
 
@@ -138,6 +150,10 @@ async function handleSlots(reply, userId, args, guildId) {
     );
   } else {
     resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`);
+  }
+
+  if (rerolled) {
+    resultLines.push(`-# 🌟 Star Booster activated a free re-spin.`);
   }
 
   resultLines.push(

@@ -8,6 +8,13 @@
  *   - 2× win payout / refund / total loss
  *   - totalGambled / totalWon / totalLost stat updates
  *   - XP awards on resolution
+ *
+ * Bonuses
+ * ───────
+ *   `userData.bonuses.gamble` (set by the **Medal** shop item, capped
+ *   at +25%) adds a small percentage on top of any winning payout.
+ *   This is the single place that bonus actually fires — without it
+ *   the medal would be paid for and never used.
  */
 
 'use strict';
@@ -35,21 +42,41 @@ function deductBet(userId, bet) {
  *   - bet 100, win 2x → settle(uid, 100, 200) → +100 profit recorded
  *   - bet 100, push   → settle(uid, 100, 100) → no profit, no loss
  *   - bet 100, lose   → settle(uid, 100, 0)   → -100 loss recorded
+ *
+ * Returns the post-settlement userData and the actual payout that
+ * was credited (which may include the gamble-bonus boost on a win).
  */
 function settle(userId, bet, payout) {
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, userId);
-    if (payout > 0) {
-        userData.coins += payout;
-        if (payout > bet) userData.totalWon = (userData.totalWon || 0) + (payout - bet);
+
+    let actualPayout = payout;
+
+    if (payout > bet) {
+        // Win — apply the gamble bonus (Medal stack) to the *profit*
+        // portion only, so a 2× win with +25% bonus pays
+        //   stake + (profit × 1.25), not stake × 1.25.
+        const gambleBonus = Number(userData.bonuses?.gamble || 0);
+        if (gambleBonus > 0) {
+            const profit = payout - bet;
+            const extra = Math.floor(profit * gambleBonus);
+            actualPayout = payout + extra;
+        }
     }
-    if (payout < bet) {
-        userData.totalLost = (userData.totalLost || 0) + (bet - payout);
+
+    if (actualPayout > 0) {
+        userData.coins += actualPayout;
+        if (actualPayout > bet) {
+            userData.totalWon = (userData.totalWon || 0) + (actualPayout - bet);
+        }
     }
-    economyManager.addXP(economy, userId, payout > bet ? 8 : 2);
+    if (actualPayout < bet) {
+        userData.totalLost = (userData.totalLost || 0) + (bet - actualPayout);
+    }
+    economyManager.addXP(economy, userId, actualPayout > bet ? 8 : 2);
     economyManager.checkAllAchievements(economy, userId);
     economyManager.saveEconomy(economy);
-    return userData;
+    return { userData, payout: actualPayout };
 }
 
 module.exports = { deductBet, settle };

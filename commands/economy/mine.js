@@ -5,6 +5,7 @@ const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require(
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
+const jsonStore = require('../../utils/jsonStore');
 
 const COOLDOWN = 30 * 60 * 1000;
 const cooldowns = new Map();
@@ -31,10 +32,28 @@ function pickOre(boost = false) {
   return table[0];
 }
 
-function getPickaxeBonus(inventory) {
-  if ((inventory.diamond_pickaxe || 0) > 0) return { name: 'Diamond Pickaxe', bonus: 3, emoji: '<:Sketch:1473038248493453352>' };
-  if ((inventory.gold_pickaxe    || 0) > 0) return { name: 'Gold Pickaxe',    bonus: 2, emoji: '<:Money:1473377877239140529>' };
-  if ((inventory.iron_pickaxe    || 0) > 0) return { name: 'Iron Pickaxe',    bonus: 1, emoji: '⛏' };
+/**
+ * Pickaxes are bought via /buy and live in the global inventory
+ * jsonStore as `[{ id, boughtAt }, ...]` — NOT as the stat object on
+ * userData.inventory like crafting materials. The previous version
+ * read from userData.inventory and never matched anything, so paid
+ * pickaxes did nothing. Falls back to userData.inventory for legacy
+ * users who somehow still have them recorded there.
+ */
+function getPickaxeBonus(userId, userData) {
+  const owns = (id) => {
+    try {
+      const inv = jsonStore.has('inventory') ? jsonStore.read('inventory') : {};
+      const slots = Array.isArray(inv?.[userId]) ? inv[userId] : [];
+      if (slots.some(it => it && it.id === id)) return true;
+    } catch { /* fall through */ }
+    const legacy = userData.inventory;
+    return !!(legacy && typeof legacy === 'object' && !Array.isArray(legacy) && (legacy[id] || 0) > 0);
+  };
+
+  if (owns('diamond_pickaxe')) return { name: 'Diamond Pickaxe', bonus: 3, emoji: '<:Sketch:1473038248493453352>' };
+  if (owns('gold_pickaxe'))    return { name: 'Gold Pickaxe',    bonus: 2, emoji: '<:Money:1473377877239140529>' };
+  if (owns('iron_pickaxe'))    return { name: 'Iron Pickaxe',    bonus: 1, emoji: '⛏' };
   return null;
 }
 
@@ -62,10 +81,14 @@ async function handleMine(reply, userId, guildId) {
 
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
+  userData.boosts = userData.boosts || {};
 
-  const inv = userData.inventory || {};
-  const pickaxe = getPickaxeBonus(inv);
-  const hasMiningBoost = (userData.activeBoosts || []).some(b => b.id === 'mining_boost' && b.expiresAt > now);
+  const pickaxe = getPickaxeBonus(userId, userData);
+  // `use mining_boost` sets userData.boosts.miningBoost = true; we
+  // consume it on the very next mine run for a single bonus ore +
+  // a temporarily favoured ore distribution. This is the contract
+  // documented in shopItems.js / use.js.
+  const hasMiningBoost = !!userData.boosts.miningBoost;
 
   const count = 1 + (pickaxe?.bonus || 0) + (hasMiningBoost ? 1 : 0);
   const ores = [];
@@ -79,6 +102,9 @@ async function handleMine(reply, userId, guildId) {
     totalValue += ore.value;
   }
 
+  // Single-use boost — clear after this run.
+  if (hasMiningBoost) delete userData.boosts.miningBoost;
+
   userData.miningCount = (userData.miningCount || 0) + 1;
   userData.coins = (userData.coins || 0) + totalValue;
   userData.totalEarned = (userData.totalEarned || 0) + totalValue;
@@ -88,7 +114,7 @@ async function handleMine(reply, userId, guildId) {
 
   const oreLines = ores.map(o => `> ${o.emoji} **${o.name}** (+${formatCoins(o.value, guildId)})`).join('\n');
   const pickaxeLine = pickaxe ? `\n-# ${pickaxe.emoji} Using **${pickaxe.name}** — +${pickaxe.bonus} extra ore(s)` : '';
-  const boostLine = hasMiningBoost ? `\n-# 🚀 **Mining Boost** active!` : '';
+  const boostLine = hasMiningBoost ? `\n-# 🚀 **Mining Boost** consumed — bonus ore + better odds applied` : '';
 
   const c = createContainer(0xCAD7E6);
   addTextDisplay(c, [

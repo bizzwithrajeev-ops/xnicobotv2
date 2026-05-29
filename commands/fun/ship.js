@@ -19,7 +19,7 @@ const {
 const { createCanvas } = require('@napi-rs/canvas');
 const imageCache = require('../../utils/imageCache');
 const { registerAllFonts, getFontHelpers } = require('../../utils/fontRegistry');
-const { hashPercent, pickVerdict } = require('../../utils/percentCommandFactory');
+const { hashPercent, pickTier } = require('../../utils/percentCommandFactory');
 const { colorForPercent } = require('../../utils/percentCard');
 const { drawTextWithEmoji } = require('../../utils/emojiCanvasHelper');
 
@@ -117,12 +117,30 @@ async function drawAvatarRing(ctx, url, cx, cy, r, accent) {
 }
 
 const tiers = [
-    { max: 15,  text: 'Not happening… 😬' },
-    { max: 35,  text: 'Maybe in another life 🤷' },
-    { max: 55,  text: 'Could work out 🤔' },
-    { max: 75,  text: 'Pretty solid match 😍' },
-    { max: 90,  text: 'Power couple energy 💞' },
-    { max: 100, text: 'Soulmates confirmed 💍✨' },
+    { max: 5,
+      text:   'Tragically incompatible 🪦',
+      detail: 'Even the algorithm filed a sad face. The vibes refused to match.' },
+    { max: 15,
+      text:   'Not happening 😬',
+      detail: 'Plot twist: you\'d both be happier swiping past each other.' },
+    { max: 30,
+      text:   'Maybe in another life 🤷',
+      detail: 'Nice in theory, awkward in practice. Friends-of-friends material.' },
+    { max: 45,
+      text:   'Could go either way 🪙',
+      detail: 'There\'s potential — start with coffee and see what brews.' },
+    { max: 60,
+      text:   'Could work out 😌',
+      detail: 'Dinner sounds promising. The first three texts are going to be cute.' },
+    { max: 75,
+      text:   'Pretty solid match 😍',
+      detail: 'The kind of duo that texts each other memes within an hour of meeting.' },
+    { max: 90,
+      text:   'Power-couple energy 💞',
+      detail: 'Friends already screen-shotting your interactions. Save the date energy.' },
+    { max: 100,
+      text:   'Soulmates confirmed 💍✨',
+      detail: 'Locals are placing bets on the wedding date. Three of them are already in.' },
 ];
 
 async function renderShipCard(user1, user2, name1, name2, percent) {
@@ -262,10 +280,24 @@ async function renderShipCard(user1, user2, name1, name2, percent) {
     }
 
     /* ── Verdict ── */
+    const tier = pickTier(percent, tiers);
     ctx.font = display.getMediumFont(18);
     ctx.fillStyle = '#cbd5e1';
     ctx.textAlign = 'center';
-    await drawTextWithEmoji(ctx, `“${pickVerdict(percent, tiers)}”`, W / 2, barY + 42, 18);
+    await drawTextWithEmoji(ctx, `“${tier.text || ''}”`, W / 2, barY + 42, 18);
+
+    if (tier.detail) {
+        ctx.font = ui.getMediumFont(13);
+        ctx.fillStyle = '#7d8aa3';
+        // Truncate roughly so the line never wraps off the card.
+        let detailText = tier.detail;
+        const maxW = W - 200;
+        while (ctx.measureText(detailText).width > maxW && detailText.length > 4) {
+            detailText = detailText.slice(0, -4) + '…';
+        }
+        ctx.fillText(detailText, W / 2, barY + 66);
+    }
+
     ctx.textAlign = 'left';
 
     /* ── Brand pill ── */

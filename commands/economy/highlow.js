@@ -163,6 +163,10 @@ module.exports = {
     aliases: ['hl', 'hilo'],
 
     handleHighLowButton,
+    // Aliased as `handleButton` for the index.js generic dispatcher.
+    // The legacy `handleHighLowButton` name is kept for back-compat
+    // with anything that imported it directly.
+    handleButton: handleHighLowButton,
 
     async execute(interaction) {
         if (await gamblingGuard(interaction)) return;

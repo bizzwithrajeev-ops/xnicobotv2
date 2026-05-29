@@ -1,9 +1,8 @@
 'use strict';
 
 /**
- * /pp — Visual PP-size card. Uses the shared percent card so every
- * fun "measurement" command shares the same look-and-feel. Random
- * 1–15 inches mapped to a 0–100% bar fill for the visual.
+ * /pp — Visual PP-size card. Random 1–15 inches mapped to a 0–100%
+ * bar fill for the visual. Stable per-user via the shared hash.
  */
 
 const {
@@ -11,15 +10,33 @@ const {
     MediaGalleryItemBuilder, MessageFlags, AttachmentBuilder,
 } = require('discord.js');
 const { renderPercentCard } = require('../../utils/percentCard');
-const { hashPercent, pickVerdict } = require('../../utils/percentCommandFactory');
+const { hashPercent, pickTier } = require('../../utils/percentCommandFactory');
 
 const tiers = [
-    { max: 10,  text: 'Microscope required 🔬' },
-    { max: 30,  text: 'A modest specimen 🐛' },
-    { max: 55,  text: 'Solid average 🍌' },
-    { max: 75,  text: 'Above the curve 📈' },
-    { max: 90,  text: 'Anaconda territory 🐍' },
-    { max: 100, text: 'Legendary unit 🐉✨' },
+    { max: 5,
+      text:   'Microscope required 🔬',
+      detail: 'Submitted to the lab for closer inspection. Lab politely declined.' },
+    { max: 15,
+      text:   'A modest specimen 🐛',
+      detail: 'Compact, efficient, fits in any glove compartment. Travel-friendly!' },
+    { max: 30,
+      text:   'Pocket-sized confidence 🍃',
+      detail: 'Knows their value isn\'t measured in inches. Wears it well.' },
+    { max: 45,
+      text:   'Solid average 🍌',
+      detail: 'The Goldilocks zone — not too small, not too much, just statistically calm.' },
+    { max: 60,
+      text:   'Above the curve 📈',
+      detail: 'Survey results suggest this score is mildly above the average bell curve.' },
+    { max: 75,
+      text:   'Anaconda territory 🐍',
+      detail: 'Sir, this is a Wendy\'s. Sir. SIR. Please put it away — children are present.' },
+    { max: 90,
+      text:   'Legendary unit 🐉',
+      detail: 'Geologists have asked permission to study the formation. Approval pending.' },
+    { max: 100,
+      text:   'Mythic-tier appendage ✨',
+      detail: 'Listed as a national landmark. Tour buses stop here twice a day.' },
 ];
 
 function userInches(userId) {
@@ -32,7 +49,7 @@ function userInches(userId) {
 async function buildAndSend(targetUser, displayName) {
     const inches = userInches(targetUser.id);
     const barFill = Math.round((inches / 15) * 100);
-    const verdict = pickVerdict(barFill, tiers);
+    const tier = pickTier(barFill, tiers);
 
     const buffer = await renderPercentCard({
         title: 'PP Inspector',
@@ -41,7 +58,8 @@ async function buildAndSend(targetUser, displayName) {
         percent: inches,
         barMax: 15,
         unit: '"',
-        verdict,
+        verdict: tier.text || '',
+        detail:  tier.detail || '',
     });
 
     const attachment = new AttachmentBuilder(buffer, { name: 'pp.png' });

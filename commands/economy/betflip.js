@@ -49,7 +49,23 @@ async function handleBetflip(reply, userId, args, guildId) {
     cooldowns.set(userId, now + COOLDOWN);
 
     const result = Math.random() < 0.5 ? 'heads' : 'tails';
-    const won = normalizedChoice === result;
+    let won = normalizedChoice === result;
+
+    // star_booster — same +5% per stack win-rate boost as slots, applied
+    // here as a single re-flip on a loss. Capped to a single retry so
+    // it can't perpetually re-roll an unlucky stack.
+    const economyManager = require('../../utils/economyManager');
+    const economyPeek = economyManager.loadEconomy();
+    const { userData: peekUser } = economyManager.getUser(economyPeek, userId);
+    const slotsBonus = Number(peekUser.bonuses?.slots) || 0;
+    let rerolledFlip = false;
+    if (!won && slotsBonus > 0 && Math.random() < slotsBonus) {
+        const second = Math.random() < 0.5 ? 'heads' : 'tails';
+        if (normalizedChoice === second) {
+            won = true;
+            rerolledFlip = true;
+        }
+    }
 
     const { userData } = processBetResult(userId, bet, won, 1);
 
@@ -70,6 +86,10 @@ async function handleBetflip(reply, userId, args, guildId) {
         resultLines.push(`<:Checkedbox:1473038547165384804> **Won ${formatCoins(bet, guildId)}!**`);
     } else {
         resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`);
+    }
+
+    if (rerolledFlip) {
+        resultLines.push(`-# 🌟 Star Booster gave you a second flip — and you nailed it!`);
     }
 
     resultLines.push(
