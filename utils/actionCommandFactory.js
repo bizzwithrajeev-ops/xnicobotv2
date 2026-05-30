@@ -160,42 +160,102 @@ const WAIFU_PICS_ENDPOINTS = new Set([
 
 // ── GIF fetching (API-only: nekos.best → waifu.pics → Tenor → GIPHY) ─────
 
-async function fetchAnimeGif(query, _legacyFallbacks, nekosName = null, waifuName = null) {
+// Per-action recent-URL memory so the same user doesn't get the same GIF
+// twice in a row even when the upstream APIs return cached responses.
+// Bounded to ~12 entries per action so the Map can't grow unbounded.
+const _recentByAction = new Map();
+const RECENT_LIMIT = 12;
+function rememberUrl(actionKey, url) {
+    if (!url || !actionKey) return;
+    let arr = _recentByAction.get(actionKey);
+    if (!arr) { arr = []; _recentByAction.set(actionKey, arr); }
+    arr.push(url);
+    while (arr.length > RECENT_LIMIT) arr.shift();
+}
+function isRecent(actionKey, url) {
+    if (!url || !actionKey) return false;
+    const arr = _recentByAction.get(actionKey);
+    return arr ? arr.includes(url) : false;
+}
+
+// Common headers — nekos.best and waifu.pics return cleaner data when
+// a User-Agent is present, and a few CDNs reject default Node fetch UAs.
+const FETCH_HEADERS = {
+    'User-Agent': 'xNicoBot/2.0 (Discord Action Commands; +https://github.com/Rajeev0007/xnicobotv2)',
+    'Accept': 'application/json',
+};
+
+async function fetchAnimeGif(query, _legacyFallbacks, nekosName = null, waifuName = null, actionKey = null) {
     waifuName = waifuName ?? nekosName;
+    actionKey = actionKey ?? nekosName ?? waifuName ?? query;
+
+    // Shuffle the lookup order on every call so we don't hammer the
+    // same API twice in a row when one of them caches aggressively.
+    // nekos.best and waifu.pics both serve random results per request,
+    // but a CDN edge can occasionally return identical bytes — adding
+    // a tiny cache-bust query param defeats that.
+    const cacheBust = `?_=${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
 
     // 1. nekos.best (free, dedicated anime endpoints)
     if (nekosName && NEKOS_BEST_ENDPOINTS.has(nekosName)) {
-        try {
-            const res = await fetch(`https://nekos.best/api/v2/${nekosName}`, { signal: AbortSignal.timeout(4000) });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.results?.[0]?.url) return data.results[0].url;
-            }
-        } catch { /* fall through */ }
+        // Up to 2 retries if the URL we get back was just shown to
+        // this user. Most of the time the first roll is fine.
+        for (let i = 0; i < 3; i++) {
+            try {
+                const res = await fetch(`https://nekos.best/api/v2/${nekosName}${cacheBust}`, {
+                    signal: AbortSignal.timeout(4000),
+                    headers: FETCH_HEADERS,
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const url = data.results?.[0]?.url;
+                    if (url && (i === 2 || !isRecent(actionKey, url))) {
+                        rememberUrl(actionKey, url);
+                        return url;
+                    }
+                }
+            } catch { break; /* timeout — fall through to next provider */ }
+        }
     }
 
     // 2. waifu.pics (free, good coverage)
     if (waifuName && WAIFU_PICS_ENDPOINTS.has(waifuName)) {
-        try {
-            const res = await fetch(`https://api.waifu.pics/sfw/${waifuName}`, { signal: AbortSignal.timeout(4000) });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.url) return data.url;
-            }
-        } catch { /* fall through */ }
+        for (let i = 0; i < 3; i++) {
+            try {
+                const res = await fetch(`https://api.waifu.pics/sfw/${waifuName}${cacheBust}`, {
+                    signal: AbortSignal.timeout(4000),
+                    headers: FETCH_HEADERS,
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const url = data.url;
+                    if (url && (i === 2 || !isRecent(actionKey, url))) {
+                        rememberUrl(actionKey, url);
+                        return url;
+                    }
+                }
+            } catch { break; }
+        }
     }
 
     // 3. Tenor API v2 (requires TENOR_API_KEY)
     const tenorKey = process.env.TENOR_API_KEY;
     if (tenorKey && query) {
         try {
-            const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(tenorKey)}&client_key=xnicobot&limit=40&media_filter=tinygif,gif`;
-            const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+            const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(tenorKey)}&client_key=xnicobot&limit=40&media_filter=tinygif,gif&random=true`;
+            const res = await fetch(url, { signal: AbortSignal.timeout(4000), headers: FETCH_HEADERS });
             if (res.ok) {
                 const data = await res.json();
                 if (data.results?.length) {
-                    const gifUrl = selectMediaUrl(data.results);
-                    if (gifUrl) return gifUrl;
+                    // Try a few different items if the first picks happen
+                    // to be already-shown URLs.
+                    for (let i = 0; i < 3; i++) {
+                        const gifUrl = selectMediaUrl(data.results);
+                        if (gifUrl && (i === 2 || !isRecent(actionKey, gifUrl))) {
+                            rememberUrl(actionKey, gifUrl);
+                            return gifUrl;
+                        }
+                    }
                 }
             }
         } catch { /* fall through */ }
@@ -206,12 +266,17 @@ async function fetchAnimeGif(query, _legacyFallbacks, nekosName = null, waifuNam
     if (giphyKey && query) {
         try {
             const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(giphyKey)}&q=${encodeURIComponent(query)}&limit=30&rating=pg-13`;
-            const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+            const res = await fetch(url, { signal: AbortSignal.timeout(4000), headers: FETCH_HEADERS });
             if (res.ok) {
                 const data = await res.json();
                 if (data.data?.length) {
-                    const gifUrl = selectMediaUrl(data.data, true);
-                    if (gifUrl) return gifUrl;
+                    for (let i = 0; i < 3; i++) {
+                        const gifUrl = selectMediaUrl(data.data, true);
+                        if (gifUrl && (i === 2 || !isRecent(actionKey, gifUrl))) {
+                            rememberUrl(actionKey, gifUrl);
+                            return gifUrl;
+                        }
+                    }
                 }
             }
         } catch { /* fall through */ }
@@ -415,7 +480,7 @@ function createActionCommand(opts) {
             // ── Solo action path ───────────────────────────────────────
             if (isSolo) {
                 await interaction.deferReply();
-                const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
+                const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName, opts.name);
                 const container = buildSoloActionContainer(
                     interaction.user, opts.verb, opts.emoji, gif, opts.name
                 );
@@ -437,7 +502,7 @@ function createActionCommand(opts) {
             }
 
             await interaction.deferReply();
-            const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
+            const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName, opts.name);
             const container = buildActionContainer(
                 interaction.user, target, opts.verb, opts.emoji, gif, opts.name
             );
@@ -447,7 +512,7 @@ function createActionCommand(opts) {
         async executePrefix(message, args) {
             // ── Solo action path ───────────────────────────────────────
             if (isSolo) {
-                const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
+                const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName, opts.name);
                 const container = buildSoloActionContainer(
                     message.author, opts.verb, opts.emoji, gif, opts.name
                 );
@@ -480,7 +545,7 @@ function createActionCommand(opts) {
                 });
             }
 
-            const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName);
+            const gif = await fetchAnimeGif(opts.searchQuery, null, nekosName, waifuName, opts.name);
             const container = buildActionContainer(
                 message.author, target, opts.verb, opts.emoji, gif, opts.name
             );

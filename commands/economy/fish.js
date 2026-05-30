@@ -162,15 +162,24 @@ function rollFish(rod, charmActive) {
 async function handleFish(reply, userId, guildId) {
     const now = Date.now();
 
-    if (cooldowns.get(userId) > now) {
+    // Cooldown: prefer the persisted `userData.lastFish` so a bot
+    // restart can't let the user fish twice in 30s. Fall back to the
+    // in-memory map for the brief window between fish complete and
+    // the economy save (lastFish is written at the bottom of this fn).
+    const economy = economyManager.loadEconomy();
+    const { userData } = economyManager.getUser(economy, userId);
+    const persistedLast = Number(userData.lastFish || 0);
+    const memLast       = Number(cooldowns.get(userId) || 0) - COOLDOWN;
+    const lastUsed      = Math.max(persistedLast, memLast);
+    const remaining     = COOLDOWN - (now - lastUsed);
+
+    if (remaining > 0) {
         const c = createContainer(0xED4245);
-        addTextDisplay(c, `<:Cancel:1473037949187657818> Fishing cooldown: **${economyManager.formatTime(cooldowns.get(userId) - now)}**`);
+        addTextDisplay(c, `<:Cancel:1473037949187657818> Fishing cooldown: **${economyManager.formatTime(remaining)}**`);
         return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
     cooldowns.set(userId, now + COOLDOWN);
 
-    const economy = economyManager.loadEconomy();
-    const { userData } = economyManager.getUser(economy, userId);
     userData.boosts = userData.boosts || {};
 
     const charmActive = Number(userData.boosts.luckyCharm || 0) > now;

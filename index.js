@@ -2773,6 +2773,18 @@ client.on('interactionCreate', async (interaction) => {
                     }
                 }
             }
+            // Route emojis pagination buttons.
+            if (interaction.customId.startsWith('emojis:')) {
+                const emojisCmd = client.commands.get('emojis');
+                if (emojisCmd && emojisCmd.handleInteraction) {
+                    try {
+                        const handled = await emojisCmd.handleInteraction(interaction);
+                        if (handled !== false) return;
+                    } catch (error) {
+                        log.error(`Emojis Button Error: ${error.message}`, error);
+                    }
+                }
+            }
             // Route mines game button clicks (tile reveals + cashout).
             // The select menus for grid/risk are handled in the
             // isStringSelectMenu block below — both paths share the
@@ -9120,6 +9132,7 @@ client.on('messageCreate', async (message) => {
                 }
 
                 const welcomeBackContainer = new ContainerBuilder()
+                    .setAccentColor(0x57F287)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder()
                             .setContent(welcomeBackText)
@@ -9160,7 +9173,8 @@ client.on('messageCreate', async (message) => {
                         mentionedAfkUsers.push({
                             user: user,
                             message: afkData.message,
-                            duration: durationText
+                            duration: durationText,
+                            timestamp: afkData.timestamp,
                         });
 
                         if (!afkData.mentions) afkData.mentions = [];
@@ -9186,14 +9200,32 @@ client.on('messageCreate', async (message) => {
                 }
 
                 if (mentionedAfkUsers.length > 0) {
-                    const afkDescription = mentionedAfkUsers.map(data =>
-                        `**${data.user.username}** is AFK (${data.duration})\n└ ${data.message}`
-                    ).join('\n\n');
+                    // Render an accented, professional mention-reply
+                    // panel with timestamps. Multiple mentioned AFK
+                    // users are shown as separate quote-blocks so the
+                    // layout stays readable.
+                    const afkLines = mentionedAfkUsers.map(data => {
+                        const sinceTs = Math.floor((data.timestamp || Date.now()) / 1000);
+                        return [
+                            `### 💤 ${data.user.username}`,
+                            `> ${data.message}`,
+                            `-# <:Timer:1473039056710406204> AFK since <t:${sinceTs}:R>  ·  <:Sandwatch:1473038580094861545> away for **${data.duration}**`,
+                        ].join('\n');
+                    }).join('\n\n');
 
                     const afkContainer = new ContainerBuilder()
+                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
-                            new TextDisplayBuilder()
-                                .setContent(`# 💤 AFK Users Mentioned\n\n${afkDescription}`)
+                            new TextDisplayBuilder().setContent(
+                                `# <:Inforect:1473038624172937287> Mentioned User${mentionedAfkUsers.length > 1 ? 's' : ''} Are AFK\n` +
+                                `-# They will see your message when they return.`
+                            )
+                        )
+                        .addSeparatorComponents(
+                            new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+                        )
+                        .addTextDisplayComponents(
+                            new TextDisplayBuilder().setContent(afkLines)
                         );
 
                     await message.reply({ components: [afkContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
