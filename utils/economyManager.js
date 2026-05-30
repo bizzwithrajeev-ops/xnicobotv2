@@ -240,10 +240,18 @@ function checkAchievement(economy, userId, achievementId) {
    LOAN SYSTEM
    ═══════════════════════════════════════════════════════ */
 
-function addLoan(economy, userId, amount) {
+function addLoan(economy, userId, amount, interest) {
   const { userData } = getUser(economy, userId);
   if (!Array.isArray(userData.loans)) userData.loans = [];
-  const loan = { amount, takenAt: Date.now(), interest: 0.10 };
+  // Per-loan interest is stamped at borrow-time so a Trusted-tier
+  // loan keeps its 8% rate even if the borrower regresses later.
+  // Falls back to the legacy 10% default for callers that don't
+  // supply a rate.
+  const loan = {
+    amount,
+    takenAt: Date.now(),
+    interest: typeof interest === 'number' && interest > 0 ? interest : 0.10,
+  };
   userData.loans.push(loan);
   userData.coins += amount;
   return loan;
@@ -268,6 +276,13 @@ function repayLoan(economy, userId, amount) {
   let totalPaid = 0;
   let totalOwedAcrossLoans = 0;
   let clearedAll = true;
+  // Track repayment reputation: each loan that gets fully cleared
+  // bumps `loanRepCount`. If it took >5 days to clear we also bump
+  // `loanLatePays`, which the loan-tier helper uses to compute the
+  // borrowing limit.
+  let clearedThisCall = 0;
+  let lateThisCall = 0;
+  let principalClearedThisCall = 0;
 
   for (const loan of userData.loans) {
     const days = Math.max(0, Math.floor((Date.now() - loan.takenAt) / 86400000));
@@ -281,6 +296,9 @@ function repayLoan(economy, userId, amount) {
     totalPaid += pay;
     remaining -= pay;
     if (pay >= owed) {
+      principalClearedThisCall += loan.amount;
+      if (days > 5) lateThisCall++;
+      clearedThisCall++;
       loan.amount = 0;
       loan.cleared = true;
     } else {
@@ -298,10 +316,20 @@ function repayLoan(economy, userId, amount) {
   // limit (3) can borrow again after settling.
   userData.loans = userData.loans.filter(l => !l.cleared && (l.amount || 0) > 0);
 
+  // Persist reputation counters for the loan tier system.
+  if (clearedThisCall > 0) {
+    userData.loanRepCount  = (userData.loanRepCount  || 0) + clearedThisCall;
+    userData.loanLatePays  = (userData.loanLatePays  || 0) + lateThisCall;
+    userData.loanRepAmount = (userData.loanRepAmount || 0) + principalClearedThisCall;
+    userData.lastLoanRepay = Date.now();
+  }
+
   return {
     paid: totalPaid,
     totalOwed: totalOwedAcrossLoans,
     cleared: clearedAll,
+    clearedCount: clearedThisCall,
+    latePays: lateThisCall,
   };
 }
 

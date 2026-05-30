@@ -6,6 +6,7 @@ const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSp
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
 const jsonStore = require('../../utils/jsonStore');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const COOLDOWN = 30 * 60 * 1000;
 const cooldowns = new Map();
@@ -106,8 +107,11 @@ async function handleMine(reply, userId, guildId) {
   if (hasMiningBoost) delete userData.boosts.miningBoost;
 
   userData.miningCount = (userData.miningCount || 0) + 1;
-  userData.coins = (userData.coins || 0) + totalValue;
-  userData.totalEarned = (userData.totalEarned || 0) + totalValue;
+  // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+  const taxResult = applyIncomeTax(totalValue, userData);
+  const netValue = taxResult.net;
+  userData.coins = (userData.coins || 0) + netValue;
+  userData.totalEarned = (userData.totalEarned || 0) + netValue;
 
   economyManager.checkAllAchievements(economy, userId);
   economyManager.saveEconomy(economy);
@@ -115,6 +119,8 @@ async function handleMine(reply, userId, guildId) {
   const oreLines = ores.map(o => `> ${o.emoji} **${o.name}** (+${formatCoins(o.value, guildId)})`).join('\n');
   const pickaxeLine = pickaxe ? `\n-# ${pickaxe.emoji} Using **${pickaxe.name}** — +${pickaxe.bonus} extra ore(s)` : '';
   const boostLine = hasMiningBoost ? `\n-# 🚀 **Mining Boost** consumed — bonus ore + better odds applied` : '';
+  const taxLine = formatTaxFootnote(taxResult);
+  const taxBlock = taxLine ? `\n${taxLine}` : '';
 
   const c = createContainer(0xCAD7E6);
   addTextDisplay(c, [
@@ -122,10 +128,10 @@ async function handleMine(reply, userId, guildId) {
     '',
     oreLines,
     '',
-    `${EMOJIS.sketch} **Earned:** +${formatCoinsAmount(totalValue, guildId)}`,
+    `${EMOJIS.sketch} **Earned:** +${formatCoinsAmount(netValue, guildId)}`,
     `💼 **Total mines:** ${formatNumber(userData.miningCount)}`,
     `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
-    `${pickaxeLine}${boostLine}`,
+    `${pickaxeLine}${boostLine}${taxBlock}`,
     `-# Cooldown: 30 minutes`,
   ].join('\n'));
 

@@ -97,7 +97,7 @@ module.exports = {
                 return message.reply('<:Cancel:1473037949187657818> Night Mode is already **active**. Use `nightmode disable` to restore.');
             }
 
-            const statusMsg = await message.reply('<a:Load:1479681956273852607> Enabling Night Mode — locking all channels...');
+            const statusMsg = await message.reply('<a:Loading:1485248248720658472> Enabling Night Mode — locking all channels...');
 
             const guild = message.guild;
             const everyoneRole = guild.roles.everyone;
@@ -174,7 +174,7 @@ module.exports = {
                 return message.reply('<:Cancel:1473037949187657818> Night Mode is not currently active.');
             }
 
-            const statusMsg = await message.reply('<a:Load:1479681956273852607> Disabling Night Mode — restoring permissions...');
+            const statusMsg = await message.reply('<a:Loading:1485248248720658472> Disabling Night Mode — restoring permissions...');
 
             const guild = message.guild;
             const everyoneRole = guild.roles.everyone;

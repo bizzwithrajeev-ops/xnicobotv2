@@ -4,6 +4,7 @@ const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const COOLDOWN = 7 * 24 * 60 * 60 * 1000;
 
@@ -57,7 +58,9 @@ async function handleWeekly(reply, userId, guildId) {
     const globalBonus = Math.floor(baseReward * (Number(userData.bonuses?.global) || 0));
     const weeklyMultiplier = Math.min(Math.floor(weeklyClaimCount / 4), 5);
     const loyaltyBonus = Math.floor(baseReward * (weeklyMultiplier * 0.01));
-    const totalReward = baseReward + streakBonus + globalBonus + loyaltyBonus;
+    const grossReward = baseReward + streakBonus + globalBonus + loyaltyBonus;
+    const taxResult = applyIncomeTax(grossReward, userData);
+    const totalReward = taxResult.net;
 
     userData.coins += totalReward;
     // Track lifetime earnings so /profile and /economystats stay in
@@ -79,14 +82,17 @@ async function handleWeekly(reply, userId, guildId) {
     addTextDisplay(container, rewardText);
     addSeparator(container, SeparatorSpacingSize.Small);
 
-    addTextDisplay(container, [
+    const summaryLines = [
         `### <:transfer:1479780506718437396> Summary`,
         `> ${coinIcon(guildId)} **Total Received:** ${formatCoinsAmount(totalReward, guildId)}`,
         `> ${coinIcon(guildId)} **New Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
         `> <:Bookopen:1473038576391557130> **Weeks Claimed:** ${weeklyClaimCount}`,
-        '',
-        `-# Come back next week for another reward!`,
-    ].join('\n'));
+    ];
+    const taxLine = formatTaxFootnote(taxResult);
+    if (taxLine) summaryLines.push('', taxLine);
+    summaryLines.push('', `-# Come back next week for another reward!`);
+
+    addTextDisplay(container, summaryLines.join('\n'));
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }

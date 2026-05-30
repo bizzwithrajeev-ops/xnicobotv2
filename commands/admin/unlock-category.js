@@ -76,7 +76,7 @@ module.exports = {
             const loadingContainer = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <a:Load:1479681956273852607> Unlocking Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
+                    `# <a:Loading:1485248248720658472> Unlocking Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
                 ));
             await reply.edit({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
 
@@ -153,7 +153,7 @@ module.exports = {
             const loadingContainer = new ContainerBuilder()
                 .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `# <a:Load:1479681956273852607> Unlocking Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
+                    `# <a:Loading:1485248248720658472> Unlocking Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
                 ));
             await reply.edit({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
 

@@ -4,6 +4,7 @@ const { MessageFlags } = require('discord.js');
 const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const GIVERS = [
   { name: 'A kind stranger', emoji: '🧑', minCoins: 10, maxCoins: 100 },
@@ -48,7 +49,11 @@ async function handleBeg(reply, userId, guildId) {
 
   if (success) {
     const giver = GIVERS[Math.floor(Math.random() * GIVERS.length)];
-    const amount = Math.floor(Math.random() * (giver.maxCoins - giver.minCoins + 1)) + giver.minCoins;
+    const grossAmount = Math.floor(Math.random() * (giver.maxCoins - giver.minCoins + 1)) + giver.minCoins;
+
+    // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+    const taxResult = applyIncomeTax(grossAmount, userData);
+    const amount = taxResult.net;
 
     userData.coins += amount;
     // Lifetime earnings tracking for /profile and /economystats.
@@ -56,16 +61,19 @@ async function handleBeg(reply, userId, guildId) {
     economyManager.addXP(economy, userId, 3);
     economyManager.saveEconomy(economy);
 
-    const container = createContainer(0xCAD7E6);
-    addTextDisplay(container, [
+    const lines = [
       `# 🙏 Beg`,
       '',
       `${giver.emoji} **${giver.name}** gave you **${formatCoins(amount, guildId)}**!`,
       '',
       `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
-      '',
-      `-# Beg again in 45 seconds`,
-    ].join('\n'));
+    ];
+    const taxLine = formatTaxFootnote(taxResult);
+    if (taxLine) lines.push('', taxLine);
+    lines.push('', `-# Beg again in 45 seconds`);
+
+    const container = createContainer(0xCAD7E6);
+    addTextDisplay(container, lines.join('\n'));
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   }
 

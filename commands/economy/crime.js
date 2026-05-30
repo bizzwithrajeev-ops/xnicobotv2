@@ -4,6 +4,7 @@ const { MessageFlags } = require('discord.js');
 const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const CRIMES = [
   { name: 'Pickpocketing', emoji: '🤏', successRate: 0.55, minReward: 200, maxReward: 800, minFine: 100, maxFine: 400 },
@@ -55,7 +56,11 @@ async function handleCrime(reply, userId, guildId) {
   let resultText;
 
   if (success) {
-    const reward = Math.floor(Math.random() * (crime.maxReward - crime.minReward + 1)) + crime.minReward;
+    const grossReward = Math.floor(Math.random() * (crime.maxReward - crime.minReward + 1)) + crime.minReward;
+    // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+    const taxResult = applyIncomeTax(grossReward, userData);
+    const reward = taxResult.net;
+
     userData.coins += reward;
     // Lifetime earnings tracking — was missing here so /economystats
     // under-reported total earned for users who grind crimes.
@@ -64,7 +69,7 @@ async function handleCrime(reply, userId, guildId) {
 
     const msg = SUCCESS_MESSAGES[Math.floor(Math.random() * SUCCESS_MESSAGES.length)];
 
-    resultText = [
+    const successLines = [
       `# ${crime.emoji} ${crime.name}`,
       '',
       `<:Checkedbox:1473038547165384804> **SUCCESS!**`,
@@ -73,9 +78,12 @@ async function handleCrime(reply, userId, guildId) {
       `${coinIcon(guildId)} **Reward:** +${formatCoinsAmount(reward, guildId)}`,
       `💼 **Balance:** ${formatCoins(userData.coins, guildId)}`,
       `<:Invoice:1473039492217835550> **Crimes Committed:** ${userData.crimeCount}`,
-      '',
-      `-# Cooldown: 2 minutes`,
-    ].join('\n');
+    ];
+    const taxLine = formatTaxFootnote(taxResult);
+    if (taxLine) successLines.push('', taxLine);
+    successLines.push('', `-# Cooldown: 2 minutes`);
+
+    resultText = successLines.join('\n');
   } else {
     const fine = Math.floor(Math.random() * (crime.maxFine - crime.minFine + 1)) + crime.minFine;
     userData.coins = Math.max(0, userData.coins - fine);

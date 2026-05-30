@@ -5,6 +5,7 @@ const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require(
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const COOLDOWN = 5 * 60 * 1000;
 const JOIN_WINDOW = 30 * 1000;
@@ -78,11 +79,17 @@ async function runHeist(msg, target, leader, members, interaction) {
 
     for (const p of allParticipants) {
       const { userData } = economyManager.getUser(economy, p.id);
-      userData.coins = (userData.coins || 0) + share;
-      userData.totalEarned = (userData.totalEarned || 0) + share;
+      // Wealth tax is applied per-participant since each has their
+      // own balance — keeps the math fair (a rich player's share is
+      // taxed even when teamed with a poor one).
+      const taxResult = applyIncomeTax(share, userData);
+      const netShare = taxResult.net;
+      userData.coins = (userData.coins || 0) + netShare;
+      userData.totalEarned = (userData.totalEarned || 0) + netShare;
       userData.heistCount = (userData.heistCount || 0) + 1;
       economyManager.checkAllAchievements(economy, p.id);
-      shareLines.push(`> ${p.username} → **+${formatCoins(share, guildId)}**`);
+      const taxNote = taxResult.taxed ? `  *(${Math.round(taxResult.rate * 100)}% tax)*` : '';
+      shareLines.push(`> ${p.username} → **+${formatCoins(netShare, guildId)}**${taxNote}`);
     }
 
     economyManager.saveEconomy(economy);

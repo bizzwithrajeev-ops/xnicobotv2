@@ -51,7 +51,7 @@ module.exports = {
                 .setAccentColor(COLORS.WARNING)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <a:Load:1479681956273852607> Mass Role Processing\n\n> ${action === 'add' ? 'Adding' : 'Removing'} ${role} for **${members.size}** members...\n\n-# This may take a moment`)
+                        .setContent(`# <a:Loading:1485248248720658472> Mass Role Processing\n\n> ${action === 'add' ? 'Adding' : 'Removing'} ${role} for **${members.size}** members...\n\n-# This may take a moment`)
                 );
 
             await interaction.reply({ components: [processingContainer], flags: MessageFlags.IsComponentsV2 });

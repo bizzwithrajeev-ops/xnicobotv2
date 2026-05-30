@@ -2,23 +2,29 @@
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
-const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
+const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
 const { resolveUser } = require('../../utils/resolveUser');
+const { deductBet, settle } = require('../../utils/betGameHelper');
 
 const COOLDOWN = 5_000;
 const cooldowns = new Map();
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-async function handleDice(reply, userId, args, opponent = null, guildId) {
+function randomFace() {
+    return DICE_FACES[Math.floor(Math.random() * 6)];
+}
+
+async function handleDice(replyFn, editFn, userId, args, opponent, guildId) {
     const now = Date.now();
 
     if (cooldowns.get(userId) > now) {
         const left = Math.ceil((cooldowns.get(userId) - now) / 1000);
         const c = createContainer(0xCAD7E6);
         addTextDisplay(c, `<:Clock:1473039102113878056> Wait **${left}s** before rolling again.`);
-        return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        return replyFn({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
     const balance = getBalance(userId);
@@ -40,29 +46,72 @@ async function handleDice(reply, userId, args, opponent = null, guildId) {
             `\`dice 1000 @user\` — Challenge a player`,
             `\`dice all\` — Bet everything (up to 100k)`,
         ].join('\n'));
-        return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        return replyFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     const bet = betResult.amount;
     cooldowns.set(userId, now + COOLDOWN);
 
-    // Roll dice
+    /* ═══ Pre-roll outcome — animation is purely cosmetic ═══ */
     const playerRoll = Math.floor(Math.random() * 6) + 1;
     const opponentRoll = Math.floor(Math.random() * 6) + 1;
     const opponentName = opponent ? `<@${opponent.id}>` : '🤖 Bot';
 
-    let won, tie = false;
+    let won = false, tie = false;
     if (playerRoll > opponentRoll) won = true;
     else if (playerRoll < opponentRoll) won = false;
     else { won = false; tie = true; }
 
-    // Process bet (tie = no change)
-    // Use the shared bet-game helper so the Medal `bonuses.gamble`
-    // boost actually applies to wins. The previous `processBetResult`
-    // path bypassed it — Medal owners paid for a bonus that did
-    // nothing on dice rolls.
+    /* ═══ Animation: roll both dice through 4 random faces ═══ */
+    function buildRollFrame(yourFace, oppFace, status) {
+        const c = createContainer(0xCAD7E6);
+        addTextDisplay(c, [
+            `# <:Gamepad:1473039216429498409> Dice Roll`,
+            '',
+            `> Bet: ${formatCoins(bet, guildId)}`,
+            '',
+            `### You: ${yourFace}  vs  ${opponentName}: ${oppFace}`,
+            '',
+            status,
+        ].join('\n'));
+        return c;
+    }
+
+    let messageHandle = null;
+    if (typeof editFn === 'function') {
+        await editFn({
+            components: [buildRollFrame(randomFace(), randomFace(), `<:Sandwatch:1473038580094861545> *Rolling…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        messageHandle = { edit: editFn };
+    } else {
+        const sent = await replyFn({
+            components: [buildRollFrame(randomFace(), randomFace(), `<:Sandwatch:1473038580094861545> *Rolling…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        messageHandle = sent && typeof sent.edit === 'function' ? sent : null;
+    }
+
+    if (messageHandle) {
+        try {
+            await sleep(280);
+            await messageHandle.edit({
+                components: [buildRollFrame(randomFace(), randomFace(), `<:Sandwatch:1473038580094861545> *Rolling…*`)],
+                flags: MessageFlags.IsComponentsV2,
+            });
+            await sleep(280);
+            await messageHandle.edit({
+                components: [buildRollFrame(randomFace(), randomFace(), `<:Sandwatch:1473038580094861545> *Slowing down…*`)],
+                flags: MessageFlags.IsComponentsV2,
+            });
+            await sleep(380);
+        } catch (err) {
+            console.warn('[DICE] animation frame failed:', err?.message || err);
+        }
+    }
+
+    /* ═══ Settle bet ═══ */
     let userData, actualPayout = bet;
-    const { deductBet, settle } = require('../../utils/betGameHelper');
     if (tie) {
         const economyManager = require('../../utils/economyManager');
         const economy = economyManager.loadEconomy();
@@ -97,7 +146,14 @@ async function handleDice(reply, userId, args, opponent = null, guildId) {
         addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatCoins(bet, guildId)}**\n\n${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`);
     }
 
-    return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    if (messageHandle) {
+        try {
+            return await messageHandle.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch {
+            return replyFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+    }
+    return replyFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 module.exports = {
@@ -117,22 +173,17 @@ module.exports = {
         if (await gamblingGuard(interaction)) return;
         const amount = interaction.options.getString('amount');
         const opponent = interaction.options.getUser('opponent');
-        await handleDice(
-            (opts) => interaction.reply(opts),
-            interaction.user.id,
-            [amount],
-            opponent, interaction.guild?.id
-        );
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply().catch(() => {});
+        }
+        const editFn = (payload) => interaction.editReply(payload);
+        await handleDice(editFn, editFn, interaction.user.id, [amount], opponent, interaction.guild?.id);
     },
 
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
         const opponent = await resolveUser(message, args);
-        await handleDice(
-            (opts) => message.reply(opts),
-            message.author.id,
-            [args[0]],
-            opponent, message.guild?.id
-        );
+        const replyFn = (payload) => message.reply(payload);
+        await handleDice(replyFn, null, message.author.id, [args[0]], opponent, message.guild?.id);
     }
 };

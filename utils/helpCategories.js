@@ -43,6 +43,8 @@ const NEW_COMMANDS = new Set([
     'howdramatic', 'howemo',
     // ── Economy stats overview ──
     'economystats',
+    // ── Auction marketplace ──
+    'auction',
 ]);
 
 /* ─────────────────────────────────────────────────────────────
@@ -222,7 +224,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Bet Games — Setup',   emoji: '<:Lightning:1473038797540298792>',  cmds: ['mines', 'crash', 'plinko', 'wheel', 'limbo', 'tower', 'keno'] },
         { name: 'PvP & Mini-Games',    emoji: '<:transfer:1479780506718437396>',   cmds: ['rps', 'tictactoe', 'connect4', 'hangman', 'numguess', 'memory', '2048', 'battleship'] },
         { name: 'Balance & Profile',   emoji: '<:Bookopen:1473038576391557130>',   cmds: ['profile', 'balance', 'deposit', 'withdraw', 'pay', 'loan', 'economy-leaderboard', 'economystats'] },
-        { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift', 'customshop', 'stocks'] },
+        { name: 'Shop & Inventory',    emoji: '<:Folder:1473039340425973972>',     cmds: ['shop', 'buy', 'sell', 'sell-item', 'inventory', 'trade', 'use', 'craft', 'gift', 'customshop', 'stocks', 'auction'] },
         { name: 'Combat & Pets',       emoji: '<:Fire:1473038604812161218>',       cmds: ['battle', 'weapon', 'skill', 'pets'] },
         { name: 'Admin Controls',      emoji: '<:Shield:1473038669831995494>',     cmds: ['addcoins', 'currency'] },
     ],

@@ -1,56 +1,87 @@
 'use strict';
 
+/**
+ * /loan — Borrow + repay system with a reputation tier ladder.
+ *
+ * Flow
+ * ────
+ *   /loan status              View active loans + your tier
+ *   /loan take <amount>       Borrow up to your tier's max
+ *   /loan repay [amount|all]  Repay; clean repays move you up tiers
+ *
+ * Tiers (utils/loanTier.js):
+ *   • New Borrower (default) ── 50k max  / 10%/day
+ *   • Reliable     (3+ clean) ── 100k max / 9%/day
+ *   • Trusted      (7+ clean) ── 250k max / 8%/day
+ *   • VIP Borrower (15+ clean) ── 500k max / 7%/day
+ *
+ * `economyManager.addLoan` now stamps the per-loan interest from the
+ * caller's tier, so a Trusted borrower's loan accrues at 8% even if
+ * they later regress — the originally-quoted rate is honored.
+ */
+
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
-const { createContainer, addTextDisplay, formatNumber } = require('../../utils/componentHelpers');
+const { formatCoins, formatCoinsShort, coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { createContainer, addTextDisplay, formatNumber, addSeparator, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
-
-const MAX_LOAN = 50000;
-const INTEREST_RATE = 0.10;
+const { getLoanTier, getNextTier } = require('../../utils/loanTier');
 
 async function handleLoan(reply, userId, subcommand, amount, guildId) {
   const economy = economyManager.loadEconomy();
   const { userData } = economyManager.getUser(economy, userId);
+  const tier = getLoanTier(userData);
+  const nextTier = getNextTier(userData);
 
   /* ── STATUS ── */
   if (!subcommand || subcommand === 'status') {
-    const loans = Array.isArray(userData.loans) ? userData.loans : [];
-    const active = loans.filter(l => !l.cleared);
-
+    const loans = Array.isArray(userData.loans) ? userData.loans.filter(l => !l.cleared) : [];
     const c = createContainer(0xCAD7E6);
-    if (active.length === 0) {
+
+    const tierBlock = [
+      `### ${tier.emoji} ${tier.label}`,
+      `> **Single-loan max:** ${formatCoins(tier.maxLoan, guildId)}`,
+      `> **Total debt cap:** ${formatCoins(tier.maxDebt, guildId)}`,
+      `> **Interest rate:** ${(tier.interest * 100).toFixed(0)}% / day`,
+      `> **Repaid clean:** ${tier.score}/${nextTier ? nextTier.minScore : '∞'}${nextTier ? ` *(unlock ${nextTier.label} at ${nextTier.minScore})*` : ''}`,
+    ].join('\n');
+
+    if (loans.length === 0) {
       addTextDisplay(c, [
         `# <:Invoice:1473039492217835550> Loan Office`,
         '',
         `You have no outstanding loans.`,
         '',
-        `**Max loan:** ${formatCoins(MAX_LOAN, guildId)}  ·  **Interest:** ${INTEREST_RATE * 100}% per day`,
+        tierBlock,
         '',
-        `**Commands:**`,
+        `**Commands**`,
         `\`/loan take <amount>\` — Borrow coins`,
-        `\`/loan repay <amount|all>\` — Repay your loan`,
-        `\`/loan status\` — View outstanding loans`,
+        `\`/loan repay <amount|all>\` — Repay your loan(s)`,
       ].join('\n'));
     } else {
-      const daysElapsed = d => Math.max(0, Math.floor((Date.now() - (d.takenAt || Date.now())) / 86400000));
-      const lines = active.map((l, i) => {
-        const days = daysElapsed(l);
-        const owed = Math.floor(l.amount * Math.pow(1 + INTEREST_RATE, days));
-        const accrued = owed - l.amount;
-        return `> **Loan #${i + 1}:** ${formatNumber(l.amount)} principal  ·  +${formatNumber(accrued)} interest (${days}d)  ·  **Total owed: ${formatNumber(owed)}**`;
+      const lines = loans.map((l, i) => {
+        const days = Math.max(0, Math.floor((Date.now() - (l.takenAt || Date.now())) / 86400000));
+        const rate = Number(l.interest) || tier.interest;
+        const owed = Math.floor((l.amount || 0) * Math.pow(1 + rate, days));
+        const accrued = owed - (l.amount || 0);
+        return `> **#${i + 1}** ${formatNumber(l.amount)} principal · +${formatNumber(accrued)} interest *(${days}d @ ${(rate * 100).toFixed(0)}%)* · **${formatNumber(owed)} owed**`;
       });
-      const totalOwed = active.reduce((s, l) => {
-        const days = daysElapsed(l);
-        return s + Math.floor(l.amount * Math.pow(1 + INTEREST_RATE, days));
+      const totalOwed = loans.reduce((s, l) => {
+        const days = Math.max(0, Math.floor((Date.now() - (l.takenAt || Date.now())) / 86400000));
+        const rate = Number(l.interest) || tier.interest;
+        return s + Math.floor((l.amount || 0) * Math.pow(1 + rate, days));
       }, 0);
+
       addTextDisplay(c, [
         `# <:Invoice:1473039492217835550> Your Loans`,
         '',
         ...lines,
         '',
         `${EMOJIS.invoice} **Total owed:** ${formatCoins(totalOwed, guildId)}`,
-        `-# Interest compounds daily at ${INTEREST_RATE * 100}%`,
+        '',
+        tierBlock,
+        '',
+        `-# Pay within 5 days to count as a clean repay (helps tier up).`,
       ].join('\n'));
     }
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -67,31 +98,42 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    if (!amount || amount < 100 || amount > MAX_LOAN) {
+    if (!amount || amount < 100 || amount > tier.maxLoan) {
       const c = createContainer(0xED4245);
-      addTextDisplay(c, `${EMOJIS.cancel} Enter an amount between **100** and **${formatCoins(MAX_LOAN, guildId)}**.`);
+      addTextDisplay(c, [
+        `${EMOJIS.cancel} Enter an amount between **100** and **${formatCoins(tier.maxLoan, guildId)}**.`,
+        `-# Your tier (**${tier.label}**) caps single loans at ${formatCoins(tier.maxLoan, guildId)}.`,
+      ].join('\n'));
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    if (totalOwed + amount > MAX_LOAN) {
+    if (totalOwed + amount > tier.maxDebt) {
       const c = createContainer(0xED4245);
-      addTextDisplay(c, `${EMOJIS.cancel} Borrowing **${formatNumber(amount)}** would exceed your total debt limit of **${formatNumber(MAX_LOAN)}**.`);
+      addTextDisplay(c, [
+        `${EMOJIS.cancel} Borrowing **${formatNumber(amount)}** would push your total debt past **${formatNumber(tier.maxDebt)}** (your tier limit).`,
+        `-# Repay existing loans to free up room.`,
+      ].join('\n'));
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    economyManager.addLoan(economy, userId, amount);
+    // Stamp the loan with the borrower's current tier interest, so
+    // a Trusted loan keeps its 8% rate even if the borrower later
+    // regresses to Reliable. addLoan accepts an interest override.
+    economyManager.addLoan(economy, userId, amount, tier.interest);
     economyManager.saveEconomy(economy);
 
-    const dayOwed = Math.floor(amount * (1 + INTEREST_RATE));
+    const dayOwed = Math.floor(amount * (1 + tier.interest));
     const c = createContainer(0xCAD7E6);
     addTextDisplay(c, [
-      `# <:Invoice:1473039492217835550> Loan Approved!`,
+      `# <:Invoice:1473039492217835550> Loan Approved`,
+      `-# ${tier.emoji} ${tier.label} tier · ${(tier.interest * 100).toFixed(0)}% daily`,
       '',
       `${coinIcon(guildId)} **Borrowed:** +${formatCoinsAmount(amount, guildId)}`,
-      `📋 **After 1 day:** ${formatCoins(dayOwed, guildId)} owed (${INTEREST_RATE * 100}% daily interest)`,
+      `📋 **After 1 day:** ${formatCoins(dayOwed, guildId)} owed`,
       '',
       `💳 **Wallet:** ${formatCoins(userData.coins, guildId)}`,
-      `-# Use \`/loan repay\` to pay back your loan.`,
+      '',
+      `-# Repay within 5 days to count as a clean repay and climb tiers.`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
@@ -105,13 +147,12 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    // Sum compounding interest across ALL active loans (not just
-    // loans[0]). The previous version only computed totalOwed for
-    // the first loan, so a user with 2-3 active loans could `repay
-    // all` and only ever target the first one.
+    // Sum compounding interest across ALL active loans using each
+    // loan's stamped rate (so old Trusted loans don't suddenly cost
+    // 10% if the user dropped a tier).
     const totalOwed = loans.reduce((acc, l) => {
       const days = Math.max(0, Math.floor((Date.now() - (l.takenAt || Date.now())) / 86400000));
-      const rate = Number(l.interest) || INTEREST_RATE;
+      const rate = Number(l.interest) || tier.interest;
       return acc + Math.floor((l.amount || 0) * Math.pow(1 + rate, days));
     }, 0);
     const repayAmt = (!amount || amount < 0) ? totalOwed : Math.min(amount, totalOwed);
@@ -128,14 +169,34 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
     const stillOwed = (Array.isArray(userData.loans) ? userData.loans.filter(l => !l.cleared) : [])
       .reduce((s, l) => s + (l.amount || 0), 0);
 
-    const c = createContainer(0xCAD7E6);
-    addTextDisplay(c, [
-      `# <:Checkedbox:1473038547165384804> Loan Repaid!`,
+    // Did this repayment promote them to a new tier?
+    const newTier = getLoanTier(userData);
+    const promoted = newTier.id !== tier.id;
+
+    const lines = [
+      `# <:Checkedbox:1473038547165384804> Loan Repaid`,
       '',
       `${coinIcon(guildId)} **Paid:** ${formatCoinsAmount(result.paid || repayAmt, guildId)}`,
       result.cleared ? `${EMOJIS.check} All loans fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatCoins(stillOwed, guildId)}`,
       `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
-    ].join('\n'));
+    ];
+    if (result.clearedCount > 0) {
+      const lateNote = result.latePays > 0
+        ? ` *(${result.latePays} late, **${result.clearedCount - result.latePays}** clean)*`
+        : ` *(all clean)*`;
+      lines.push('', `-# Reputation +${result.clearedCount}${lateNote} · Score: **${newTier.score}**`);
+    }
+    if (promoted) {
+      lines.push(
+        '',
+        `### 🎉 Tier Up!`,
+        `> ${tier.emoji} **${tier.label}** → ${newTier.emoji} **${newTier.label}**`,
+        `> New limit: **${formatCoins(newTier.maxLoan, guildId)}** per loan · ${(newTier.interest * 100).toFixed(0)}% daily`,
+      );
+    }
+
+    const c = createContainer(promoted ? 0xfbbf24 : 0xCAD7E6);
+    addTextDisplay(c, lines.join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 
@@ -154,18 +215,18 @@ module.exports = {
 
   data: new SlashCommandBuilder()
     .setName('loan')
-    .setDescription('Take or repay a loan — interest compounds daily at 10%')
-    .addSubcommand(sub => sub.setName('status').setDescription('View your current loans'))
+    .setDescription('Take or repay a loan — limits scale with your repayment reputation')
+    .addSubcommand(sub => sub.setName('status').setDescription('View your current loans and tier'))
     .addSubcommand(sub => sub.setName('take')
-      .setDescription('Take a loan from the bank')
-      .addIntegerOption(o => o.setName('amount').setDescription('Amount to borrow (100–50000)').setRequired(true).setMinValue(100).setMaxValue(50000)))
+      .setDescription('Take a loan from the bank (limit scales with your tier)')
+      .addIntegerOption(o => o.setName('amount').setDescription('Amount to borrow (100 to your tier max)').setRequired(true).setMinValue(100).setMaxValue(500_000)))
     .addSubcommand(sub => sub.setName('repay')
       .setDescription('Repay your loan')
       .addStringOption(o => o.setName('amount').setDescription('Amount to repay or "all"').setRequired(false))),
   prefix: 'loan',
   aliases: ['borrow'],
   category: 'economy',
-  description: 'Take or repay a loan with daily compounding interest',
+  description: 'Take or repay a loan with daily compounding interest. Tier up to unlock larger loans.',
   usage: 'loan <status|take|repay> [amount]',
 
   async executePrefix(message, args) {

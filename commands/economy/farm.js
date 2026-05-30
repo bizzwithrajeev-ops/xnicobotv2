@@ -27,6 +27,7 @@ const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
 const { ITEMS } = require('../../utils/shopItems');
 const jsonStore = require('../../utils/jsonStore');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const PLANT_COOLDOWN  = 60 * 1000;
 const MAX_SLOTS       = 5;
@@ -265,8 +266,12 @@ async function doHarvest(reply, userId, economy, userData, guildId) {
 
   if (boostActive) delete userData.boosts.farmBoost;
 
-  userData.coins = (userData.coins || 0) + totalEarned;
-  userData.totalEarned = (userData.totalEarned || 0) + totalEarned;
+  // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+  const taxResult = applyIncomeTax(totalEarned, userData);
+  const netEarned = taxResult.net;
+
+  userData.coins = (userData.coins || 0) + netEarned;
+  userData.totalEarned = (userData.totalEarned || 0) + netEarned;
   userData.harvestCount = (userData.harvestCount || 0) + ready.length;
   userData.lastFarm = Date.now();
 
@@ -274,6 +279,7 @@ async function doHarvest(reply, userId, economy, userData, guildId) {
   economyManager.saveEconomy(economy);
 
   const remaining = Object.keys(userData.crops).length;
+  const taxLine = formatTaxFootnote(taxResult);
 
   const c = createContainer(0xCAD7E6);
   addTextDisplay(c, [
@@ -282,8 +288,9 @@ async function doHarvest(reply, userId, economy, userData, guildId) {
     ...harvestLines,
     '',
     boostActive ? `-# 🌻 **Farm Boost** consumed (+50% yield).` : null,
-    `${EMOJIS.sketch} **Total Earned:** +${formatCoinsAmount(totalEarned, guildId)}`,
+    `${EMOJIS.sketch} **Total Earned:** +${formatCoinsAmount(netEarned, guildId)}`,
     `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
+    taxLine || null,
     remaining > 0 ? `-# ${remaining} crop${remaining === 1 ? '' : 's'} still growing` : null,
   ].filter(Boolean).join('\n'));
   return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });

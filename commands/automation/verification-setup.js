@@ -201,7 +201,7 @@ module.exports = {
                         .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
-                                `# <a:Load:1479681956273852607> Activating Verification System\n\n` +
+                                `# <a:Loading:1485248248720658472> Activating Verification System\n\n` +
                                 `Setting up channel permissions and securing your server...\n` +
                                 `This may take a moment depending on the number of channels.`
                             )
@@ -413,7 +413,7 @@ module.exports = {
                         .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
-                                `# <a:Load:1479681956273852607> Disabling Verification System\n\n` +
+                                `# <a:Loading:1485248248720658472> Disabling Verification System\n\n` +
                                 `Reverting channel permissions and cleaning up...\n` +
                                 `This may take a moment.`
                             )

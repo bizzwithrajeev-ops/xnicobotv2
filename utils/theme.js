@@ -15,7 +15,7 @@ const THEME = {
         ERROR: '<:Cancel:1473037949187657818>',
         WARNING: '<:Infotriangle:1473038460456800459>',
         INFO: '<:Inforect:1473038624172937287>',
-        LOADING: '<a:loading:1506015728871149770>',
+        LOADING: '<a:Loading:1485248248720658472>',
         ONLINE: '<:online:1485248286653943900>',
         OFFLINE: '<:offline:1485248289690616041>',
         DND: '<:dnd:1485248263857639424>',

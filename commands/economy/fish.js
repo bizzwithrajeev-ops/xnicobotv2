@@ -30,6 +30,7 @@ const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
 const economyManager = require('../../utils/economyManager');
 const { ITEMS } = require('../../utils/shopItems');
 const jsonStore = require('../../utils/jsonStore');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 /* ─────────── Catch tables ─────────── */
 
@@ -201,8 +202,12 @@ async function handleFish(reply, userId, guildId) {
     }
 
     /* ── Persist ── */
-    userData.coins        = (userData.coins        || 0) + value;
-    userData.totalEarned  = (userData.totalEarned  || 0) + value;
+    // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+    const taxResult = applyIncomeTax(value, userData);
+    const netValue = taxResult.net;
+
+    userData.coins        = (userData.coins        || 0) + netValue;
+    userData.totalEarned  = (userData.totalEarned  || 0) + netValue;
     userData.fishCaught   = (userData.fishCaught   || 0) + 1;
     userData.lastFish     = now;
     if (charmActive) delete userData.boosts.luckyCharm;
@@ -242,7 +247,7 @@ async function handleFish(reply, userId, guildId) {
     addSeparator(container, SeparatorSpacingSize.Small);
 
     const lines = [
-        `> ${coinIcon(guildId)} **+${formatCoins(value, guildId)}**`,
+        `> ${coinIcon(guildId)} **+${formatCoins(netValue, guildId)}**`,
         `> <:transfer:1479780506718437396> **+${xpGain}** XP${xpResult.boosted ? ' (xp_boost +50%)' : ''}${xpResult.leveledUp ? ` · **Level Up → Lv.${xpResult.newLevel}**` : ''}`,
         `> 🎣 Rod: **${rod.name}**${rod.id ? '' : ' *(buy a rod from the shop)*'}`,
         `> <:Invoice:1473039492217835550> Total fish: **${userData.fishCaught}**`,
@@ -253,6 +258,8 @@ async function handleFish(reply, userId, guildId) {
     if (charmActive) {
         lines.push(`> 🍀 **Lucky Charm** consumed (+15% value, junk re-roll active)`);
     }
+    const taxLine = formatTaxFootnote(taxResult);
+    if (taxLine) lines.push(taxLine);
 
     // Progression hint: show what the next rod tier would do.
     if (rod.level < ROD_TIERS.length - 1) {

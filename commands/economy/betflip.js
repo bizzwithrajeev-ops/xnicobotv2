@@ -2,20 +2,27 @@
 
 const { createContainer, addTextDisplay, addSeparator, formatNumber, MessageFlags, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
-const { parseBet, processBetResult, getBalance, MAX_BET } = require('../../utils/betHelper');
+const { parseBet, getBalance, MAX_BET } = require('../../utils/betHelper');
 const { gamblingGuard } = require('../../utils/economyGuards');
+const { deductBet, settle } = require('../../utils/betGameHelper');
 
 const COOLDOWN = 5_000;
 const cooldowns = new Map();
 
-async function handleBetflip(reply, userId, args, guildId) {
+const HEADS = '<:Money:1473377877239140529>';
+const TAILS = '💿';
+const FLIP_FRAMES = ['🪙', '⏺️', '🔘', '⚪', '⏺️', '🪙'];
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function handleBetflip(replyFn, editFn, userId, args, guildId) {
     const now = Date.now();
 
     if (cooldowns.get(userId) > now) {
         const left = Math.ceil((cooldowns.get(userId) - now) / 1000);
         const c = createContainer(0xCAD7E6);
         addTextDisplay(c, `<:Clock:1473039102113878056> Wait **${left}s** before flipping again.`);
-        return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        return replyFn({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
     const choice = args[0]?.toLowerCase();
@@ -34,7 +41,7 @@ async function handleBetflip(reply, userId, args, guildId) {
             `\`coinflip tails 50k\``,
             `\`coinflip h all\``,
         ].join('\n'));
-        return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        return replyFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
     const normalizedChoice = (choice === 'h' || choice === 'heads') ? 'heads' : 'tails';
@@ -42,18 +49,18 @@ async function handleBetflip(reply, userId, args, guildId) {
     const betResult = parseBet(args[1], balance);
 
     if (!betResult.valid) {
-        return reply(betResult.error);
+        return replyFn(betResult.error);
     }
 
     const bet = betResult.amount;
     cooldowns.set(userId, now + COOLDOWN);
 
+    /* ═══ Pre-roll the result so animation can never desync ═══ */
     const result = Math.random() < 0.5 ? 'heads' : 'tails';
     let won = normalizedChoice === result;
 
-    // star_booster — same +5% per stack win-rate boost as slots, applied
-    // here as a single re-flip on a loss. Capped to a single retry so
-    // it can't perpetually re-roll an unlucky stack.
+    // Star booster — same +5% per stack win-rate boost as slots,
+    // applied as a single re-flip on loss. Capped to one retry.
     const economyManager = require('../../utils/economyManager');
     const economyPeek = economyManager.loadEconomy();
     const { userData: peekUser } = economyManager.getUser(economyPeek, userId);
@@ -67,15 +74,67 @@ async function handleBetflip(reply, userId, args, guildId) {
         }
     }
 
-    const { userData } = processBetResult(userId, bet, won, 1);
+    /* ═══ Animation: 4 frames cycling through the flip art ═══ */
+    function buildFlipFrame(coinFace, status) {
+        const c = createContainer(0xCAD7E6);
+        addTextDisplay(c, [
+            `# ${coinIcon(guildId)} Coinflip`,
+            '',
+            `> Pick: **${normalizedChoice.toUpperCase()}**`,
+            `> Bet: ${formatCoins(bet, guildId)}`,
+            '',
+            `## ${coinFace}`,
+            '',
+            status,
+        ].join('\n'));
+        return c;
+    }
 
-    const coinEmoji = result === 'heads' ? '<:Money:1473377877239140529>' : '💿';
-    const container = createContainer(won ? 0xCAD7E6 : 0xED4245);
+    let messageHandle = null;
+    if (typeof editFn === 'function') {
+        await editFn({
+            components: [buildFlipFrame(FLIP_FRAMES[0], `<:Sandwatch:1473038580094861545> *Flipping…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        messageHandle = { edit: editFn };
+    } else {
+        const sent = await replyFn({
+            components: [buildFlipFrame(FLIP_FRAMES[0], `<:Sandwatch:1473038580094861545> *Flipping…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        messageHandle = sent && typeof sent.edit === 'function' ? sent : null;
+    }
+
+    if (messageHandle) {
+        try {
+            for (let i = 1; i < FLIP_FRAMES.length; i++) {
+                await sleep(220);
+                await messageHandle.edit({
+                    components: [buildFlipFrame(FLIP_FRAMES[i], `<:Sandwatch:1473038580094861545> *Flipping…*`)],
+                    flags: MessageFlags.IsComponentsV2,
+                });
+            }
+            await sleep(300);
+        } catch (err) {
+            // Animation hiccup — fall through to settle so the user
+            // always sees a final result.
+            console.warn('[BETFLIP] animation frame failed:', err?.message || err);
+        }
+    }
+
+    /* ═══ Settle bet — uses shared helper so Medal bonus applies ═══ */
+    deductBet(userId, bet);
+    const settleResult = settle(userId, bet, won ? bet * 2 : 0);
+    const { userData } = settleResult;
+    const actualPayout = settleResult.payout;
+
+    const coinFace = result === 'heads' ? HEADS : TAILS;
+    const container = createContainer(won ? 0x57F287 : 0xED4245);
 
     addTextDisplay(container, [
         `# ${coinIcon(guildId)} Coinflip`,
         '',
-        `## ${coinEmoji} ${result.toUpperCase()}`,
+        `## ${coinFace} ${result.toUpperCase()}`,
         `> Your pick: **${normalizedChoice.toUpperCase()}**`,
     ].join('\n'));
 
@@ -83,7 +142,10 @@ async function handleBetflip(reply, userId, args, guildId) {
 
     const resultLines = [];
     if (won) {
-        resultLines.push(`<:Checkedbox:1473038547165384804> **Won ${formatCoins(bet, guildId)}!**`);
+        resultLines.push(`<:Checkedbox:1473038547165384804> **Won ${formatCoins(actualPayout - bet, guildId)}!**`);
+        if (actualPayout > bet * 2) {
+            resultLines.push(`-# 🥇 Medal bonus added **+${formatCoins(actualPayout - bet * 2, guildId)}** to your win.`);
+        }
     } else {
         resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`);
     }
@@ -100,7 +162,15 @@ async function handleBetflip(reply, userId, args, guildId) {
     );
 
     addTextDisplay(container, resultLines.join('\n'));
-    return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+
+    if (messageHandle) {
+        try {
+            return await messageHandle.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        } catch {
+            return replyFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+    }
+    return replyFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 module.exports = {
@@ -120,19 +190,16 @@ module.exports = {
         if (await gamblingGuard(interaction)) return;
         const choice = interaction.options.getString('choice');
         const amount = interaction.options.getString('amount');
-        await handleBetflip(
-            (opts) => interaction.reply(opts),
-            interaction.user.id,
-            [choice, amount], interaction.guild?.id
-        );
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply().catch(() => {});
+        }
+        const editFn = (payload) => interaction.editReply(payload);
+        await handleBetflip(editFn, editFn, interaction.user.id, [choice, amount], interaction.guild?.id);
     },
 
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
-        await handleBetflip(
-            (opts) => message.reply(opts),
-            message.author.id,
-            args, message.guild?.id
-        );
+        const replyFn = (payload) => message.reply(payload);
+        await handleBetflip(replyFn, null, message.author.id, args, message.guild?.id);
     }
 };

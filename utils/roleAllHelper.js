@@ -201,7 +201,7 @@ function buildProcessingContainer({ role, targetType, action }) {
         .setAccentColor(COLORS.WARNING)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `# <a:Load:1479681956273852607> ${verb} Role ${dir} ${label}\n\n` +
+                `# <a:Loading:1485248248720658472> ${verb} Role ${dir} ${label}\n\n` +
                 `> **Role:** ${role}\n` +
                 `> **Target:** ${label}\n` +
                 `> Working on it, please hold on...\n\n` +
@@ -220,7 +220,7 @@ function buildProgressContainer({ role, targetType, action, processed, total }) 
         .setAccentColor(COLORS.WARNING)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `# <a:Load:1479681956273852607> ${verb} Role — ${label}\n\n` +
+                `# <a:Loading:1485248248720658472> ${verb} Role — ${label}\n\n` +
                 `> **Role:** ${role}\n` +
                 `> **Progress:** \`${processed}\` / \`${total}\`  •  **${pct}%**\n` +
                 `> ${bar}\n\n` +

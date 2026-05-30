@@ -168,7 +168,7 @@ module.exports = {
             const statusCb = isBigPurge ? async (deleted, left, batch) => {
                 await interaction.editReply({
                     components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent(`# <a:Load:1479681956273852607> Clearing Messages\n\n**Deleted:** ${deleted} so far\n**Remaining:** ~${left}\n**Batch:** ${batch}\n\n-# 5 second cooldown between batches to respect rate limits.`)
+                        new TextDisplayBuilder().setContent(`# <a:Loading:1485248248720658472> Clearing Messages\n\n**Deleted:** ${deleted} so far\n**Remaining:** ~${left}\n**Batch:** ${batch}\n\n-# 5 second cooldown between batches to respect rate limits.`)
                     )],
                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                 });
@@ -316,7 +316,7 @@ module.exports = {
             if (isBigPurge) {
                 statusMsg = await message.channel.send({
                     components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent(`# <a:Load:1479681956273852607> Clearing Messages\n\n**Target:** ${amount} messages\n**Status:** Starting...\n\n-# 5 second cooldown between batches.`)
+                        new TextDisplayBuilder().setContent(`# <a:Loading:1485248248720658472> Clearing Messages\n\n**Target:** ${amount} messages\n**Status:** Starting...\n\n-# 5 second cooldown between batches.`)
                     )],
                     flags: MessageFlags.IsComponentsV2
                 });
@@ -325,7 +325,7 @@ module.exports = {
             const statusCb = isBigPurge && statusMsg ? async (deleted, left, batch) => {
                 await statusMsg.edit({
                     components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent(`# <a:Load:1479681956273852607> Clearing Messages\n\n**Deleted:** ${deleted} so far\n**Remaining:** ~${left}\n**Batch:** ${batch}\n\n-# 5 second cooldown between batches.`)
+                        new TextDisplayBuilder().setContent(`# <a:Loading:1485248248720658472> Clearing Messages\n\n**Deleted:** ${deleted} so far\n**Remaining:** ~${left}\n**Batch:** ${batch}\n\n-# 5 second cooldown between batches.`)
                     )],
                     flags: MessageFlags.IsComponentsV2
                 });

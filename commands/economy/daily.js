@@ -4,6 +4,7 @@ const { MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 function buildCooldownBar(elapsed, total, length = 20) {
     const progress = Math.min(Math.floor((elapsed / total) * length), length);
@@ -52,7 +53,13 @@ async function handleDaily(reply, userId, guildId) {
     const dailyBonus = Number(user.bonuses?.daily) || 0;
     const bonusAmount = Math.floor(baseReward * dailyBonus);
     const streakBonus = Math.floor(baseReward * Math.min(streak * 0.02, 0.5));
-    const totalReward = baseReward + bonusAmount + streakBonus;
+    const grossReward = baseReward + bonusAmount + streakBonus;
+
+    // Wealth tax: once a player crosses 100k total wealth (wallet+bank)
+    // every income payout has 18% withheld. Keeps endgame from
+    // compounding indefinitely while leaving early players whole.
+    const taxResult = applyIncomeTax(grossReward, user);
+    const totalReward = taxResult.net;
 
     user.coins += totalReward;
     // Track lifetime earnings so /profile and /economystats stay in
@@ -74,14 +81,17 @@ async function handleDaily(reply, userId, guildId) {
     addTextDisplay(container, rewardText);
     addSeparator(container, SeparatorSpacingSize.Small);
 
-    addTextDisplay(container, [
+    const summaryLines = [
         `### <:transfer:1479780506718437396> Summary`,
         `> ${coinIcon(guildId)} **Total Received:** ${formatCoinsAmount(totalReward, guildId)}`,
         `> ${coinIcon(guildId)} **New Balance:** ${formatCoinsAmount(user.coins, guildId)}`,
         `> <:Fire:1473038604812161218> **Current Streak:** ${streak} day${streak !== 1 ? 's' : ''} ${streak >= 7 ? '<:Fire:1473038604812161218>' : streak >= 3 ? '<:Star:1473038501766369300>' : ''}`,
-        '',
-        `-# Come back tomorrow to keep your streak going!`,
-    ].join('\n'));
+    ];
+    const taxLine = formatTaxFootnote(taxResult);
+    if (taxLine) summaryLines.push('', taxLine);
+    summaryLines.push('', `-# Come back tomorrow to keep your streak going!`);
+
+    addTextDisplay(container, summaryLines.join('\n'));
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }

@@ -102,7 +102,7 @@ module.exports = {
                         .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder()
-                                .setContent(`# <a:Load:1479681956273852607> Deleting Category\n\n> **Category:** \`${categoryName}\`\n> Removing ${channelCount} channels...`)
+                                .setContent(`# <a:Loading:1485248248720658472> Deleting Category\n\n> **Category:** \`${categoryName}\`\n> Removing ${channelCount} channels...`)
                         );
 
                     await reply.edit({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });

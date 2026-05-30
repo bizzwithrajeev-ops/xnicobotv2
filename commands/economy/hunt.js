@@ -5,6 +5,7 @@ const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const COOLDOWN = 30_000;
 const cooldowns = new Map();
@@ -101,14 +102,20 @@ async function handleHunt(reply, userId, guildId) {
   } else {
     // The charm boosts loot value too — pay extra coins on the
     // consolation prize so the user feels the effect.
-    const charmedValue = luckyCharmActive ? Math.floor(animal.value * 1.15) : animal.value;
+    const grossValue = luckyCharmActive ? Math.floor(animal.value * 1.15) : animal.value;
+    // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+    const taxResult = applyIncomeTax(grossValue, userData);
+    const charmedValue = taxResult.net;
     userData.coins += charmedValue;
+    userData.totalEarned = (userData.totalEarned || 0) + charmedValue;
     userData.huntCount = (userData.huntCount || 0) + 1;
     if (luckyCharmActive) delete userData.boosts.luckyCharm;
     economyManager.addXP(economy, userId, 5);
     economyManager.saveEconomy(economy);
 
     const charmTag = luckyCharmActive ? `\n-# 🍀 **Lucky Charm** consumed (+15% reward applied).` : '';
+    const taxLine = formatTaxFootnote(taxResult);
+    const taxTag = taxLine ? `\n${taxLine}` : '';
     const container = createContainer(0xED4245);
     addTextDisplay(container, [
       `# <:Cancel:1473037949187657818> Hunt — Escaped!`,
@@ -117,6 +124,7 @@ async function handleHunt(reply, userId, guildId) {
       `> Earned **${formatCoins(charmedValue, guildId)}** as consolation.`,
       `> <:Fire:1473038604812161218> +5 XP`,
       charmTag,
+      taxTag,
       '',
       `-# Try hunting again in 30 seconds`,
     ].filter(Boolean).join('\n'));

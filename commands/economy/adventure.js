@@ -8,6 +8,7 @@ const economyManager = require('../../utils/economyManager');
 
 const ph = require('../../utils/petHelpers');
 const jsonStore = require('../../utils/jsonStore');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 const COOLDOWN = 5 * 60 * 1000;
 const cooldowns = new Map();
 
@@ -213,13 +214,19 @@ async function runAdventure(message, biomeData) {
       const { userData: ecoUser } = economyManager.getUser(economy, userId);
 
       if (!failed) {
-        ecoUser.coins += totalCoins.value;
+        // Wealth tax — applies once total wealth ≥ 100k.
+        const taxResult = applyIncomeTax(totalCoins.value, ecoUser);
+        ecoUser.coins += taxResult.net;
+        totalCoins.value = taxResult.net; // surface net to caller for the result panel
         ecoUser.adventuresCompleted = (ecoUser.adventuresCompleted || 0) + 1;
         if (ecoUser.adventuresCompleted >= 25) economyManager.checkAchievement(economy, userId, 'adventurer');
         economyManager.addXP(economy, userId, totalExp.value);
       } else {
-        ecoUser.coins += Math.floor(totalCoins.value * 0.3);
-        totalCoins.value = Math.floor(totalCoins.value * 0.3);
+        // Partial 30% credit on failure — also taxed if eligible.
+        const partial = Math.floor(totalCoins.value * 0.3);
+        const taxResult = applyIncomeTax(partial, ecoUser);
+        ecoUser.coins += taxResult.net;
+        totalCoins.value = taxResult.net;
       }
       economyManager.saveEconomy(economy);
 

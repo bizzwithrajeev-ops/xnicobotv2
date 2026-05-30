@@ -89,7 +89,7 @@ module.exports = {
         const processingContainer = new ContainerBuilder()
             .setAccentColor(COLORS.WARNING)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# <a:Load:1479681956273852607> Unhiding All Channels\n\n> Processing ${channels.size} channels for ${roleName}...\n\n-# This may take a moment for large servers`
+                `# <a:Loading:1485248248720658472> Unhiding All Channels\n\n> Processing ${channels.size} channels for ${roleName}...\n\n-# This may take a moment for large servers`
             ));
 
         const msg = await message.reply({ components: [processingContainer], flags: MessageFlags.IsComponentsV2 });

@@ -781,7 +781,7 @@ async function handleBotPanelButton(interaction, client) {
     // Reset bot
     if (customId === 'botpanel_reset') {
         try {
-            await interaction.reply({ content: '<a:Load:1479681956273852607> Resetting bot configuration to default stage...', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: '<a:Loading:1485248248720658472> Resetting bot configuration to default stage...', flags: MessageFlags.Ephemeral });
 
             // Reset Avatar and Banner
             await client.user.setAvatar(null).catch(() => { });
@@ -4649,20 +4649,41 @@ client.on('interactionCreate', async (interaction) => {
 
                     const category = interaction.guild.channels.cache.get(liveGuildConfig.categoryId);
                     if (!category) {
+                        // Roll back the number bump so the next user
+                        // doesn't see a phantom gap.
+                        const rollback = readTicketsConfig();
+                        const rgc = rollback[interaction.guild.id];
+                        if (rgc?.nextTicketNumber === ticketNumber) {
+                            rgc.nextTicketNumber = Math.max(0, ticketNumber - 1);
+                            jsonStore.write('tickets', rollback);
+                        }
                         return interaction.editReply({ content: '<:Cancel:1473037949187657818> Ticket category not found!' });
                     }
 
-                    const ticketChannel = await interaction.guild.channels.create({
-                        name: ticketChannelName,
-                        parent: category.id,
-                        topic: `🎫 Support Ticket • Opened by ${interaction.user.tag} • #${ticketNumber}`,
-                        permissionOverwrites: [
-                            { id: interaction.guild.id, deny: ['ViewChannel'] },
-                            { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
-                            { id: liveGuildConfig.supportRoleId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageMessages'] },
-                            { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageChannels'] }
-                        ]
-                    });
+                    let ticketChannel;
+                    try {
+                        ticketChannel = await interaction.guild.channels.create({
+                            name: ticketChannelName,
+                            parent: category.id,
+                            topic: `🎫 Support Ticket • Opened by ${interaction.user.tag} • #${ticketNumber}`,
+                            permissionOverwrites: [
+                                { id: interaction.guild.id, deny: ['ViewChannel'] },
+                                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
+                                { id: liveGuildConfig.supportRoleId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageMessages'] },
+                                { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageChannels'] }
+                            ]
+                        });
+                    } catch (createErr) {
+                        // Channel creation failed — roll back the number
+                        // bump so the next ticket doesn't skip a digit.
+                        const rollback = readTicketsConfig();
+                        const rgc = rollback[interaction.guild.id];
+                        if (rgc?.nextTicketNumber === ticketNumber) {
+                            rgc.nextTicketNumber = Math.max(0, ticketNumber - 1);
+                            jsonStore.write('tickets', rollback);
+                        }
+                        throw createErr;
+                    }
 
                     liveGuildConfig.tickets = liveGuildConfig.tickets || {};
                     liveGuildConfig.tickets[ticketChannel.id] = {

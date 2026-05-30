@@ -4,6 +4,7 @@ const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { getEconomySettings, rollReward, formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { applyIncomeTax, formatTaxFootnote } = require('../../utils/taxHelper');
 
 const JOBS = [
     { name: 'Software Developer', emoji: '💻', messages: ['You built a new feature for a client', 'You fixed a critical bug', 'You deployed code to production'] },
@@ -62,7 +63,11 @@ async function handleWork(reply, userId, guildId) {
 
     const tipChance = Math.random();
     const tipAmount = tipChance < 0.15 ? Math.floor(Math.random() * 50) + 25 : 0;
-    const totalEarned = baseEarned + bonusAmount + tipAmount;
+    const grossEarned = baseEarned + bonusAmount + tipAmount;
+
+    // Wealth tax — applies once total wealth (wallet+bank) ≥ 100k.
+    const taxResult = applyIncomeTax(grossEarned, user);
+    const totalEarned = taxResult.net;
 
     user.workCount = (user.workCount || 0) + 1;
 
@@ -87,13 +92,16 @@ async function handleWork(reply, userId, guildId) {
     addTextDisplay(container, earningsText);
     addSeparator(container, SeparatorSpacingSize.Small);
 
-    addTextDisplay(container, [
+    const summaryLines = [
         `> ${coinIcon(guildId)} **Total Earned:** ${formatCoinsAmount(totalEarned, guildId)}`,
         `> ${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(user.coins, guildId)}`,
         `> 📋 **Shifts Completed:** ${formatNumber(user.workCount)}`,
-        '',
-        `-# You can work again in 1 hour`,
-    ].join('\n'));
+    ];
+    const taxLine = formatTaxFootnote(taxResult);
+    if (taxLine) summaryLines.push('', taxLine);
+    summaryLines.push('', `-# You can work again in 1 hour`);
+
+    addTextDisplay(container, summaryLines.join('\n'));
 
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }

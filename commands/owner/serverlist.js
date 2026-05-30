@@ -202,7 +202,7 @@ module.exports = {
             return message.reply('<:Cancel:1473037949187657818> This command is only available to the bot owner!');
         }
 
-        const loadingMsg = await message.reply('<a:Load:1479681956273852607> Fetching server list with invites...');
+        const loadingMsg = await message.reply('<a:Loading:1485248248720658472> Fetching server list with invites...');
 
         const page = parseInt(args[0]) || 1;
         const { container, row, totalPages } = await renderPage(message.client, page);
