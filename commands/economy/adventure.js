@@ -224,11 +224,29 @@ async function runAdventure(message, biomeData) {
       economyManager.saveEconomy(economy);
 
       if (items.length > 0 && !failed) {
-        let inv = {};
-        try { inv = jsonStore.read('inventory'); } catch { inv = {}; }
-        inv[userId] = inv[userId] || [];
-        for (const itemId of items) inv[userId].push({ id: itemId, boughtAt: Date.now() });
-        jsonStore.write('inventory', inv);
+        // Read the live inventory store, append THIS user's drops,
+        // then write back. The previous version wrote an empty `{}`
+        // back if the read threw — which would wipe every user's
+        // inventory across the bot. We now refuse the write if the
+        // read failed, so a transient store error never destroys
+        // data.
+        let inv = null;
+        try { inv = jsonStore.read('inventory'); } catch { inv = null; }
+        if (inv && typeof inv === 'object') {
+          inv[userId] = inv[userId] || [];
+          for (const itemId of items) inv[userId].push({ id: itemId, boughtAt: Date.now() });
+          jsonStore.write('inventory', inv);
+        } else {
+          console.warn('[ADVENTURE] inventory store unreachable, skipping item drops to avoid wiping other users');
+        }
+      }
+
+      // Track lifetime earnings for /profile and /economystats so
+      // adventure coin gains (full or partial) show up consistently
+      // with every other earning command.
+      if ((totalCoins.value || 0) > 0) {
+        ecoUser.totalEarned = (ecoUser.totalEarned || 0) + totalCoins.value;
+        economyManager.saveEconomy(economy);
       }
 
       const resultContainer = createContainer(failed ? 0xED4245 : 0xCAD7E6);

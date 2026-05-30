@@ -223,11 +223,63 @@ async function processBuy(userId, guildId, guild, itemIndex, reply) {
         });
     }
 
+    /* ── Pre-flight: validate the action BEFORE deducting coins ──
+     * Without this, a deleted role or malformed action data would
+     * still charge the user. We do the cheap, side-effect-free
+     * checks up front and refuse the sale if the configured action
+     * cannot complete cleanly. */
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member) {
+        return reply({
+            content: `${E.cancel} Could not resolve your member record. Try again in a moment.`,
+            flags: MessageFlags.Ephemeral
+        });
+    }
+
+    if (item.action === 'give_role' || item.action === 'remove_role') {
+        const role = guild.roles.cache.get(item.actionData);
+        if (!role) {
+            return reply({
+                content: `${E.cancel} This shop item references a role that no longer exists. Ask an admin to remove or fix it before purchasing.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        // Bot must be able to manage roles below its highest role.
+        const me = guild.members.me;
+        if (!me || !me.permissions.has('ManageRoles') || role.position >= me.roles.highest.position) {
+            return reply({
+                content: `${E.cancel} I don't have permission to manage **${role.name}**. The role must be below my highest role and I need Manage Roles.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+    }
+    if (item.action === 'add_coins') {
+        const bonus = parseInt(item.actionData);
+        if (!Number.isFinite(bonus) || bonus <= 0) {
+            return reply({
+                content: `${E.cancel} This shop item is misconfigured (the bonus payout is invalid). Ask an admin to fix it before purchasing.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+    }
+
     userData.coins -= item.price;
     economyManager.saveEconomy(economy);
 
-    const member = await guild.members.fetch(userId).catch(() => null);
-    const results = member ? await executeAction(member, item, guild, guildId) : [`${E.check} Purchased`];
+    let results;
+    try {
+        results = await executeAction(member, item, guild, guildId);
+    } catch (err) {
+        // Reverse the charge if the action throws unexpectedly so
+        // the user isn't left paying for nothing.
+        userData.coins += item.price;
+        economyManager.saveEconomy(economy);
+        console.error('[CUSTOMSHOP] executeAction failed, refunding:', err);
+        return reply({
+            content: `${E.cancel} The purchase action failed and your coins were refunded. Please contact an admin if this persists.`,
+            flags: MessageFlags.Ephemeral
+        });
+    }
 
     const container = buildPurchaseResult(item, userData, results, guildId);
     return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

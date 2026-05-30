@@ -105,8 +105,15 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
       return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const daysElapsed = Math.max(0, Math.floor((Date.now() - (loans[0].takenAt || Date.now())) / 86400000));
-    const totalOwed = Math.floor(loans[0].amount * Math.pow(1 + INTEREST_RATE, daysElapsed));
+    // Sum compounding interest across ALL active loans (not just
+    // loans[0]). The previous version only computed totalOwed for
+    // the first loan, so a user with 2-3 active loans could `repay
+    // all` and only ever target the first one.
+    const totalOwed = loans.reduce((acc, l) => {
+      const days = Math.max(0, Math.floor((Date.now() - (l.takenAt || Date.now())) / 86400000));
+      const rate = Number(l.interest) || INTEREST_RATE;
+      return acc + Math.floor((l.amount || 0) * Math.pow(1 + rate, days));
+    }, 0);
     const repayAmt = (!amount || amount < 0) ? totalOwed : Math.min(amount, totalOwed);
 
     if ((userData.coins || 0) < repayAmt) {
@@ -126,7 +133,7 @@ async function handleLoan(reply, userId, subcommand, amount, guildId) {
       `# <:Checkedbox:1473038547165384804> Loan Repaid!`,
       '',
       `${coinIcon(guildId)} **Paid:** ${formatCoinsAmount(result.paid || repayAmt, guildId)}`,
-      result.cleared ? `${EMOJIS.check} Loan fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatCoins(stillOwed, guildId)}`,
+      result.cleared ? `${EMOJIS.check} All loans fully cleared!` : `${EMOJIS.invoice} **Still owed:** ${formatCoins(stillOwed, guildId)}`,
       `${coinIcon(guildId)} **Wallet:** ${formatCoinsAmount(userData.coins, guildId)}`,
     ].join('\n'));
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });

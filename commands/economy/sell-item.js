@@ -12,6 +12,12 @@ const { shopGuard } = require('../../utils/economyGuards');
 function load() { return jsonStore.read('inventory'); }
 function save(d) { jsonStore.write('inventory', d); }
 
+// Per-user re-entry guard. Without this, two parallel sell-item
+// invocations from the same user (slash + prefix double-fire) both
+// pass the `owned > 0` check on the same live snapshot and credit
+// coins twice, while inventory removal works only once.
+const inFlight = new Set();
+
 /* ═══════════════════ COMMAND ═══════════════════ */
 
 module.exports = {
@@ -63,52 +69,78 @@ module.exports = {
     const inventory = load();
     const userId = message.author.id;
 
-    inventory[userId] ||= [];
-
-    /* ── Ownership check ── */
-    const owned = inventory[userId].filter(i => i.id === itemId).length;
-    if (owned === 0) {
-      const c = createContainer(0xED4245);
-      addTextDisplay(c, `<:Cancel:1473037949187657818> You don't own any ${meta.emoji} **${meta.name}**.`);
+    if (inFlight.has(userId)) {
+      const c = createContainer(0xFEE75C);
+      addTextDisplay(c, '<:Infotriangle:1473038460456800459> A previous sale is still completing — try again in a moment.');
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const sellQty = Math.min(qty, owned);
-    const totalValue = meta.sellPrice * sellQty;
+    inFlight.add(userId);
+    try {
+      inventory[userId] ||= [];
 
-    /* ═══════ PROCESS SALE ═══════ */
-
-    // Remove items (oldest first)
-    let removed = 0;
-    inventory[userId] = inventory[userId].filter(i => {
-      if (i.id === itemId && removed < sellQty) {
-        removed++;
-        return false;
+      /* ── Ownership check ── */
+      const owned = inventory[userId].filter(i => i.id === itemId).length;
+      if (owned === 0) {
+        const c = createContainer(0xED4245);
+        addTextDisplay(c, `<:Cancel:1473037949187657818> You don't own any ${meta.emoji} **${meta.name}**.`);
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
-      return true;
-    });
 
-    const { userData } = economyManager.getUser(economy, userId);
-    userData.coins += totalValue;
+      const wantedQty = Math.min(qty, owned);
 
-    save(inventory);
-    economyManager.saveEconomy(economy);
+      /* ═══════ PROCESS SALE ═══════ */
 
-    /* ═══════ RESPONSE ═══════ */
+      // Remove items (oldest first). The number actually removed by
+      // the filter is the source of truth for how many coins to
+      // credit — using the pre-mutation `owned` count would double-
+      // credit if a parallel sale already drained part of the stack.
+      let removed = 0;
+      inventory[userId] = inventory[userId].filter(i => {
+        if (i.id === itemId && removed < wantedQty) {
+          removed++;
+          return false;
+        }
+        return true;
+      });
 
-    const remaining = inventory[userId].filter(i => i.id === itemId).length;
-    const container = createContainer(0xCAD7E6);
-    addTextDisplay(container, [
-      `# ${coinIcon(guildId)} Item Sold`,
-      '',
-      `<:Checkedbox:1473038547165384804> Sold **${sellQty}× ${meta.emoji} ${meta.name}**`,
-      `${coinIcon(guildId)} Earned: **${formatCoinsAmount(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,
-      '',
-      `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
-      `<:Box:1473039115581915256> Remaining: **${remaining}** ${meta.name}`,
-    ].join('\n'));
+      if (removed === 0) {
+        const c = createContainer(0xED4245);
+        addTextDisplay(c, `<:Cancel:1473037949187657818> You don't own any ${meta.emoji} **${meta.name}**.`);
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
 
-    return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      const sellQty = removed;
+      const totalValue = meta.sellPrice * sellQty;
+
+      const { userData } = economyManager.getUser(economy, userId);
+      userData.coins += totalValue;
+
+      // Save inventory FIRST so the items removed are guaranteed to
+      // be persisted even if the economy save somehow fails. The
+      // next economy mutation in any other command will re-save the
+      // wallet on its way through.
+      save(inventory);
+      economyManager.saveEconomy(economy);
+
+      /* ═══════ RESPONSE ═══════ */
+
+      const remaining = inventory[userId].filter(i => i.id === itemId).length;
+      const container = createContainer(0xCAD7E6);
+      addTextDisplay(container, [
+        `# ${coinIcon(guildId)} Item Sold`,
+        '',
+        `<:Checkedbox:1473038547165384804> Sold **${sellQty}× ${meta.emoji} ${meta.name}**`,
+        `${coinIcon(guildId)} Earned: **${formatCoinsAmount(totalValue, guildId)}** (${formatNumber(meta.sellPrice)}/ea)`,
+        '',
+        `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
+        `<:Box:1473039115581915256> Remaining: **${remaining}** ${meta.name}`,
+      ].join('\n'));
+
+      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } finally {
+      inFlight.delete(userId);
+    }
   },
 
   async execute(interaction) {

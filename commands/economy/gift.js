@@ -24,6 +24,12 @@ const jsonStore = require('../../utils/jsonStore');
 
 const COOLDOWN = 60 * 1000;
 const cooldowns = new Map();
+// Per-sender re-entry guard. Two parallel `gift` invocations from
+// the same sender (slash + prefix double-fire) would otherwise both
+// pass the `have.total >= qty` check on the same live cache and
+// both push items onto the receiver — duplicating the gift while
+// only consuming the inventory once.
+const inFlight = new Set();
 
 function loadInv()      { return jsonStore.has('inventory') ? (jsonStore.read('inventory') || {}) : {}; }
 function saveInv(data)  { jsonStore.write('inventory', data); }
@@ -41,6 +47,12 @@ async function handleGift(reply, senderId, target, itemId, quantity, guildId) {
   if (!target || target.id === senderId || target.bot) {
     const c = createContainer(0xED4245);
     addTextDisplay(c, `${EMOJIS.cancel} You must mention a valid user to gift an item to.`);
+    return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+  }
+
+  if (inFlight.has(senderId)) {
+    const c = createContainer(0xFEE75C);
+    addTextDisplay(c, `${EMOJIS.warn || '<:Infotriangle:1473038460456800459>'} A gift from you is already in flight — wait a moment for it to finish.`);
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 
@@ -106,49 +118,64 @@ async function handleGift(reply, senderId, target, itemId, quantity, guildId) {
 
   cooldowns.set(senderId, now);
 
-  // Consume from the sender — global slots first, legacy map second.
-  inv[senderId] ||= [];
-  inv[target.id] ||= [];
-  let toRemove = qty;
-  for (let i = 0; i < inv[senderId].length && toRemove > 0; ) {
-    if (inv[senderId][i] && inv[senderId][i].id === itemId) {
-      inv[senderId].splice(i, 1);
-      toRemove--;
-    } else {
-      i++;
+  inFlight.add(senderId);
+  try {
+    // Re-load and re-validate inside the lock so a concurrent gift
+    // that ran while we were validating outside doesn't slip through.
+    const freshInv = loadInv();
+    const freshHave = ownedQty(freshInv, senderId, sender, itemId);
+    if (freshHave.total < qty) {
+      const c = createContainer(0xED4245);
+      addTextDisplay(c, `${EMOJIS.cancel} You only have **${freshHave.total}× ${itemInfo.name}** but tried to gift **${qty}**.`);
+      return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
-  }
-  if (toRemove > 0) {
-    const legacyMap = sender.inventory;
-    if (legacyMap && typeof legacyMap === 'object' && !Array.isArray(legacyMap)) {
-      const take = Math.min(toRemove, legacyMap[itemId] || 0);
-      legacyMap[itemId] -= take;
-      toRemove -= take;
-      if (legacyMap[itemId] <= 0) delete legacyMap[itemId];
+
+    // Consume from the sender — global slots first, legacy map second.
+    freshInv[senderId] ||= [];
+    freshInv[target.id] ||= [];
+    let toRemove = qty;
+    for (let i = 0; i < freshInv[senderId].length && toRemove > 0; ) {
+      if (freshInv[senderId][i] && freshInv[senderId][i].id === itemId) {
+        freshInv[senderId].splice(i, 1);
+        toRemove--;
+      } else {
+        i++;
+      }
     }
+    if (toRemove > 0) {
+      const legacyMap = sender.inventory;
+      if (legacyMap && typeof legacyMap === 'object' && !Array.isArray(legacyMap)) {
+        const take = Math.min(toRemove, legacyMap[itemId] || 0);
+        legacyMap[itemId] -= take;
+        toRemove -= take;
+        if (legacyMap[itemId] <= 0) delete legacyMap[itemId];
+      }
+    }
+
+    // Credit the receiver in the global store (uniform format).
+    for (let i = 0; i < qty; i++) {
+      freshInv[target.id].push({ id: itemId, boughtAt: now, gift: true, from: senderId });
+    }
+
+    sender.giftsSent = (sender.giftsSent || 0) + qty;
+    economyManager.checkAllAchievements(economy, senderId);
+
+    saveInv(freshInv);
+    economyManager.saveEconomy(economy);
+
+    const c = createContainer(0xCAD7E6);
+    addTextDisplay(c, [
+      `# ${EMOJIS.present} Gift Sent!`,
+      '',
+      `${itemInfo.emoji} **${target.username}** received **${qty}× ${itemInfo.name}** from you!`,
+      '',
+      `🎀 **Total gifts sent:** ${formatNumber(sender.giftsSent)}`,
+      `-# Cooldown: 1 minute`,
+    ].join('\n'));
+    return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+  } finally {
+    inFlight.delete(senderId);
   }
-
-  // Credit the receiver in the global store (uniform format).
-  for (let i = 0; i < qty; i++) {
-    inv[target.id].push({ id: itemId, boughtAt: now, gift: true, from: senderId });
-  }
-
-  sender.giftsSent = (sender.giftsSent || 0) + qty;
-  economyManager.checkAllAchievements(economy, senderId);
-
-  saveInv(inv);
-  economyManager.saveEconomy(economy);
-
-  const c = createContainer(0xCAD7E6);
-  addTextDisplay(c, [
-    `# ${EMOJIS.present} Gift Sent!`,
-    '',
-    `${itemInfo.emoji} **${target.username}** received **${qty}× ${itemInfo.name}** from you!`,
-    '',
-    `🎀 **Total gifts sent:** ${formatNumber(sender.giftsSent)}`,
-    `-# Cooldown: 1 minute`,
-  ].join('\n'));
-  return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 }
 
 module.exports = {

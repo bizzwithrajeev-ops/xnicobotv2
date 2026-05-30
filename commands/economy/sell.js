@@ -134,7 +134,35 @@ module.exports = {
           return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
 
-        const soldIds = sellable.map(p => p.id);
+        // Recompute the sellable set against the current pets state
+        // — the original `sellable` was a snapshot from up to 30s
+        // ago. If the user caught/sold pets in the meantime, the
+        // snapshot's id list may include pets that no longer exist
+        // (no-op) or miss new pets they expected to sell. Recomputing
+        // here keeps the math honest and the "≥1 must remain" rule
+        // applies to the *fresh* count, not the stale one.
+        const freshAll = freshPets[userId].animals;
+        let freshSellable = type === 'all'
+          ? [...freshAll]
+          : freshAll.filter(p => p.rarity === type);
+
+        // Filter to pets that were targeted in the original confirm
+        // (so a pet caught after the prompt is NOT silently sold).
+        const originalIds = new Set(sellable.map(p => p.id));
+        freshSellable = freshSellable.filter(p => originalIds.has(p.id));
+
+        if (freshSellable.length >= freshAll.length) {
+          freshSellable = freshSellable.slice(0, freshAll.length - 1);
+        }
+        if (!freshSellable.length) {
+          collector.stop();
+          const c = createContainer(0xFEE75C);
+          addTextDisplay(c, '<:Infotriangle:1473038460456800459> Nothing to sell — your pets list changed since the prompt.');
+          return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+
+        const soldIds = freshSellable.map(p => p.id);
+        const freshTotalCoins = freshSellable.reduce((a, p) => a + petValue(p), 0);
 
         freshPets[userId].animals = freshPets[userId].animals.filter(
           p => !soldIds.includes(p.id)
@@ -144,7 +172,9 @@ module.exports = {
           freshPets[userId].activeBattlePet = freshPets[userId].animals[0]?.id || null;
         }
 
-        freshUser.coins += totalCoins;
+        freshUser.coins += freshTotalCoins;
+        // Track lifetime earnings for /economystats consistency.
+        freshUser.totalEarned = (freshUser.totalEarned || 0) + freshTotalCoins;
 
         ph.savePets(freshPets);
         economyManager.saveEconomy(freshEconomy);
@@ -153,9 +183,9 @@ module.exports = {
 
         const c = createContainer();
         addTextDisplay(c, `# <:Checkedbox:1473038547165384804> Pets Sold\n\n` +
-          `<:Box:1473039115581915256> Sold: **${sellable.length} pets**\n` +
+          `<:Box:1473039115581915256> Sold: **${freshSellable.length} pets**\n` +
           `🐶 Remaining: **${freshPets[userId].animals.length}**\n` +
-          `${coinIcon(guildId)} Earned: **${formatCoinsAmount(totalCoins, guildId)}**`);
+          `${coinIcon(guildId)} Earned: **${formatCoinsAmount(freshTotalCoins, guildId)}**`);
 
         return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       }

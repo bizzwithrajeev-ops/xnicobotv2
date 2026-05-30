@@ -32,11 +32,46 @@ function createReply(ctx) {
 }
 
 /* =======================================================
+   ABUSE GUARDS
+   Re-entry locks prevent two parallel `pay` invocations
+   from the same sender (slash + prefix or rapid double-fire)
+   from both crediting the receiver. The Map is keyed by
+   sender userId and cleared in a finally block.
+   Per-sender cooldown limits transfer spam.
+======================================================= */
+const inFlight = new Set();
+const cooldowns = new Map();
+const PAY_COOLDOWN_MS = 5_000;
+const MIN_PAY = 10;
+const MAX_PAY = 1_000_000;
+
+/* =======================================================
    CORE BUSINESS LOGIC
 ======================================================= */
 
 async function handlePay(ctx, senderId, target, amount, guildId) {
     const reply = createReply(ctx);
+
+    /* ---------- RE-ENTRY GUARD ---------- */
+    // Without this, two parallel pay invocations from the same
+    // sender (slash + prefix double-fire, or a panic-spam) both
+    // pass the balance check on the live economy cache and both
+    // credit the receiver — duplicating the transfer.
+    if (inFlight.has(senderId)) {
+        const c = createContainer();
+        addTextDisplay(c, `# <:Infotriangle:1473038460456800459> Transfer In Progress\n\nWait a moment for your previous payment to complete.`);
+        return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+    }
+
+    /* ---------- COOLDOWN ---------- */
+    const now = Date.now();
+    const ready = cooldowns.get(senderId) || 0;
+    if (now < ready) {
+        const left = Math.ceil((ready - now) / 1000);
+        const c = createContainer();
+        addTextDisplay(c, `# <:Clock:1473039102113878056> On Cooldown\n\nWait **${left}s** before paying another user.`);
+        return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+    }
 
     /* ---------- VALIDATION ---------- */
 
@@ -76,43 +111,67 @@ async function handlePay(ctx, senderId, target, amount, guildId) {
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
-    /* ---------- ECONOMY ---------- */
-
-    const economy = economyManager.loadEconomy();
-
-    const { userData: sender } =
-        economyManager.getUser(economy, senderId);
-
-    const { userData: receiver } =
-        economyManager.getUser(economy, target.id);
-
-    if (sender.coins < amount) {
+    if (amount < MIN_PAY) {
         const container = createContainer();
         addTextDisplay(
             container,
-            `# <:Cancel:1473037949187657818> Insufficient Funds\n\n${coinIcon(guildId)} **Your Balance:** ${formatCoinsAmount(sender.coins, guildId)}`
+            `# <:Cancel:1473037949187657818> Amount Too Low\n\nMinimum transfer is **${formatCoins(MIN_PAY, guildId)}**.`
         );
         return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
-    /* ---------- TRANSFER ---------- */
+    if (amount > MAX_PAY) {
+        const container = createContainer();
+        addTextDisplay(
+            container,
+            `# <:Cancel:1473037949187657818> Amount Too High\n\nMaximum transfer is **${formatCoins(MAX_PAY, guildId)}** per payment.`
+        );
+        return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    }
 
-    sender.coins -= amount;
-    receiver.coins += amount;
+    inFlight.add(senderId);
+    try {
+        /* ---------- ECONOMY ---------- */
 
-    economyManager.saveEconomy(economy);
+        const economy = economyManager.loadEconomy();
 
-    /* ---------- SUCCESS ---------- */
+        const { userData: sender } =
+            economyManager.getUser(economy, senderId);
 
-    const container = createContainer();
-    addTextDisplay(
-        container,
-        `# ${coinIcon(guildId)} Payment Successful\n\n` +
-        `You paid **${target.username}** ${formatCoins(amount, guildId)}\n\n` +
-        `${coinIcon(guildId)} **Your New Balance:** ${formatCoinsAmount(sender.coins, guildId)}`
-    );
+        const { userData: receiver } =
+            economyManager.getUser(economy, target.id);
 
-    return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        if (sender.coins < amount) {
+            const container = createContainer();
+            addTextDisplay(
+                container,
+                `# <:Cancel:1473037949187657818> Insufficient Funds\n\n${coinIcon(guildId)} **Your Balance:** ${formatCoinsAmount(sender.coins, guildId)}`
+            );
+            return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+
+        /* ---------- TRANSFER ---------- */
+
+        sender.coins -= amount;
+        receiver.coins += amount;
+
+        cooldowns.set(senderId, Date.now() + PAY_COOLDOWN_MS);
+        economyManager.saveEconomy(economy);
+
+        /* ---------- SUCCESS ---------- */
+
+        const container = createContainer();
+        addTextDisplay(
+            container,
+            `# ${coinIcon(guildId)} Payment Successful\n\n` +
+            `You paid **${target.username}** ${formatCoins(amount, guildId)}\n\n` +
+            `${coinIcon(guildId)} **Your New Balance:** ${formatCoinsAmount(sender.coins, guildId)}`
+        );
+
+        return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } finally {
+        inFlight.delete(senderId);
+    }
 }
 
 /* =======================================================

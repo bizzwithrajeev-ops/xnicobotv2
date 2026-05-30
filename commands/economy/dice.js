@@ -57,13 +57,21 @@ async function handleDice(reply, userId, args, opponent = null, guildId) {
     else { won = false; tie = true; }
 
     // Process bet (tie = no change)
-    let userData;
+    // Use the shared bet-game helper so the Medal `bonuses.gamble`
+    // boost actually applies to wins. The previous `processBetResult`
+    // path bypassed it — Medal owners paid for a bonus that did
+    // nothing on dice rolls.
+    let userData, actualPayout = bet;
+    const { deductBet, settle } = require('../../utils/betGameHelper');
     if (tie) {
         const economyManager = require('../../utils/economyManager');
         const economy = economyManager.loadEconomy();
         ({ userData } = economyManager.getUser(economy, userId));
     } else {
-        ({ userData } = processBetResult(userId, bet, won, 1));
+        deductBet(userId, bet);
+        const result = settle(userId, bet, won ? bet * 2 : 0);
+        userData = result.userData;
+        actualPayout = result.payout;
     }
 
     const container = createContainer(won ? 0x57F287 : (tie ? 0xFEE75C : 0xED4245));
@@ -80,7 +88,11 @@ async function handleDice(reply, userId, args, opponent = null, guildId) {
     if (tie) {
         addTextDisplay(container, `🤝 **Tie!** No coins lost.\n\n${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`);
     } else if (won) {
-        addTextDisplay(container, `<:Checkedbox:1473038547165384804> **You won ${formatCoins(bet, guildId)}!**\n\n${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`);
+        const winLine = `<:Checkedbox:1473038547165384804> **You won ${formatCoins(actualPayout - bet, guildId)}!**`;
+        const bonusNote = actualPayout > bet * 2
+            ? `\n-# Medal bonus added **+${formatCoinsAmount(actualPayout - bet * 2, guildId)}** to your win.`
+            : '';
+        addTextDisplay(container, `${winLine}${bonusNote}\n\n${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`);
     } else {
         addTextDisplay(container, `<:Cancel:1473037949187657818> **You lost ${formatCoins(bet, guildId)}**\n\n${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`);
     }

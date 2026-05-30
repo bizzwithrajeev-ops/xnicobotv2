@@ -7,6 +7,12 @@ const {
 const ph = require('../../utils/petHelpers');
 const { formatCoins, formatCoinsShort } = require('../../utils/currencyHelper');
 
+// Per-user re-entry guard for the weapon-equip select menu. Two
+// rapid clicks on the same option (or slash + prefix variants
+// running in parallel) can both pass the funds check and double-
+// charge — the lock keeps a single equip in flight at a time.
+const equipInFlight = new Set();
+
 /* ═══════════════════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════════════════ */
@@ -444,24 +450,37 @@ module.exports = {
         return true;
       }
 
-      const economyManager = require('../../utils/economyManager');
-      const economy = economyManager.loadEconomy();
-      const { userData } = economyManager.getUser(economy, uid);
-      if (userData.coins < wpDef.price) {
+      if (equipInFlight.has(uid)) {
         await interaction.reply({
-          content: `<:Cancel:1473037949187657818> Not enough coins. **${wpDef.name}** costs **${wpDef.price.toLocaleString()}** but you have **${userData.coins.toLocaleString()}**.`,
+          content: '<:Infotriangle:1473038460456800459> Your previous weapon equip is still completing — try again in a moment.',
           flags: MessageFlags.Ephemeral,
         });
         return true;
       }
 
-      userData.coins -= wpDef.price;
-      pet.weapon = { id: weaponId, name: wpDef.name, baseAtk: wpDef.baseAtk, level: 1, rarity: wpDef.rarity };
-      ph.savePets(data);
-      economyManager.saveEconomy(economy);
+      equipInFlight.add(uid);
+      try {
+        const economyManager = require('../../utils/economyManager');
+        const economy = economyManager.loadEconomy();
+        const { userData } = economyManager.getUser(economy, uid);
+        if (userData.coins < wpDef.price) {
+          await interaction.reply({
+            content: `<:Cancel:1473037949187657818> Not enough coins. **${wpDef.name}** costs **${wpDef.price.toLocaleString()}** but you have **${userData.coins.toLocaleString()}**.`,
+            flags: MessageFlags.Ephemeral,
+          });
+          return true;
+        }
 
-      await interaction.update({ components: [viewDetail(user, uid, petId, fromRarity)], flags: MessageFlags.IsComponentsV2 });
-      return true;
+        userData.coins -= wpDef.price;
+        pet.weapon = { id: weaponId, name: wpDef.name, baseAtk: wpDef.baseAtk, level: 1, rarity: wpDef.rarity };
+        ph.savePets(data);
+        economyManager.saveEconomy(economy);
+
+        await interaction.update({ components: [viewDetail(user, uid, petId, fromRarity)], flags: MessageFlags.IsComponentsV2 });
+        return true;
+      } finally {
+        equipInFlight.delete(uid);
+      }
     }
 
     /* ── BACK NAVIGATION ── */

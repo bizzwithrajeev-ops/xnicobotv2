@@ -51,6 +51,8 @@ async function handleBeg(reply, userId, guildId) {
     const amount = Math.floor(Math.random() * (giver.maxCoins - giver.minCoins + 1)) + giver.minCoins;
 
     userData.coins += amount;
+    // Lifetime earnings tracking for /profile and /economystats.
+    userData.totalEarned = (userData.totalEarned || 0) + amount;
     economyManager.addXP(economy, userId, 3);
     economyManager.saveEconomy(economy);
 

@@ -79,6 +79,41 @@ function rollWeaponFromTable(weights) {
     return pool[pool.length - 1].entry;
 }
 
+/**
+ * Compare two weapons. Returns a positive number if `a` is stronger
+ * than `b`, negative if weaker, zero if equivalent. Used to decide
+ * whether a weapon-box drop should auto-replace the currently equipped
+ * weapon — without this, opening a box on a pet that already has a
+ * legendary weapon would silently downgrade it to whatever common
+ * weapon the box rolled, costing the user the coins they spent on
+ * the original equip.
+ */
+function weaponPower(weapon) {
+    if (!weapon) return -Infinity;
+    const rarityRank = ph.RARITY_ORDER.indexOf(weapon.rarity);
+    // Multiply rarity rank heavily so a higher-tier weapon always wins
+    // over any amount of upgrades on a lower-tier one. Then add atk
+    // and level so within the same tier the upgraded one still wins.
+    return (rarityRank >= 0 ? rarityRank : 0) * 10000
+         + (Number(weapon.baseAtk) || 0) * 10
+         + (Number(weapon.level)   || 1);
+}
+
+/**
+ * Lookup the catalog price of a weapon by id. Drop-only mythics
+ * have `price: 0` in the catalog so we treat them as their roughly
+ * equivalent legendary value to keep the consolation refund fair.
+ */
+function weaponMarketValue(weaponId) {
+    const def = ph.WEAPONS[weaponId];
+    if (!def) return 0;
+    if (def.price && def.price > 0) return def.price;
+    // Drop-only mythic — give a fair consolation based on their place
+    // in the rarity ladder. Use 75k as the implied "mythic baseline"
+    // since that's roughly the price tier of legendaries.
+    return 75_000;
+}
+
 /* ═══════════════════ ITEM EFFECTS ═══════════════════ */
 
 /**
@@ -340,9 +375,32 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
 
         case 'weapon_box': {
             const weapon = rollWeaponFromTable(ph.WEAPON_BOX_WEIGHTS);
-            // Replace the equipped weapon. We carry over the rarity
-            // from the new weapon (not the pet) so its rarity multiplier
-            // for upgrades reflects what the user actually rolled.
+            const newPower = weaponPower({ ...weapon, level: 1 });
+            const oldPower = weaponPower(activePet.weapon);
+
+            // If the user already has a stronger weapon equipped, do
+            // NOT silently overwrite it (that's the bug that wiped
+            // bought weapons). Keep the existing one and refund a
+            // consolation equal to the rolled weapon's market value
+            // so the box still has perceived value — the user just
+            // spent it on a downgrade their pet rejected.
+            if (activePet.weapon && newPower <= oldPower) {
+                const refund = Math.floor(weaponMarketValue(weapon.id) * 0.5);
+                userData.coins = (userData.coins || 0) + refund;
+                return {
+                    success: true,
+                    title: `${meta.emoji} Weapon Box Opened`,
+                    result: [
+                        `Rolled **${weapon.name}** *(${weapon.rarity})* — but **${activePet.weapon.name}** *(${activePet.weapon.rarity})* on ${activePet.emoji} **${activePet.name}** is stronger.`,
+                        `Your existing weapon stays equipped.`,
+                    ].join('\n'),
+                    extra: `${coinIcon(guildId)} Compensation refund: **+${formatCoinsAmount(refund, guildId)}**  ·  -# Pet auto-rejects downgrades so a bought weapon is never lost.`,
+                };
+            }
+
+            // New weapon is strictly better (or no weapon equipped) —
+            // equip it.
+            const previous = activePet.weapon;
             activePet.weapon = {
                 id: weapon.id,
                 name: weapon.name,
@@ -351,10 +409,13 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
                 level: 1,
                 xp: 0,
             };
+            const upgradeNote = previous
+                ? `\n-# Replaced **${previous.name}** *(${previous.rarity})* — your old weapon was outclassed.`
+                : '';
             return {
                 success: true,
                 title: `${meta.emoji} Weapon Equipped`,
-                result: `${weapon.name} *(${weapon.rarity})* has been equipped to ${activePet.emoji} **${activePet.name}**.`,
+                result: `${weapon.name} *(${weapon.rarity})* has been equipped to ${activePet.emoji} **${activePet.name}**.${upgradeNote}`,
                 extra: `<:Award:1473038391632203887> Base ATK bonus: **+${weapon.baseAtk}**  ·  Use \`weapon upgrade\` to scale it further.`,
             };
         }
@@ -364,6 +425,28 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
             // drop weights skip common entirely and tilt toward
             // rare/epic/legendary, with a small mythic chance.
             const weapon = rollWeaponFromTable(ph.WEAPON_CRATE_WEIGHTS);
+            const newPower = weaponPower({ ...weapon, level: 1 });
+            const oldPower = weaponPower(activePet.weapon);
+
+            // Same downgrade guard as weapon_box. Crate refund is
+            // larger because the crate itself costs much more — we
+            // give back ~75% of the rolled weapon's market value so
+            // a "wasted" crate still leaves the user mostly whole.
+            if (activePet.weapon && newPower <= oldPower) {
+                const refund = Math.floor(weaponMarketValue(weapon.id) * 0.75);
+                userData.coins = (userData.coins || 0) + refund;
+                return {
+                    success: true,
+                    title: `${meta.emoji} Weapon Crate Opened`,
+                    result: [
+                        `Rolled **${weapon.name}** *(${weapon.rarity})* — but **${activePet.weapon.name}** *(${activePet.weapon.rarity})* on ${activePet.emoji} **${activePet.name}** is stronger.`,
+                        `Your existing weapon stays equipped.`,
+                    ].join('\n'),
+                    extra: `${coinIcon(guildId)} Compensation refund: **+${formatCoinsAmount(refund, guildId)}**  ·  -# Pet auto-rejects downgrades so a bought weapon is never lost.`,
+                };
+            }
+
+            const previous = activePet.weapon;
             activePet.weapon = {
                 id: weapon.id,
                 name: weapon.name,
@@ -372,10 +455,13 @@ function applyItem(itemId, userId, economy, pets, lottery, inventory, guildId) {
                 level: 1,
                 xp: 0,
             };
+            const upgradeNote = previous
+                ? `\n-# Replaced **${previous.name}** *(${previous.rarity})* — your old weapon was outclassed.`
+                : '';
             return {
                 success: true,
                 title: `${meta.emoji} Premium Weapon Equipped`,
-                result: `${weapon.name} *(${weapon.rarity})* has been equipped to ${activePet.emoji} **${activePet.name}**.`,
+                result: `${weapon.name} *(${weapon.rarity})* has been equipped to ${activePet.emoji} **${activePet.name}**.${upgradeNote}`,
                 extra: `<:Award:1473038391632203887> Base ATK bonus: **+${weapon.baseAtk}**`,
             };
         }

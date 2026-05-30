@@ -55,6 +55,10 @@ async function handleDaily(reply, userId, guildId) {
     const totalReward = baseReward + bonusAmount + streakBonus;
 
     user.coins += totalReward;
+    // Track lifetime earnings so /profile and /economystats stay in
+    // sync with the rest of the economy commands. Daily was the only
+    // earning command that wasn't writing this field.
+    user.totalEarned = (user.totalEarned || 0) + totalReward;
     user.lastDaily = now;
     economyManager.addXP(economy, userId, 10);
     economyManager.saveEconomy(economy);

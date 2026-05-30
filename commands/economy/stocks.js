@@ -107,7 +107,9 @@ async function handleStocks(reply, userId, subcommand, ticker, amount, guildId) 
 
     userData.coins -= cost;
     userData.stockPortfolio[t] = (userData.stockPortfolio[t] || 0) + qty;
-    userData.totalGambled = (userData.totalGambled || 0) + cost;
+    // NOTE: stocks are an investment, not gambling — incrementing
+    // `totalGambled` here was contaminating the gambler achievement
+    // and the /economystats "Total Gambled" line. Removed.
 
     economyManager.checkAllAchievements(economy, userId);
     economyManager.saveEconomy(economy);

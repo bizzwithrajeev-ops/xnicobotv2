@@ -55,7 +55,16 @@ function buildLobbyEmbed(target, leader, members, secondsLeft) {
 
 async function runHeist(msg, target, leader, members, interaction) {
   const guildId = interaction?.guild?.id;
-  const allParticipants = [leader, ...members];
+  // Deduplicate by user id — defensive guard against any caller that
+  // accidentally passes the leader inside `members` as well as the
+  // `leader` arg (would otherwise cause double-payouts and double
+  // heistCount on a single user).
+  const seen = new Set();
+  const allParticipants = [leader, ...members].filter(p => {
+    if (!p?.id || seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
   const crewBonus = Math.min((allParticipants.length - 1) * 0.08, 0.32);
   const successRate = Math.min(target.baseSuccessRate + crewBonus, 0.90);
   const success = Math.random() < successRate;

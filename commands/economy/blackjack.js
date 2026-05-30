@@ -123,20 +123,20 @@ function buildActionRow(gameId, disabled = false) {
  * profit) — for a 2× win it's 2 × bet; for a push it's the bet.
  *
  * Already-deducted bet is reflected in totals as totalGambled.
+ *
+ * Delegates to the shared `betGameHelper.settle` so the Medal
+ * `bonuses.gamble` boost applies here too — without it the user
+ * would pay for a Medal that never fires on blackjack wins. Returns
+ * the post-settlement userData (callers depend on `userData.coins`
+ * for the balance display).
  */
 function settle(userId, bet, payout) {
-    const economy = economyManager.loadEconomy();
-    const { userData } = economyManager.getUser(economy, userId);
-    if (payout > 0) {
-        userData.coins += payout;
-        if (payout > bet) userData.totalWon = (userData.totalWon || 0) + (payout - bet);
-    }
-    if (payout < bet) {
-        userData.totalLost = (userData.totalLost || 0) + (bet - payout);
-    }
-    economyManager.addXP(economy, userId, payout > bet ? 8 : 2);
-    economyManager.checkAllAchievements(economy, userId);
-    economyManager.saveEconomy(economy);
+    const { settle: sharedSettle } = require('../../utils/betGameHelper');
+    const { userData, payout: actualPayout } = sharedSettle(userId, bet, payout);
+    // Stash the bonus delta on the returned object so the buildContainer
+    // caller can surface it in the result line (the shared helper
+    // returns `payout` already net of any bonus).
+    userData._lastPayout = actualPayout;
     return userData;
 }
 

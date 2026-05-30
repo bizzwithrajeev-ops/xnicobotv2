@@ -46,6 +46,13 @@ const scheduler = require('../../utils/lotteryScheduler');
 const REFRESH_RATE = 15_000; // re-render the panel this often
 const COLLECTOR_TIMEOUT = 30 * 60 * 1000; // panel stays interactive for 30 minutes
 
+// Per-user re-entry guard for the buy-ticket button. Without this,
+// rapid clicks on the same panel can both pass the funds check and
+// double-charge the user (or, since each click reads the live cache,
+// potentially register two tickets for the price of one). The Set
+// is cleared in a finally block on every code path.
+const buyInFlight = new Set();
+
 const {
     LOTTERY_DURATION,
     GST_RATE,
@@ -346,49 +353,66 @@ async function runLottery(target, replyHandle) {
 
             // Buy — gated on funds + per-user cap, then mutates state.
             if (cid.startsWith('lottery_join_')) {
-                const economy = economyManager.loadEconomy();
-                let lot = scheduler.loadLottery();
-
-                // Lazy-start the draw if it isn't already running.
-                if (!lot.active || lot.endsAt < Date.now()) {
-                    lot.active = true;
-                    lot.endsAt = Date.now() + LOTTERY_DURATION;
-                    lot.entries = lot.entries || {};
-                    lotteryAI.resetAI(lot);
+                if (buyInFlight.has(userId)) {
+                    await i.followUp({
+                        content: '<:Infotriangle:1473038460456800459> Your previous ticket purchase is still completing — try again in a moment.',
+                        flags: MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                    return;
                 }
+                buyInFlight.add(userId);
+                try {
+                    const economy = economyManager.loadEconomy();
+                    let lot = scheduler.loadLottery();
 
-                const owned = userTicketsOf(lot.entries, userId);
-                if (owned >= MAX_TICKETS) {
-                    // Re-render so the button shows the disabled state.
+                    // Lazy-start the draw if it isn't already running.
+                    // Reset entries/jackpot too — keeping the previous
+                    // round's leftovers would let a player who held
+                    // tickets in a drawn-but-not-cleared round appear to
+                    // start the new round with those tickets credited.
+                    if (!lot.active || lot.endsAt < Date.now()) {
+                        lot.active = true;
+                        lot.endsAt = Date.now() + LOTTERY_DURATION;
+                        lot.entries = {};
+                        lot.jackpot = 0;
+                        lotteryAI.resetAI(lot);
+                    }
+
+                    const owned = userTicketsOf(lot.entries, userId);
+                    if (owned >= MAX_TICKETS) {
+                        // Re-render so the button shows the disabled state.
+                        await msg.edit({
+                            components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
+                            flags: MessageFlags.IsComponentsV2,
+                        }).catch(() => {});
+                        return;
+                    }
+
+                    const price = BASE_TICKET_PRICE + owned * PRICE_STEP;
+                    const { userData } = economyManager.getUser(economy, userId);
+                    if ((userData.coins || 0) < price) {
+                        await i.followUp({
+                            content: `<:Cancel:1473037949187657818> You need **${formatNumber(price)}** coins for the next ticket — your wallet has ${formatNumber(userData.coins || 0)}.`,
+                            flags: MessageFlags.Ephemeral,
+                        }).catch(() => {});
+                        return;
+                    }
+
+                    userData.coins -= price;
+                    lot.entries[userId] = owned + 1;
+                    lot.jackpot += price;
+
+                    economyManager.saveEconomy(economy);
+                    scheduler.saveLottery(lot);
+
                     await msg.edit({
                         components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
                         flags: MessageFlags.IsComponentsV2,
                     }).catch(() => {});
                     return;
+                } finally {
+                    buyInFlight.delete(userId);
                 }
-
-                const price = BASE_TICKET_PRICE + owned * PRICE_STEP;
-                const { userData } = economyManager.getUser(economy, userId);
-                if ((userData.coins || 0) < price) {
-                    await i.followUp({
-                        content: `<:Cancel:1473037949187657818> You need **${formatNumber(price)}** coins for the next ticket — your wallet has ${formatNumber(userData.coins || 0)}.`,
-                        flags: MessageFlags.Ephemeral,
-                    }).catch(() => {});
-                    return;
-                }
-
-                userData.coins -= price;
-                lot.entries[userId] = owned + 1;
-                lot.jackpot += price;
-
-                economyManager.saveEconomy(economy);
-                scheduler.saveLottery(lot);
-
-                await msg.edit({
-                    components: [buildPanel(lot, userId, guildId), buildButtons(userId, lot)],
-                    flags: MessageFlags.IsComponentsV2,
-                }).catch(() => {});
-                return;
             }
         } catch (err) {
             console.error('[lottery] collector error:', err);

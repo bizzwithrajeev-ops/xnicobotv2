@@ -257,18 +257,52 @@ function repayLoan(economy, userId, amount) {
   if (userData.coins < amount) {
     return { error: 'Insufficient coins.' };
   }
-  const loan = userData.loans[0];
-  const daysElapsed = Math.floor((Date.now() - loan.takenAt) / 86400000);
-  const totalOwed = Math.floor(loan.amount * Math.pow(1 + loan.interest, daysElapsed));
-  const paid = Math.min(amount, totalOwed);
-  userData.coins -= paid;
-  if (paid >= totalOwed) {
-    userData.loans.shift();
-    return { paid, totalOwed, cleared: true };
+
+  // Apply payment across loans, oldest-first. The previous version
+  // operated on `loans[0]` only, so a user with 2 or 3 active loans
+  // could never repay the later ones — the prefix UI couldn't even
+  // target them. It also reset `takenAt = Date.now()` on every
+  // partial repayment, letting a user dodge daily compounding by
+  // paying 1 coin a day forever. Both bugs are fixed here.
+  let remaining = amount;
+  let totalPaid = 0;
+  let totalOwedAcrossLoans = 0;
+  let clearedAll = true;
+
+  for (const loan of userData.loans) {
+    const days = Math.max(0, Math.floor((Date.now() - loan.takenAt) / 86400000));
+    const owed = Math.floor(loan.amount * Math.pow(1 + loan.interest, days));
+    totalOwedAcrossLoans += owed;
+    if (remaining <= 0) {
+      clearedAll = false;
+      continue;
+    }
+    const pay = Math.min(remaining, owed);
+    totalPaid += pay;
+    remaining -= pay;
+    if (pay >= owed) {
+      loan.amount = 0;
+      loan.cleared = true;
+    } else {
+      // Partial repayment: store the *post-interest* remaining
+      // principal but keep the original `takenAt` so the next day's
+      // interest still applies — preventing the "1 coin a day"
+      // cheese.
+      loan.amount = owed - pay;
+      clearedAll = false;
+    }
   }
-  loan.amount = totalOwed - paid;
-  loan.takenAt = Date.now();
-  return { paid, totalOwed, cleared: false };
+
+  userData.coins -= totalPaid;
+  // Drop fully-cleared loans from the array so a user with the slot
+  // limit (3) can borrow again after settling.
+  userData.loans = userData.loans.filter(l => !l.cleared && (l.amount || 0) > 0);
+
+  return {
+    paid: totalPaid,
+    totalOwed: totalOwedAcrossLoans,
+    cleared: clearedAll,
+  };
 }
 
 /* ═══════════════════════════════════════════════════════

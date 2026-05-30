@@ -67,6 +67,10 @@ async function handleWork(reply, userId, guildId) {
     user.workCount = (user.workCount || 0) + 1;
 
     user.coins += totalEarned;
+    // Track lifetime earnings on the user record (the local `totalEarned`
+    // variable shadowed this — without the explicit write the field
+    // never got persisted).
+    user.totalEarned = (user.totalEarned || 0) + totalEarned;
     user.lastWork = now;
     economyManager.addXP(economy, userId, 5);
     economyManager.saveEconomy(economy);

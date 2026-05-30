@@ -60,6 +60,9 @@ async function handleWeekly(reply, userId, guildId) {
     const totalReward = baseReward + streakBonus + globalBonus + loyaltyBonus;
 
     userData.coins += totalReward;
+    // Track lifetime earnings so /profile and /economystats stay in
+    // sync with the rest of the economy commands.
+    userData.totalEarned = (userData.totalEarned || 0) + totalReward;
     userData.lastWeekly = now;
     economyManager.addXP(economy, userId, 25);
     economyManager.saveEconomy(economy);

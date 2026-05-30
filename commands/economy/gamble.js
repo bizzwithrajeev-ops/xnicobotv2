@@ -66,23 +66,16 @@ async function handleGamble(reply, userId, args, guildId) {
 
     const outcome = spinWheel();
     const payout = Math.floor(bet * outcome.multiplier);
-    const profit = payout - bet;
-    const won = profit > 0;
-    const lost = profit < 0;
 
-    // Process: if multiplier > 1, user wins (payout - bet). If < 1, user loses (bet - payout).
-    const economyManager = require('../../utils/economyManager');
-    const economy = economyManager.loadEconomy();
-    const { userData } = economyManager.getUser(economy, userId);
+    // Use the shared bet-game helper so the Medal `bonuses.gamble`
+    // boost actually applies to wins. The previous inline math
+    // bypassed it — Medal owners paid for a bonus that did nothing
+    // on the headline `gamble` command.
+    const { deductBet, settle } = require('../../utils/betGameHelper');
+    deductBet(userId, bet);
+    const { userData, payout: actualPayout } = settle(userId, bet, payout);
 
-    userData.coins += profit;
-    userData.totalGambled = (userData.totalGambled || 0) + bet;
-    if (won) userData.totalWon = (userData.totalWon || 0) + profit;
-    if (lost) userData.totalLost = (userData.totalLost || 0) + Math.abs(profit);
-    economyManager.addXP(economy, userId, won ? 8 : 2);
-    economyManager.checkAllAchievements(economy, userId);
-    economyManager.saveEconomy(economy);
-
+    const profit = actualPayout - bet;
     const container = createContainer(outcome.color);
 
     addTextDisplay(container, [
@@ -97,6 +90,9 @@ async function handleGamble(reply, userId, args, guildId) {
     const lines = [];
     if (profit > 0) {
         lines.push(`<:Checkedbox:1473038547165384804> **Won ${formatCoins(profit, guildId)}!**`);
+        if (actualPayout > payout) {
+            lines.push(`-# Medal bonus added **+${formatCoinsAmount(actualPayout - payout, guildId)}** to your win.`);
+        }
     } else if (profit === 0) {
         lines.push(`🔄 **Break even — no coins lost.**`);
     } else {

@@ -12,6 +12,14 @@ const { shopGuard } = require('../../utils/economyGuards');
 function load() { return jsonStore.read('inventory'); }
 function save(d) { jsonStore.write('inventory', d); }
 
+// Per-user re-entry guard. Two parallel `buy` invocations from the
+// same user (slash + prefix double-fire) would otherwise both pass
+// the balance check on the live cache and both deduct coins, but
+// inventory writes from one would clobber the other — landing the
+// user with a charge but no items, or duplicate items but only one
+// charge. Cleared in a finally block on every code path.
+const inFlight = new Set();
+
 /* ═══════════════════ COMMAND ═══════════════════ */
 
 module.exports = {
@@ -54,83 +62,97 @@ module.exports = {
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    const economy = economyManager.loadEconomy();
-    const inventory = load();
     const userId = message.author.id;
-
-    const { userData } = economyManager.getUser(economy, userId);
-    inventory[userId] ||= [];
-
-    /* ── VIP guard ── once a user has activated the VIP flag, the badge
-     * is permanent and they should not be able to waste coins on a
-     * second one. The badge has maxOwn:1 already, but the use flow
-     * consumes the item, leaving room to repurchase. */
-    if (itemId === 'vip_badge' && userData.vip) {
+    if (inFlight.has(userId)) {
       const c = createContainer(0xFEE75C);
-      addTextDisplay(c, [
-        '<:Infotriangle:1473038460456800459> **You already have VIP status.**',
-        '',
-        `${item.emoji} ${item.name} is a permanent activation — buying another won't grant anything.`,
-      ].join('\n'));
+      addTextDisplay(c, '<:Infotriangle:1473038460456800459> A previous purchase is still completing — try again in a moment.');
       return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
     }
 
-    /* ── Max-own check ── */
-    const owned = inventory[userId].filter(i => i.id === itemId).length;
-    if (owned + qty > item.maxOwn) {
-      const canBuy = item.maxOwn - owned;
-      const c = createContainer(0xED4245);
-      addTextDisplay(c, [
-        `<:Cancel:1473037949187657818> **Purchase limit reached!**`,
-        '',
-        `${item.emoji} ${item.name}: **${owned}/${item.maxOwn}** owned`,
-        canBuy > 0 ? `You can buy up to **${canBuy}** more.` : 'You already own the maximum.',
-      ].join('\n'));
-      return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
-    }
+    inFlight.add(userId);
+    try {
+      const economy = economyManager.loadEconomy();
+      const inventory = load();
 
-    /* ── Funds check ── */
-    const totalCost = item.price * qty;
-    if (userData.coins < totalCost) {
-      const deficit = totalCost - userData.coins;
-      const c = createContainer(0xED4245);
-      addTextDisplay(c, [
-        '<:Cancel:1473037949187657818> **Not enough coins!**',
+      const { userData } = economyManager.getUser(economy, userId);
+      inventory[userId] ||= [];
+
+      /* ── VIP guard ── once a user has activated the VIP flag, the badge
+       * is permanent and they should not be able to waste coins on a
+       * second one. The badge has maxOwn:1 already, but the use flow
+       * consumes the item, leaving room to repurchase. */
+      if (itemId === 'vip_badge' && userData.vip) {
+        const c = createContainer(0xFEE75C);
+        addTextDisplay(c, [
+          '<:Infotriangle:1473038460456800459> **You already have VIP status.**',
+          '',
+          `${item.emoji} ${item.name} is a permanent activation — buying another won't grant anything.`,
+        ].join('\n'));
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      /* ── Max-own check ── */
+      const owned = inventory[userId].filter(i => i.id === itemId).length;
+      if (owned + qty > item.maxOwn) {
+        const canBuy = item.maxOwn - owned;
+        const c = createContainer(0xED4245);
+        addTextDisplay(c, [
+          `<:Cancel:1473037949187657818> **Purchase limit reached!**`,
+          '',
+          `${item.emoji} ${item.name}: **${owned}/${item.maxOwn}** owned`,
+          canBuy > 0 ? `You can buy up to **${canBuy}** more.` : 'You already own the maximum.',
+        ].join('\n'));
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      /* ── Funds check ── */
+      const totalCost = item.price * qty;
+      if (userData.coins < totalCost) {
+        const deficit = totalCost - userData.coins;
+        const c = createContainer(0xED4245);
+        addTextDisplay(c, [
+          '<:Cancel:1473037949187657818> **Not enough coins!**',
+          '',
+          `${coinIcon(guildId)} Cost: **${formatCoinsAmount(totalCost, guildId)}**`,
+          `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
+          `📉 Short: **${formatCoins(deficit, guildId)}**`,
+        ].join('\n'));
+        return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      /* ═══════ PROCESS PURCHASE ═══════ */
+
+      userData.coins -= totalCost;
+      for (let i = 0; i < qty; i++) {
+        inventory[userId].push({ id: itemId, boughtAt: Date.now() });
+      }
+
+      // Save inventory FIRST so the user always has the items they
+      // paid for, even if the economy save somehow fails (the next
+      // economy mutation will re-save the wallet on its way through).
+      save(inventory);
+      economyManager.saveEconomy(economy);
+
+      /* ═══════ RESPONSE ═══════ */
+
+      const newOwned = owned + qty;
+      const container = createContainer(0xCAD7E6);
+      addTextDisplay(container, [
+        '# 🛒 Purchase Successful',
         '',
+        `<:Checkedbox:1473038547165384804> Bought **${qty}× ${item.emoji} ${item.name}**`,
         `${coinIcon(guildId)} Cost: **${formatCoinsAmount(totalCost, guildId)}**`,
+        '',
         `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
-        `📉 Short: **${formatCoins(deficit, guildId)}**`,
+        `<:Box:1473039115581915256> Owned: **${newOwned}/${item.maxOwn}**`,
+        '',
+        `-# <:Lightbulbalt:1473038470787240009> \`use ${itemId}\` to use  ·  \`inventory\` to view all items`,
       ].join('\n'));
-      return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+
+      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } finally {
+      inFlight.delete(userId);
     }
-
-    /* ═══════ PROCESS PURCHASE ═══════ */
-
-    userData.coins -= totalCost;
-    for (let i = 0; i < qty; i++) {
-      inventory[userId].push({ id: itemId, boughtAt: Date.now() });
-    }
-
-    economyManager.saveEconomy(economy);
-    save(inventory);
-
-    /* ═══════ RESPONSE ═══════ */
-
-    const newOwned = owned + qty;
-    const container = createContainer(0xCAD7E6);
-    addTextDisplay(container, [
-      '# 🛒 Purchase Successful',
-      '',
-      `<:Checkedbox:1473038547165384804> Bought **${qty}× ${item.emoji} ${item.name}**`,
-      `${coinIcon(guildId)} Cost: **${formatCoinsAmount(totalCost, guildId)}**`,
-      '',
-      `💼 Wallet: **${formatCoins(userData.coins, guildId)}**`,
-      `<:Box:1473039115581915256> Owned: **${newOwned}/${item.maxOwn}**`,
-      '',
-      `-# <:Lightbulbalt:1473038470787240009> \`use ${itemId}\` to use  ·  \`inventory\` to view all items`,
-    ].join('\n'));
-
-    return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 
   async execute(interaction) {

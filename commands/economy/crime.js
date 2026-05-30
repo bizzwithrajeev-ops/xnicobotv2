@@ -57,6 +57,9 @@ async function handleCrime(reply, userId, guildId) {
   if (success) {
     const reward = Math.floor(Math.random() * (crime.maxReward - crime.minReward + 1)) + crime.minReward;
     userData.coins += reward;
+    // Lifetime earnings tracking — was missing here so /economystats
+    // under-reported total earned for users who grind crimes.
+    userData.totalEarned = (userData.totalEarned || 0) + reward;
     userData.crimeCount = (userData.crimeCount || 0) + 1;
 
     const msg = SUCCESS_MESSAGES[Math.floor(Math.random() * SUCCESS_MESSAGES.length)];

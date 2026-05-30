@@ -32,6 +32,12 @@ const { formatCoins, formatCoinsAmount, coinIcon } = require('../../utils/curren
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 
+// Per-user re-entry guard for the coin-spending learn flow. Without
+// this, two parallel `skill learn` invocations (slash + prefix) from
+// the same user could both pass the balance check on the same live
+// cache and double-charge the user. Cleared in a finally block.
+const learnInFlight = new Set();
+
 const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
 
 /* ─────────────── helpers ─────────────── */
@@ -137,26 +143,36 @@ function cmdLearn(skillId, pet, userData, pets, message, guildId) {
         return err(`**${def.name}** unlocks at pet level **${def.unlockTier || 1}**. Your active pet is level **${pet.level || 1}**.`);
     }
 
-    const economy = economyManager.loadEconomy();
-    const econ = economyManager.getUser(economy, message.author.id).userData;
-    const cost = def.price || 0;
-    if (cost > 0 && econ.coins < cost) {
-        return err(`Not enough coins. **${def.name}** costs **${formatCoins(cost, guildId)}** but you have **${formatCoins(econ.coins, guildId)}**.`);
+    const userId = message.author.id;
+    if (learnInFlight.has(userId)) {
+        return err('A previous skill learn is still completing — try again in a moment.');
     }
-    if (cost > 0) econ.coins -= cost;
 
-    pet.learnedSkills = [...learned, skillId];
-    ph.savePets(pets);
-    economyManager.saveEconomy(economy);
+    learnInFlight.add(userId);
+    try {
+        const economy = economyManager.loadEconomy();
+        const econ = economyManager.getUser(economy, userId).userData;
+        const cost = def.price || 0;
+        if (cost > 0 && econ.coins < cost) {
+            return err(`Not enough coins. **${def.name}** costs **${formatCoins(cost, guildId)}** but you have **${formatCoins(econ.coins, guildId)}**.`);
+        }
+        if (cost > 0) econ.coins -= cost;
 
-    return ok([
-        `# <:Lightbulbalt:1473038470787240009> Skill Learned`,
-        '',
-        `${pet.emoji} **${pet.name}** learned **${def.name}**!`,
+        pet.learnedSkills = [...learned, skillId];
+        ph.savePets(pets);
+        economyManager.saveEconomy(economy);
+
+        return ok([
+            `# <:Lightbulbalt:1473038470787240009> Skill Learned`,
+            '',
+            `${pet.emoji} **${pet.name}** learned **${def.name}**!`,
         cost > 0 ? `${coinIcon(guildId)} Cost: **${formatCoinsAmount(cost, guildId)}**` : '',
         '',
         `-# Use \`skill equip ${skillId}\` to bring it into battle (cap **${ph.MAX_EQUIPPED_SKILLS}**).`,
     ].filter(Boolean).join('\n'));
+    } finally {
+        learnInFlight.delete(userId);
+    }
 }
 
 function cmdEquip(skillId, pet, pets) {

@@ -3,6 +3,12 @@ const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require(
 const economyManager = require('../../utils/economyManager');
 const ph = require('../../utils/petHelpers');
 
+// Per-user re-entry guard for the coin-spending equip/upgrade flows.
+// Without this, two parallel `weapon equip` / `weapon upgrade` (slash
+// + prefix double-fire) could both pass the balance check on the
+// same live cache and double-charge the user.
+const inFlight = new Set();
+
 const MAX_WEAPON_LEVEL = 10;
 
 // Use shared WEAPONS catalog from petHelpers
@@ -121,39 +127,50 @@ module.exports = {
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
 
-      const economy = economyManager.loadEconomy();
-      const { userData: wUser } = economyManager.getUser(economy, userId);
-      if (wUser.coins < def.price) {
-        const c = createContainer(0xED4245);
-        addTextDisplay(c, [
-          `<:Cancel:1473037949187657818> Not enough coins to equip **${def.name}**.`,
-          `${coinIcon(guildId)} Cost: **${formatCoinsAmount(def.price, guildId)}**`,
-          `<:Money:1473377877239140529> Wallet: **${formatCoins(wUser.coins, guildId)}**`,
-        ].join('\n'));
+      if (inFlight.has(userId)) {
+        const c = createContainer(0xFEE75C);
+        addTextDisplay(c, '<:Infotriangle:1473038460456800459> A previous weapon equip/upgrade is still completing — try again in a moment.');
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
 
-      wUser.coins -= def.price;
-      pet.weapon = {
-        id,
-        name: def.name,
-        baseAtk: def.baseAtk,
-        rarity: def.rarity,
-        level: 1,
-      };
+      inFlight.add(userId);
+      try {
+        const economy = economyManager.loadEconomy();
+        const { userData: wUser } = economyManager.getUser(economy, userId);
+        if (wUser.coins < def.price) {
+          const c = createContainer(0xED4245);
+          addTextDisplay(c, [
+            `<:Cancel:1473037949187657818> Not enough coins to equip **${def.name}**.`,
+            `${coinIcon(guildId)} Cost: **${formatCoinsAmount(def.price, guildId)}**`,
+            `<:Money:1473377877239140529> Wallet: **${formatCoins(wUser.coins, guildId)}**`,
+          ].join('\n'));
+          return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        }
 
-      ph.savePets(pets);
-      economyManager.saveEconomy(economy);
+        wUser.coins -= def.price;
+        pet.weapon = {
+          id,
+          name: def.name,
+          baseAtk: def.baseAtk,
+          rarity: def.rarity,
+          level: 1,
+        };
 
-      const container = createContainer();
-      addTextDisplay(container, [
-        `# 🗡️ Weapon Equipped`,
-        '',
-        `<:Checkedbox:1473038547165384804> Equipped **${def.name}** *(${def.rarity})* to ${pet.emoji} **${pet.name}**`,
-        `${coinIcon(guildId)} Cost: ${formatCoinsAmount(def.price, guildId)}`,
-        `⚔️ Base ATK bonus: **+${def.baseAtk}**`,
-      ].join('\n'));
-      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        ph.savePets(pets);
+        economyManager.saveEconomy(economy);
+
+        const container = createContainer();
+        addTextDisplay(container, [
+          `# 🗡️ Weapon Equipped`,
+          '',
+          `<:Checkedbox:1473038547165384804> Equipped **${def.name}** *(${def.rarity})* to ${pet.emoji} **${pet.name}**`,
+          `${coinIcon(guildId)} Cost: ${formatCoinsAmount(def.price, guildId)}`,
+          `⚔️ Base ATK bonus: **+${def.baseAtk}**`,
+        ].join('\n'));
+        return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      } finally {
+        inFlight.delete(userId);
+      }
     }
 
     /* ---------- UPGRADE ---------- */
@@ -167,30 +184,41 @@ module.exports = {
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
 
-      const rarityMult = RARITY_MULT[pet.weapon.rarity] || 1;
-      const cost = Math.floor(5000 * pet.weapon.level * rarityMult);
-
-      const economy = economyManager.loadEconomy();
-      const { userData: wUser } = economyManager.getUser(economy, userId);
-      if (wUser.coins < cost) {
-        const c = createContainer(0xED4245); addTextDisplay(c, `<:Cancel:1473037949187657818> You need **${formatCoins(cost, guildId)}** to upgrade.`);
+      if (inFlight.has(userId)) {
+        const c = createContainer(0xFEE75C);
+        addTextDisplay(c, '<:Infotriangle:1473038460456800459> A previous weapon equip/upgrade is still completing — try again in a moment.');
         return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
       }
 
-      wUser.coins -= cost;
-      pet.weapon.level++;
-      pet.weapon.baseAtk += 2;
+      const rarityMult = RARITY_MULT[pet.weapon.rarity] || 1;
+      const cost = Math.floor(5000 * pet.weapon.level * rarityMult);
 
-      ph.savePets(pets);
-      economyManager.saveEconomy(economy);
+      inFlight.add(userId);
+      try {
+        const economy = economyManager.loadEconomy();
+        const { userData: wUser } = economyManager.getUser(economy, userId);
+        if (wUser.coins < cost) {
+          const c = createContainer(0xED4245); addTextDisplay(c, `<:Cancel:1473037949187657818> You need **${formatCoins(cost, guildId)}** to upgrade.`);
+          return message.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        }
 
-      const container = createContainer();
-      addTextDisplay(container, `# 🗡️ Weapon Upgraded!\n\n` +
-        `<:Star:1473038501766369300> Level: **${pet.weapon.level}/${MAX_WEAPON_LEVEL}**\n` +
-        `⚔️ ATK: **${pet.weapon.baseAtk}**\n` +
-        `${coinIcon(guildId)} Cost: ${formatCoinsAmount(cost, guildId)}`);
+        wUser.coins -= cost;
+        pet.weapon.level++;
+        pet.weapon.baseAtk += 2;
 
-      return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        ph.savePets(pets);
+        economyManager.saveEconomy(economy);
+
+        const container = createContainer();
+        addTextDisplay(container, `# 🗡️ Weapon Upgraded!\n\n` +
+          `<:Star:1473038501766369300> Level: **${pet.weapon.level}/${MAX_WEAPON_LEVEL}**\n` +
+          `⚔️ ATK: **${pet.weapon.baseAtk}**\n` +
+          `${coinIcon(guildId)} Cost: ${formatCoinsAmount(cost, guildId)}`);
+
+        return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      } finally {
+        inFlight.delete(userId);
+      }
     }
 
     /* ---------- INFO ---------- */
