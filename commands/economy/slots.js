@@ -47,7 +47,7 @@ function getMultiplier(reelEmojis) {
   return 0;
 }
 
-async function handleSlots(reply, userId, args, guildId) {
+async function handleSlots(reply, userId, args, guildId, editFn) {
   const now = Date.now();
 
   if (cooldowns.get(userId) > now) {
@@ -101,10 +101,11 @@ async function handleSlots(reply, userId, args, guildId) {
 
   cooldowns.set(userId, now + COOLDOWN);
 
-  // star_booster gives a small win-rate boost on slots & betflip.
-  // We implement it as a "lucky-spin re-roll": if the first spin
-  // is a loss, there's a `slotsBonus` chance to re-spin. This makes
-  // the boost meaningful without warping the published payout table.
+  // ── Determine the final result up front ──
+  // We pre-roll the result so all the "spinning" frames are pure UI
+  // animation — the outcome is sealed before the first frame renders.
+  // This avoids any chance of the animation desyncing from what the
+  // economy actually credits.
   const slotsBonus = Number(userData.bonuses?.slots) || 0;
   let spinResults = [spinReel(), spinReel(), spinReel()];
   let reelEmojis = spinResults.map(r => r.emoji);
@@ -116,56 +117,148 @@ async function handleSlots(reply, userId, args, guildId) {
     multiplier = getMultiplier(reelEmojis);
     rerolled = true;
   }
-  const winnings = Math.floor(bet * multiplier);
-  const isJackpot = reelEmojis[0] === '🌟' && reelEmojis[1] === '🌟' && reelEmojis[2] === '🌟';
 
-  if (winnings > 0) {
-    userData.coins += winnings - bet;
-    userData.totalWon = (userData.totalWon || 0) + winnings;
-  } else {
-    userData.coins -= bet;
-    userData.totalLost = (userData.totalLost || 0) + bet;
+  /* ═══ Animation: 3 frames with progressive reveals ═══
+     Frame 0: all three reels spinning (random symbols)
+     Frame 1: reel 1 locks in, reels 2 + 3 still spinning
+     Frame 2: reels 1 + 2 locked, reel 3 still spinning
+     Frame 3: all reels locked → final result
+     Each frame is ~600ms apart, total ~1.8s of "spin" before reveal. */
+  function buildAnimFrame(displayedReels, statusText, color = 0xCAD7E6) {
+    const c = createContainer(color);
+    addTextDisplay(c, [
+      `# <:Gamepad:1473039216429498409> Slot Machine`,
+      '',
+      `> Bet: **${formatCoins(bet, guildId)}**`,
+      '',
+      `## ${displayedReels.join('  |  ')}`,
+      '',
+      statusText,
+    ].join('\n'));
+    return c;
   }
 
-  userData.totalGambled = (userData.totalGambled || 0) + bet;
-  if ((userData.totalGambled || 0) >= 1_000_000) economyManager.checkAchievement(economy, userId, 'gambler');
-  economyManager.addXP(economy, userId, winnings > 0 ? 8 : 3);
-  economyManager.saveEconomy(economy);
+  // Frame 0 — initial reply, all three spinning
+  const spinPlaceholder = () => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  const frame0 = buildAnimFrame(
+    [spinPlaceholder(), spinPlaceholder(), spinPlaceholder()],
+    `<:Sandwatch:1473038580094861545> *Reels spinning…*`,
+  );
 
-  const won = winnings > 0;
-  const container = createContainer(won ? 0xCAD7E6 : 0xED4245);
+  // We need an "edit" handle to roll through subsequent frames.
+  // The slash path provides one via interaction.editReply, the prefix
+  // path needs us to capture the reply message and edit it.
+  let messageHandle = null;
+  if (typeof editFn === 'function') {
+    // Slash path: caller already deferred or sent. Use the editFn for
+    // every subsequent frame (Frame 0 also gets edited in via editFn).
+    await editFn({ components: [frame0], flags: MessageFlags.IsComponentsV2 });
+    messageHandle = { edit: (payload) => editFn(payload) };
+  } else {
+    const sent = await reply({ components: [frame0], flags: MessageFlags.IsComponentsV2 });
+    messageHandle = sent && typeof sent.edit === 'function' ? sent : null;
+  }
 
-  addTextDisplay(container, [
-    `# <:Gamepad:1473039216429498409> Slot Machine`,
-    '',
-    `## ${reelEmojis.join(' | ')}`,
-  ].join('\n'));
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  addSeparator(container, SeparatorSpacingSize.Small);
+  // Animation cadence — fast enough to feel snappy, slow enough to
+  // read as a real spin. Total ~1.5s before reveal.
+  if (messageHandle) {
+    try {
+      await sleep(450);
+      await messageHandle.edit({
+        components: [buildAnimFrame(
+          [reelEmojis[0], spinPlaceholder(), spinPlaceholder()],
+          `<:Sandwatch:1473038580094861545> *Reel 1 locked — ${reelEmojis[0]}*`,
+        )],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
+      await sleep(450);
+      await messageHandle.edit({
+        components: [buildAnimFrame(
+          [reelEmojis[0], reelEmojis[1], spinPlaceholder()],
+          `<:Sandwatch:1473038580094861545> *Reel 2 locked — ${reelEmojis[1]}*`,
+        )],
+        flags: MessageFlags.IsComponentsV2,
+      });
+
+      await sleep(550);
+    } catch (err) {
+      // If any animation frame fails (rate limit / network blip),
+      // fall through to the final result frame — the user always
+      // sees the outcome and economy reflects it.
+      console.warn('[SLOTS] animation frame failed, jumping to result:', err?.message || err);
+    }
+  }
+
+  /* ═══ Settle the bet using the shared helper so the Medal
+         bonuses.gamble bonus actually applies on wins. ═══ */
+  const winningsBase = Math.floor(bet * multiplier);
+  const isJackpot = reelEmojis[0] === '🌟' && reelEmojis[1] === '🌟' && reelEmojis[2] === '🌟';
+
+  // Re-load economy in case the animation took a beat — guarantees
+  // we credit/debit against the latest balance.
+  const economy2 = economyManager.loadEconomy();
+  const { userData: ud } = economyManager.getUser(economy2, userId);
+
+  // Deduct + settle pattern matching the rest of the bet games. We
+  // use the shared helper so Medal bonuses fire and totalGambled /
+  // totalWon / totalLost stay consistent with /economystats.
+  const { deductBet, settle } = require('../../utils/betGameHelper');
+  deductBet(userId, bet);
+  const { userData: postUser, payout: actualPayout } = settle(userId, bet, winningsBase);
+
+  const won = actualPayout > bet;
+  const profit = actualPayout - bet;
+  const finalColor = won ? (isJackpot ? 0xfbbf24 : 0x22c55e) : 0xED4245;
+
+  /* ═══ Final reveal frame ═══ */
   const resultLines = [];
   if (won) {
     resultLines.push(
-      `<:Checkedbox:1473038547165384804> **${isJackpot ? '🌟 JACKPOT! ' : ''}Won ${formatCoins(winnings, guildId)}!** (${multiplier}x)`,
+      `<:Checkedbox:1473038547165384804> **${isJackpot ? '🌟 JACKPOT! ' : ''}Won ${formatCoins(profit, guildId)}!** *(${multiplier}x)*`,
     );
+    if (actualPayout > winningsBase) {
+      resultLines.push(`-# 🥇 Medal bonus added **+${formatCoins(actualPayout - winningsBase, guildId)}** to your win.`);
+    }
   } else {
     resultLines.push(`<:Cancel:1473037949187657818> **Lost ${formatCoins(bet, guildId)}**`);
   }
-
   if (rerolled) {
     resultLines.push(`-# 🌟 Star Booster activated a free re-spin.`);
   }
-
   resultLines.push(
     '',
-    `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(userData.coins, guildId)}`,
+    `${coinIcon(guildId)} **Balance:** ${formatCoinsAmount(postUser.coins, guildId)}`,
     '',
     `-# ${won ? 'Spin again for more wins!' : 'Better luck next spin!'}`,
   );
 
-  addTextDisplay(container, resultLines.join('\n'));
+  const finalContainer = createContainer(finalColor);
+  addTextDisplay(finalContainer, [
+    `# <:Gamepad:1473039216429498409> Slot Machine`,
+    '',
+    `> Bet: **${formatCoins(bet, guildId)}**`,
+    '',
+    `## ${reelEmojis.join('  |  ')}`,
+  ].join('\n'));
+  addSeparator(finalContainer, SeparatorSpacingSize.Small);
+  addTextDisplay(finalContainer, resultLines.join('\n'));
 
-  return reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  if (messageHandle) {
+    try {
+      return await messageHandle.edit({
+        components: [finalContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    } catch {
+      // Last-resort fallback — try to send a new follow-up if the
+      // edit pipeline is gone.
+      return reply({ components: [finalContainer], flags: MessageFlags.IsComponentsV2 });
+    }
+  }
+  return reply({ components: [finalContainer], flags: MessageFlags.IsComponentsV2 });
 }
 
 module.exports = {
@@ -180,12 +273,26 @@ module.exports = {
 
   async executePrefix(message, args) {
     if (await gamblingGuard(message)) return;
-    return handleSlots(message.reply.bind(message), message.author.id, args, message.guild?.id);
+    // For prefix we need the *sent message* so we can edit it across
+    // animation frames. The reply helper returns the sent message.
+    const replyFn = (payload) => message.reply(payload);
+    return handleSlots(replyFn, message.author.id, args, message.guild?.id, null);
   },
 
   async execute(interaction) {
     if (await gamblingGuard(interaction)) return;
     const amount = interaction.options?.getString('amount') || interaction.options?.getInteger('amount');
-    return handleSlots(interaction.reply.bind(interaction), interaction.user.id, amount ? [String(amount)] : [], interaction.guild?.id);
+    // Defer first so animation frames can edit the same response.
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply().catch(() => {});
+    }
+    const editFn = (payload) => interaction.editReply(payload);
+    return handleSlots(
+      editFn,
+      interaction.user.id,
+      amount ? [String(amount)] : [],
+      interaction.guild?.id,
+      editFn,
+    );
   }
 };

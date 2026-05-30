@@ -323,10 +323,23 @@ function buildGameContainer(game, status = 'playing') {
     let statusText = '';
 
     if (status === 'playing') {
+        // Probability the *next* reveal is safe — gives the player a
+        // live read on whether to push or cash out. Without this the
+        // multiplier feels arbitrary and high-risk grids look more
+        // punishing than they actually are.
+        const remainingSafe = safeTotal - game.revealed.size;
+        const remainingTotal = gridInfo.total - game.revealed.size;
+        const nextSafePct = remainingTotal > 0
+            ? Math.round((remainingSafe / remainingTotal) * 100)
+            : 0;
+        // Multiplier you'd reach if you reveal one more safe tile.
+        const nextMult = calculateMultiplier(game.revealed.size + 1, game.gridKey, game.risk);
+
         statusText = [
             `> ${E.gem} **Revealed:** \`${game.revealed.size}\` / \`${safeTotal}\` safe tiles`,
-            `> ${E.chart} **Multiplier:** \`${multiplier}x\``,
-            `> ${coinIcon(game.guildId)} **Potential payout:** ${formatCoinsAmount(potential, game.guildId)}`,
+            `> ${E.chart} **Multiplier:** \`${multiplier}x\`  ·  next reveal → \`${nextMult}x\``,
+            `> ${E.shield} **Next safe:** \`${nextSafePct}%\`  ·  -# ${remainingSafe} safe / ${remainingTotal} remaining`,
+            `> ${coinIcon(game.guildId)} **Cash out value:** ${formatCoinsAmount(potential, game.guildId)}`,
         ].join('\n');
     } else if (status === 'won') {
         color = 0x57F287;

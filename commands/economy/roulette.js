@@ -154,17 +154,78 @@ async function handleRoulette(reply, userId, guildId, args) {
     const bet = betResult.amount;
     cooldowns.set(userId, now + COOLDOWN);
 
-    // Deduct bet, then spin.
+    /* ═══ Pre-roll the result so animation can never desync ═══ */
+    const result = Math.floor(Math.random() * 37); // 0..36
+    const won = pick.predicate(result);
+
+    /* ═══ Spinning animation — 3 frames before the reveal ═══
+       Each frame shows a teaser number and a "spinning" status to
+       sell the motion. Total ~1.5s before reveal. */
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function buildSpinFrame(displayN, status) {
+        const c = createContainer(0xCAD7E6);
+        addTextDisplay(c, [
+            `# 🎡 Roulette`,
+            '',
+            `> Pick: ${pick.label} *(${pick.payout}×)*`,
+            `> Bet: ${formatCoinsShort(bet, guildId)}`,
+            '',
+            `## ${colorEmoji(displayN)}  **${displayN}**`,
+            '',
+            status,
+        ].join('\n'));
+        return c;
+    }
+
+    // Frame 0 — initial reply
+    let messageHandle = await reply({
+        components: [buildSpinFrame(Math.floor(Math.random() * 37), `<:Sandwatch:1473038580094861545> *Wheel spinning…*`)],
+        flags: MessageFlags.IsComponentsV2,
+    });
+    // If reply returned an interaction-style edit handle, normalise.
+    const editFn = messageHandle && typeof messageHandle.edit === 'function'
+        ? (payload) => messageHandle.edit(payload)
+        : null;
+
+    if (editFn) {
+        try {
+            await sleep(500);
+            await editFn({
+                components: [buildSpinFrame(Math.floor(Math.random() * 37), `<:Sandwatch:1473038580094861545> *Wheel slowing…*`)],
+                flags: MessageFlags.IsComponentsV2,
+            });
+            await sleep(500);
+            await editFn({
+                components: [buildSpinFrame(Math.floor(Math.random() * 37), `<:Sandwatch:1473038580094861545> *Almost stopped…*`)],
+                flags: MessageFlags.IsComponentsV2,
+            });
+            await sleep(550);
+        } catch (err) {
+            console.warn('[ROULETTE] animation frame failed, jumping to result:', err?.message || err);
+        }
+    }
+
+    /* ═══ Settle the bet AFTER the animation so the on-screen
+           result and the economy stay locked together. ═══ */
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, userId);
     userData.coins -= bet;
     userData.totalGambled = (userData.totalGambled || 0) + bet;
 
-    const result = Math.floor(Math.random() * 37); // 0..36
-    const won = pick.predicate(result);
     let payoutGross = 0;
+    let bonusDelta = 0;
     if (won) {
-        payoutGross = bet + bet * pick.payout;     // original stake + winnings
+        const baseGross = bet + bet * pick.payout;
+        // Apply the Medal `bonuses.gamble` bonus to the profit portion
+        // so a Medal owner gets the same boost they get on every
+        // other gambling command. Without this, roulette wins ignored
+        // the Medal entirely.
+        const gambleBonus = Number(userData.bonuses?.gamble || 0);
+        const profit = baseGross - bet;
+        const bonusExtra = gambleBonus > 0 ? Math.floor(profit * gambleBonus) : 0;
+        payoutGross = baseGross + bonusExtra;
+        bonusDelta = bonusExtra;
         userData.coins += payoutGross;
         userData.totalWon = (userData.totalWon || 0) + (payoutGross - bet);
     } else {
@@ -174,6 +235,7 @@ async function handleRoulette(reply, userId, guildId, args) {
     economyManager.checkAllAchievements(economy, userId);
     economyManager.saveEconomy(economy);
 
+    /* ═══ Final reveal ═══ */
     const c = createContainer(won ? 0x57F287 : 0xED4245);
     addTextDisplay(c, [
         `# 🎡 Roulette`,
@@ -186,12 +248,16 @@ async function handleRoulette(reply, userId, guildId, args) {
     addSeparator(c, SeparatorSpacingSize.Small);
 
     if (won) {
-        addTextDisplay(c, [
+        const winLines = [
             `<:Checkedbox:1473038547165384804> **You won ${formatCoinsShort(payoutGross - bet, guildId)} profit!**`,
             ``,
             `${coinIcon(guildId)} **Payout:** ${formatCoinsShort(payoutGross, guildId)}`,
             `💼 **Balance:** ${formatCoinsShort(userData.coins, guildId)}`,
-        ].join('\n'));
+        ];
+        if (bonusDelta > 0) {
+            winLines.push(`-# 🥇 Medal bonus added **+${formatCoinsShort(bonusDelta, guildId)}** to your win.`);
+        }
+        addTextDisplay(c, winLines.join('\n'));
     } else {
         addTextDisplay(c, [
             `<:Cancel:1473037949187657818> **Lost ${formatCoinsShort(bet, guildId)}**`,
@@ -200,6 +266,13 @@ async function handleRoulette(reply, userId, guildId, args) {
         ].join('\n'));
     }
 
+    if (editFn) {
+        try {
+            return await editFn({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        } catch {
+            return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
+        }
+    }
     return reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 }
 
@@ -233,23 +306,24 @@ module.exports = {
         const bet = interaction.options.getString('bet');
         const pickStr = interaction.options.getString('pick');
         const number = interaction.options.getInteger('number');
-        // A specific number takes precedence (it's a different bet type).
         const pick = number !== null && number !== undefined ? String(number) : pickStr;
-        return handleRoulette(
-            (opts) => interaction.reply(opts),
-            interaction.user.id,
-            interaction.guild?.id,
-            [bet, pick]
-        );
+        // Defer so animation frames can edit the same response.
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply().catch(() => {});
+        }
+        // editReply returns the resolved Message object (via REST), which
+        // exposes a usable `.edit()` handle for subsequent frames.
+        const replyFn = async (payload) => {
+            const sent = await interaction.editReply(payload);
+            return sent;
+        };
+        return handleRoulette(replyFn, interaction.user.id, interaction.guild?.id, [bet, pick]);
     },
 
     async executePrefix(message, args) {
         if (await gamblingGuard(message)) return;
-        return handleRoulette(
-            (opts) => message.reply(opts),
-            message.author.id,
-            message.guild?.id,
-            args
-        );
+        // message.reply() resolves to the sent Message which has .edit().
+        const replyFn = (payload) => message.reply(payload);
+        return handleRoulette(replyFn, message.author.id, message.guild?.id, args);
     }
 };

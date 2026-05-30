@@ -413,7 +413,7 @@ async function handlePVE(reply, userId, guildId) {
         if (ecoUser.battlesWon >= 50)  economyManager.checkAchievement(economy, userId, 'battle_50');
         economyManager.saveEconomy(economy);
 
-        rewards = { coins: coinReward, exp: expGain, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel };
+        rewards = { coins: coinReward, exp: expGain, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel, rounds };
     } else {
         const economy = economyManager.loadEconomy();
         const u = economyManager.getUser(economy, userId).userData;
@@ -422,6 +422,9 @@ async function handlePVE(reply, userId, guildId) {
         // round mattered — they brought a pet to fight, that's effort.
         economyManager.addXP(economy, userId, 3);
         economyManager.saveEconomy(economy);
+        // Surface the round count even on a loss so the canvas
+        // result strip shows "⚔️ N rounds" instead of being blank.
+        rewards = { exp: 3, rounds };
     }
 
     const cardBuffer = await tryRenderCard(petA, enemy, finalA, finalB, won, turnLog, rewards);
@@ -629,7 +632,7 @@ async function resolveAcceptedChallenge(interaction, ch) {
                 aId: ch.challengerId, bId: ch.opponentId,
                 bet: ch.bet, draw: false,
             });
-            rewards = { coins: ch.bet * 2, exp: 15 };
+            rewards = { coins: ch.bet * 2, exp: 15, rounds };
         } else {
             // Friendly duel: small XP only, no coin transfer.
             const economy = economyManager.loadEconomy();
@@ -642,7 +645,7 @@ async function resolveAcceptedChallenge(interaction, ch) {
             if (w.battlesWon === 1)  economyManager.checkAchievement(economy, winnerId, 'first_battle');
             if (w.battlesWon >= 50)  economyManager.checkAchievement(economy, winnerId, 'battle_50');
             economyManager.saveEconomy(economy);
-            rewards = { exp: 10, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel };
+            rewards = { exp: 10, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel, rounds };
         }
 
         /* ── Render ── */

@@ -152,18 +152,49 @@ function drawCircularAvatar(ctx, img, x, y, size) {
    BATTLE CARD — used by /battle (PvE + PvP)
    ═══════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════
+   BATTLE CARD — used by /battle (PvE + PvP)
+   ═══════════════════════════════════════════════════════ */
+
 /**
  * Render the result card for a pet battle.
  *
- * @param {object}   args
- * @param {object}   args.petA    Player pet (with name, emoji, hp/maxHp, atk, def, spd, level, rarity, weapon?)
- * @param {object}   args.petB    Opponent pet (same shape; PvE uses an enemy generated server-side)
- * @param {string[]} args.turnLog Array of one-line turn descriptions
- * @param {'win'|'lose'|'draw'} args.result
- * @param {object}   [args.rewards] { coins?, exp? } shown in the result strip
+ * Layout (820 × 500):
+ *
+ *   ╔══════════════════════════════════════════════════════════════╗
+ *   ║                  ⚔️  BATTLE ARENA                             ║  <- header
+ *   ║   ───────────────  result chip (VICTORY / DEFEAT / DRAW)     ║
+ *   ║                                                              ║
+ *   ║   ┌──────────────┐         VS         ┌──────────────┐       ║  <- two
+ *   ║   │ Pet A panel  │       chip         │ Pet B panel  │       ║     pets
+ *   ║   │ name + HP    │                    │ name + HP    │       ║     side
+ *   ║   │ ATK DEF SPD  │                    │ ATK DEF SPD  │       ║     by
+ *   ║   │ weapon line  │                    │ weapon line  │       ║     side
+ *   ║   └──────────────┘                    └──────────────┘       ║
+ *   ║                                                              ║
+ *   ║   ┌────────────────── BATTLE LOG ──────────────────────┐     ║
+ *   ║   │ • CRIT  Lightning! 14 damage                        │     ║
+ *   ║   │ • Bite hits for 8                                   │     ║
+ *   ║   │   (up to 6 lines …)                                 │     ║
+ *   ║   └─────────────────────────────────────────────────────┘     ║
+ *   ║                                                              ║
+ *   ║   [ +1,200 coins   ·   +25 XP ]            ⚔️ Round 5         ║  <- rewards
+ *   ╚══════════════════════════════════════════════════════════════╝
+ *
+ *   • The result chip (VICTORY / DEFEAT / DRAW) is now a big rounded
+ *     pill in the header instead of a thin strip at the bottom — it
+ *     reads as the headline.
+ *   • Pet panels keep the accent strip + glow but layout is cleaner:
+ *     name + level on one line, HP bar with numeric pill, three
+ *     stats in equal columns, weapon line at the bottom.
+ *   • Battle log is a real distinct panel with a labelled header
+ *     and bullet markers per line, colour-coded by event type.
+ *   • Rewards strip lives at the bottom-left as chips, with a small
+ *     "round count" stamp on the right.
  */
 async function createBattleCard({ petA, petB, turnLog, result, rewards }) {
-    const W = 820, H = 460;
+
+    const W = 820, H = 500;
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 
@@ -172,19 +203,40 @@ async function createBattleCard({ petA, petB, turnLog, result, rewards }) {
     drawStarField(ctx, W, H, 30);
     drawDiagonalLines(ctx, W, H, 'rgba(124, 58, 237, 0.04)', 26);
 
-    // Outer accent glow
     const accent = result === 'win' ? COLORS.green : result === 'lose' ? COLORS.red : COLORS.gold;
-    drawGlowCircle(ctx, W / 2, 0, 220, COLORS.purple, 60);
+    drawGlowCircle(ctx, W / 2, 0, 240, COLORS.purple, 70);
 
-    /* ── Header ── */
-    ctx.font = getBoldFont(28);
+    /* ── Header: title + result chip on the same line ── */
+    ctx.font = getBoldFont(24);
     ctx.fillStyle = COLORS.white;
-    ctx.textAlign = 'center';
-    await drawTextWithEmoji(ctx, '⚔️  BATTLE ARENA  ⚔️', W / 2, 46, 28);
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    await drawTextWithEmoji(ctx, '⚔️  BATTLE ARENA', 36, 38, 24);
+
+    // Result chip (right-aligned, pill-shaped, accent-coloured)
+    const resText = result === 'win' ? '🏆 VICTORY' : result === 'lose' ? '💀 DEFEAT' : '⚖️ DRAW';
+    ctx.font = getBoldFont(15);
+    const chipPad = 18;
+    const chipTextW = ctx.measureText(resText).width;
+    const chipW = chipTextW + chipPad * 2 + 8; // +8 for emoji width
+    const chipH = 34;
+    const chipX = W - 36 - chipW;
+    const chipY = 38 - chipH / 2;
+    drawRoundedRect(ctx, chipX, chipY, chipW, chipH, chipH / 2);
+    ctx.fillStyle = accent + '30';
+    ctx.fill();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(ctx, chipX, chipY, chipW, chipH, chipH / 2);
+    ctx.stroke();
+    ctx.fillStyle = accent;
+    ctx.textAlign = 'center';
+    await drawTextWithEmoji(ctx, resText, chipX + chipW / 2, chipY + chipH / 2, 15);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
 
     // Underline divider
-    const headerGrad = ctx.createLinearGradient(60, 60, W - 60, 60);
+    const headerGrad = ctx.createLinearGradient(36, 70, W - 36, 70);
     headerGrad.addColorStop(0,   'transparent');
     headerGrad.addColorStop(0.3, COLORS.purple + '60');
     headerGrad.addColorStop(0.7, COLORS.purple + '60');
@@ -192,25 +244,31 @@ async function createBattleCard({ petA, petB, turnLog, result, rewards }) {
     ctx.strokeStyle = headerGrad;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(60, 60);
-    ctx.lineTo(W - 60, 60);
+    ctx.moveTo(36, 70);
+    ctx.lineTo(W - 36, 70);
     ctx.stroke();
 
     /* ── Pet panels (left + right) ── */
-    const panelW = 340, panelH = 150, panelY = 80;
+    const panelW = 340, panelH = 170, panelY = 92;
     await drawPetPanel(ctx, { x: 30,         y: panelY, w: panelW, h: panelH }, petA, COLORS.cyan);
     await drawPetPanel(ctx, { x: W - 30 - panelW, y: panelY, w: panelW, h: panelH }, petB, COLORS.red);
 
-    // VS chip in the middle
+    // VS chip in the middle (slightly bigger + cleaner)
     const vsCx = W / 2, vsCy = panelY + panelH / 2;
+    ctx.save();
+    ctx.shadowColor = COLORS.gold + '40';
+    ctx.shadowBlur = 18;
     ctx.beginPath();
-    ctx.arc(vsCx, vsCy, 30, 0, Math.PI * 2);
+    ctx.arc(vsCx, vsCy, 34, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(15,15,40,0.95)';
     ctx.fill();
+    ctx.restore();
     ctx.strokeStyle = COLORS.gold;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(vsCx, vsCy, 34, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.font = getBoldFont(20);
+    ctx.font = getBoldFont(22);
     ctx.fillStyle = COLORS.gold;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -219,61 +277,116 @@ async function createBattleCard({ petA, petB, turnLog, result, rewards }) {
     ctx.textBaseline = 'alphabetic';
 
     /* ── Battle log panel ── */
-    const logY = panelY + panelH + 22;
-    const logH = 130;
-    drawRoundedRect(ctx, 30, logY, W - 60, logH, 12);
+    const logY = panelY + panelH + 18;
+    const logH = 150;
+    drawRoundedRect(ctx, 30, logY, W - 60, logH, 14);
     ctx.fillStyle = 'rgba(15,15,40,0.85)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(124,58,237,0.25)';
+    ctx.strokeStyle = 'rgba(124,58,237,0.28)';
     ctx.lineWidth = 1;
-    drawRoundedRect(ctx, 30, logY, W - 60, logH, 12);
+    drawRoundedRect(ctx, 30, logY, W - 60, logH, 14);
     ctx.stroke();
 
-    ctx.font = getSemiBoldFont(11);
-    ctx.fillStyle = COLORS.muted;
-    ctx.fillText('BATTLE LOG', 44, logY + 22);
+    // Log header label as a small chip in the top-left of the panel
+    const lblText = 'BATTLE LOG';
+    ctx.font = getBoldFont(11);
+    const lblTextW = ctx.measureText(lblText).width;
+    const lblPad = 10;
+    const lblW = lblTextW + lblPad * 2;
+    const lblH = 22;
+    drawRoundedRect(ctx, 44, logY + 14, lblW, lblH, lblH / 2);
+    ctx.fillStyle = COLORS.purple + '30';
+    ctx.fill();
+    ctx.fillStyle = COLORS.purple;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lblText, 44 + lblW / 2, logY + 14 + lblH / 2 + 1);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
 
-    // Render up to 7 lines of the turn log, colour-coded by event type.
+    // Render up to 6 lines of the turn log, colour-coded by event type
+    // and prefixed with a small bullet so it reads as a list, not a wall.
     const lines = Array.isArray(turnLog) ? turnLog : [];
     const maxLines = Math.min(lines.length, 6);
     ctx.font = getFont(12);
     for (let i = 0; i < maxLines; i++) {
         const t = String(lines[i] || '');
-        const colour = /CRIT/i.test(t) ? COLORS.gold
-            : /miss/i.test(t)          ? COLORS.dim
-            : COLORS.muted;
+        const isCrit = /CRIT/i.test(t);
+        const isMiss = /miss/i.test(t);
+        const colour = isCrit ? COLORS.gold : isMiss ? COLORS.dim : COLORS.muted;
+        const bullet = isCrit ? '✦' : isMiss ? '○' : '•';
+
+        // Bullet marker in accent colour
         ctx.fillStyle = colour;
-        const display = t.length > 92 ? t.slice(0, 89) + '…' : t;
-        await drawTextWithEmoji(ctx, display, 44, logY + 44 + i * 14, 12);
+        ctx.font = getBoldFont(12);
+        ctx.fillText(bullet, 50, logY + 56 + i * 16);
+
+        // Body text (slightly more readable than before)
+        ctx.font = getFont(12);
+        const display = t.length > 95 ? t.slice(0, 92) + '…' : t;
+        await drawTextWithEmoji(ctx, display, 64, logY + 56 + i * 16, 12);
     }
 
-    /* ── Result strip ── */
-    const resY = H - 64;
-    drawRoundedRect(ctx, 30, resY, W - 60, 46, 12);
-    ctx.fillStyle = accent + '20';
-    ctx.fill();
-    ctx.strokeStyle = accent + '50';
-    ctx.lineWidth = 1.5;
-    drawRoundedRect(ctx, 30, resY, W - 60, 46, 12);
-    ctx.stroke();
+    // If the log is empty, draw a placeholder so the panel doesn't look broken
+    if (maxLines === 0) {
+        ctx.font = getFont(12);
+        ctx.fillStyle = COLORS.dim;
+        ctx.textAlign = 'center';
+        ctx.fillText('No turns recorded.', W / 2, logY + logH / 2 + 8);
+        ctx.textAlign = 'left';
+    }
 
-    ctx.font = getBoldFont(18);
-    ctx.fillStyle = accent;
-    const resText = result === 'win' ? '🏆 VICTORY' : result === 'lose' ? '💀 DEFEAT' : '⚖️ DRAW';
-    await drawTextWithEmoji(ctx, resText, 50, resY + 28, 18);
-
-    // Rewards (right-aligned)
+    /* ── Rewards strip ── */
+    const rewY = H - 50;
     if (rewards) {
-        const parts = [];
-        if (rewards.coins) parts.push(`+${formatNum(rewards.coins)} coins`);
-        if (rewards.exp)   parts.push(`+${rewards.exp} XP`);
-        if (parts.length > 0) {
-            ctx.font = getSemiBoldFont(14);
+        let cursorX = 36;
+        const chipBaseY = rewY - 14;
+        if (rewards.coins) {
+            const coinChip = `+${formatNum(rewards.coins)} coins`;
+            ctx.font = getBoldFont(13);
+            const chipTextWidth = ctx.measureText(coinChip).width;
+            const cw = chipTextWidth + 24;
+            drawRoundedRect(ctx, cursorX, chipBaseY, cw, 28, 14);
+            ctx.fillStyle = COLORS.gold + '20';
+            ctx.fill();
+            ctx.strokeStyle = COLORS.gold + '50';
+            ctx.lineWidth = 1;
+            drawRoundedRect(ctx, cursorX, chipBaseY, cw, 28, 14);
+            ctx.stroke();
             ctx.fillStyle = COLORS.gold;
-            ctx.textAlign = 'right';
-            ctx.fillText(parts.join('  ·  '), W - 50, resY + 28);
-            ctx.textAlign = 'left';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(coinChip, cursorX + cw / 2, chipBaseY + 14);
+            cursorX += cw + 10;
         }
+        if (rewards.exp) {
+            const xpChip = `+${rewards.exp} XP`;
+            ctx.font = getBoldFont(13);
+            const chipTextWidth = ctx.measureText(xpChip).width;
+            const cw = chipTextWidth + 24;
+            drawRoundedRect(ctx, cursorX, chipBaseY, cw, 28, 14);
+            ctx.fillStyle = COLORS.purple + '20';
+            ctx.fill();
+            ctx.strokeStyle = COLORS.purple + '50';
+            ctx.lineWidth = 1;
+            drawRoundedRect(ctx, cursorX, chipBaseY, cw, 28, 14);
+            ctx.stroke();
+            ctx.fillStyle = COLORS.purple;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(xpChip, cursorX + cw / 2, chipBaseY + 14);
+            cursorX += cw + 10;
+        }
+        // Round count (right-aligned)
+        if (rewards.rounds) {
+            ctx.font = getSemiBoldFont(12);
+            ctx.fillStyle = COLORS.dim;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`⚔️  ${rewards.rounds} rounds`, W - 36, rewY);
+        }
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
     }
 
     // Outer border for crispness
@@ -290,11 +403,24 @@ async function createBattleCard({ petA, petB, turnLog, result, rewards }) {
 /**
  * Pet panel — emoji, name, level, HP bar, ATK/DEF/SPD stats, weapon.
  * Used by createBattleCard for both combatants.
+ *
+ * Layout (340 × 170):
+ *   ┌─────────────────────────────────────┐
+ *   │ ▎ 🐱  Whiskers          Lv.12       │   <- emoji + name + lvl row
+ *   │      uncommon                       │
+ *   │                                     │
+ *   │ HP  ▓▓▓▓▓▓▓░░  85/100              │   <- HP bar with numeric
+ *   │                                     │
+ *   │  ATK     DEF     SPD                │   <- stats triplet
+ *   │   45      32      28                │
+ *   │                                     │
+ *   │ 🗡️ Iron Sword (+12)                 │   <- weapon line (optional)
+ *   └─────────────────────────────────────┘
  */
 async function drawPetPanel(ctx, box, pet, accentColor) {
     const { x, y, w, h } = box;
 
-    // Card background
+    // Card background with subtle accent glow
     ctx.save();
     ctx.shadowColor = accentColor + '30';
     ctx.shadowBlur = 14;
@@ -314,19 +440,46 @@ async function drawPetPanel(ctx, box, pet, accentColor) {
     drawRoundedRect(ctx, x, y, w, h, 14);
     ctx.stroke();
 
-    // Pet emoji
-    ctx.font = getBoldFont(34);
-    await drawTextWithEmoji(ctx, pet.emoji || '🐾', x + 16, y + 42, 34);
+    // Pet emoji (slightly smaller so the name has more room)
+    ctx.font = getBoldFont(30);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    await drawTextWithEmoji(ctx, pet.emoji || '🐾', x + 16, y + 38, 30);
 
-    // Name (display weight) — emoji-aware
-    ctx.font = getBoldFont(20);
+    // Name — fitted to available width so long names don't overflow
+    // into the level pill on the right.
+    const namePadX = 60;
+    const lvlPillW = 60;
+    const nameMaxW = w - namePadX - lvlPillW - 14;
+    const rawName = String(pet.name || 'Pet');
+    ctx.font = getBoldFont(18);
     ctx.fillStyle = COLORS.white;
-    await drawTextWithEmoji(ctx, String(pet.name || 'Pet'), x + 60, y + 30, 20);
+    const nameDisplay = truncateText(ctx, rawName, nameMaxW);
+    await drawTextWithEmoji(ctx, nameDisplay, x + namePadX, y + 28, 18);
 
-    // Level + rarity
-    ctx.font = getFont(12);
+    // Level pill (top-right corner of the panel)
+    const lvlText = `Lv.${pet.level || 1}`;
+    ctx.font = getBoldFont(11);
+    const lvlPillX = x + w - lvlPillW - 12;
+    const lvlPillY = y + 14;
+    drawRoundedRect(ctx, lvlPillX, lvlPillY, lvlPillW, 22, 11);
+    ctx.fillStyle = accentColor + '25';
+    ctx.fill();
+    ctx.strokeStyle = accentColor + '60';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, lvlPillX, lvlPillY, lvlPillW, 22, 11);
+    ctx.stroke();
+    ctx.fillStyle = accentColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lvlText, lvlPillX + lvlPillW / 2, lvlPillY + 12);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    // Rarity (subtitle under name)
+    ctx.font = getFont(11);
     ctx.fillStyle = COLORS.muted;
-    ctx.fillText(`Lv.${pet.level || 1}  •  ${pet.rarity || 'common'}`, x + 60, y + 50);
+    ctx.fillText(`${pet.rarity || 'common'}`, x + namePadX, y + 50);
 
     // HP bar
     const maxHp = Math.max(1, pet.maxHp || pet.hp || 1);
@@ -335,42 +488,46 @@ async function drawPetPanel(ctx, box, pet, accentColor) {
         : hpRatio > 0.25 ? COLORS.hpYellow
         : COLORS.hpRed;
 
-    ctx.font = getSemiBoldFont(11);
+    ctx.font = getBoldFont(11);
     ctx.fillStyle = COLORS.muted;
-    ctx.fillText('HP', x + 16, y + 78);
+    ctx.fillText('HP', x + 16, y + 84);
 
-    drawProgressBar(ctx, x + 44, y + 68, w - 60, 12, hpRatio, hpColor, 'rgba(30,30,60,0.8)', 6);
+    drawProgressBar(ctx, x + 44, y + 74, w - 60, 14, hpRatio, hpColor, 'rgba(30,30,60,0.8)', 7);
 
-    ctx.font = getFont(10);
+    ctx.font = getBoldFont(10);
     ctx.fillStyle = COLORS.white;
     ctx.textAlign = 'right';
-    ctx.fillText(`${Math.max(0, pet.hp ?? 0)}/${maxHp}`, x + w - 18, y + 78);
+    ctx.fillText(`${Math.max(0, pet.hp ?? 0)}/${maxHp}`, x + w - 18, y + 84);
     ctx.textAlign = 'left';
 
-    // Stats row
-    const statY = y + 100;
+    // Stats row — three equal columns with labels above values
+    const statY = y + 105;
     const stats = [
-        { label: 'ATK', value: pet.atk ?? 0,         color: COLORS.red   },
-        { label: 'DEF', value: pet.def ?? 0,         color: COLORS.blue  },
-        { label: 'SPD', value: pet.spd ?? 0,         color: COLORS.green },
+        { label: 'ATK', value: pet.atk ?? 0, color: COLORS.red   },
+        { label: 'DEF', value: pet.def ?? 0, color: COLORS.blue  },
+        { label: 'SPD', value: pet.spd ?? 0, color: COLORS.green },
     ];
-    const colWidth = (w - 32) / stats.length;
+    const innerW = w - 32;
+    const colWidth = innerW / stats.length;
     stats.forEach((s, i) => {
-        const sx = x + 16 + i * colWidth;
-        ctx.font = getSemiBoldFont(10);
+        const sxCenter = x + 16 + i * colWidth + colWidth / 2;
+        ctx.textAlign = 'center';
+        ctx.font = getBoldFont(10);
         ctx.fillStyle = s.color;
-        ctx.fillText(s.label, sx, statY + 10);
-        ctx.font = getBoldFont(16);
+        ctx.fillText(s.label, sxCenter, statY + 12);
+        ctx.font = getBoldFont(18);
         ctx.fillStyle = COLORS.white;
-        ctx.fillText(String(s.value), sx, statY + 30);
+        ctx.fillText(String(s.value), sxCenter, statY + 32);
     });
+    ctx.textAlign = 'left';
 
-    // Weapon line — only when equipped
+    // Weapon line — only when equipped, anchored to the bottom
     if (pet.weapon) {
-        ctx.font = getFont(10);
+        ctx.font = getSemiBoldFont(11);
         ctx.fillStyle = COLORS.gold;
-        const wText = `🗡️ ${pet.weapon.name || 'Weapon'} (+${pet.weapon.baseAtk || 0})`;
-        await drawTextWithEmoji(ctx, wText, x + 16, y + h - 12, 10);
+        const wText = `🗡 ${pet.weapon.name || 'Weapon'} +${pet.weapon.baseAtk || 0}`;
+        const fitted = truncateText(ctx, wText, w - 32);
+        await drawTextWithEmoji(ctx, fitted, x + 16, y + h - 12, 11);
     }
 }
 

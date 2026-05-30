@@ -205,13 +205,23 @@ function buildResultContainer(game, result) {
         `> ${E.spin} **Landed:** slot ${result.slot + 1} → ${multiplierEmoji(result.mult)} \`${result.mult}x\``,
         '',
         won
-            ? `${E.success} **Won ${formatCoins(result.payout - game.bet, game.guildId)}!** (received ${formatNumber(result.payout)})`
+            ? `${E.success} **Won ${formatCoins(result.payout - game.bet, game.guildId)}!** *(received ${formatNumber(result.payout)})*`
             : push
                 ? `${E.info} **Bet refunded** — landed on 1×`
-                : `${E.fail} **Lost ${formatCoins(game.bet - result.payout, game.guildId)}** (kept ${formatNumber(result.payout)})`,
-        '',
-        `-# Distribution: ${distLine}`,
+                : `${E.fail} **Lost ${formatCoins(game.bet - result.payout, game.guildId)}** *(kept ${formatNumber(result.payout)})*`,
     ];
+
+    if (won && result.bonusDelta && result.bonusDelta > 0) {
+        lines.push(`-# 🥇 Medal bonus added **+${formatCoins(result.bonusDelta, game.guildId)}** to your win.`);
+    }
+
+    if (typeof result.balance === 'number') {
+        lines.push('');
+        lines.push(`> ${coinIcon(game.guildId)} **Balance:** ${formatCoinsAmount(result.balance, game.guildId)}`);
+    }
+
+    lines.push('');
+    lines.push(`-# Distribution: ${distLine}`);
 
     const container = createContainer(color);
     addTextDisplay(container, lines.join('\n'));
@@ -311,11 +321,81 @@ async function startGame(interaction, game) {
 
     const result = spinWheel(game.preset);
     const payout = Math.floor(game.bet * result.mult);
-    settle(game.userId, game.bet, payout);
-    result.payout = payout;
 
-    const container = buildResultContainer(game, result);
-    return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    /* ═══ Spinning animation ═══
+       Edit the same panel through 3 "spinning" frames, each showing
+       a random teaser slot with a slowing rhythm, then settle and
+       show the real result. The final outcome is fixed BEFORE the
+       first frame renders so animation can never desync from the
+       economy. */
+    const segs = expandSegments(game.preset);
+    const totalSlots = segs.length;
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function buildSpinFrame(displayMult, label) {
+        const p = PRESETS[game.preset];
+        const c = createContainer(p.color);
+        addTextDisplay(c, [
+            `# ${E.title} Fortune Wheel`,
+            `-# ${p.emoji} ${p.label}  ·  ${totalSlots} segments`,
+            '',
+            `> ${coinIcon(game.guildId)} **Bet:** ${formatCoinsAmount(game.bet, game.guildId)}`,
+            '',
+            `## ${E.spin}  ▸  \`${displayMult}x\`  ◂`,
+            '',
+            label,
+        ].join('\n'));
+        return c;
+    }
+
+    try {
+        // Frame 0 — initial spin
+        await interaction.update({
+            components: [buildSpinFrame(segs[Math.floor(Math.random() * totalSlots)], `<:Sandwatch:1473038580094861545> *Wheel spinning…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        await sleep(550);
+
+        // Frame 1 — slowing
+        const editFn = (payload) => interaction.editReply(payload);
+        await editFn({
+            components: [buildSpinFrame(segs[Math.floor(Math.random() * totalSlots)], `<:Sandwatch:1473038580094861545> *Wheel slowing…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        await sleep(550);
+
+        // Frame 2 — almost there
+        await editFn({
+            components: [buildSpinFrame(segs[Math.floor(Math.random() * totalSlots)], `<:Sandwatch:1473038580094861545> *Almost stopped…*`)],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        await sleep(600);
+
+        // Final reveal
+        const { userData, payout: actualPayout } = settle(game.userId, game.bet, payout);
+        result.payout = actualPayout;
+        result.bonusDelta = actualPayout - payout; // medal bonus delta
+        result.balance = userData.coins;
+
+        const container = buildResultContainer(game, result);
+        return await editFn({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } catch (err) {
+        // Animation failed (rate limit / token expired). Settle the
+        // bet anyway so the user always gets the payout, then attempt
+        // a final edit. If even that fails, the bet is still settled
+        // — the user just won't see the result panel.
+        console.warn('[WHEEL] animation failed, settling silently:', err?.message || err);
+        const { userData, payout: actualPayout } = settle(game.userId, game.bet, payout);
+        result.payout = actualPayout;
+        result.bonusDelta = actualPayout - payout;
+        result.balance = userData.coins;
+        try {
+            await interaction.editReply({
+                components: [buildResultContainer(game, result)],
+                flags: MessageFlags.IsComponentsV2,
+            });
+        } catch { /* swallow — settled is what matters */ }
+    }
 }
 
 module.exports = {
