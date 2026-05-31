@@ -1,54 +1,52 @@
 'use strict';
 
 /**
- * profileCard.js — 934×540 user profile card.
+ * profileCard.js — clean 934×520 user profile card.
  *
- * Layout (top-down):
- *   <:Caretright:1473038207221502106> Banner (140px, accent gradient over the header area)
- *   <:Caretright:1473038207221502106> Avatar (overlaps banner) + status dot
- *   <:Caretright:1473038207221502106> Display name + handle
- *   <:Caretright:1473038207221502106> RANK + LEVEL badges (top-right, stacked)
- *   <:Caretright:1473038207221502106> EXPERIENCE bar (full width)
- *   <:Caretright:1473038207221502106> Four stat boxes: MESSAGES, VOICE TIME, REPUTATION, BALANCE
- *   <:Caretright:1473038207221502106> BADGES strip (custom badges)
- *   <:Caretright:1473038207221502106> Bio + ID footer + xNico watermark
+ * Restrained redesign (single flat gradient, no stacked glow/lattice/
+ * halo, flat stat panels). Sections, top → bottom:
+ *   • Slim accent banner strip behind the header.
+ *   • Avatar (single ring) + name + handle.
+ *   • RANK + LEVEL as plain right-aligned text.
+ *   • EXPERIENCE bar (full width).
+ *   • Four flat stat panels: Messages / Voice / Reputation / Balance.
+ *   • Badge strip.
+ *   • Bio + ID footer.
  */
 
 const { createCanvas } = require('@napi-rs/canvas');
 const imageCache = require('./imageCache');
 const {
     DESIGN, drawRoundedRect, drawText, truncateText, fitText,
-    drawGradientBackground, drawDiagonalLines, drawAmbientGlow,
-    drawBox, drawBadgeBox, drawProgressBar, drawStatBox, drawConicAvatarRing,
-    formatNumber, formatVoiceTime, hexToRgb, rgba,
+    drawProgressBar, formatNumber, formatVoiceTime, rgba,
     getFontHelpers, drawNicoBranding,
 } = require('./canvasDesign');
 
+// Restrained palette — base bg + a single accent.
 const STYLE_THEMES = {
-    default: { bg: '#0d0d1a', accent: '#7c3aed', secondary: '#06b6d4', text: '#f0f0f5' },
-    minimal: { bg: '#161618', accent: '#a1a1aa', secondary: '#71717a', text: '#fafafa' },
-    neon:    { bg: '#020617', accent: '#a855f7', secondary: '#22d3ee', text: '#e0f2fe' },
-    classic: { bg: '#1a2332', accent: '#818cf8', secondary: '#38bdf8', text: '#e2e8f0' },
-    modern:  { bg: '#0a0a0a', accent: '#22c55e', secondary: '#2dd4bf', text: '#f5f5f4' },
+    default: { bg: '#1e1f22', accent: '#5865f2', text: '#ffffff' },
+    minimal: { bg: '#18191c', accent: '#b5bac1', text: '#ffffff' },
+    neon:    { bg: '#0f0f1c', accent: '#a855f7', text: '#f5f3ff' },
+    classic: { bg: '#1a2030', accent: '#5865f2', text: '#e8eaf0' },
+    modern:  { bg: '#101012', accent: '#3ba55d', text: '#f2f3f5' },
 };
 
-const STAT_ICONS = {
-    messages:   '<:Chat:1473038936241864865>',
-    voice:      '<:Volumeup:1473039290136002844>',
-    reputation: '<:Award:1473038391632203887>',
-    balance:    '<:Money:1473377877239140529>',
-};
+const STAT_DEFS = [
+    { key: 'messageCount', label: 'Messages',   color: '#5865f2', fmt: formatNumber },
+    { key: 'voiceTime',    label: 'Voice Time', color: '#a855f7', fmt: formatVoiceTime },
+    { key: 'reputation',   label: 'Reputation', color: '#fbbf24', fmt: (v) => String(v) },
+    { key: 'balance',      label: 'Balance',    color: '#3ba55d', fmt: formatNumber },
+];
 
 class ProfileCard {
     constructor() {
         this.width = 934;
-        this.height = 540;
-        this.backgroundColor = '#0d0d1a';
-        this.accentColor = '#7c3aed';
-        this.secondaryAccent = '#06b6d4';
-        this.textColor = '#f0f0f5';
+        this.height = 520;
+        this.backgroundColor = '#1e1f22';
+        this.accentColor = '#5865f2';
+        this.textColor = '#ffffff';
         this.backgroundImage = null;
-        this.backgroundOpacity = 0.35;
+        this.backgroundOpacity = 0.4;
         this.cardStyle = 'default';
         this.fontFamily = 'Inter';
         this._fh = getFontHelpers('Inter');
@@ -65,7 +63,6 @@ class ProfileCard {
         const t = STYLE_THEMES[this.cardStyle.toLowerCase()] || STYLE_THEMES.default;
         if (!this.backgroundImage) this.backgroundColor = t.bg;
         this.accentColor = t.accent;
-        this.secondaryAccent = t.secondary;
         this.textColor = t.text;
         return this;
     }
@@ -76,14 +73,12 @@ class ProfileCard {
     _bold(s)   { return this._fh.getBoldFont(s); }
 
     async generate(user, data = {}) {
-        const W = this.width, H = this.height;
-        const PAD = DESIGN.padding;
+        const W = this.width, H = this.height, PAD = 36;
 
         data = {
             reputation: 0, level: 1, totalXp: 0, currentXp: 0, requiredXp: 100,
             commandsUsed: 0, messageCount: 0, voiceTime: 0, rank: 0, balance: 0,
-            bio: '', customBadges: [],
-            ...data,
+            bio: '', customBadges: [], ...data,
         };
         for (const k of ['reputation','level','totalXp','currentXp','requiredXp','commandsUsed','messageCount','voiceTime','rank','balance']) {
             data[k] = Number(data[k]) || 0;
@@ -92,17 +87,15 @@ class ProfileCard {
 
         const canvas = createCanvas(W, H);
         const ctx = canvas.getContext('2d');
+        const accent = this.accentColor;
 
-        /* ── 1. Background ── */
+        /* ── 1. Background (single flat gradient) ── */
         ctx.save();
-        drawRoundedRect(ctx, 0, 0, W, H, DESIGN.borderRadius);
+        drawRoundedRect(ctx, 0, 0, W, H, 20);
         ctx.clip();
-
-        const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-        bgGrad.addColorStop(0,   this.backgroundColor);
-        bgGrad.addColorStop(0.3, DESIGN.colors.bgSecondary);
-        bgGrad.addColorStop(0.6, DESIGN.colors.bgTertiary);
-        bgGrad.addColorStop(1,   this.backgroundColor);
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+        bgGrad.addColorStop(0, this._lighten(this.backgroundColor, 6));
+        bgGrad.addColorStop(1, this.backgroundColor);
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, W, H);
 
@@ -112,281 +105,258 @@ class ProfileCard {
                 if (bg) {
                     ctx.globalAlpha = this.backgroundOpacity;
                     const scale = Math.max(W / bg.width, H / bg.height);
-                    const x = (W - bg.width * scale) / 2;
-                    const y = (H - bg.height * scale) / 2;
-                    ctx.drawImage(bg, x, y, bg.width * scale, bg.height * scale);
+                    const ix = (W - bg.width * scale) / 2;
+                    const iy = (H - bg.height * scale) / 2;
+                    ctx.drawImage(bg, ix, iy, bg.width * scale, bg.height * scale);
                     ctx.globalAlpha = 1;
-                    const overlay = ctx.createLinearGradient(0, 0, 0, H);
-                    overlay.addColorStop(0,    'rgba(13, 13, 26, 0.65)');
-                    overlay.addColorStop(0.5,  'rgba(13, 13, 26, 0.55)');
-                    overlay.addColorStop(1,    'rgba(13, 13, 26, 0.8)');
-                    ctx.fillStyle = overlay;
+                    ctx.fillStyle = 'rgba(15,15,20,0.66)';
                     ctx.fillRect(0, 0, W, H);
                 }
             } catch {}
         }
 
-        drawAmbientGlow(ctx, 150, 180, 340, this.accentColor, 0.10);
-        drawAmbientGlow(ctx, W - 120, 50, 200, this.secondaryAccent, 0.05);
-        ctx.restore();
-
-        /* ── 2. Banner ── */
-        ctx.save();
-        drawRoundedRect(ctx, 0, 0, W, H, DESIGN.borderRadius);
-        ctx.clip();
-
-        const bannerH = 140;
-        const bannerGrad = ctx.createLinearGradient(0, 0, W, bannerH);
-        bannerGrad.addColorStop(0,    rgba(this.accentColor, 0.25));
-        bannerGrad.addColorStop(0.4,  rgba(this.secondaryAccent, 0.10));
-        bannerGrad.addColorStop(1,    'transparent');
-        ctx.fillStyle = bannerGrad;
+        // Slim accent banner strip behind the header.
+        const bannerH = 120;
+        ctx.fillStyle = rgba(accent, 0.16);
         ctx.fillRect(0, 0, W, bannerH);
-
-        ctx.save();
-        ctx.globalAlpha = 0.05;
-        drawDiagonalLines(ctx, W, bannerH, this.accentColor, 50);
-        ctx.restore();
+        ctx.fillStyle = rgba(accent, 0.9);
+        ctx.fillRect(0, H - 4, W, 4);
         ctx.restore();
 
-        /* ── 3. Avatar ── */
-        const avatarSize = 150;
+        /* ── 2. Avatar (single ring, overlaps banner) ── */
+        const avatarSize = 140;
         const avatarX = PAD;
-        const avatarY = bannerH - avatarSize / 2 - 10;
+        const avatarY = bannerH - avatarSize / 2;
+        const cx = avatarX + avatarSize / 2, cy = avatarY + avatarSize / 2;
 
-        let avatar = null;
-        try {
-            avatar = await imageCache.loadWithCache(
-                user.displayAvatarURL({ extension: 'png', size: 512 }),
-                5000
-            );
-        } catch {}
-        await drawConicAvatarRing(
-            ctx, avatar, avatarX, avatarY, avatarSize,
-            this.accentColor, this.secondaryAccent, this.backgroundColor
-        );
-
-        // Status dot (always green for profile)
-        const sX = avatarX + avatarSize - 14;
-        const sY = avatarY + avatarSize - 14;
+        ctx.fillStyle = this.backgroundColor;
         ctx.beginPath();
-        ctx.arc(sX, sY, 14, 0, Math.PI * 2);
+        ctx.arc(cx, cy, avatarSize / 2 + 6, 0, Math.PI * 2);
+        ctx.fill();
+        try {
+            const avatar = await imageCache.loadWithCache(
+                user.displayAvatarURL({ extension: 'png', size: 512 }), 5000
+            );
+            if (avatar) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, avatarSize / 2, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(avatar, avatarX, avatarY, avatarSize, avatarSize);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = rgba(accent, 0.3);
+                ctx.beginPath();
+                ctx.arc(cx, cy, avatarSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } catch {}
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, avatarSize / 2 + 2.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Status dot
+        const sX = cx + avatarSize / 2 * Math.cos(Math.PI / 4);
+        const sY = cy + avatarSize / 2 * Math.sin(Math.PI / 4);
+        ctx.beginPath();
+        ctx.arc(sX, sY, 13, 0, Math.PI * 2);
         ctx.fillStyle = this.backgroundColor;
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(sX, sY, 9, 0, Math.PI * 2);
-        ctx.fillStyle = '#22c55e';
+        ctx.arc(sX, sY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#3ba55d';
         ctx.fill();
 
-        /* ── 4. Name + handle ── */
-        const infoX = avatarX + avatarSize + 24;
-        const infoY = avatarY + 46;
+        /* ── 3. RANK + LEVEL (plain right-aligned text, top-right) ── */
+        const clusterY = 30;
+        ctx.textAlign = 'right';
+        const levelStr = String(data.level);
+        const rankStr = data.rank > 0 ? `#${formatNumber(data.rank)}` : '#—';
 
-        ctx.font = this._bold(DESIGN.fonts.title);
+        ctx.font = this._bold(32);
+        ctx.fillStyle = accent;
+        ctx.fillText(levelStr, W - PAD, clusterY + 28);
+        ctx.font = this._semi(12);
+        ctx.fillStyle = DESIGN.colors.textMuted;
+        ctx.fillText('LEVEL', W - PAD, clusterY + 46);
+        const levelBlockW = Math.max(
+            ctx.measureText('LEVEL').width,
+            (ctx.font = this._bold(32), ctx.measureText(levelStr).width)
+        );
+
+        const rankRight = W - PAD - levelBlockW - 26;
+        ctx.font = this._bold(32);
         ctx.fillStyle = this.textColor;
-        const displayName = truncateText(ctx, user.globalName || user.username, 340);
-        await drawText(ctx, displayName, infoX, infoY);
-
-        ctx.font = this._font(DESIGN.fonts.subtitle);
+        ctx.fillText(rankStr, rankRight, clusterY + 28);
+        ctx.font = this._semi(12);
         ctx.fillStyle = DESIGN.colors.textMuted;
-        await drawText(ctx, `@${user.username}`, infoX, infoY + 20);
-
-        /* ── 5. Rank + level pills (top-right, stacked) ── */
-        const topY = 18;
-        const topH = 46;
-        const pillW = 82;
-        const gap = 10;
-
-        if (data.rank > 0) {
-            const rx = W - PAD - pillW;
-            drawBox(ctx, rx, topY, pillW, topH, this.secondaryAccent, 8);
-
-            ctx.font = this._semi(DESIGN.fonts.label);
-            ctx.fillStyle = DESIGN.colors.textMuted;
-            ctx.textAlign = 'center';
-            ctx.fillText('RANK', rx + pillW / 2, topY + 15);
-
-            const rankText = `#${data.rank}`;
-            const rsize = fitText(ctx, rankText, pillW - 16, 19, 13);
-            ctx.font = this._bold(rsize);
-            ctx.fillStyle = this.secondaryAccent;
-            ctx.fillText(rankText, rx + pillW / 2, topY + 36);
-            ctx.textAlign = 'left';
-        }
-
-        const lx = W - PAD - pillW - (data.rank > 0 ? pillW + gap : 0);
-        const ly = topY + topH + gap;
-        const lw = data.rank > 0 ? pillW * 2 + gap : pillW;
-        const lh = 50;
-        drawBox(ctx, lx, ly, lw, lh, this.accentColor, 8);
-
-        ctx.font = this._semi(DESIGN.fonts.label);
-        ctx.fillStyle = DESIGN.colors.textMuted;
-        ctx.textAlign = 'center';
-        ctx.fillText('LEVEL', lx + lw / 2, ly + 16);
-
-        const lvlText = String(data.level);
-        const lsize = fitText(ctx, lvlText, lw - 20, 22, 14);
-        ctx.font = this._bold(lsize);
-        ctx.fillStyle = this.accentColor;
-        ctx.fillText(lvlText, lx + lw / 2, ly + 40);
+        ctx.fillText('RANK', rankRight, clusterY + 46);
         ctx.textAlign = 'left';
 
-        /* ── 6. XP bar ── */
-        const progY = avatarY + avatarSize + 20;
+        /* ── 4. Name + handle (below avatar) ── */
+        const infoX = avatarX + avatarSize + 26;
+        const infoY = avatarY + 52;
+        const nameMaxW = W - PAD - 220 - infoX;
+
+        const rawName = String(user.globalName || user.username);
+        const nameSize = fitText(ctx, rawName, nameMaxW, 30, 20);
+        ctx.font = this._bold(nameSize);
+        ctx.fillStyle = this.textColor;
+        await drawText(ctx, truncateText(ctx, rawName, nameMaxW), infoX, infoY);
+
+        ctx.font = this._medium(15);
+        ctx.fillStyle = DESIGN.colors.textMuted;
+        await drawText(ctx, `@${user.username}`, infoX, infoY + 24);
+
+        /* ── 5. XP bar ── */
+        const progY = avatarY + avatarSize + 26;
         const progX = PAD;
         const progW = W - PAD * 2;
-        const progH = 14;
+        const progH = 18;
 
-        ctx.font = this._semi(DESIGN.fonts.label);
+        ctx.font = this._semi(12);
         ctx.fillStyle = DESIGN.colors.textMuted;
-        ctx.fillText('EXPERIENCE', progX, progY - 7);
-
+        ctx.fillText('EXPERIENCE', progX, progY - 9);
         const xpText = `${formatNumber(data.currentXp)} / ${formatNumber(data.requiredXp)} XP`;
         ctx.textAlign = 'right';
-        ctx.fillText(xpText, progX + progW, progY - 7);
+        ctx.fillStyle = this.textColor;
+        ctx.fillText(xpText, progX + progW, progY - 9);
         ctx.textAlign = 'left';
 
-        const pct = data.requiredXp > 0 ? data.currentXp / data.requiredXp : 0;
-        drawProgressBar(ctx, progX, progY, progW, progH, pct, this.accentColor, this.secondaryAccent);
-
-        ctx.font = this._bold(8);
+        const pct = data.requiredXp > 0 ? Math.min(data.currentXp / data.requiredXp, 1) : 0;
+        drawProgressBar(ctx, progX, progY, progW, progH, pct, accent, accent);
+        ctx.font = this._bold(10);
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText(`${Math.round(Math.min(pct, 1) * 100)}%`, progX + progW / 2, progY + progH / 2 + 3);
+        ctx.fillText(`${Math.round(pct * 100)}%`, progX + progW / 2, progY + progH / 2 + 3.5);
         ctx.textAlign = 'left';
 
-        /* ── 7. Stat boxes ── */
-        const statsY = progY + 34;
-        const statGap = 10;
-        const statW = (W - PAD * 2 - statGap * 3) / 4;
-        const statH = 64;
+        /* ── 6. Flat stat panels ── */
+        const statsY = progY + progH + 26;
+        const gap = 12;
+        const statW = (W - PAD * 2 - gap * 3) / 4;
+        const statH = 70;
+        STAT_DEFS.forEach((def, i) => {
+            const x = PAD + i * (statW + gap);
+            drawRoundedRect(ctx, x, statsY, statW, statH, 12);
+            ctx.fillStyle = 'rgba(0,0,0,0.22)';
+            ctx.fill();
+            ctx.strokeStyle = rgba(def.color, 0.35);
+            ctx.lineWidth = 1.2;
+            drawRoundedRect(ctx, x, statsY, statW, statH, 12);
+            ctx.stroke();
+            drawRoundedRect(ctx, x, statsY, 4, statH, 2);
+            ctx.fillStyle = def.color;
+            ctx.fill();
 
-        const stats = [
-            { label: 'MESSAGES',   value: formatNumber(data.messageCount), icon: STAT_ICONS.messages,   color: this.secondaryAccent },
-            { label: 'VOICE TIME', value: formatVoiceTime(data.voiceTime), icon: STAT_ICONS.voice,      color: '#a78bfa' },
-            { label: 'REPUTATION', value: String(data.reputation),         icon: STAT_ICONS.reputation, color: this.accentColor },
-            { label: 'BALANCE',    value: formatNumber(data.balance),      icon: STAT_ICONS.balance,    color: '#fbbf24' },
-        ];
-
-        for (let i = 0; i < stats.length; i++) {
-            const s = stats[i];
-            await drawStatBox(ctx, {
-                x: PAD + i * (statW + statGap), y: statsY,
-                width: statW, height: statH, color: s.color,
-                icon: s.icon, label: s.label, value: s.value,
-                labelFont: this._semi(DESIGN.fonts.tiny),
-                valueFont: this._bold(DESIGN.fonts.smallValue),
-            });
-        }
-
-        /* ── 8. Custom badges ── */
-        if (data.customBadges && data.customBadges.length > 0) {
-            const badgesY = statsY + statH + 16;
-            const badgeSize = 34;
-            const badgeSpace = 7;
-            const availW = W - PAD * 2;
-            const maxBadges = Math.floor(availW / (badgeSize + badgeSpace));
-            const visible = data.customBadges.slice(0, Math.min(maxBadges, 18));
-
-            ctx.font = this._semi(DESIGN.fonts.label);
+            ctx.font = this._semi(11);
             ctx.fillStyle = DESIGN.colors.textMuted;
-            ctx.fillText('BADGES', PAD, badgesY - 5);
+            ctx.fillText(def.label.toUpperCase(), x + 14, statsY + 24);
+            ctx.font = this._bold(20);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(truncateText(ctx, def.fmt(data[def.key]), statW - 24), x + 14, statsY + statH - 16);
+        });
 
+        /* ── 7. Badge strip ── */
+        let cursorY = statsY + statH + 22;
+        if (data.customBadges && data.customBadges.length > 0) {
+            ctx.font = this._semi(12);
+            ctx.fillStyle = DESIGN.colors.textMuted;
+            ctx.fillText('BADGES', PAD, cursorY);
+            cursorY += 12;
+
+            const badgeSize = 36;
+            const space = 8;
+            const maxBadges = Math.floor((W - PAD * 2) / (badgeSize + space));
+            const visible = data.customBadges.slice(0, Math.min(maxBadges, 16));
             let bx = PAD;
             for (const badge of visible) {
-                const badgeColor = badge.color || this.accentColor;
-                drawBadgeBox(ctx, bx, badgesY, badgeSize, badgeColor);
+                const badgeColor = badge.color || accent;
+                drawRoundedRect(ctx, bx, cursorY, badgeSize, badgeSize, 9);
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.fill();
+                ctx.strokeStyle = rgba(badgeColor, 0.5);
+                ctx.lineWidth = 1.2;
+                drawRoundedRect(ctx, bx, cursorY, badgeSize, badgeSize, 9);
+                ctx.stroke();
 
-                const innerPad = 5;
+                const innerPad = 6;
                 const innerSize = badgeSize - innerPad * 2;
                 let rendered = false;
-
-                // 1. Try imageUrl
-                if (badge.imageUrl && badge.imageUrl.startsWith('http')) {
+                if (badge.imageUrl && String(badge.imageUrl).startsWith('http')) {
                     try {
                         const img = await imageCache.loadWithCache(badge.imageUrl, 5000);
                         if (img) {
                             ctx.save();
-                            drawRoundedRect(ctx, bx + innerPad, badgesY + innerPad, innerSize, innerSize, 5);
+                            drawRoundedRect(ctx, bx + innerPad, cursorY + innerPad, innerSize, innerSize, 5);
                             ctx.clip();
-                            ctx.drawImage(img, bx + innerPad, badgesY + innerPad, innerSize, innerSize);
+                            ctx.drawImage(img, bx + innerPad, cursorY + innerPad, innerSize, innerSize);
                             ctx.restore();
                             rendered = true;
                         }
                     } catch {}
                 }
-
-                // 2. Try emoji
                 if (!rendered && badge.emoji) {
                     const isCustom = badge.emoji.startsWith('<');
                     const id = badge.emoji.match(/:(\d+)>/)?.[1];
                     const animated = badge.emoji.startsWith('<a:');
-                    const url = isCustom && id
-                        ? `https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}?size=128&quality=lossless`
-                        : require('./canvasEmojiDefaults').getCanvasEmojiAssetUrl(badge.emoji);
+                    let url = null;
+                    if (isCustom && id) url = `https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}?size=128&quality=lossless`;
+                    else { try { url = require('./canvasEmojiDefaults').getCanvasEmojiAssetUrl(badge.emoji); } catch {} }
                     if (url) {
                         try {
                             const img = await imageCache.loadWithCache(url, 5000);
-                            if (img) {
-                                ctx.drawImage(img, bx + innerPad, badgesY + innerPad, innerSize, innerSize);
-                                rendered = true;
-                            }
+                            if (img) { ctx.drawImage(img, bx + innerPad, cursorY + innerPad, innerSize, innerSize); rendered = true; }
                         } catch {}
                     }
                 }
-
-                // 3. Initial fallback
                 if (!rendered) {
                     const initial = ((badge.name && String(badge.name).trim()) || '?')[0].toUpperCase();
-                    ctx.font = this._bold(14);
+                    ctx.font = this._bold(15);
                     ctx.fillStyle = badgeColor;
                     ctx.textAlign = 'center';
-                    ctx.fillText(initial, bx + badgeSize / 2, badgesY + badgeSize / 2 + 5);
+                    ctx.fillText(initial, bx + badgeSize / 2, cursorY + badgeSize / 2 + 5);
                     ctx.textAlign = 'left';
                 }
-
-                bx += badgeSize + badgeSpace;
+                bx += badgeSize + space;
             }
-
             if (data.customBadges.length > visible.length) {
-                const more = data.customBadges.length - visible.length;
-                ctx.font = this._semi(10);
+                ctx.font = this._semi(11);
                 ctx.fillStyle = DESIGN.colors.textDim;
-                ctx.fillText(`+${more}`, bx + 4, badgesY + badgeSize / 2 + 4);
+                ctx.fillText(`+${data.customBadges.length - visible.length}`, bx + 4, cursorY + badgeSize / 2 + 4);
             }
         }
 
-        /* ── 9. Bio ── */
-        // Bio sits one line above the footer. We reserve ~30px at the
-        // bottom for the ID label + watermark so the strings don't
-        // collide with the corner branding.
+        /* ── 8. Bio + footer ── */
         if (data.bio) {
-            const bioY = H - 44;
-            ctx.font = this._font(DESIGN.fonts.subtitle);
+            ctx.font = this._font(14);
             ctx.fillStyle = DESIGN.colors.textMuted;
-            const bioMaxW = W - PAD * 2 - 110; // leave room for the corner brand
-            await drawText(ctx, `"${truncateText(ctx, data.bio, bioMaxW)}"`, PAD, bioY);
+            const bioMaxW = W - PAD * 2 - 110;
+            await drawText(ctx, `"${truncateText(ctx, data.bio, bioMaxW)}"`, PAD, H - 42);
         }
 
-        /* ── 10. Footer ── */
-        // ID is left-aligned so it never crashes into the right-side
-        // xNico watermark + wordmark drawn by drawNicoBranding.
-        ctx.font = this._font(DESIGN.fonts.tiny);
+        ctx.font = this._font(10);
         ctx.fillStyle = DESIGN.colors.textDim;
         ctx.textAlign = 'left';
-        ctx.fillText(`ID: ${user.id}`, PAD, H - 14);
+        ctx.fillText(`ID: ${user.id}`, PAD, H - 16);
 
-        ctx.save();
-        ctx.strokeStyle = rgba(this.accentColor, 0.08);
-        ctx.lineWidth = 1;
-        drawRoundedRect(ctx, 0.5, 0.5, W - 1, H - 1, DESIGN.borderRadius);
+        ctx.strokeStyle = rgba(accent, 0.18);
+        ctx.lineWidth = 1.5;
+        drawRoundedRect(ctx, 0.75, 0.75, W - 1.5, H - 1.5, 20);
         ctx.stroke();
-        ctx.restore();
 
-        await drawNicoBranding(ctx, W, H, this.accentColor);
+        await drawNicoBranding(ctx, W, H, accent);
 
         return canvas.toBuffer('image/png');
+    }
+
+    _lighten(hex, amt) {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+        if (!m) return hex;
+        const adj = (c) => Math.min(255, parseInt(c, 16) + Math.round(amt * 2.55));
+        return `#${adj(m[1]).toString(16).padStart(2, '0')}${adj(m[2]).toString(16).padStart(2, '0')}${adj(m[3]).toString(16).padStart(2, '0')}`;
     }
 }
 

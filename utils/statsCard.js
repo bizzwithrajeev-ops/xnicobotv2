@@ -1,25 +1,19 @@
 'use strict';
 
 /**
- * statsCard.js — 880×420 user stats summary card.
+ * statsCard.js — clean 880×400 user stats summary card.
  *
- * Five stat boxes (Messages / Voice / XP / Invites / Commands) plus
- * a header with avatar, username, scope label and a RANK pill.
- *
- * Uses the shared canvasDesign primitives so emoji icons are drawn
- * at the proper size (separate drawImage at 18px) rather than being
- * inlined into the 9px label text — which is what was making the
- * icons appear tiny / displaced before.
+ * Restrained redesign: one flat gradient background, a clean header
+ * (avatar + name + scope + rank as plain text), and five stats laid
+ * out on a tidy 3+2 grid of flat panels. No stacked glow/lattice.
  */
 
 const { createCanvas } = require('@napi-rs/canvas');
 const imageCache = require('./imageCache');
 const { registerAllFonts, getFontHelpers } = require('./fontRegistry');
 const {
-    DESIGN, hexToRgb, formatNumber, formatVoiceTime,
-    drawRoundedRect, drawText, drawGradientBackground, drawDiagonalLines,
-    drawAmbientGlow, drawConicAvatarRing, drawBox, drawStatBox,
-    drawNicoBranding,
+    DESIGN, hexToRgb, rgba, formatNumber, formatVoiceTime,
+    drawRoundedRect, drawText, truncateText, drawNicoBranding,
 } = require('./canvasDesign');
 
 try { registerAllFonts(); } catch {}
@@ -30,8 +24,32 @@ const STAT_ICONS = {
     xp:       '<:Lightning:1473038797540298792>',
     invites:  '<:Bullhorn:1473038903157199093>',
     commands: '<:Gamepad:1473039216429498409>',
-    rank:     '<:Award:1473038391632203887>',
 };
+
+/** Flat stat panel: label (muted, top) + value (white, bold, below). */
+function drawFlatStat(ctx, fh, { x, y, w, h, label, value, color }) {
+    drawRoundedRect(ctx, x, y, w, h, 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fill();
+    ctx.strokeStyle = rgba(color, 0.35);
+    ctx.lineWidth = 1.2;
+    drawRoundedRect(ctx, x, y, w, h, 12);
+    ctx.stroke();
+    // Accent strip on the left
+    drawRoundedRect(ctx, x, y, 4, h, 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = fh.getSemiBoldFont(11);
+    ctx.fillStyle = DESIGN.colors.textMuted;
+    ctx.fillText(String(label).toUpperCase(), x + 16, y + 26);
+
+    ctx.font = fh.getBoldFont(24);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(truncateText(ctx, String(value), w - 28), x + 16, y + h - 16);
+}
 
 async function generateStatsCard({
     username,
@@ -49,149 +67,124 @@ async function generateStatsCard({
     fontFamily,
 }) {
     const fh = getFontHelpers(fontFamily || 'Inter');
-    const F  = (s) => fh.getFont(s);
-    const FM = (s) => fh.getMediumFont(s);
-    const FSB = (s) => fh.getSemiBoldFont(s);
-    const FB = (s) => fh.getBoldFont(s);
-
-    const W = 880;
-    const H = 420;
-    const PAD = DESIGN.padding;
+    const W = 880, H = 400, PAD = 32;
+    const accent = '#5865f2';
 
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 
     /* ── Background ── */
     ctx.save();
-    drawRoundedRect(ctx, 0, 0, W, H, DESIGN.borderRadius);
+    drawRoundedRect(ctx, 0, 0, W, H, 20);
     ctx.clip();
-
-    drawGradientBackground(ctx, W, H, DESIGN.colors.bg, DESIGN.colors.bgSecondary);
-
-    ctx.save();
-    ctx.globalAlpha = 0.03;
-    drawDiagonalLines(ctx, W, H, DESIGN.colors.accent, 45);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#26272b');
+    bg.addColorStop(1, '#1c1d21');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = rgba(accent, 0.9);
+    ctx.fillRect(0, H - 4, W, 4);
     ctx.restore();
 
-    drawAmbientGlow(ctx, 0, 0, 350, DESIGN.colors.accent, 0.08);
-    drawAmbientGlow(ctx, W, H, 300, DESIGN.colors.secondary, 0.06);
+    /* ── Header: avatar + name + scope + rank ── */
+    const avSize = 84;
+    const avX = PAD, avY = PAD;
+    const cx = avX + avSize / 2, cy = avY + avSize / 2;
 
-    /* ── Avatar + name ── */
-    const avatarSize = 90;
-    const avatarX = PAD;
-    const avatarY = PAD;
-
-    let avatar = null;
-    if (avatarURL) { try { avatar = await imageCache.loadWithCache(avatarURL, 5000); } catch {} }
-    await drawConicAvatarRing(
-        ctx, avatar, avatarX, avatarY, avatarSize,
-        DESIGN.colors.accent, DESIGN.colors.secondary, DESIGN.colors.bg
-    );
-
-    const nameX = avatarX + avatarSize + 24;
-    const nameY = avatarY + 30;
-
-    ctx.font = FB(26);
-    ctx.fillStyle = DESIGN.colors.text;
-    let displayName = username || 'Unknown User';
-    if (ctx.measureText(displayName).width > 380) {
-        while (ctx.measureText(displayName + '...').width > 380 && displayName.length > 0) {
-            displayName = displayName.slice(0, -1);
-        }
-        displayName += '...';
+    ctx.fillStyle = rgba('#000000', 0.25);
+    ctx.beginPath();
+    ctx.arc(cx, cy, avSize / 2 + 4, 0, Math.PI * 2);
+    ctx.fill();
+    if (avatarURL) {
+        try {
+            const avatar = await imageCache.loadWithCache(avatarURL, 5000);
+            if (avatar) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, avSize / 2, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(avatar, avX, avY, avSize, avSize);
+                ctx.restore();
+            }
+        } catch {}
     }
-    ctx.fillText(displayName, nameX, nameY);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, avSize / 2 + 2, 0, Math.PI * 2);
+    ctx.stroke();
 
-    ctx.font = F(13);
+    const nameX = avX + avSize + 22;
+
+    // Rank (right-aligned, plain text)
+    const rankText = typeof rank === 'number' ? `#${rank}` : String(rank);
+    ctx.textAlign = 'right';
+    ctx.font = fh.getBoldFont(30);
+    ctx.fillStyle = accent;
+    ctx.fillText(rankText, W - PAD, avY + 34);
+    ctx.font = fh.getSemiBoldFont(12);
+    ctx.fillStyle = DESIGN.colors.textMuted;
+    ctx.fillText('RANK', W - PAD, avY + 54);
+    const rankBlockW = Math.max(
+        ctx.measureText('RANK').width,
+        (ctx.font = fh.getBoldFont(30), ctx.measureText(rankText).width)
+    );
+    ctx.textAlign = 'left';
+
+    // Username (fitted clear of the rank block)
+    const nameMaxW = (W - PAD - rankBlockW - 24) - nameX;
+    ctx.font = fh.getBoldFont(26);
+    ctx.fillStyle = DESIGN.colors.text;
+    ctx.fillText(truncateText(ctx, username || 'Unknown User', nameMaxW), nameX, avY + 32);
+
+    ctx.font = fh.getFont(13);
     ctx.fillStyle = DESIGN.colors.textMuted;
     const scopeText = scope === 'global'
         ? `Global Stats${guildsActive > 0 ? ` · Active in ${guildsActive} servers` : ''}`
         : (scopeLabel || 'Server Stats');
-    ctx.fillText(scopeText, nameX, nameY + 22);
-
-    /* ── Rank pill (top-right) ── */
-    const rankBoxX = W - PAD - 80;
-    const rankBoxY = avatarY + 10;
-    const rankText = typeof rank === 'number' ? `#${rank}` : rank;
-
-    drawBox(ctx, rankBoxX, rankBoxY, 70, 55, DESIGN.colors.accent, 8);
-    ctx.font = FSB(9);
-    ctx.fillStyle = DESIGN.colors.textDim;
-    ctx.textAlign = 'center';
-    ctx.fillText('RANK', rankBoxX + 35, rankBoxY + 18);
-    ctx.font = FB(18);
-    ctx.fillStyle = DESIGN.colors.accent;
-    ctx.fillText(rankText, rankBoxX + 35, rankBoxY + 42);
-    ctx.textAlign = 'left';
+    ctx.fillText(truncateText(ctx, scopeText, nameMaxW), nameX, avY + 54);
 
     /* ── Divider ── */
-    ctx.strokeStyle = DESIGN.colors.accent + '20';
+    ctx.strokeStyle = rgba('#ffffff', 0.08);
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(PAD, avatarY + avatarSize + 20);
-    ctx.lineTo(W - PAD, avatarY + avatarSize + 20);
+    ctx.moveTo(PAD, avY + avSize + 18);
+    ctx.lineTo(W - PAD, avY + avSize + 18);
     ctx.stroke();
 
-    /* ── Stat boxes (row 1) ── */
-    const statsY = avatarY + avatarSize + 40;
-    const boxW = (W - PAD * 2 - 20) / 3;
-    const boxH = 80;
-    const gap = 10;
+    /* ── Stat grid (row 1: 3 across, row 2: 2 across) ── */
+    const gridY = avY + avSize + 36;
+    const gap = 14;
+    const rowH = 78;
 
+    const w3 = (W - PAD * 2 - gap * 2) / 3;
     const row1 = [
-        { icon: STAT_ICONS.messages, label: 'MESSAGES',  value: formatNumber(totalMessages),         color: '#5865F2' },
-        { icon: STAT_ICONS.voice,    label: 'VOICE TIME',value: formatVoiceTime(voiceTime),          color: '#a78bfa' },
-        { icon: STAT_ICONS.xp,       label: 'XP / LEVEL',value: `${formatNumber(xp)} / Lv.${level}`, color: '#fbbf24' },
+        { label: 'Messages',   value: formatNumber(totalMessages),         color: '#5865f2' },
+        { label: 'Voice Time', value: formatVoiceTime(voiceTime),          color: '#a855f7' },
+        { label: 'XP / Level', value: `${formatNumber(xp)} · Lv.${level}`, color: '#fbbf24' },
     ];
+    row1.forEach((s, i) => drawFlatStat(ctx, fh, {
+        x: PAD + i * (w3 + gap), y: gridY, w: w3, h: rowH, ...s,
+    }));
 
-    for (let i = 0; i < row1.length; i++) {
-        const s = row1[i];
-        await drawStatBox(ctx, {
-            x: PAD + i * (boxW + gap), y: statsY,
-            width: boxW, height: boxH, color: s.color,
-            icon: s.icon, label: s.label, value: s.value,
-            labelFont: FSB(10),
-            valueFont: FB(22),
-            valueColor: DESIGN.colors.text,
-            iconSize: 18,
-            iconPadding: 14,
-        });
-    }
-
-    /* ── Stat boxes (row 2) ── */
-    const stats2Y = statsY + boxH + gap;
-    const box2W = (W - PAD * 2 - gap) / 2;
-
+    const w2 = (W - PAD * 2 - gap) / 2;
+    const row2Y = gridY + rowH + gap;
     const row2 = [
-        { icon: STAT_ICONS.invites,  label: 'INVITES',   value: formatNumber(invites),      color: '#34d399' },
-        { icon: STAT_ICONS.commands, label: 'COMMANDS',  value: formatNumber(commandsUsed), color: '#f472b6' },
+        { label: 'Invites',  value: formatNumber(invites),      color: '#34d399' },
+        { label: 'Commands', value: formatNumber(commandsUsed), color: '#f472b6' },
     ];
+    row2.forEach((s, i) => drawFlatStat(ctx, fh, {
+        x: PAD + i * (w2 + gap), y: row2Y, w: w2, h: rowH, ...s,
+    }));
 
-    for (let i = 0; i < row2.length; i++) {
-        const s = row2[i];
-        await drawStatBox(ctx, {
-            x: PAD + i * (box2W + gap), y: stats2Y,
-            width: box2W, height: boxH, color: s.color,
-            icon: s.icon, label: s.label, value: s.value,
-            labelFont: FSB(10),
-            valueFont: FB(22),
-            valueColor: DESIGN.colors.text,
-            iconSize: 18,
-            iconPadding: 14,
-        });
-    }
+    /* ── Border + branding ── */
+    ctx.strokeStyle = rgba(accent, 0.18);
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(ctx, 0.75, 0.75, W - 1.5, H - 1.5, 20);
+    ctx.stroke();
 
-    /* ── Footer ── */
-    ctx.font = F(10);
-    ctx.fillStyle = DESIGN.colors.textDim;
-    ctx.textAlign = 'center';
-    const footerScope = scope === 'global' ? 'Global' : 'Server';
-    await drawText(ctx, `${footerScope} Statistics`, W / 2, H - 14, true);
-    ctx.textAlign = 'left';
+    await drawNicoBranding(ctx, W, H, accent);
 
-    await drawNicoBranding(ctx, W, H);
-
-    ctx.restore();
     return canvas.toBuffer('image/png');
 }
 

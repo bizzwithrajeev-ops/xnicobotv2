@@ -42,15 +42,15 @@ const ROW_GAP  = 4;
 const BRAD     = 22;
 const ROW_BR   = 12;
 
-const BG        = '#0c0c1a';
-const BG2       = '#11122a';
-const BG3       = '#171835';
-const ROW_EVEN  = 'rgba(22,22,52,0.92)';
-const ROW_ODD   = 'rgba(17,17,42,0.80)';
-const FOOT_BG   = 'rgba(10,10,26,0.97)';
+const BG        = '#1c1d21';
+const BG2       = '#1a1b1f';
+const BG3       = '#161719';
+const ROW_EVEN  = 'rgba(255,255,255,0.04)';
+const ROW_ODD   = 'rgba(255,255,255,0.02)';
+const FOOT_BG   = 'rgba(0,0,0,0.25)';
 const TEXT_MAIN  = '#f1f3f8';
 const TEXT_MUTED = '#8b8fa3';
-const TEXT_DIM   = '#3d4156';
+const TEXT_DIM   = '#5c6070';
 
 const MEDAL_HEX = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
@@ -134,47 +134,16 @@ async function generateLeaderboardCard(entries, opts) {
     rrPath(ctx, 0, 0, W, H, BRAD);
     ctx.clip();
 
-    // Multi-stop diagonal gradient
-    const bgG = ctx.createLinearGradient(0, 0, W, H);
-    bgG.addColorStop(0,    BG);
-    bgG.addColorStop(0.35, BG2);
-    bgG.addColorStop(0.7,  BG3);
-    bgG.addColorStop(1,    BG);
+    // Flat vertical gradient — clean, no lattice/radial noise.
+    const bgG = ctx.createLinearGradient(0, 0, 0, H);
+    bgG.addColorStop(0,  BG);
+    bgG.addColorStop(1,  BG3);
     ctx.fillStyle = bgG;
     ctx.fillRect(0, 0, W, H);
 
-    // Diagonal lattice
-    ctx.strokeStyle = rgbA(0.025);
-    ctx.lineWidth   = 1;
-    for (let i = -H; i < W + H; i += 52) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i+H, H);
-        ctx.stroke();
-    }
-
-    // Top accent sweep
-    const sweepG = ctx.createLinearGradient(0, 0, W, 0);
-    sweepG.addColorStop(0,    rgbA(0.00));
-    sweepG.addColorStop(0.22, rgbA(0.28));
-    sweepG.addColorStop(0.65, rgbA(0.10));
-    sweepG.addColorStop(1,    rgbA(0.00));
-    ctx.fillStyle = sweepG;
-    ctx.fillRect(0, 0, W, 4);
-
-    // Header radial glow
-    const radG = ctx.createRadialGradient(W*0.38, 0, 0, W*0.38, 0, 320);
-    radG.addColorStop(0, rgbA(0.16));
-    radG.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = radG;
-    ctx.fillRect(0, 0, W, HEADER_H + 60);
-
-    // Subtle top-right cool glow for depth
-    const radG2 = ctx.createRadialGradient(W - 60, 30, 0, W - 60, 30, 240);
-    radG2.addColorStop(0, 'rgba(99,102,241,0.10)');
-    radG2.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = radG2;
-    ctx.fillRect(0, 0, W, 200);
+    // One quiet accent band along the bottom edge.
+    ctx.fillStyle = rgbA(0.9);
+    ctx.fillRect(0, H - 4, W, 4);
 
     ctx.restore();
 
@@ -277,23 +246,15 @@ async function generateLeaderboardCard(entries, opts) {
         const bdgY = rowY + ROW_H/2;
 
         if (isPod) {
-            // Glowing medal coin
-            ctx.save();
-            ctx.shadowColor = mc;
-            ctx.shadowBlur  = 16;
-            const cg = ctx.createRadialGradient(bdgX, bdgY-4, 2, bdgX, bdgY, 24);
-            cg.addColorStop(0, `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.45)`);
-            cg.addColorStop(1, `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.06)`);
-            ctx.fillStyle = cg;
+            // Flat medal coin — single fill + ring, no glow.
             ctx.beginPath();
-            ctx.arc(bdgX, bdgY, 24, 0, Math.PI*2);
+            ctx.arc(bdgX, bdgY, 22, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.18)`;
             ctx.fill();
-            ctx.restore();
-
             ctx.strokeStyle = mc + 'cc';
-            ctx.lineWidth   = 1.8;
+            ctx.lineWidth   = 2;
             ctx.beginPath();
-            ctx.arc(bdgX, bdgY, 24, 0, Math.PI*2);
+            ctx.arc(bdgX, bdgY, 22, 0, Math.PI*2);
             ctx.stroke();
 
             ctx.save();
@@ -334,17 +295,6 @@ async function generateLeaderboardCard(entries, opts) {
         const img = await loadAvatar(e.avatar);
 
         if (img) {
-            // Glow halo
-            ctx.save();
-            const halo = ctx.createRadialGradient(avCX, avCY, avR, avCX, avCY, avR + 14);
-            halo.addColorStop(0, isPod ? `rgba(${mcRgb.r},${mcRgb.g},${mcRgb.b},0.35)` : rgbA(0.30));
-            halo.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = halo;
-            ctx.beginPath();
-            ctx.arc(avCX, avCY, avR + 14, 0, Math.PI*2);
-            ctx.fill();
-            ctx.restore();
-
             // Image clipped to circle
             ctx.save();
             ctx.beginPath();
@@ -353,7 +303,7 @@ async function generateLeaderboardCard(entries, opts) {
             ctx.drawImage(img, avX, avY, AV, AV);
             ctx.restore();
 
-            // Outer ring
+            // Single outer ring
             ctx.strokeStyle = isPod ? mc + 'cc' : rgbA(0.55);
             ctx.lineWidth   = isPod ? 2.5 : 1.5;
             ctx.beginPath();
@@ -436,8 +386,6 @@ async function generateLeaderboardCard(entries, opts) {
         const lblY  = rowY + 54;
 
         ctx.save();
-        ctx.shadowColor  = rgbA(0.45);
-        ctx.shadowBlur   = 10;
         ctx.font         = FB(23);
         ctx.fillStyle    = isPod ? mc : accentHex;
         ctx.textAlign    = 'right';

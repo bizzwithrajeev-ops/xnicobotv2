@@ -485,37 +485,40 @@ async function createEconomyProfileCard({
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 
-    /* ── Background ── */
-    drawGradientBackground(ctx, W, H, '#080818', '#10103a');
-    drawStarField(ctx, W, H, 60);
-    drawDiagonalLines(ctx, W, H, 'rgba(124,58,237,0.04)', 28);
-    drawGlowCircle(ctx, W / 2, 0, 240, COLORS.purple, 80);
+    /* ── Background (clean flat gradient, single accent band) ── */
+    ctx.save();
+    drawRoundedRect(ctx, 0, 0, W, H, 20);
+    ctx.clip();
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#26272b');
+    bgGrad.addColorStop(1, '#1c1d21');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = rgba(vip ? COLORS.gold : COLORS.purple, 0.9);
+    ctx.fillRect(0, H - 4, W, 4);
+    ctx.restore();
 
     /* ─────────── HEADER ─────────── */
     const headerY = 18, headerH = 110;
-    drawRoundedRect(ctx, 18, headerY, W - 36, headerH, 16);
-    ctx.fillStyle = 'rgba(20,20,55,0.92)';
+    drawRoundedRect(ctx, 18, headerY, W - 36, headerH, 14);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fill();
-    ctx.strokeStyle = COLORS.purple + '40';
-    ctx.lineWidth = 1;
-    drawRoundedRect(ctx, 18, headerY, W - 36, headerH, 16);
+    ctx.strokeStyle = rgba(vip ? COLORS.gold : COLORS.purple, 0.4);
+    ctx.lineWidth = 1.2;
+    drawRoundedRect(ctx, 18, headerY, W - 36, headerH, 14);
     ctx.stroke();
 
-    // Avatar with VIP gold ring or default purple ring
+    // Avatar with VIP gold ring or default purple ring (single ring, no glow)
     const avatar = await loadAvatar(avatarURL);
     const ringColor = vip ? COLORS.gold : COLORS.purple;
     const avatarCx = 78, avatarCy = headerY + headerH / 2;
     if (avatar) {
-        ctx.save();
-        ctx.shadowColor = ringColor;
-        ctx.shadowBlur = 18;
+        drawCircularAvatar(ctx, avatar, avatarCx - 32, avatarCy - 32, 64);
         ctx.strokeStyle = ringColor;
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(avatarCx, avatarCy, 36, 0, Math.PI * 2);
+        ctx.arc(avatarCx, avatarCy, 35, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.restore();
-        drawCircularAvatar(ctx, avatar, avatarCx - 32, avatarCy - 32, 64);
     }
 
     // Username — fitText so very long usernames shrink instead of overflowing
@@ -645,13 +648,13 @@ async function createEconomyProfileCard({
         const c = wCards[i];
         const cx = wcStartX + i * (wcW + wcGap);
 
-        ctx.save();
-        ctx.shadowColor = c.color + '30';
-        ctx.shadowBlur = 12;
         drawRoundedRect(ctx, cx, wealthY, wcW, wcH, 12);
-        ctx.fillStyle = 'rgba(18,18,50,0.92)';
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.fill();
-        ctx.restore();
+        ctx.strokeStyle = rgba(c.color, 0.35);
+        ctx.lineWidth = 1.2;
+        drawRoundedRect(ctx, cx, wealthY, wcW, wcH, 12);
+        ctx.stroke();
 
         drawRoundedRect(ctx, cx, wealthY, 4, wcH, 2);
         ctx.fillStyle = c.color;
@@ -666,11 +669,6 @@ async function createEconomyProfileCard({
         ctx.font = f.bold(valSize);
         ctx.fillStyle = COLORS.white;
         ctx.fillText(valStr, cx + 14, wealthY + 54);
-
-        ctx.strokeStyle = c.color + '30';
-        ctx.lineWidth = 1;
-        drawRoundedRect(ctx, cx, wealthY, wcW, wcH, 12);
-        ctx.stroke();
     }
 
     /* ─────────── STATS ROW ─────────── */
