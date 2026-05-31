@@ -47,6 +47,7 @@ class ProfileCard {
         this.textColor = '#ffffff';
         this.backgroundImage = null;
         this.bannerImage = null;
+        this.bannerMode = 'strip';   // 'strip' = header band · 'full' = whole-card background
         this.backgroundOpacity = 0.45;
         this.cardStyle = 'default';
         this.fontFamily = 'Inter';
@@ -57,6 +58,7 @@ class ProfileCard {
     setBackground(c)            { this.backgroundColor = c; return this; }
     setBackgroundImage(url)     { this.backgroundImage = url; return this; }
     setBannerImage(url)         { this.bannerImage = url; return this; }
+    setBannerMode(mode)         { this.bannerMode = (mode === 'full') ? 'full' : 'strip'; return this; }
     setAccentColor(c)           { this.accentColor = c; return this; }
     setTextColor(c)             { this.textColor = c; return this; }
     setBackgroundOpacity(o)     { this.backgroundOpacity = Math.max(0, Math.min(1, o)); return this; }
@@ -92,6 +94,11 @@ class ProfileCard {
         const accent = this.accentColor;
         const bannerH = 120;
 
+        // Resolve which image fills the whole card vs. the header strip.
+        const bannerIsFull = this.bannerImage && this.bannerMode === 'full';
+        const fullBgImage  = bannerIsFull ? this.bannerImage : this.backgroundImage;
+        const stripBanner  = (this.bannerImage && !bannerIsFull) ? this.bannerImage : null;
+
         /* ── 1. Background (single flat gradient) ── */
         ctx.save();
         drawRoundedRect(ctx, 0, 0, W, H, 20);
@@ -105,11 +112,11 @@ class ProfileCard {
         // Full-card background image — full strength + a single light
         // gradient scrim (not a heavy flat 0.66 cover) so the user's
         // image is actually visible while text stays legible.
-        if (this.backgroundImage) {
+        if (fullBgImage) {
             try {
-                const bg = await imageCache.loadWithCache(this.backgroundImage, 5000);
+                const bg = await imageCache.loadWithCache(fullBgImage, 5000);
                 if (bg) {
-                    ctx.globalAlpha = Math.max(0.5, this.backgroundOpacity);
+                    ctx.globalAlpha = bannerIsFull ? 1 : Math.max(0.5, this.backgroundOpacity);
                     const scale = Math.max(W / bg.width, H / bg.height);
                     const ix = (W - bg.width * scale) / 2;
                     const iy = (H - bg.height * scale) / 2;
@@ -118,7 +125,7 @@ class ProfileCard {
                     const scrim = ctx.createLinearGradient(0, 0, 0, H);
                     scrim.addColorStop(0, 'rgba(15,15,20,0.35)');
                     scrim.addColorStop(0.55, 'rgba(15,15,20,0.50)');
-                    scrim.addColorStop(1, 'rgba(15,15,20,0.66)');
+                    scrim.addColorStop(1, 'rgba(15,15,20,0.70)');
                     ctx.fillStyle = scrim;
                     ctx.fillRect(0, 0, W, H);
                 }
@@ -127,9 +134,9 @@ class ProfileCard {
 
         // Banner: a real image strip across the header (Discord style).
         // Falls back to a slim accent tint band when no banner is set.
-        if (this.bannerImage) {
+        if (stripBanner) {
             try {
-                const banner = await imageCache.loadWithCache(this.bannerImage, 5000);
+                const banner = await imageCache.loadWithCache(stripBanner, 5000);
                 if (banner) {
                     ctx.save();
                     ctx.beginPath();
@@ -151,8 +158,9 @@ class ProfileCard {
                     ctx.fillRect(0, bannerH - 2, W, 2);
                 }
             } catch {}
-        } else {
-            // Slim accent banner strip behind the header.
+        } else if (!fullBgImage) {
+            // Slim accent banner strip behind the header (only when there's
+            // no full-card image already providing the header backdrop).
             ctx.fillStyle = rgba(accent, 0.16);
             ctx.fillRect(0, 0, W, bannerH);
         }

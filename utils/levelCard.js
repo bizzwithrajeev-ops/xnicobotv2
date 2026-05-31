@@ -57,6 +57,7 @@ class LevelCard {
         this.progressBarColor = this.accentColor;
         this.backgroundImage = null;
         this.bannerImage = null;
+        this.bannerMode = 'strip';   // 'strip' = top band · 'full' = whole-card background
         this.backgroundOpacity = 0.45;
         this.bio = null;
         this.cardStyle = 'default';
@@ -69,6 +70,7 @@ class LevelCard {
     setBackground(c)            { this.backgroundColor = c; return this; }
     setBackgroundImage(url)     { this.backgroundImage = url; return this; }
     setBannerImage(url)         { this.bannerImage = url; return this; }
+    setBannerMode(mode)         { this.bannerMode = (mode === 'full') ? 'full' : 'strip'; return this; }
     setProgressBarColor(c)      { this.progressBarColor = c; this.accentColor = c; return this; }
     setAccentColor(c)           { this.accentColor = c; return this; }
     setTextColor(c)             { this.textColor = c; return this; }
@@ -106,6 +108,14 @@ class LevelCard {
 
         const BANNER_H = 92;   // top strip for the optional banner image
 
+        // Resolve which image fills the whole card vs. the top strip.
+        //   • bannerMode 'full' + a banner → banner becomes the full bg.
+        //   • otherwise the custom background (if any) fills the card and
+        //     the banner (if any) is drawn as a top strip.
+        const bannerIsFull = this.bannerImage && this.bannerMode === 'full';
+        const fullBgImage  = bannerIsFull ? this.bannerImage : this.backgroundImage;
+        const stripBanner  = (this.bannerImage && !bannerIsFull) ? this.bannerImage : null;
+
         /* ── 1. Background (single, clean treatment) ── */
         ctx.save();
         drawRoundedRect(ctx, 0, 0, W, H, 20);
@@ -122,11 +132,14 @@ class LevelCard {
         // opacity, then a SINGLE light readability scrim (not a heavy
         // 0.62 cover on top of an already-dimmed image). This is why
         // backgrounds looked invisible before.
-        if (this.backgroundImage) {
+        if (fullBgImage) {
             try {
-                const bg = await imageCache.loadWithCache(this.backgroundImage, 5000);
+                const bg = await imageCache.loadWithCache(fullBgImage, 5000);
                 if (bg) {
-                    ctx.globalAlpha = Math.max(0.5, this.backgroundOpacity);
+                    // A full banner reads as a deliberate cover image, so
+                    // show it close to full strength; a plain background
+                    // honours the user's opacity slider.
+                    ctx.globalAlpha = bannerIsFull ? 1 : Math.max(0.5, this.backgroundOpacity);
                     const scale = Math.max(W / bg.width, H / bg.height);
                     const ix = (W - bg.width * scale) / 2;
                     const iy = (H - bg.height * scale) / 2;
@@ -135,8 +148,8 @@ class LevelCard {
                     // Light gradient scrim — darker at the bottom where
                     // the stats + bar sit, lighter at the top.
                     const scrim = ctx.createLinearGradient(0, 0, 0, H);
-                    scrim.addColorStop(0, 'rgba(15,15,20,0.30)');
-                    scrim.addColorStop(1, 'rgba(15,15,20,0.55)');
+                    scrim.addColorStop(0, bannerIsFull ? 'rgba(15,15,20,0.40)' : 'rgba(15,15,20,0.30)');
+                    scrim.addColorStop(1, bannerIsFull ? 'rgba(15,15,20,0.74)' : 'rgba(15,15,20,0.55)');
                     ctx.fillStyle = scrim;
                     ctx.fillRect(0, 0, W, H);
                 }
@@ -146,9 +159,9 @@ class LevelCard {
         // Banner strip — a separate top image (Discord-profile style).
         // Sits above the background, only across the header band, and
         // fades into the card so the avatar reads cleanly over it.
-        if (this.bannerImage) {
+        if (stripBanner) {
             try {
-                const banner = await imageCache.loadWithCache(this.bannerImage, 5000);
+                const banner = await imageCache.loadWithCache(stripBanner, 5000);
                 if (banner) {
                     ctx.save();
                     ctx.beginPath();
@@ -183,9 +196,9 @@ class LevelCard {
         const PAD = 36;
         const avatarSize = 132;
         const avatarX = PAD;
-        // When a banner is present the avatar overlaps it (Discord style);
-        // otherwise it sits vertically centered in the upper area.
-        const avatarY = this.bannerImage
+        // When a strip banner is present the avatar overlaps it (Discord
+        // style); otherwise it sits vertically centered in the upper area.
+        const avatarY = stripBanner
             ? BANNER_H - avatarSize / 2
             : 28;
         const contentX = avatarX + avatarSize + 30;   // shared left edge for all text

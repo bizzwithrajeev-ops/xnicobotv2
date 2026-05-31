@@ -56,6 +56,7 @@ async function generateRankCard(target, guild) {
     levelCard.setCardStyle(selectedCardStyle);
     if (rankSettings.customBackground) levelCard.setBackgroundImage(rankSettings.customBackground);
     if (rankSettings.bannerImage) levelCard.setBannerImage(rankSettings.bannerImage);
+    if (rankSettings.bannerMode) levelCard.setBannerMode(rankSettings.bannerMode);
     if (rankSettings.backgroundColor) levelCard.setBackground(rankSettings.backgroundColor);
     if (rankSettings.progressBarColor) {
         levelCard.setProgressBarColor(rankSettings.progressBarColor);

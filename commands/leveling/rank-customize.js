@@ -125,7 +125,7 @@ module.exports = {
         await context.reply(replyOptions);
     },
 
-    async showCustomizationPanel(context, isSlash) {
+    async showCustomizationPanel(context, isSlash, isUpdate = false) {
         try {
             const user = isSlash ? context.user : context.author;
             const userData = await getUserData(user.id);
@@ -133,6 +133,7 @@ module.exports = {
             const currentSettings = {
                 background: userData.profile?.rankCard?.customBackground || userData.profile?.customBackground || null,
                 banner: userData.profile?.rankCard?.bannerImage || null,
+                bannerMode: userData.profile?.rankCard?.bannerMode || 'strip',
                 bgColor: userData.profile?.rankCard?.backgroundColor || userData.profile?.backgroundColor || '#2f3136',
                 progressColor: userData.profile?.rankCard?.progressBarColor || userData.profile?.progressBarColor || '#bcf1e4',
                 textColor: userData.profile?.rankCard?.textColor || userData.profile?.textColor || '#ffffff',
@@ -177,6 +178,11 @@ module.exports = {
             const setupButtons2 = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
+                        .setCustomId('rankcard_set_bannermode')
+                        .setLabel(currentSettings.bannerMode === 'full' ? 'Banner: Full' : 'Banner: Strip')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('<:Eye:1473038435056095242>'),
+                    new ButtonBuilder()
                         .setCustomId('rankcard_set_opacity')
                         .setLabel('Opacity')
                         .setStyle(ButtonStyle.Primary)
@@ -195,16 +201,16 @@ module.exports = {
                         .setCustomId('rankcard_preview')
                         .setLabel('Preview')
                         .setStyle(ButtonStyle.Primary)
-                        .setEmoji('<:Eye:1473038435056095242>'),
-                    new ButtonBuilder()
-                        .setCustomId('rankcard_help_btn')
-                        .setLabel('Help')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('<:Lightbulbalt:1473038470787240009>')
+                        .setEmoji('<:Eye:1473038435056095242>')
                 );
 
             const actionButtons = new ActionRowBuilder()
                 .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('rankcard_help_btn')
+                        .setLabel('Help')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('<:Lightbulbalt:1473038470787240009>'),
                     new ButtonBuilder()
                         .setCustomId('rankcard_reset')
                         .setLabel('Reset All')
@@ -223,6 +229,7 @@ module.exports = {
             const bannerDisplay = currentSettings.banner
                 ? (currentSettings.banner.length > 35 ? currentSettings.banner.substring(0, 35) + '...' : currentSettings.banner)
                 : '`None`';
+            const bannerModeLabel = currentSettings.bannerMode === 'full' ? 'Full background' : 'Top strip';
 
             const container = new ContainerBuilder()
                 .setAccentColor(isNaN(progressHex) ? 0xCAD7E6 : progressHex)
@@ -245,7 +252,8 @@ module.exports = {
                             `Font              ${fontInfo.name}\n` +
                             `\`\`\`\n` +
                             `<:Picture:1473039568398843957> **Background:** ${bgDisplay}\n` +
-                            `<:Picture:1473039568398843957> **Banner:** ${bannerDisplay}`
+                            `<:Picture:1473039568398843957> **Banner:** ${bannerDisplay}\n` +
+                            `<:Eye:1473038435056095242> **Banner Mode:** ${bannerModeLabel}`
                         )
                 )
                 .addSeparatorComponents(
@@ -264,7 +272,12 @@ module.exports = {
                 )
                 .addActionRowComponents(actionButtons);
 
-            if (isSlash) {
+            if (isUpdate && context.update) {
+                await context.update({
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2
+                });
+            } else if (isSlash) {
                 await context.reply({
                     components: [container],
                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral

@@ -78,6 +78,7 @@ async function generateProfileCard(user, guild, client) {
     profileCard.setCardStyle(selectedCardStyle);
     if (profileSettings.customBackground) profileCard.setBackgroundImage(profileSettings.customBackground);
     if (profileSettings.bannerImage) profileCard.setBannerImage(profileSettings.bannerImage);
+    if (profileSettings.bannerMode) profileCard.setBannerMode(profileSettings.bannerMode);
     if (profileSettings.backgroundColor) profileCard.setBackground(profileSettings.backgroundColor);
     if (profileSettings.accentColor || profileSettings.progressBarColor) {
         profileCard.setAccentColor(profileSettings.accentColor || profileSettings.progressBarColor);

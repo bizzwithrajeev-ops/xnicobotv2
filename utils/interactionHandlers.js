@@ -5156,6 +5156,21 @@ async function handleProfileButtons(interaction) {
         return true;
     }
 
+    if (interaction.customId === 'profile_set_bannermode') {
+        const { getUserData, updateUserData } = require('./dataManager');
+        const ud = await getUserData(interaction.user.id);
+        const current = ud.profile?.profileCard?.bannerMode || 'strip';
+        const next = current === 'full' ? 'strip' : 'full';
+        await updateUserData(interaction.user.id, { 'profile.profileCard.bannerMode': next });
+        await interaction.reply({
+            content: next === 'full'
+                ? '<:Checkedbox:1473038547165384804> Banner mode set to **Full background** — your banner image now fills the whole card. Use **Preview** to see it.'
+                : '<:Checkedbox:1473038547165384804> Banner mode set to **Top strip** — your banner image sits as a header band. Use **Preview** to see it.',
+            flags: MessageFlags.Ephemeral
+        });
+        return true;
+    }
+
     if (interaction.customId === 'profile_set_bgcolor') {
         await interaction.showModal({
             customId: 'profile_bgcolor_modal',
@@ -5420,6 +5435,9 @@ async function handleProfileButtons(interaction) {
             if (profileSettings.bannerImage) {
                 profileCard.setBannerImage(profileSettings.bannerImage);
             }
+            if (profileSettings.bannerMode) {
+                profileCard.setBannerMode(profileSettings.bannerMode);
+            }
             if (profileSettings.backgroundColor) {
                 profileCard.setBackground(profileSettings.backgroundColor);
             }
@@ -5473,6 +5491,10 @@ async function handleProfileButtons(interaction) {
                         `### <:Picture:1473039568398843957> Background Image\n` +
                         `Set a custom background image using any direct image URL.\n` +
                         `**Supported formats:** JPG, PNG, GIF, WebP\n\n` +
+                        `### <:Picture:1473039568398843957> Banner & Banner Mode\n` +
+                        `Set a banner image, then toggle **Banner Mode**:\n` +
+                        `• **Strip** — banner sits as a header band (avatar overlaps it)\n` +
+                        `• **Full** — banner fills the entire card background\n\n` +
                         `### <:Palette:1473039029476917461> Background Color\n` +
                         `Set a solid background color using hex codes.\n` +
                         `**Examples:** \`#bcf1e4\` (Discord blue), \`#2f3136\` (Dark)\n\n` +
@@ -5509,6 +5531,10 @@ async function handleProfileButtons(interaction) {
                         `## <:Palette:1473039029476917461> Visual Options\n\n` +
                         `### <:Picture:1473039568398843957> Background Image\n` +
                         `Set a custom background. **Recommended:** 934x282 pixels\n\n` +
+                        `### <:Picture:1473039568398843957> Banner & Banner Mode\n` +
+                        `Set a banner image, then toggle **Banner Mode**:\n` +
+                        `• **Strip** — banner sits as a header band (avatar overlaps it)\n` +
+                        `• **Full** — banner fills the entire card background\n\n` +
                         `### <:Palette:1473039029476917461> Background Color\n` +
                         `Set a solid background using hex codes.\n\n` +
                         `### <:Invoice:1473039492217835550> Progress Bar Color\n` +
@@ -5543,6 +5569,7 @@ async function handleProfileButtons(interaction) {
         await updateUserData(interaction.user.id, {
             'profile.profileCard.customBackground': null,
             'profile.profileCard.bannerImage': null,
+            'profile.profileCard.bannerMode': 'strip',
             'profile.profileCard.backgroundColor': '#2f3136',
             'profile.profileCard.accentColor': '#bcf1e4',
             'profile.profileCard.textColor': '#ffffff',
@@ -5561,86 +5588,18 @@ async function handleProfileButtons(interaction) {
     }
 
     if (interaction.customId === 'profile_refresh') {
-        const userData = await getUserData(interaction.user.id);
-        const profileSettings = userData.profile?.profileCard || userData.profile || {};
-        const { FONT_FAMILIES } = require('./fontRegistry');
-
-        const currentSettings = {
-            background: profileSettings.customBackground || null,
-            bgColor: profileSettings.backgroundColor || '#2f3136',
-            accentColor: profileSettings.accentColor || '#bcf1e4',
-            textColor: profileSettings.textColor || '#ffffff',
-            badgeStyle: profileSettings.badgeStyle || 'Default',
-            cardStyle: profileSettings.cardStyle || 'Default',
-            bio: userData.social?.bio || null,
-            fontFamily: profileSettings.fontFamily || 'Inter'
-        };
-
-        const CARD_STYLES = {
-            'Default': { emoji: '🎴' }, 'Minimal': { emoji: '◻' }, 'Neon': { emoji: '💫' },
-            'Classic': { emoji: '🏛' }, 'Modern': { emoji: '🔷' }
-        };
-        const styleInfo = CARD_STYLES[currentSettings.cardStyle] || CARD_STYLES['Default'];
-        const accentHex = parseInt(currentSettings.accentColor.replace('#', ''), 16);
-        const fontInfo = FONT_FAMILIES[currentSettings.fontFamily] || FONT_FAMILIES['Inter'];
-
-        const bgDisplay = currentSettings.background 
-            ? (currentSettings.background.length > 35 ? currentSettings.background.substring(0, 35) + '...' : currentSettings.background)
-            : '`Default`';
-
-        const bioDisplay = currentSettings.bio 
-            ? (currentSettings.bio.length > 40 ? `"${currentSettings.bio.substring(0, 40)}..."` : `"${currentSettings.bio}"`)
-            : '`Not set`';
-
-        const { SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-
-        const container = new ContainerBuilder()
-            .setAccentColor(isNaN(accentHex) ? 0x5865F2 : accentHex)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:User:1473038971398520977> Profile Card Studio`)
-            )
-            .addSeparatorComponents(
-                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-            )
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(
-                        `### <:Palette:1473039029476917461> Current Theme\n` +
-                        `\`\`\`\n` +
-                        `Background    │ ${currentSettings.bgColor}\n` +
-                        `Accent        │ ${currentSettings.accentColor}\n` +
-                        `Text          │ ${currentSettings.textColor}\n` +
-                        `Card Style    │ ${styleInfo.emoji} ${currentSettings.cardStyle}\n` +
-                        `Badge Style   │ ${currentSettings.badgeStyle}\n` +
-                        `Font          │ ${fontInfo.emoji} ${fontInfo.name}\n` +
-                        `\`\`\`\n\n` +
-                        `<:Picture:1473039568398843957> **Image:** ${bgDisplay}\n` +
-                        `<:Edit:1473037903625191580> **Bio:** ${bioDisplay}`
-                    )
-            )
-            .addSeparatorComponents(
-                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-            )
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`### <:Settings:1473037894703779851> Customization`)
-            );
-
-        // Extract ActionRow components from the Container (Components V2)
-        const msgComponents = interaction.message.components;
-        const actionRows = (msgComponents[0]?.components || msgComponents).filter(c => c.type === 1);
-        if (actionRows[0]) container.addActionRowComponents(actionRows[0]);
-        if (actionRows[1]) container.addActionRowComponents(actionRows[1]);
-
-        container.addSeparatorComponents(
-                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-            )
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`### <:Settings:1473037894703779851> Actions`)
-            );
-        if (actionRows[2]) container.addActionRowComponents(actionRows[2]);
-
-        await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        try {
+            const profileCustomizeCmd = interaction.client.commands?.get('profile-customize')
+                || interaction.client.prefixCommands?.get('profile-customize');
+            if (profileCustomizeCmd?.showCustomizationPanel) {
+                await profileCustomizeCmd.showCustomizationPanel(interaction, true, true);
+            } else {
+                await interaction.reply({ content: '<:Checkedbox:1473038547165384804> Use `/profile-customize panel` to view your updated settings.', flags: MessageFlags.Ephemeral });
+            }
+        } catch (error) {
+            log.error('Error refreshing profile panel:', error);
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to refresh the panel.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
         return true;
     }
 
@@ -5764,6 +5723,21 @@ async function handleProfileButtons(interaction) {
                         .setRequired(false)
                 )
             ]
+        });
+        return true;
+    }
+
+    if (interaction.customId === 'rankcard_set_bannermode') {
+        const { getUserData, updateUserData } = require('./dataManager');
+        const ud = await getUserData(interaction.user.id);
+        const current = ud.profile?.rankCard?.bannerMode || 'strip';
+        const next = current === 'full' ? 'strip' : 'full';
+        await updateUserData(interaction.user.id, { 'profile.rankCard.bannerMode': next });
+        await interaction.reply({
+            content: next === 'full'
+                ? '<:Checkedbox:1473038547165384804> Banner mode set to **Full background** — your banner image now fills the whole card. Use **Preview** to see it.'
+                : '<:Checkedbox:1473038547165384804> Banner mode set to **Top strip** — your banner image sits as a header band. Use **Preview** to see it.',
+            flags: MessageFlags.Ephemeral
         });
         return true;
     }
@@ -5930,6 +5904,9 @@ async function handleProfileButtons(interaction) {
             if (rankSettings.bannerImage) {
                 levelCard.setBannerImage(rankSettings.bannerImage);
             }
+            if (rankSettings.bannerMode) {
+                levelCard.setBannerMode(rankSettings.bannerMode);
+            }
             if (rankSettings.backgroundColor) {
                 levelCard.setBackground(rankSettings.backgroundColor);
             }
@@ -5977,6 +5954,7 @@ async function handleProfileButtons(interaction) {
             // Reset new rank card namespace
             'profile.rankCard.customBackground': null,
             'profile.rankCard.bannerImage': null,
+            'profile.rankCard.bannerMode': 'strip',
             'profile.rankCard.backgroundColor': '#2f3136',
             'profile.rankCard.progressBarColor': '#bcf1e4',
             'profile.rankCard.textColor': '#ffffff',
@@ -5999,82 +5977,18 @@ async function handleProfileButtons(interaction) {
     }
 
     if (interaction.customId === 'rankcard_refresh') {
-        const userData = await getUserData(interaction.user.id);
-        const rankSettings = userData.profile?.rankCard || userData.profile || {};
-        const { FONT_FAMILIES } = require('./fontRegistry');
-
-        const CARD_STYLES = {
-            'Default': { emoji: '🎴' },
-            'Minimal': { emoji: '<:Star:1473038501766369300>' },
-            'Neon': { emoji: '💫' },
-            'Classic': { emoji: '🏛' },
-            'Modern': { emoji: '🔷' }
-        };
-
-        const currentSettings = {
-            background: rankSettings.customBackground || null,
-            bgColor: rankSettings.backgroundColor || '#2f3136',
-            progressColor: rankSettings.progressBarColor || '#bcf1e4',
-            textColor: rankSettings.textColor || '#ffffff',
-            cardStyle: rankSettings.cardStyle || 'Default',
-            fontFamily: rankSettings.fontFamily || 'Inter'
-        };
-
-        const progressHex = parseInt(currentSettings.progressColor.replace('#', ''), 16);
-        const styleInfo = CARD_STYLES[currentSettings.cardStyle] || CARD_STYLES['Default'];
-        const fontInfo = FONT_FAMILIES[currentSettings.fontFamily] || FONT_FAMILIES['Inter'];
-
-        const bgDisplay = currentSettings.background 
-            ? (currentSettings.background.length > 35 ? currentSettings.background.substring(0, 35) + '...' : currentSettings.background)
-            : '`Default`';
-
-        const { SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-
-        const container = new ContainerBuilder()
-            .setAccentColor(isNaN(progressHex) ? 0x5865F2 : progressHex)
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(`# <:Award:1473038391632203887> Rank Card Studio`)
-            )
-            .addSeparatorComponents(
-                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-            )
-            .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                    .setContent(
-                        `### <:Palette:1473039029476917461> Current Theme\n` +
-                        `\`\`\`\n` +
-                        `Background    │ ${currentSettings.bgColor}\n` +
-                        `Progress Bar  │ ${currentSettings.progressColor}\n` +
-                        `Text          │ ${currentSettings.textColor}\n` +
-                        `Card Style    │ ${styleInfo.emoji} ${currentSettings.cardStyle}\n` +
-                        `Font          │ ${fontInfo.emoji} ${fontInfo.name}\n` +
-                        `\`\`\`\n\n` +
-                        `<:Picture:1473039568398843957> **Image:** ${bgDisplay}`
-                    )
-            )
-            .addSeparatorComponents(
-                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-            )
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`### <:Settings:1473037894703779851> Customization`)
-            );
-
-        // Extract ActionRow components from the Container (Components V2)
-        const msgComponents = interaction.message.components;
-        const actionRows = (msgComponents[0]?.components || msgComponents).filter(c => c.type === 1);
-        if (actionRows[0]) container.addActionRowComponents(actionRows[0]);
-        if (actionRows[1]) container.addActionRowComponents(actionRows[1]);
-
-        container.addSeparatorComponents(
-                new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-            )
-            .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`### <:Settings:1473037894703779851> Actions`)
-            );
-        if (actionRows[2]) container.addActionRowComponents(actionRows[2]);
-
-        await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        try {
+            const rankCustomizeCmd = interaction.client.commands?.get('rank-customize')
+                || interaction.client.prefixCommands?.get('rank-customize');
+            if (rankCustomizeCmd?.showCustomizationPanel) {
+                await rankCustomizeCmd.showCustomizationPanel(interaction, true, true);
+            } else {
+                await interaction.reply({ content: '<:Checkedbox:1473038547165384804> Use `/rank-customize panel` to view your updated settings.', flags: MessageFlags.Ephemeral });
+            }
+        } catch (error) {
+            log.error('Error refreshing rank panel:', error);
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to refresh the panel.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
         return true;
     }
 

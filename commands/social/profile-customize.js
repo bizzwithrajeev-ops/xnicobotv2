@@ -95,7 +95,7 @@ module.exports = {
         }
     },
 
-    async showCustomizationPanel(context, isSlash) {
+    async showCustomizationPanel(context, isSlash, isUpdate = false) {
         try {
             const user = isSlash ? context.user : context.author;
             const userData = await getUserData(user.id);
@@ -103,6 +103,7 @@ module.exports = {
             const currentSettings = {
                 background: userData.profile?.profileCard?.customBackground || userData.profile?.customBackground || null,
                 banner: userData.profile?.profileCard?.bannerImage || null,
+                bannerMode: userData.profile?.profileCard?.bannerMode || 'strip',
                 bgColor: userData.profile?.profileCard?.backgroundColor || userData.profile?.backgroundColor || '#2f3136',
                 textColor: userData.profile?.profileCard?.textColor || userData.profile?.textColor || '#ffffff',
                 accentColor: userData.profile?.profileCard?.accentColor || userData.profile?.accentColor || '#bcf1e4',
@@ -154,6 +155,11 @@ module.exports = {
             const setupButtons2 = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
+                        .setCustomId('profile_set_bannermode')
+                        .setLabel(currentSettings.bannerMode === 'full' ? 'Banner: Full' : 'Banner: Strip')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('<:Eye:1473038435056095242>'),
+                    new ButtonBuilder()
                         .setCustomId('profile_set_font')
                         .setLabel('Font')
                         .setStyle(currentSettings.fontFamily !== 'Inter' ? ButtonStyle.Success : ButtonStyle.Primary)
@@ -172,21 +178,25 @@ module.exports = {
                         .setCustomId('profile_set_badgestyle')
                         .setLabel('Badges')
                         .setStyle(ButtonStyle.Primary)
-                        .setEmoji('🏅'),
+                        .setEmoji('🏅')
+                );
+
+            const setupButtons3 = new ActionRowBuilder()
+                .addComponents(
                     new ButtonBuilder()
                         .setCustomId('profile_set_bio')
                         .setLabel('Bio')
                         .setStyle(currentSettings.bio ? ButtonStyle.Success : ButtonStyle.Secondary)
-                        .setEmoji('<:Edit:1473037903625191580>')
-                );
-
-            const actionButtons = new ActionRowBuilder()
-                .addComponents(
+                        .setEmoji('<:Edit:1473037903625191580>'),
                     new ButtonBuilder()
                         .setCustomId('profile_preview')
                         .setLabel('Preview')
                         .setStyle(ButtonStyle.Primary)
-                        .setEmoji('<:Eye:1473038435056095242>'),
+                        .setEmoji('<:Eye:1473038435056095242>')
+                );
+
+            const actionButtons = new ActionRowBuilder()
+                .addComponents(
                     new ButtonBuilder()
                         .setCustomId('profile_help_btn')
                         .setLabel('Help')
@@ -211,6 +221,7 @@ module.exports = {
             const bannerDisplay = currentSettings.banner
                 ? (currentSettings.banner.length > 35 ? currentSettings.banner.substring(0, 35) + '...' : currentSettings.banner)
                 : '`None`';
+            const bannerModeLabel = currentSettings.bannerMode === 'full' ? 'Full background' : 'Top strip';
 
             const bioDisplay = currentSettings.bio 
                 ? (currentSettings.bio.length > 40 ? `"${currentSettings.bio.substring(0, 40)}..."` : `"${currentSettings.bio}"`)
@@ -239,6 +250,7 @@ module.exports = {
                             `\`\`\`\n` +
                             `<:Picture:1473039568398843957> **Background:** ${bgDisplay}\n` +
                             `<:Picture:1473039568398843957> **Banner:** ${bannerDisplay}\n` +
+                            `<:Eye:1473038435056095242> **Banner Mode:** ${bannerModeLabel}\n` +
                             `<:Edit:1473037903625191580> **Bio:** ${bioDisplay}`
                         )
                 )
@@ -250,6 +262,7 @@ module.exports = {
                 )
                 .addActionRowComponents(setupButtons1)
                 .addActionRowComponents(setupButtons2)
+                .addActionRowComponents(setupButtons3)
                 .addSeparatorComponents(
                     new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
                 )
@@ -258,7 +271,12 @@ module.exports = {
                 )
                 .addActionRowComponents(actionButtons);
 
-            if (isSlash) {
+            if (isUpdate && context.update) {
+                await context.update({
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2
+                });
+            } else if (isSlash) {
                 await context.reply({
                     components: [container],
                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral

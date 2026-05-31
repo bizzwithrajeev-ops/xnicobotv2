@@ -9439,10 +9439,17 @@ client.on('messageCreate', async (message) => {
                                             const userRank = sorted.findIndex(u => u.uid === message.author.id) + 1;
 
                                             let levelUpFontFamily = 'Poppins';
+                                            let levelUpBackground = null;
                                             try {
                                                 const { getUserData: _getUD } = require('./utils/dataManager');
                                                 const _ud = await _getUD(message.author.id);
                                                 levelUpFontFamily = _ud?.profile?.rankCard?.fontFamily || _ud?.profile?.profileCard?.fontFamily || 'Poppins';
+                                                // Level-up card is only customizable via background image —
+                                                // reuse the user's rank card background (or profile card).
+                                                levelUpBackground = _ud?.profile?.rankCard?.customBackground
+                                                    || _ud?.profile?.profileCard?.customBackground
+                                                    || _ud?.profile?.customBackground
+                                                    || null;
                                             } catch { }
                                             const cardBuffer = await generateLevelUpCard(message.author, {
                                                 oldLevel: oldLevel,
@@ -9450,7 +9457,8 @@ client.on('messageCreate', async (message) => {
                                                 totalXp: userData.xp,
                                                 rank: userRank,
                                                 xpGain: xpGain,
-                                                fontFamily: levelUpFontFamily
+                                                fontFamily: levelUpFontFamily,
+                                                backgroundImage: levelUpBackground
                                             });
 
                                             const attachment = new AttachmentBuilder(cardBuffer, { name: 'level-up.png' });

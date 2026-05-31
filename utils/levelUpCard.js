@@ -78,7 +78,7 @@ async function _renderCard(user, data = {}) {
     const accent = '#5865f2';
     const accent2 = '#a855f7';
 
-    /* ── 1. Background (single flat gradient) ── */
+    /* ── 1. Background (single flat gradient + optional user image) ── */
     ctx.save();
     drawRoundedRect(ctx, 0, 0, W, H, RAD);
     ctx.clip();
@@ -87,6 +87,28 @@ async function _renderCard(user, data = {}) {
     bg.addColorStop(1, '#1c1d21');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
+
+    // Optional custom background image (the only thing the user can
+    // customize on the level-up card). Drawn as a cover image with a
+    // single readability scrim so the text stays legible.
+    if (data.backgroundImage) {
+        try {
+            const img = await imageCache.loadWithCache(data.backgroundImage, 5000);
+            if (img) {
+                const scale = Math.max(W / img.width, H / img.height);
+                const ix = (W - img.width * scale) / 2;
+                const iy = (H - img.height * scale) / 2;
+                ctx.drawImage(img, ix, iy, img.width * scale, img.height * scale);
+                const scrim = ctx.createLinearGradient(0, 0, W, 0);
+                scrim.addColorStop(0, 'rgba(16,16,22,0.82)');
+                scrim.addColorStop(0.55, 'rgba(16,16,22,0.62)');
+                scrim.addColorStop(1, 'rgba(16,16,22,0.78)');
+                ctx.fillStyle = scrim;
+                ctx.fillRect(0, 0, W, H);
+            }
+        } catch {}
+    }
+
     // One quiet accent band along the bottom.
     ctx.fillStyle = rgba(accent, 0.9);
     ctx.fillRect(0, H - 4, W, 4);
@@ -175,10 +197,23 @@ async function _renderCard(user, data = {}) {
     const textRight = badgeX - 24;
     const tw = textRight - tx;
 
-    // "LEVEL UP" eyebrow
-    ctx.font = fh.getBoldFont(13);
+    // "LEVEL UP" eyebrow — a compact accent pill for a polished look.
+    ctx.font = fh.getBoldFont(12);
+    const eyebrow = 'LEVEL UP';
+    const eyebrowW = ctx.measureText(eyebrow).width;
+    const pillPadX = 10;
+    const pillH = 22;
+    const pillY = avY + 8;
+    drawRoundedRect(ctx, tx, pillY, eyebrowW + pillPadX * 2, pillH, 7);
+    ctx.fillStyle = rgba(accent2, 0.16);
+    ctx.fill();
+    ctx.strokeStyle = rgba(accent2, 0.5);
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, tx, pillY, eyebrowW + pillPadX * 2, pillH, 7);
+    ctx.stroke();
     ctx.fillStyle = accent2;
-    ctx.fillText('LEVEL UP', tx, avY + 26);
+    ctx.textAlign = 'left';
+    ctx.fillText(eyebrow, tx + pillPadX, pillY + 15);
 
     // Username (fitted, emoji-aware)
     let username = String(user.globalName || user.username);
