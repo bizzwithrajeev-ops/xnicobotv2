@@ -31,6 +31,7 @@ lavalink/plugins/
 
 # ── Runtime data (contains real user data — should never be public) ─────────
 json_stores/
+store_snapshots/
 datas/
 data/.slash-cache.json
 backups/

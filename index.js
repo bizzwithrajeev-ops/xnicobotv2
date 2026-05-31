@@ -1182,6 +1182,15 @@ client.on(Events.ClientReady, async () => {
         jsonStore.flushDirty().catch(err => log.error('Periodic dirty flush failed:', err));
     }, 5 * 60 * 1000);
 
+    // ── Automatic data snapshots (recovery points for the json_store) ──
+    // Hourly gzipped snapshots of every store to store_snapshots/, so a
+    // bad write / accidental wipe is recoverable via `datasnapshot restore`.
+    try {
+        require('./utils/storeSnapshot').startAuto();
+    } catch (err) {
+        log.warning('[StoreSnapshot] Failed to start auto-snapshot: ' + (err?.message || err));
+    }
+
     // ── Premium system cleanup (runs once on startup, then every 30 minutes) ──
     premiumManager.runCleanup(badgeManager);
     setInterval(() => premiumManager.runCleanup(badgeManager), 30 * 60 * 1000);

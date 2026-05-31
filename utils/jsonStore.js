@@ -34,6 +34,48 @@ const PG_POLL_MS       = 5_000;
 const LOCAL_POLL_MS     = 1_500;   // poll local file mtimes every 1.5s for cross-process sync
 const LOCAL_STORE_DIR  = path.join(__dirname, '..', 'json_stores');
 
+// ── Critical config stores ───────────────────────────────────────────────
+// These hold low-frequency, high-value configuration/state where losing a
+// write on a quick restart is unacceptable (premium, prefixes, moderation
+// config, tickets, music panel state, …). For these, write() persists
+// IMMEDIATELY instead of waiting out the 30s debounce, so a restart inside
+// the debounce window can never silently revert them.
+//
+// HOT, high-churn stores (economy, inventory, leveling XP totals, users,
+// command-stats, caches) are deliberately NOT in this set — they are written
+// on nearly every command and must stay debounced to avoid hammering PG and
+// spiking the gateway heartbeat. Suffix matching covers dashboard mirror
+// stores (e.g. `dash_premium`).
+const CRITICAL_STORES = new Set([
+    // Premium + access
+    'premium', 'premium-keys', 'server-premium', 'dash_premium',
+    'owners', 'blacklist', 'globalconfig', 'noprefix', 'globalnoprefix', 'apikeys',
+    // Prefix + branding
+    'prefixes', 'bot-customize',
+    // Moderation / protection config
+    'automod', 'antinuke', 'antiraid', 'antispam', 'antialt', 'vanityguard',
+    'emergency', 'nightmode', 'botblock', 'statusrole', 'ignored-channels',
+    'lockdown', 'trust', 'warnings', 'modlogs',
+    // Tickets
+    'tickets',
+    // Automation config
+    'autoresponder', 'autoreact', 'autorole', 'autonick', 'voiceautorole',
+    'reactionroles', 'starboard', 'suggestions', 'giveaways', 'giveaway-settings',
+    'media-only', 'sticky', 'simple-sticky', 'booster-notify', 'social-notify',
+    'button-commands', 'select-menus', 'customcmds', 'welcomer', 'welcomer-templates',
+    // Verification / invites / join2create / serverstats
+    'verification', 'invites', 'join2create', 'serverstats',
+    // Leveling CONFIG (not the XP totals 'leveling'/'users')
+    'levelchannel', 'levelingtoggle', 'levelmultiplier', 'levelroles',
+    // Logging / applications / aichat / panels
+    'logs', 'logging', 'applications', 'application-responses', 'aichat',
+    'panel-registry', 'musicpanel', 'musicpanel-247', 'guildtags', 'servertag',
+    'servertag-users', 'vote-config',
+    // Misc high-value config
+    'birthdays', 'confessions', 'reminders', 'spotify-links', 'marriages',
+    'reputation', 'user-templates', 'voicebans',
+]);
+
 // `structuredClone` (Node ≥ 17) is 3–5× faster than the legacy
 // `JSON.parse(JSON.stringify(...))` clone trick and avoids a second
 // heap allocation pass. Falls back to the JSON dance on older
@@ -347,12 +389,44 @@ class JsonStore extends EventEmitter {
 
     /**
      * Write — updates cache immediately, schedules debounced persist.
+     *
+     * For CRITICAL_STORES (low-frequency, high-value config) the persist
+     * is NOT debounced — it's flushed to the DB right away so a restart
+     * inside the debounce window can't lose the write. Hot/high-churn
+     * stores keep the debounce. `_isCritical()` does an exact + suffix
+     * match so dashboard mirror stores (dash_premium, …) are covered too.
      */
     write(storeName, data) {
         this.cache.set(storeName, deepClone(data));
         this.dirty.add(storeName);
-        this._schedulePersist(storeName, data);
+        if (this._isCritical(storeName)) {
+            // Persist immediately; swallow errors so callers that don't
+            // await write() keep their fire-and-forget contract.
+            this._clearTimer(storeName);
+            const persist = this._localMode
+                ? this._persistToLocal(storeName, data)
+                : this._persistToPg(storeName, data);
+            if (persist && typeof persist.catch === 'function') persist.catch(() => {});
+        } else {
+            this._schedulePersist(storeName, data);
+        }
         this._emitUpdate(storeName, data);
+    }
+
+    /**
+     * Whether a store should bypass the debounce and persist immediately.
+     * Exact match against CRITICAL_STORES, plus a suffix match so mirror
+     * stores like `dash_premium` / `dash_prefixes` are also covered.
+     */
+    _isCritical(storeName) {
+        if (!storeName) return false;
+        if (CRITICAL_STORES.has(storeName)) return true;
+        // dashboard mirror prefix, e.g. dash_premium → premium
+        if (storeName.startsWith('dash_')) {
+            const base = storeName.slice(5);
+            if (CRITICAL_STORES.has(base)) return true;
+        }
+        return false;
     }
 
     /**
