@@ -46,7 +46,8 @@ class ProfileCard {
         this.accentColor = '#5865f2';
         this.textColor = '#ffffff';
         this.backgroundImage = null;
-        this.backgroundOpacity = 0.4;
+        this.bannerImage = null;
+        this.backgroundOpacity = 0.45;
         this.cardStyle = 'default';
         this.fontFamily = 'Inter';
         this._fh = getFontHelpers('Inter');
@@ -55,6 +56,7 @@ class ProfileCard {
     setFontFamily(family)       { this.fontFamily = family || 'Inter'; this._fh = getFontHelpers(this.fontFamily); return this; }
     setBackground(c)            { this.backgroundColor = c; return this; }
     setBackgroundImage(url)     { this.backgroundImage = url; return this; }
+    setBannerImage(url)         { this.bannerImage = url; return this; }
     setAccentColor(c)           { this.accentColor = c; return this; }
     setTextColor(c)             { this.textColor = c; return this; }
     setBackgroundOpacity(o)     { this.backgroundOpacity = Math.max(0, Math.min(1, o)); return this; }
@@ -88,6 +90,7 @@ class ProfileCard {
         const canvas = createCanvas(W, H);
         const ctx = canvas.getContext('2d');
         const accent = this.accentColor;
+        const bannerH = 120;
 
         /* ── 1. Background (single flat gradient) ── */
         ctx.save();
@@ -99,26 +102,61 @@ class ProfileCard {
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, W, H);
 
+        // Full-card background image — full strength + a single light
+        // gradient scrim (not a heavy flat 0.66 cover) so the user's
+        // image is actually visible while text stays legible.
         if (this.backgroundImage) {
             try {
                 const bg = await imageCache.loadWithCache(this.backgroundImage, 5000);
                 if (bg) {
-                    ctx.globalAlpha = this.backgroundOpacity;
+                    ctx.globalAlpha = Math.max(0.5, this.backgroundOpacity);
                     const scale = Math.max(W / bg.width, H / bg.height);
                     const ix = (W - bg.width * scale) / 2;
                     const iy = (H - bg.height * scale) / 2;
                     ctx.drawImage(bg, ix, iy, bg.width * scale, bg.height * scale);
                     ctx.globalAlpha = 1;
-                    ctx.fillStyle = 'rgba(15,15,20,0.66)';
+                    const scrim = ctx.createLinearGradient(0, 0, 0, H);
+                    scrim.addColorStop(0, 'rgba(15,15,20,0.35)');
+                    scrim.addColorStop(0.55, 'rgba(15,15,20,0.50)');
+                    scrim.addColorStop(1, 'rgba(15,15,20,0.66)');
+                    ctx.fillStyle = scrim;
                     ctx.fillRect(0, 0, W, H);
                 }
             } catch {}
         }
 
-        // Slim accent banner strip behind the header.
-        const bannerH = 120;
-        ctx.fillStyle = rgba(accent, 0.16);
-        ctx.fillRect(0, 0, W, bannerH);
+        // Banner: a real image strip across the header (Discord style).
+        // Falls back to a slim accent tint band when no banner is set.
+        if (this.bannerImage) {
+            try {
+                const banner = await imageCache.loadWithCache(this.bannerImage, 5000);
+                if (banner) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(0, 0, W, bannerH);
+                    ctx.clip();
+                    const scale = Math.max(W / banner.width, bannerH / banner.height);
+                    const ix = (W - banner.width * scale) / 2;
+                    const iy = (bannerH - banner.height * scale) / 2;
+                    ctx.drawImage(banner, ix, iy, banner.width * scale, banner.height * scale);
+                    // Fade banner into the card body.
+                    const fade = ctx.createLinearGradient(0, 0, 0, bannerH);
+                    fade.addColorStop(0, 'rgba(0,0,0,0.12)');
+                    fade.addColorStop(0.65, 'rgba(0,0,0,0.0)');
+                    fade.addColorStop(1, this._rgba(this.backgroundColor, 0.9));
+                    ctx.fillStyle = fade;
+                    ctx.fillRect(0, 0, W, bannerH);
+                    ctx.restore();
+                    ctx.fillStyle = rgba(accent, 0.6);
+                    ctx.fillRect(0, bannerH - 2, W, 2);
+                }
+            } catch {}
+        } else {
+            // Slim accent banner strip behind the header.
+            ctx.fillStyle = rgba(accent, 0.16);
+            ctx.fillRect(0, 0, W, bannerH);
+        }
+
         ctx.fillStyle = rgba(accent, 0.9);
         ctx.fillRect(0, H - 4, W, 4);
         ctx.restore();
@@ -357,6 +395,12 @@ class ProfileCard {
         if (!m) return hex;
         const adj = (c) => Math.min(255, parseInt(c, 16) + Math.round(amt * 2.55));
         return `#${adj(m[1]).toString(16).padStart(2, '0')}${adj(m[2]).toString(16).padStart(2, '0')}${adj(m[3]).toString(16).padStart(2, '0')}`;
+    }
+
+    _rgba(hex, a) {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+        if (!m) return `rgba(30,31,34,${a})`;
+        return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})`;
     }
 }
 

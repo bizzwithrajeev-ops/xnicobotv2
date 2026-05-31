@@ -50,13 +50,14 @@ const STYLE_THEMES = {
 class LevelCard {
     constructor() {
         this.width = 900;
-        this.height = 270;
+        this.height = 290;
         this.backgroundColor = '#1e1f22';
         this.accentColor = '#5865f2';
         this.textColor = '#ffffff';
         this.progressBarColor = this.accentColor;
         this.backgroundImage = null;
-        this.backgroundOpacity = 0.35;
+        this.bannerImage = null;
+        this.backgroundOpacity = 0.45;
         this.bio = null;
         this.cardStyle = 'default';
         this.fontFamily = 'Inter';
@@ -67,6 +68,7 @@ class LevelCard {
     setFontFamily(family)       { this.fontFamily = family || 'Inter'; this._fh = getFontHelpers(this.fontFamily); return this; }
     setBackground(c)            { this.backgroundColor = c; return this; }
     setBackgroundImage(url)     { this.backgroundImage = url; return this; }
+    setBannerImage(url)         { this.bannerImage = url; return this; }
     setProgressBarColor(c)      { this.progressBarColor = c; this.accentColor = c; return this; }
     setAccentColor(c)           { this.accentColor = c; return this; }
     setTextColor(c)             { this.textColor = c; return this; }
@@ -102,37 +104,76 @@ class LevelCard {
         const canvas = createCanvas(W, H);
         const ctx = canvas.getContext('2d');
 
+        const BANNER_H = 92;   // top strip for the optional banner image
+
         /* ── 1. Background (single, clean treatment) ── */
         ctx.save();
         drawRoundedRect(ctx, 0, 0, W, H, 20);
         ctx.clip();
 
-        // Flat vertical gradient — subtle, not noisy.
+        // Flat vertical gradient base.
         const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
         bgGrad.addColorStop(0, this._lighten(this.backgroundColor, 6));
         bgGrad.addColorStop(1, this.backgroundColor);
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, W, H);
 
+        // Full-card background image — drawn at the user's chosen
+        // opacity, then a SINGLE light readability scrim (not a heavy
+        // 0.62 cover on top of an already-dimmed image). This is why
+        // backgrounds looked invisible before.
         if (this.backgroundImage) {
             try {
                 const bg = await imageCache.loadWithCache(this.backgroundImage, 5000);
                 if (bg) {
-                    ctx.globalAlpha = this.backgroundOpacity;
+                    ctx.globalAlpha = Math.max(0.5, this.backgroundOpacity);
                     const scale = Math.max(W / bg.width, H / bg.height);
                     const ix = (W - bg.width * scale) / 2;
                     const iy = (H - bg.height * scale) / 2;
                     ctx.drawImage(bg, ix, iy, bg.width * scale, bg.height * scale);
                     ctx.globalAlpha = 1;
-                    // Single dark overlay so text stays legible.
-                    ctx.fillStyle = 'rgba(15,15,20,0.62)';
+                    // Light gradient scrim — darker at the bottom where
+                    // the stats + bar sit, lighter at the top.
+                    const scrim = ctx.createLinearGradient(0, 0, 0, H);
+                    scrim.addColorStop(0, 'rgba(15,15,20,0.30)');
+                    scrim.addColorStop(1, 'rgba(15,15,20,0.55)');
+                    ctx.fillStyle = scrim;
                     ctx.fillRect(0, 0, W, H);
                 }
             } catch {}
         }
 
-        // One quiet accent band along the very bottom edge — the only
-        // decorative flourish, ties the card to the user's accent.
+        // Banner strip — a separate top image (Discord-profile style).
+        // Sits above the background, only across the header band, and
+        // fades into the card so the avatar reads cleanly over it.
+        if (this.bannerImage) {
+            try {
+                const banner = await imageCache.loadWithCache(this.bannerImage, 5000);
+                if (banner) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(0, 0, W, BANNER_H);
+                    ctx.clip();
+                    const scale = Math.max(W / banner.width, BANNER_H / banner.height);
+                    const ix = (W - banner.width * scale) / 2;
+                    const iy = (BANNER_H - banner.height * scale) / 2;
+                    ctx.drawImage(banner, ix, iy, banner.width * scale, banner.height * scale);
+                    // Fade the banner into the card body at its base.
+                    const fade = ctx.createLinearGradient(0, 0, 0, BANNER_H);
+                    fade.addColorStop(0, 'rgba(0,0,0,0.10)');
+                    fade.addColorStop(0.7, 'rgba(0,0,0,0.0)');
+                    fade.addColorStop(1, this._rgba(this.backgroundColor, 0.85));
+                    ctx.fillStyle = fade;
+                    ctx.fillRect(0, 0, W, BANNER_H);
+                    ctx.restore();
+                    // Thin accent divider under the banner.
+                    ctx.fillStyle = rgba(this.accentColor, 0.6);
+                    ctx.fillRect(0, BANNER_H - 2, W, 2);
+                }
+            } catch {}
+        }
+
+        // One quiet accent band along the very bottom edge.
         ctx.fillStyle = rgba(this.accentColor, 0.9);
         ctx.fillRect(0, H - 4, W, 4);
 
@@ -140,10 +181,14 @@ class LevelCard {
 
         /* ── Layout grid ── */
         const PAD = 36;
-        const avatarSize = 150;
+        const avatarSize = 132;
         const avatarX = PAD;
-        const avatarY = (H - avatarSize) / 2 - 14;   // nudged up; bottom row is the bar
-        const contentX = avatarX + avatarSize + 32;   // shared left edge for all text
+        // When a banner is present the avatar overlaps it (Discord style);
+        // otherwise it sits vertically centered in the upper area.
+        const avatarY = this.bannerImage
+            ? BANNER_H - avatarSize / 2
+            : 28;
+        const contentX = avatarX + avatarSize + 30;   // shared left edge for all text
         const contentRight = W - PAD;
 
         /* ── 2. Avatar (simple solid ring, no halo spam) ── */
@@ -208,15 +253,15 @@ class LevelCard {
         const nameSize = fitText(ctx, rawName, nameMaxW, 32, 20);
         ctx.font = this._bold(nameSize);
         ctx.fillStyle = this.textColor;
-        await drawText(ctx, truncateText(ctx, rawName, nameMaxW), contentX, clusterTop + 24);
+        await drawText(ctx, truncateText(ctx, rawName, nameMaxW), contentX, clusterTop + 26);
 
         ctx.font = this._medium(15);
         ctx.fillStyle = DESIGN.colors.textMuted;
-        await drawText(ctx, truncateText(ctx, `@${user.username}`, nameMaxW), contentX, clusterTop + 46);
+        await drawText(ctx, truncateText(ctx, `@${user.username}`, nameMaxW), contentX, clusterTop + 50);
 
-        /* ── 5. Secondary stats — single baseline row ── */
-        const statRowY = clusterTop + 78;
-        ctx.font = this._semi(13);
+        /* ── 5. Secondary stats — single baseline row, aligned to the
+               avatar's lower third so the card fills evenly ── */
+        const statRowY = avatarY + avatarSize - 6;
         const statParts = [
             { label: 'Messages', value: formatNumber(data.messagesCount) },
             { label: 'Voice',    value: this._formatVoice(data.voiceTime) },
@@ -244,9 +289,9 @@ class LevelCard {
             }
         }
 
-        /* ── 6. XP progress bar (the bottom anchor) ── */
-        const barX = contentX;
-        const barW = contentRight - contentX;
+        /* ── 6. XP progress bar (the bottom anchor, full width) ── */
+        const barX = PAD;
+        const barW = contentRight - PAD;
         const barH = 22;
         const barY = H - 52;
 
@@ -331,6 +376,13 @@ class LevelCard {
         const g = adj(m[2]).toString(16).padStart(2, '0');
         const b = adj(m[3]).toString(16).padStart(2, '0');
         return `#${r}${g}${b}`;
+    }
+
+    // rgba() string from a hex + alpha (used by the banner fade).
+    _rgba(hex, a) {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+        if (!m) return `rgba(30,31,34,${a})`;
+        return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})`;
     }
 }
 

@@ -55,6 +55,7 @@ async function generateRankCard(target, guild) {
     const selectedCardStyle = rankSettings.cardStyle || 'minimal';
     levelCard.setCardStyle(selectedCardStyle);
     if (rankSettings.customBackground) levelCard.setBackgroundImage(rankSettings.customBackground);
+    if (rankSettings.bannerImage) levelCard.setBannerImage(rankSettings.bannerImage);
     if (rankSettings.backgroundColor) levelCard.setBackground(rankSettings.backgroundColor);
     if (rankSettings.progressBarColor) {
         levelCard.setProgressBarColor(rankSettings.progressBarColor);

@@ -1039,6 +1039,31 @@ async function handleModalSubmit(interaction) {
         return;
     }
 
+    if (interaction.customId === 'profile_banner_modal') {
+        const { updateUserData } = require('./dataManager');
+        const bannerUrl = interaction.fields.getTextInputValue('banner_url');
+
+        if (bannerUrl && !bannerUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)/i)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Invalid image URL! Please provide a valid image URL (jpg, png, gif, webp).',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        await updateUserData(userId, {
+            'profile.profileCard.bannerImage': bannerUrl || null
+        });
+
+        await interaction.reply({
+            content: bannerUrl
+                ? '<:Checkedbox:1473038547165384804> Profile banner updated! Use the **Refresh** button to see changes.'
+                : '<:Checkedbox:1473038547165384804> Profile banner removed! Use the **Refresh** button to see changes.',
+            flags: MessageFlags.Ephemeral
+        });
+
+        return;
+    }
+
     if (interaction.customId === 'profile_bgcolor_modal') {
         const { updateUserData, getUserData } = require('./dataManager');
         const colorHex = interaction.fields.getTextInputValue('bgcolor_hex');
@@ -1268,6 +1293,31 @@ async function handleModalSubmit(interaction) {
                 ? '<:Checkedbox:1473038547165384804> Rank card background image updated successfully! Use the **Refresh** button to see changes.' 
                 : '<:Checkedbox:1473038547165384804> Rank card background image reset to default! Use the **Refresh** button to see changes.', 
             flags: MessageFlags.Ephemeral 
+        });
+
+        return;
+    }
+
+    if (interaction.customId === 'rankcard_banner_modal') {
+        const { updateUserData } = require('./dataManager');
+        const bannerUrl = interaction.fields.getTextInputValue('banner_url');
+
+        if (bannerUrl && !bannerUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)/i)) {
+            return interaction.reply({
+                content: '<:Cancel:1473037949187657818> Invalid image URL! Please provide a valid image URL (jpg, png, gif, webp).',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        await updateUserData(userId, {
+            'profile.rankCard.bannerImage': bannerUrl || null
+        });
+
+        await interaction.reply({
+            content: bannerUrl
+                ? '<:Checkedbox:1473038547165384804> Rank card banner updated! Use the **Refresh** button to see changes.'
+                : '<:Checkedbox:1473038547165384804> Rank card banner removed! Use the **Refresh** button to see changes.',
+            flags: MessageFlags.Ephemeral
         });
 
         return;
@@ -5085,6 +5135,25 @@ async function handleProfileButtons(interaction) {
             ]
         });
         return true;
+
+    }
+
+    if (interaction.customId === 'profile_set_banner') {
+        await interaction.showModal({
+            customId: 'profile_banner_modal',
+            title: 'Set Profile Banner',
+            components: [
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('banner_url')
+                        .setLabel('Banner Image URL (top strip)')
+                        .setPlaceholder('https://i.imgur.com/banner.png (leave empty to reset)')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                )
+            ]
+        });
+        return true;
     }
 
     if (interaction.customId === 'profile_set_bgcolor') {
@@ -5348,6 +5417,9 @@ async function handleProfileButtons(interaction) {
             if (profileSettings.customBackground) {
                 profileCard.setBackgroundImage(profileSettings.customBackground);
             }
+            if (profileSettings.bannerImage) {
+                profileCard.setBannerImage(profileSettings.bannerImage);
+            }
             if (profileSettings.backgroundColor) {
                 profileCard.setBackground(profileSettings.backgroundColor);
             }
@@ -5470,6 +5542,7 @@ async function handleProfileButtons(interaction) {
     if (interaction.customId === 'profile_reset') {
         await updateUserData(interaction.user.id, {
             'profile.profileCard.customBackground': null,
+            'profile.profileCard.bannerImage': null,
             'profile.profileCard.backgroundColor': '#2f3136',
             'profile.profileCard.accentColor': '#bcf1e4',
             'profile.profileCard.textColor': '#ffffff',
@@ -5677,6 +5750,24 @@ async function handleProfileButtons(interaction) {
         return true;
     }
 
+    if (interaction.customId === 'rankcard_set_banner') {
+        await interaction.showModal({
+            customId: 'rankcard_banner_modal',
+            title: 'Set Rank Card Banner',
+            components: [
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('banner_url')
+                        .setLabel('Banner Image URL (top strip)')
+                        .setPlaceholder('https://i.imgur.com/banner.png (leave empty to reset)')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                )
+            ]
+        });
+        return true;
+    }
+
     if (interaction.customId === 'rankcard_set_bgcolor') {
         await interaction.showModal({
             customId: 'rankcard_bgcolor_modal',
@@ -5836,6 +5927,9 @@ async function handleProfileButtons(interaction) {
             if (rankSettings.customBackground) {
                 levelCard.setBackgroundImage(rankSettings.customBackground);
             }
+            if (rankSettings.bannerImage) {
+                levelCard.setBannerImage(rankSettings.bannerImage);
+            }
             if (rankSettings.backgroundColor) {
                 levelCard.setBackground(rankSettings.backgroundColor);
             }
@@ -5882,6 +5976,7 @@ async function handleProfileButtons(interaction) {
         await updateUserData(interaction.user.id, {
             // Reset new rank card namespace
             'profile.rankCard.customBackground': null,
+            'profile.rankCard.bannerImage': null,
             'profile.rankCard.backgroundColor': '#2f3136',
             'profile.rankCard.progressBarColor': '#bcf1e4',
             'profile.rankCard.textColor': '#ffffff',

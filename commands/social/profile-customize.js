@@ -54,31 +54,31 @@ module.exports = {
                     .setContent(
                         `# 📖 Profile Card Customization Guide\n\n` +
                         `Personalize your profile card to stand out! Here's everything you can customize:\n\n` +
-                        `## <:Palette:1473039029476917461> Visual Options\n\n` +
-                        `### <:Picture:1473039568398843957> Background Image\n` +
+                        `## ⮞ Visual Options\n\n` +
+                        `### ⮞ Background Image\n` +
                         `Set a custom background image using any direct image URL.\n` +
                         `**Supported formats:** JPG, PNG, GIF, WebP\n` +
                         `**Tip:** Use sites like Imgur or Discord CDN for reliable hosting.\n\n` +
-                        `### <:Palette:1473039029476917461> Background Color\n` +
+                        `### ⮞ Background Color\n` +
                         `Set a solid background color using hex codes.\n` +
                         `**Examples:** \`#bcf1e4\` (Discord blue), \`#2f3136\` (Dark), \`#ffffff\` (White)\n\n` +
                         `### 💫 Accent Color\n` +
                         `The highlight color used for borders and decorations.\n` +
                         `**Default:** \`#bcf1e4\` (Discord Blurple)\n\n` +
-                        `### <:Editalt:1473038138577256670> Text Color\n` +
+                        `### ⮞ Text Color\n` +
                         `Change the color of text on your profile card.\n` +
                         `**Default:** \`#ffffff\` (White)\n\n` +
-                        `## <:Award:1473038391632203887> Display Options\n\n` +
+                        `## ⮞ Display Options\n\n` +
                         `### 🏅 Badge Style\n` +
                         `Choose how your badges are displayed:\n` +
                         `• **Default** - Standard badge layout\n` +
                         `• **Compact** - Smaller, condensed badges\n` +
                         `• **Minimal** - Only show top badges\n` +
                         `• **Hidden** - Hide badges completely\n\n` +
-                        `### <:Edit:1473037903625191580> Bio\n` +
+                        `### ⮞ Bio\n` +
                         `Write a short bio (up to 150 characters).\n` +
                         `**Tip:** Custom Discord emojis work in your bio!\n\n` +
-                        `## <:Settings:1473037894703779851> Actions\n\n` +
+                        `## ⮞ Actions\n\n` +
                         `• **Preview** - See how your card looks before saving\n` +
                         `• **Reset All** - Restore all settings to defaults\n` +
                         `• **Refresh** - Update the panel with current settings`
@@ -102,6 +102,7 @@ module.exports = {
             
             const currentSettings = {
                 background: userData.profile?.profileCard?.customBackground || userData.profile?.customBackground || null,
+                banner: userData.profile?.profileCard?.bannerImage || null,
                 bgColor: userData.profile?.profileCard?.backgroundColor || userData.profile?.backgroundColor || '#2f3136',
                 textColor: userData.profile?.profileCard?.textColor || userData.profile?.textColor || '#ffffff',
                 accentColor: userData.profile?.profileCard?.accentColor || userData.profile?.accentColor || '#bcf1e4',
@@ -129,6 +130,11 @@ module.exports = {
                         .setStyle(currentSettings.background ? ButtonStyle.Success : ButtonStyle.Secondary)
                         .setEmoji('<:Picture:1473039568398843957>'),
                     new ButtonBuilder()
+                        .setCustomId('profile_set_banner')
+                        .setLabel('Banner')
+                        .setStyle(currentSettings.banner ? ButtonStyle.Success : ButtonStyle.Secondary)
+                        .setEmoji('<:Picture:1473039568398843957>'),
+                    new ButtonBuilder()
                         .setCustomId('profile_set_bgcolor')
                         .setLabel('BG Color')
                         .setStyle(ButtonStyle.Primary)
@@ -142,16 +148,16 @@ module.exports = {
                         .setCustomId('profile_set_textcolor')
                         .setLabel('Text')
                         .setStyle(ButtonStyle.Primary)
-                        .setEmoji('<:Editalt:1473038138577256670>'),
-                    new ButtonBuilder()
-                        .setCustomId('profile_set_font')
-                        .setLabel('Font')
-                        .setStyle(currentSettings.fontFamily !== 'Inter' ? ButtonStyle.Success : ButtonStyle.Primary)
-                        .setEmoji('🔤')
+                        .setEmoji('<:Editalt:1473038138577256670>')
                 );
 
             const setupButtons2 = new ActionRowBuilder()
                 .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('profile_set_font')
+                        .setLabel('Font')
+                        .setStyle(currentSettings.fontFamily !== 'Inter' ? ButtonStyle.Success : ButtonStyle.Primary)
+                        .setEmoji('🔤'),
                     new ButtonBuilder()
                         .setCustomId('profile_set_opacity')
                         .setLabel('Opacity')
@@ -171,16 +177,16 @@ module.exports = {
                         .setCustomId('profile_set_bio')
                         .setLabel('Bio')
                         .setStyle(currentSettings.bio ? ButtonStyle.Success : ButtonStyle.Secondary)
-                        .setEmoji('<:Edit:1473037903625191580>'),
-                    new ButtonBuilder()
-                        .setCustomId('profile_preview')
-                        .setLabel('Preview')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji('<:Eye:1473038435056095242>')
+                        .setEmoji('<:Edit:1473037903625191580>')
                 );
 
             const actionButtons = new ActionRowBuilder()
                 .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('profile_preview')
+                        .setLabel('Preview')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('<:Eye:1473038435056095242>'),
                     new ButtonBuilder()
                         .setCustomId('profile_help_btn')
                         .setLabel('Help')
@@ -202,6 +208,10 @@ module.exports = {
                 ? (currentSettings.background.length > 35 ? currentSettings.background.substring(0, 35) + '...' : currentSettings.background)
                 : '`Default`';
 
+            const bannerDisplay = currentSettings.banner
+                ? (currentSettings.banner.length > 35 ? currentSettings.banner.substring(0, 35) + '...' : currentSettings.banner)
+                : '`None`';
+
             const bioDisplay = currentSettings.bio 
                 ? (currentSettings.bio.length > 40 ? `"${currentSettings.bio.substring(0, 40)}..."` : `"${currentSettings.bio}"`)
                 : '`Not set`';
@@ -210,7 +220,7 @@ module.exports = {
                 .setAccentColor(isNaN(accentHex) ? 0xCAD7E6 : accentHex)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
-                        .setContent(`# <:User:1473038971398520977> Profile Card Studio`)
+                        .setContent(`# <:User:1473038971398520977> Profile Card Studio\n-# Customize how your \`/socialprofile\` card looks. Changes save instantly — hit **Preview** to see them.`)
                 )
                 .addSeparatorComponents(
                     new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
@@ -219,15 +229,16 @@ module.exports = {
                     new TextDisplayBuilder()
                         .setContent(
                             `### <:Palette:1473039029476917461> Current Theme\n` +
+                            `\`\`\`ansi\n` +
+                            `Background Color  ${currentSettings.bgColor}\n` +
+                            `Accent Color      ${currentSettings.accentColor}\n` +
+                            `Text Color        ${currentSettings.textColor}\n` +
+                            `Card Style        ${currentSettings.cardStyle}\n` +
+                            `Badge Style       ${currentSettings.badgeStyle}\n` +
+                            `Font              ${fontInfo.name}\n` +
                             `\`\`\`\n` +
-                            `Background    │ ${currentSettings.bgColor}\n` +
-                            `Accent        │ ${currentSettings.accentColor}\n` +
-                            `Text          │ ${currentSettings.textColor}\n` +
-                            `Card Style    │ ${styleInfo.emoji} ${currentSettings.cardStyle}\n` +
-                            `Badge Style   │ ${currentSettings.badgeStyle}\n` +
-                            `Font          │ ${fontInfo.emoji} ${fontInfo.name}\n` +
-                            `\`\`\`\n\n` +
-                            `<:Picture:1473039568398843957> **Image:** ${bgDisplay}\n` +
+                            `<:Picture:1473039568398843957> **Background:** ${bgDisplay}\n` +
+                            `<:Picture:1473039568398843957> **Banner:** ${bannerDisplay}\n` +
                             `<:Edit:1473037903625191580> **Bio:** ${bioDisplay}`
                         )
                 )
