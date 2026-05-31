@@ -16,12 +16,19 @@ const REDEEMED_KEY_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 function ensureArray(val) { return Array.isArray(val) ? val : []; }
 
+// Premium + key data are low-frequency, high-value writes. They MUST
+// persist right away rather than sit in the 30s debounce window — a
+// restart inside that window (common on auto-sleeping hosts) silently
+// drops the write, which is exactly how premium users/servers and keys
+// appeared to "auto-erase". writeImmediate() upserts to PostgreSQL (or
+// the local file) synchronously-scheduled and returns a promise we let
+// run in the background.
 function loadPremiumData() { return ensureArray(jsonStore.read('premium')); }
-function savePremiumData(d) { jsonStore.write('premium', d); }
+function savePremiumData(d) { jsonStore.writeImmediate('premium', d).catch(() => {}); }
 function loadKeys()         { return ensureArray(jsonStore.read('premium-keys')); }
-function saveKeys(k)        { jsonStore.write('premium-keys', k); }
+function saveKeys(k)        { jsonStore.writeImmediate('premium-keys', k).catch(() => {}); }
 function loadServerPremium() { return ensureArray(jsonStore.read('server-premium')); }
-function saveServerPremium(d) { jsonStore.write('server-premium', d); }
+function saveServerPremium(d) { jsonStore.writeImmediate('server-premium', d).catch(() => {}); }
 
 /* ─────────────────────── Key Generation ─────────────────────── */
 

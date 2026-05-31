@@ -35,6 +35,8 @@ function getDefaultConfig() {
         profanity: { enabled: false, action: 'delete' },
         sexualContent: { enabled: false, action: 'delete' },
         slurs: { enabled: false, action: 'delete' },
+        aiText: { enabled: false, action: 'delete', minSeverity: 'medium' },
+        aiImage: { enabled: false, action: 'delete' },
         logChannel: null,
         ignoredRoles: [],
         ignoredChannels: [],
@@ -58,7 +60,9 @@ function getGuildConfig(guildId) {
         caps: { ...defaults.caps, ...saved.caps },
         profanity: { ...defaults.profanity, ...saved.profanity },
         sexualContent: { ...defaults.sexualContent, ...saved.sexualContent },
-        slurs: { ...defaults.slurs, ...saved.slurs }
+        slurs: { ...defaults.slurs, ...saved.slurs },
+        aiText: { ...defaults.aiText, ...saved.aiText },
+        aiImage: { ...defaults.aiImage, ...saved.aiImage }
     };
 }
 
@@ -72,7 +76,9 @@ function buildAutomodPanel(guildConfig) {
         guildConfig.caps?.enabled,
         guildConfig.profanity?.enabled,
         guildConfig.sexualContent?.enabled,
-        guildConfig.slurs?.enabled
+        guildConfig.slurs?.enabled,
+        guildConfig.aiText?.enabled,
+        guildConfig.aiImage?.enabled
     ].filter(Boolean).length;
 
     const logChannel = guildConfig.logChannel ? '<#' + guildConfig.logChannel + '>' : '`Not Set`';
@@ -101,9 +107,14 @@ function buildAutomodPanel(guildConfig) {
         formatCheck(guildConfig.sexualContent?.enabled) + ' **Sexual Content** — Discord built-in filter\n' +
         formatCheck(guildConfig.slurs?.enabled) + ' **Slurs** — Discord built-in filter';
 
+    // ── AI Protection ──
+    const aiFilters = '### <:Sparkles:1473038248493453352> AI Protection (All Languages)\n' +
+        formatCheck(guildConfig.aiText?.enabled) + ' **AI Text Scan** — NSFW / slurs / hate in any language → `' + (guildConfig.aiText?.action || 'delete') + '`\n' +
+        formatCheck(guildConfig.aiImage?.enabled) + ' **AI Image Scan** — NSFW / explicit / gore images → `' + (guildConfig.aiImage?.action || 'delete') + '`';
+
     // ── Configuration ──
     const configSection = '### <:Settings:1473037894703779851> Configuration\n' +
-        '<:Caretright:1473038207221502106> **Active Filters:** `' + activeCount + '/9` protections\n' +
+        '<:Caretright:1473038207221502106> **Active Filters:** `' + activeCount + '/11` protections\n' +
         '<:Caretright:1473038207221502106> **Bypass Role:** ' + bypassRole + '\n' +
         '<:Caretright:1473038207221502106> **Log Channel:** ' + logChannel;
 
@@ -120,6 +131,8 @@ function buildAutomodPanel(guildConfig) {
     if (guildConfig.profanity?.enabled) enabledFilters.push('profanity');
     if (guildConfig.sexualContent?.enabled) enabledFilters.push('sexualContent');
     if (guildConfig.slurs?.enabled) enabledFilters.push('slurs');
+    if (guildConfig.aiText?.enabled) enabledFilters.push('aiText');
+    if (guildConfig.aiImage?.enabled) enabledFilters.push('aiImage');
 
     const toggleMenu = new ActionRowBuilder()
         .addComponents(
@@ -127,7 +140,7 @@ function buildAutomodPanel(guildConfig) {
                 .setCustomId('automod_toggle_filters')
                 .setPlaceholder('Select filters to enable (deselect to disable)')
                 .setMinValues(0)
-                .setMaxValues(9)
+                .setMaxValues(11)
                 .setOptions([
                     { label: 'Bad Words',       description: `${guildConfig.badWords?.words?.length || 0} words • Action: ${guildConfig.badWords?.action || 'delete'}`,                                                value: 'badWords',       emoji: { id: '1473038936241864865', name: 'Chat' },         default: guildConfig.badWords?.enabled || false },
                     { label: 'Anti-Spam',       description: `${guildConfig.spam?.messageLimit || 5} msgs/${Math.round((guildConfig.spam?.timeWindow || 5000) / 1000)}s • Action: ${guildConfig.spam?.action || 'timeout'}`, value: 'spam',           emoji: { id: '1473037911581528165', name: 'Refresh' },      default: guildConfig.spam?.enabled || false },
@@ -137,7 +150,9 @@ function buildAutomodPanel(guildConfig) {
                     { label: 'Caps Lock',       description: `${guildConfig.caps?.percentage || 70}%+ uppercase • Action: ${guildConfig.caps?.action || 'delete'}`,                                                  value: 'caps',           emoji: { id: '1473038797540298792', name: 'Lightning' },    default: guildConfig.caps?.enabled || false },
                     { label: 'Profanity',       description: 'Discord built-in profanity filter',                                                                                                                      value: 'profanity',      emoji: { id: '1473037949187657818', name: 'Cancel' },       default: guildConfig.profanity?.enabled || false },
                     { label: 'Sexual Content',  description: 'Discord built-in sexual content filter',                                                                                                                 value: 'sexualContent',  emoji: { id: '1473038460456800459', name: 'Infotriangle' }, default: guildConfig.sexualContent?.enabled || false },
-                    { label: 'Slurs',           description: 'Discord built-in slurs filter',                                                                                                                          value: 'slurs',          emoji: { id: '1473038669831995494', name: 'Shield' },       default: guildConfig.slurs?.enabled || false }
+                    { label: 'Slurs',           description: 'Discord built-in slurs filter',                                                                                                                          value: 'slurs',          emoji: { id: '1473038669831995494', name: 'Shield' },       default: guildConfig.slurs?.enabled || false },
+                    { label: 'AI Text Scan',    description: `Multilingual NSFW/slur/hate AI • Action: ${guildConfig.aiText?.action || 'delete'}`,                                                                     value: 'aiText',         emoji: { id: '1473038248493453352', name: 'Sparkles' },     default: guildConfig.aiText?.enabled || false },
+                    { label: 'AI Image Scan',   description: `NSFW/explicit/gore image AI • Action: ${guildConfig.aiImage?.action || 'delete'}`,                                                                       value: 'aiImage',        emoji: { id: '1473039568398843957', name: 'Picture' },      default: guildConfig.aiImage?.enabled || false }
                 ])
         );
 
@@ -161,7 +176,9 @@ function buildAutomodPanel(guildConfig) {
                     { label: 'Link Filter',    description: 'Configure whitelist & action',           value: 'links',    emoji: '<:Settingsadjust:1473038223625294048>' },
                     { label: 'Invite Blocker', description: 'Configure action',                        value: 'invites',  emoji: '<:Settingsadjust:1473038223625294048>' },
                     { label: 'Mass Mentions',  description: 'Set mention limit & action',             value: 'mentions', emoji: '<:Settingsadjust:1473038223625294048>' },
-                    { label: 'Caps Lock',      description: 'Set percentage, min length & action',    value: 'caps',     emoji: '<:Settingsadjust:1473038223625294048>' }
+                    { label: 'Caps Lock',      description: 'Set percentage, min length & action',    value: 'caps',     emoji: '<:Settingsadjust:1473038223625294048>' },
+                    { label: 'AI Text Scan',   description: 'Set action & minimum severity',          value: 'aitext',   emoji: '<:Settingsadjust:1473038223625294048>' },
+                    { label: 'AI Image Scan',  description: 'Configure action',                       value: 'aiimage',  emoji: '<:Settingsadjust:1473038223625294048>' }
                 ])
         );
 
@@ -222,6 +239,7 @@ function buildAutomodPanel(guildConfig) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(statusSection))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(customFilters))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(presetFilters))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(aiFilters))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(configSection))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))

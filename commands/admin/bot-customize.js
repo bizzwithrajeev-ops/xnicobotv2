@@ -125,7 +125,9 @@ function loadConfig() {
 }
 
 function saveConfig(config) {
-    jsonStore.write('bot-customize', config);
+    // Persist immediately — bot-customize holds the per-guild prefix and
+    // branding; the debounced write risked losing it on a quick restart.
+    jsonStore.writeImmediate('bot-customize', config).catch(() => {});
     // Burn the 5s TTL cache so live readers (slash patcher, prefix
     // pipeline, /botprofile, home panel) pick up the change instantly
     // instead of after the next cache miss.
@@ -137,7 +139,7 @@ function syncPrefixToFile(guildId, prefix) {
         const prefixes = jsonStore.has('prefixes') ? jsonStore.read('prefixes') : {};
         if (prefix) prefixes[guildId] = prefix;
         else        delete prefixes[guildId];
-        jsonStore.write('prefixes', prefixes);
+        jsonStore.writeImmediate('prefixes', prefixes).catch(() => {});
     } catch {}
 }
 

@@ -11,7 +11,10 @@ function loadPrefixes() {
 }
 
 function savePrefixes(data) {
-    jsonStore.write('prefixes', data);
+    // Prefix changes are rare but important — persist immediately so a
+    // restart inside the 30s debounce window can't silently revert the
+    // server back to the default prefix.
+    jsonStore.writeImmediate('prefixes', data).catch(() => {});
 }
 
 function syncBotCustomizePrefix(guildId, newPrefix) {
@@ -22,7 +25,7 @@ function syncBotCustomizePrefix(guildId, newPrefix) {
         }
         if (customConfig[guildId]) {
             customConfig[guildId].prefix = newPrefix;
-            jsonStore.write('bot-customize', customConfig);
+            jsonStore.writeImmediate('bot-customize', customConfig).catch(() => {});
         }
     } catch (e) {}
 }

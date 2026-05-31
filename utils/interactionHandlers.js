@@ -2434,6 +2434,77 @@ async function handleModalSubmit(interaction) {
         });
     }
 
+    else if (interaction.customId === 'automod_modal_aitext') {
+        const action = interaction.fields.getTextInputValue('action').toLowerCase().trim();
+        const minSeverity = interaction.fields.getTextInputValue('minseverity').toLowerCase().trim();
+        const enabled = interaction.fields.getTextInputValue('enabled').toLowerCase().trim() === 'yes';
+        const guildId = interaction.guild.id;
+
+        const validActions = ['delete', 'timeout', 'kick', 'ban', 'warn'];
+        if (!validActions.includes(action)) {
+            return interaction.reply({ content: `<:Cancel:1473037949187657818> Invalid action! Must be one of: ${validActions.join(', ')}`, flags: MessageFlags.Ephemeral });
+        }
+        const validSeverities = ['low', 'medium', 'high'];
+        if (!validSeverities.includes(minSeverity)) {
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid severity! Must be one of: low, medium, high.', flags: MessageFlags.Ephemeral });
+        }
+
+        const aiMod = require('./aiModeration');
+        const keyNote = aiMod.hasApiKey() ? '' : '\n<:Infotriangle:1473038460456800459> **Note:** No AI key configured — this filter stays inactive until the bot owner sets `GROQ_API_KEY`.';
+
+        const { loadConfig, saveConfig } = require('./panels/automodPanel');
+        let config = loadConfig();
+        if (!config[guildId]) config[guildId] = { enabled: false };
+        config[guildId].aiText = { enabled, action, minSeverity };
+
+        saveConfig(config, guildId);
+        if (global.updateAutomodCache) {
+            global.updateAutomodCache(guildId, config[guildId]);
+        }
+        await interaction.reply({ content: `<:Sparkles:1473038248493453352> AI Text Scan ${enabled ? 'enabled' : 'disabled'}!\nMin severity: \`${minSeverity}\` • Action: \`${action}\`\nDetects NSFW, slurs, hate & harassment in **any language**.${keyNote}`, flags: MessageFlags.Ephemeral });
+
+        const { updatePanel } = require('./panelRegistry');
+        const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
+        await updatePanel(interaction.client, guildId, 'automod', async (message) => {
+            const updatedConfig = getGuildConfig(guildId);
+            const container = buildAutomodPanel(updatedConfig);
+            await message.edit({ components: [container] });
+        });
+    }
+
+    else if (interaction.customId === 'automod_modal_aiimage') {
+        const action = interaction.fields.getTextInputValue('action').toLowerCase().trim();
+        const enabled = interaction.fields.getTextInputValue('enabled').toLowerCase().trim() === 'yes';
+        const guildId = interaction.guild.id;
+
+        const validActions = ['delete', 'timeout', 'kick', 'ban', 'warn'];
+        if (!validActions.includes(action)) {
+            return interaction.reply({ content: `<:Cancel:1473037949187657818> Invalid action! Must be one of: ${validActions.join(', ')}`, flags: MessageFlags.Ephemeral });
+        }
+
+        const aiMod = require('./aiModeration');
+        const keyNote = aiMod.hasApiKey() ? '' : '\n<:Infotriangle:1473038460456800459> **Note:** No AI key configured — this filter stays inactive until the bot owner sets `GROQ_API_KEY`.';
+
+        const { loadConfig, saveConfig } = require('./panels/automodPanel');
+        let config = loadConfig();
+        if (!config[guildId]) config[guildId] = { enabled: false };
+        config[guildId].aiImage = { enabled, action };
+
+        saveConfig(config, guildId);
+        if (global.updateAutomodCache) {
+            global.updateAutomodCache(guildId, config[guildId]);
+        }
+        await interaction.reply({ content: `<:Picture:1473039568398843957> AI Image Scan ${enabled ? 'enabled' : 'disabled'}!\nAction: \`${action}\`\nScans uploaded images for **NSFW / explicit / gore** content.${keyNote}`, flags: MessageFlags.Ephemeral });
+
+        const { updatePanel } = require('./panelRegistry');
+        const { getGuildConfig, buildAutomodPanel } = require('./panels/automodPanel');
+        await updatePanel(interaction.client, guildId, 'automod', async (message) => {
+            const updatedConfig = getGuildConfig(guildId);
+            const container = buildAutomodPanel(updatedConfig);
+            await message.edit({ components: [container] });
+        });
+    }
+
     else if (interaction.customId === 'automod_select_log_channel') {
         const channelId = interaction.values[0];
         const guildId = interaction.guild.id;
@@ -4290,7 +4361,7 @@ async function handleAutomodSelectMenus(interaction) {
         if (!config[guildId]) config[guildId] = {};
 
         const selected = interaction.values || [];
-        const allFilters = ['badWords', 'spam', 'links', 'invites', 'massMention', 'caps', 'profanity', 'sexualContent', 'slurs'];
+        const allFilters = ['badWords', 'spam', 'links', 'invites', 'massMention', 'caps', 'profanity', 'sexualContent', 'slurs', 'aiText', 'aiImage'];
         const filterKeys = {
             badWords: 'badWords',
             spam: 'spam',
@@ -4300,7 +4371,9 @@ async function handleAutomodSelectMenus(interaction) {
             caps: 'caps',
             profanity: 'profanity',
             sexualContent: 'sexualContent',
-            slurs: 'slurs'
+            slurs: 'slurs',
+            aiText: 'aiText',
+            aiImage: 'aiImage'
         };
 
         const defaults = require('./panels/automodPanel').getDefaultConfig();
@@ -4321,7 +4394,7 @@ async function handleAutomodSelectMenus(interaction) {
 
         const enabledCount = selected.length;
         await interaction.followUp({
-            content: `<:Checkedbox:1473038547165384804> **${enabledCount}/9** filters updated and synced to Discord AutoMod.`,
+            content: `<:Checkedbox:1473038547165384804> **${enabledCount}/11** filters updated and synced.`,
             flags: MessageFlags.Ephemeral
         }).catch(() => {});
     }
@@ -4555,6 +4628,71 @@ async function handleAutomodSelectMenus(interaction) {
                         .setStyle(TextInputStyle.Short)
                         .setPlaceholder('yes')
                         .setValue(currentConfig.caps?.enabled ? 'yes' : 'no')
+                        .setRequired(true)
+                )
+            );
+            await interaction.showModal(modal);
+        }
+
+        else if (filterName === 'aitext') {
+            const modal = new ModalBuilder()
+                .setCustomId('automod_modal_aitext')
+                .setTitle('AI Text Scan Configuration');
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('action')
+                        .setLabel('Action (delete, warn, timeout, kick, ban)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('delete')
+                        .setValue(currentConfig.aiText?.action || 'delete')
+                        .setRequired(true)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('minseverity')
+                        .setLabel('Min severity to act (low/medium/high)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('medium')
+                        .setValue(currentConfig.aiText?.minSeverity || 'medium')
+                        .setRequired(true)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('enabled')
+                        .setLabel('Enable? (yes/no)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('yes')
+                        .setValue(currentConfig.aiText?.enabled ? 'yes' : 'no')
+                        .setRequired(true)
+                )
+            );
+            await interaction.showModal(modal);
+        }
+
+        else if (filterName === 'aiimage') {
+            const modal = new ModalBuilder()
+                .setCustomId('automod_modal_aiimage')
+                .setTitle('AI Image Scan Configuration');
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('action')
+                        .setLabel('Action (delete, warn, timeout, kick, ban)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('delete')
+                        .setValue(currentConfig.aiImage?.action || 'delete')
+                        .setRequired(true)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('enabled')
+                        .setLabel('Enable? (yes/no)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('yes')
+                        .setValue(currentConfig.aiImage?.enabled ? 'yes' : 'no')
                         .setRequired(true)
                 )
             );

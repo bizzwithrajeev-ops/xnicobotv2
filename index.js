@@ -280,9 +280,13 @@ async function loadAutoreactConfig() {
 async function loadAutomodConfig() {
     try {
         const config = jsonStore.read('automod');
+        const { getGuildConfig } = require('./utils/panels/automodPanel');
         Object.entries(config).forEach(([guildId, data]) => {
             if (data && data.enabled) {
-                automodCache.set(guildId, data);
+                // Merge with defaults so every sub-filter (including the
+                // newer aiText / aiImage blocks) is always present in the
+                // cached config the message pipeline reads.
+                automodCache.set(guildId, getGuildConfig(guildId));
             }
         });
         log.success(`AutoMod: Loaded ${automodCache.size} guild configurations`);
@@ -8200,7 +8204,10 @@ client.on('messageCreate', async (message) => {
     const automodConfig = automodCache.get(guildId);
     let automodBlocked = false;
 
-    if (automodConfig?.enabled && message.content) {
+    // Scan when there's text content OR an attachment to inspect (the AI
+    // image filter needs to see attachment-only messages too).
+    const hasScannableAttachment = automodConfig?.aiImage?.enabled && message.attachments?.size > 0;
+    if (automodConfig?.enabled && (message.content || hasScannableAttachment)) {
         const isIgnored = automodConfig.ignoredRoles?.some(roleId => message.member?.roles.cache.has(roleId)) ||
             automodConfig.ignoredChannels?.includes(message.channel.id) ||
             message.member?.permissions.has('Administrator') ||
@@ -8215,6 +8222,11 @@ client.on('messageCreate', async (message) => {
 
             // ── Bad Words Filter ──
             if (automodConfig.badWords?.enabled && automodConfig.badWords.words?.length > 0) {
+                // Normalized form folds leetspeak / diacritics / in-word
+                // separators ("f.u.c.k", "fück", "ｆｕｃｋ" → "fuck") so
+                // obfuscated bad words still match.
+                let contentNorm = '';
+                try { contentNorm = require('./utils/aiModeration').normalizeText(content); } catch {}
                 for (const word of automodConfig.badWords.words) {
                     const wordLower = word.toLowerCase().trim();
                     if (!wordLower) continue;
@@ -8224,7 +8236,9 @@ client.on('messageCreate', async (message) => {
                     try {
                         const escaped = wordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                         const regex = new RegExp(`(?:^|[^a-zA-Z0-9])${escaped}(?:[^a-zA-Z0-9]|$)`, 'i');
-                        if (regex.test(contentLower) || contentLower === wordLower) {
+                        const wordNorm = (() => { try { return require('./utils/aiModeration').normalizeText(wordLower); } catch { return ''; } })();
+                        const normHit = wordNorm && contentNorm && (contentNorm.includes(wordNorm));
+                        if (regex.test(contentLower) || contentLower === wordLower || normHit) {
                             violations.push({
                                 filter: 'badWords',
                                 action: automodConfig.badWords.action || 'delete',
@@ -8371,6 +8385,58 @@ client.on('messageCreate', async (message) => {
                             reason: `Excessive caps (${Math.round(ratio)}%)`
                         });
                     }
+                }
+            }
+
+            // ── AI Text Scan (multilingual NSFW / slurs / hate / harassment) ──
+            // Only call the API when the cheaper filters above haven't already
+            // decided to remove the message, to save quota & latency.
+            if (automodConfig.aiText?.enabled && content && content.trim().length >= 3) {
+                try {
+                    const aiMod = require('./utils/aiModeration');
+                    if (aiMod.hasApiKey()) {
+                        const result = await aiMod.analyzeText(content, { guildId });
+                        if (result.flagged) {
+                            const rank = { low: 1, medium: 2, high: 3 };
+                            const minSev = automodConfig.aiText.minSeverity || 'medium';
+                            if ((rank[result.severity] || 2) >= (rank[minSev] || 2)) {
+                                const cats = result.categories?.length ? result.categories.join(', ') : 'inappropriate content';
+                                violations.push({
+                                    filter: 'aiText',
+                                    action: automodConfig.aiText.action || 'delete',
+                                    reason: `AI flagged ${cats} (${result.severity})${result.reason ? ': ' + result.reason : ''}`
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    log.debug?.('[AutoMod] AI text scan error: ' + e.message);
+                }
+            }
+
+            // ── AI Image Scan (NSFW / explicit / gore image detection) ──
+            if (automodConfig.aiImage?.enabled && message.attachments?.size > 0) {
+                try {
+                    const aiMod = require('./utils/aiModeration');
+                    if (aiMod.hasApiKey()) {
+                        const IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i;
+                        const images = [...message.attachments.values()].filter(a =>
+                            (a.contentType && a.contentType.startsWith('image/')) || IMAGE_EXT.test(a.name || '')
+                        ).slice(0, 3); // cap per-message API calls
+                        for (const img of images) {
+                            const result = await aiMod.analyzeImage(img.url, { guildId });
+                            if (result.flagged) {
+                                violations.push({
+                                    filter: 'aiImage',
+                                    action: automodConfig.aiImage.action || 'delete',
+                                    reason: `AI flagged ${result.category} image (${result.confidence}%)${result.reason ? ': ' + result.reason : ''}`
+                                });
+                                break; // one bad image is enough
+                            }
+                        }
+                    }
+                } catch (e) {
+                    log.debug?.('[AutoMod] AI image scan error: ' + e.message);
                 }
             }
 
