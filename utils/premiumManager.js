@@ -24,11 +24,23 @@ function ensureArray(val) { return Array.isArray(val) ? val : []; }
 // the local file) synchronously-scheduled and returns a promise we let
 // run in the background.
 function loadPremiumData() { return ensureArray(jsonStore.read('premium')); }
-function savePremiumData(d) { jsonStore.writeImmediate('premium', d).catch(() => {}); }
+function savePremiumData(d) { 
+    jsonStore.writeImmediate('premium', d).catch((err) => {
+        log.error(`[PremiumManager] Error saving premium data:`, err.message || err);
+    }); 
+}
 function loadKeys()         { return ensureArray(jsonStore.read('premium-keys')); }
-function saveKeys(k)        { jsonStore.writeImmediate('premium-keys', k).catch(() => {}); }
+function saveKeys(k)        { 
+    jsonStore.writeImmediate('premium-keys', k).catch((err) => {
+        log.error(`[PremiumManager] Error saving premium keys:`, err.message || err);
+    });
+}
 function loadServerPremium() { return ensureArray(jsonStore.read('server-premium')); }
-function saveServerPremium(d) { jsonStore.writeImmediate('server-premium', d).catch(() => {}); }
+function saveServerPremium(d) { 
+    jsonStore.writeImmediate('server-premium', d).catch((err) => {
+        log.error(`[PremiumManager] Error saving server premium:`, err.message || err);
+    });
+}
 
 /* ─────────────────────── Key Generation ─────────────────────── */
 

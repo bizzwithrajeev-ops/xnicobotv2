@@ -872,8 +872,10 @@ module.exports = {
         const customId = interaction.customId;
         if (!customId.startsWith('giveaway_')) return false;
 
-        // Check if setup session has expired (skip for giveaway_enter — that's user-facing)
-        if (customId !== 'giveaway_enter' && await checkAndExpire(interaction, 'config')) return true;
+        // Check if setup session has expired (skip for user-facing giveaway buttons)
+        // User-facing buttons: giveaway_enter, giveaway_leave, giveaway_check, giveaway_participants
+        const userFacingButtons = ['giveaway_enter', 'giveaway_leave', 'giveaway_check', 'giveaway_participants'];
+        if (!userFacingButtons.includes(customId) && await checkAndExpire(interaction, 'config')) return true;
 
         const config = loadConfig();
         const guildId = interaction.guild.id;

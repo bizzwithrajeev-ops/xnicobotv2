@@ -7,10 +7,11 @@ const jsonStore = require('../../utils/jsonStore');
 /* ------------------ FILE HELPERS ------------------ */
 
 function readConfig() {
-    if (!jsonStore.has('noprefix')) {
-        jsonStore.write('noprefix', {});
-    }
-    return jsonStore.read('noprefix');
+    // Always read first - don't check has() as it might return false during initialization
+    const data = jsonStore.read('noprefix');
+    // If data is empty (no guild configs), return empty object
+    // Don't write empty object as it could overwrite data during initialization
+    return data && typeof data === 'object' ? data : {};
 }
 
 function writeConfig(data) {
@@ -18,15 +19,26 @@ function writeConfig(data) {
 }
 
 function readGlobalConfig() {
-    if (!jsonStore.has('globalnoprefix')) {
-        jsonStore.write('globalnoprefix', { users: [] });
-        return { users: [] };
+    // Always read first
+    const data = jsonStore.read('globalnoprefix');
+    // Return data if it exists and has users array, otherwise return default
+    if (data && data.users && Array.isArray(data.users)) {
+        return data;
     }
-    return jsonStore.read('globalnoprefix');
+    return { users: [] };
 }
 
 function writeGlobalConfig(config) {
     jsonStore.write('globalnoprefix', config);
+}
+
+// Safety check - ensure jsonStore is initialized
+function ensureStoreInitialized() {
+    if (!jsonStore.initialized) {
+        console.warn('[noprefix] jsonStore not initialized yet!');
+        // Try to initialize (fire and forget)
+        jsonStore.init().catch(err => console.error('[noprefix] Failed to init jsonStore:', err));
+    }
 }
 
 /* ------------------ NORMALIZATION ------------------ */
@@ -110,6 +122,9 @@ module.exports = {
         if (!isOwner(message.author.id)) {
             return message.reply('<:Cancel:1473037949187657818> Bot owner only.');
         }
+
+        // Ensure jsonStore is initialized before reading/writing
+        ensureStoreInitialized();
 
         const action = args[0]?.toLowerCase();
         const config = readConfig();

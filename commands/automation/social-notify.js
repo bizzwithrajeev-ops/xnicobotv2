@@ -25,8 +25,8 @@ function formatPingRole(raw) {
 
 function loadConfig() {
     try {
-        if (!jsonStore.has('social-notify')) { jsonStore.write('social-notify', {}); return {}; }
-        return jsonStore.read('social-notify');
+        const data = jsonStore.read('social-notify');
+        return data && typeof data === 'object' ? data : {};
     } catch { return {}; }
 }
 
