@@ -1305,7 +1305,7 @@ client.on(Events.ClientReady, async () => {
             });
         } else {
             client.user.setPresence({
-                activities: [{ name: '-help', type: ActivityType.Listening }],
+                activities: [{ name: '-help | /help', type: ActivityType.Listening }],
                 status: savedStatus
             });
         }
@@ -1316,8 +1316,8 @@ client.on(Events.ClientReady, async () => {
         }
     } catch (e) {
         client.user.setPresence({
-            activities: [{ name: '-help', type: ActivityType.Listening }],
-            status: 'online'
+            activities: [{ name: '-help | /help', type: ActivityType.Listening }],
+            status: 'idle'
         });
     }
 

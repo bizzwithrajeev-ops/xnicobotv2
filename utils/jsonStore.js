@@ -50,8 +50,14 @@ const CRITICAL_STORES = new Set([
     // Premium + access
     'premium', 'premium-keys', 'server-premium', 'dash_premium',
     'owners', 'blacklist', 'globalconfig', 'noprefix', 'globalnoprefix', 'apikeys',
+    // User data (profile customizations, etc.)
+    'users',
+    // Guild & server data
+    'guilds',
     // Prefix + branding
     'prefixes', 'bot-customize',
+    // Economy config
+    'custom-shop', 'economy-settings',
     // Moderation / protection config
     'automod', 'antinuke', 'antiraid', 'antispam', 'antialt', 'vanityguard',
     'emergency', 'nightmode', 'botblock', 'statusrole', 'ignored-channels',
