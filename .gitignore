@@ -55,6 +55,9 @@ build/
 .ocr-cache/
 .tts-cache/
 
+# ── Voice recordings (user voice data, should not be committed) ─────────────
+recordings/
+
 # ── Temp / scratch files (preview renders, ad-hoc test scripts) ─────────────
 _tmp_*
 tmp_*
