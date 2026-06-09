@@ -284,23 +284,92 @@ async function getUserData(userId) {
             user = {
                 user_id: userId,
                 economy: { balance: 0, bank: 0, inventory: [] },
-                social: { reputation: 0 },
+                social: { reputation: 0, bio: null },
                 profile: { 
                     backgroundColor: '#2f3136', 
                     progressBarColor: '#bcf1e4', 
                     cardStyle: 'default', 
-                    textColor: '#ffffff' 
+                    textColor: '#ffffff',
+                    // Nested structures for rank card and profile card customizations
+                    rankCard: {
+                        backgroundColor: '#2f3136',
+                        progressBarColor: '#bcf1e4',
+                        textColor: '#ffffff',
+                        cardStyle: 'default',
+                        customBackground: null,
+                        fontFamily: 'Inter',
+                        backgroundOpacity: 0.35
+                    },
+                    profileCard: {
+                        backgroundColor: '#2f3136',
+                        accentColor: '#bcf1e4',
+                        textColor: '#ffffff',
+                        cardStyle: 'default',
+                        customBackground: null,
+                        bannerImage: null,
+                        fontFamily: 'Inter',
+                        backgroundOpacity: 0.35,
+                        badgeStyle: 'default'
+                    }
                 },
                 stats: { commandsUsed: 0, botInteractions: 0 },
-                afk: { isAfk: false },
+                afk: { isAfk: false, reason: '', since: null },
                 votes: { total: 0, platforms: [] },
-                bot_banned: { banned: false },
+                bot_banned: { banned: false, reason: null, bannedAt: null },
                 is_owner: false,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
             users.push(user);
             saveStore('users', users);
+        } else {
+            // Migrate existing users to have nested profile structure
+            let needsMigration = false;
+            if (user.profile && !user.profile.rankCard) {
+                needsMigration = true;
+                user.profile.rankCard = {
+                    backgroundColor: user.profile.backgroundColor || '#2f3136',
+                    progressBarColor: user.profile.progressBarColor || '#bcf1e4',
+                    textColor: user.profile.textColor || '#ffffff',
+                    cardStyle: user.profile.cardStyle || 'default',
+                    customBackground: user.profile.customBackground || null,
+                    fontFamily: user.profile.fontFamily || 'Inter',
+                    backgroundOpacity: user.profile.backgroundOpacity ?? 0.35
+                };
+            }
+            if (user.profile && !user.profile.profileCard) {
+                needsMigration = true;
+                user.profile.profileCard = {
+                    backgroundColor: user.profile.backgroundColor || '#2f3136',
+                    accentColor: user.profile.accentColor || '#bcf1e4',
+                    textColor: user.profile.textColor || '#ffffff',
+                    cardStyle: user.profile.cardStyle || 'default',
+                    customBackground: user.profile.customBackground || null,
+                    bannerImage: user.profile.bannerImage || null,
+                    fontFamily: user.profile.fontFamily || 'Inter',
+                    backgroundOpacity: user.profile.backgroundOpacity ?? 0.35,
+                    badgeStyle: user.profile.badgeStyle || 'default'
+                };
+            }
+            // Ensure social.bio exists
+            if (user.social && user.social.bio === undefined) {
+                needsMigration = true;
+                user.social.bio = null;
+            }
+            // Ensure afk structure is complete
+            if (user.afk && (user.afk.reason === undefined || user.afk.since === undefined)) {
+                needsMigration = true;
+                user.afk = {
+                    isAfk: user.afk.isAfk || false,
+                    reason: user.afk.reason || '',
+                    since: user.afk.since || null
+                };
+            }
+            
+            if (needsMigration) {
+                user.updated_at = new Date().toISOString();
+                saveStore('users', users);
+            }
         }
         
         return rowToCamelCase(user, 'user');
