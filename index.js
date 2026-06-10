@@ -1173,6 +1173,16 @@ client.on(Events.ClientReady, async () => {
         log.warning('[Top.gg] Failed to start stats poster: ' + (e?.message || e));
     }
 
+    // ── Voice Recording Cleanup Task ──
+    // Automatically deletes recordings older than 24 hours to save disk space
+    // Runs every hour and cleans up the recordings/ directory
+    try {
+        const { startCleanupTask } = require('./utils/recordings');
+        startCleanupTask();
+    } catch (e) {
+        log.warning('[Record] Failed to start cleanup task: ' + (e?.message || e));
+    }
+
     // ── Periodic database flush (safety net — every 5 minutes) ──
     // Only flushes *dirty* stores. The full-cache `flush()` is reserved
     // for shutdown and the manual /flush endpoint — running it every

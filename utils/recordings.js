@@ -34,12 +34,134 @@ const MAX_MIX_QUEUE_BYTES = MIX_FRAME_BYTES * 250;
 const MAX_UPLOAD_BYTES = 24 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 10;
 const DEFAULT_MAX_MINUTES = 60;
+const RECORDING_CLEANUP_HOURS = 24; // Delete recordings after 24 hours
 const RECORDING_MODES = {
     GLOBAL: 'global',
     SEPARATE: 'separate',
 };
 
 const sessions = new Map();
+let cleanupInterval = null;
+
+/**
+ * Start the automatic cleanup of old recordings
+ * Runs every hour and deletes recordings older than 24 hours
+ */
+function startCleanupTask() {
+    if (cleanupInterval) return;
+    
+    // Run cleanup immediately on start
+    cleanOldRecordings().catch((error) => {
+        console.error('[Record] Initial cleanup failed:', error);
+    });
+    
+    // Run cleanup every hour
+    cleanupInterval = setInterval(() => {
+        cleanOldRecordings().catch((error) => {
+            console.error('[Record] Cleanup task failed:', error);
+        });
+    }, 60 * 60 * 1000); // 1 hour
+    
+    if (cleanupInterval.unref) cleanupInterval.unref();
+    console.log('[Record] Cleanup task started (runs every hour, deletes recordings older than 24 hours)');
+}
+
+/**
+ * Stop the automatic cleanup task
+ */
+function stopCleanupTask() {
+    if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+        cleanupInterval = null;
+        console.log('[Record] Cleanup task stopped');
+    }
+}
+
+/**
+ * Delete recordings older than RECORDING_CLEANUP_HOURS
+ */
+async function cleanOldRecordings() {
+    try {
+        if (!fs.existsSync(recordingsRoot)) {
+            return;
+        }
+
+        const now = Date.now();
+        const maxAge = RECORDING_CLEANUP_HOURS * 60 * 60 * 1000;
+        let deletedCount = 0;
+        let deletedSize = 0;
+
+        const guildDirs = await fs.promises.readdir(recordingsRoot).catch(() => []);
+        
+        for (const guildId of guildDirs) {
+            const guildPath = path.join(recordingsRoot, guildId);
+            const stat = await fs.promises.stat(guildPath).catch(() => null);
+            
+            if (!stat?.isDirectory()) continue;
+
+            const sessionDirs = await fs.promises.readdir(guildPath).catch(() => []);
+            
+            for (const sessionDir of sessionDirs) {
+                const sessionPath = path.join(guildPath, sessionDir);
+                const sessionStat = await fs.promises.stat(sessionPath).catch(() => null);
+                
+                if (!sessionStat?.isDirectory()) continue;
+
+                const age = now - sessionStat.mtimeMs;
+                
+                if (age > maxAge) {
+                    // Calculate size before deletion
+                    const size = await getDirectorySize(sessionPath).catch(() => 0);
+                    
+                    // Delete the session directory
+                    await fs.promises.rm(sessionPath, { recursive: true, force: true }).catch(() => null);
+                    
+                    deletedCount++;
+                    deletedSize += size;
+                    console.log(`[Record] Deleted old recording: ${sessionDir} (${formatBytes(size)}, ${Math.floor(age / 3600000)}h old)`);
+                }
+            }
+            
+            // Clean up empty guild directories
+            const remainingSessions = await fs.promises.readdir(guildPath).catch(() => []);
+            if (remainingSessions.length === 0) {
+                await fs.promises.rmdir(guildPath).catch(() => null);
+            }
+        }
+
+        if (deletedCount > 0) {
+            console.log(`[Record] Cleanup complete: ${deletedCount} recording(s) deleted (${formatBytes(deletedSize)} freed)`);
+        }
+    } catch (error) {
+        console.error('[Record] Error during cleanup:', error);
+    }
+}
+
+/**
+ * Calculate total size of a directory
+ */
+async function getDirectorySize(dirPath) {
+    let totalSize = 0;
+    
+    try {
+        const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry.name);
+            
+            if (entry.isDirectory()) {
+                totalSize += await getDirectorySize(fullPath);
+            } else {
+                const stat = await fs.promises.stat(fullPath).catch(() => null);
+                if (stat) totalSize += stat.size;
+            }
+        }
+    } catch (error) {
+        // Ignore errors
+    }
+    
+    return totalSize;
+}
 
 async function startRecording({
     actor,
@@ -812,4 +934,7 @@ module.exports = {
     recordingSummaryPayload,
     startRecording,
     stopRecording,
+    startCleanupTask,
+    stopCleanupTask,
+    cleanOldRecordings,
 };
