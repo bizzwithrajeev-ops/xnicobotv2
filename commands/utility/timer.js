@@ -36,7 +36,11 @@ module.exports = {
             .addStringOption(opt => opt
                 .setName('reason')
                 .setDescription('What is this timer for?')
-                .setMaxLength(200)))
+                .setMaxLength(200))
+            .addBooleanOption(opt => opt
+                .setName('ping')
+                .setDescription('Ping you when timer ends? (default: yes)')
+                .setRequired(false)))
         .addSubcommand(sub => sub
             .setName('list')
             .setDescription('List your active timers'))
@@ -54,7 +58,8 @@ module.exports = {
         if (subcommand === 'set') {
             const duration = interaction.options.getString('duration');
             const reason = interaction.options.getString('reason') || 'No reason provided';
-            await handleSetTimer(interaction, duration, reason, false);
+            const ping = interaction.options.getBoolean('ping') ?? true; // Default to true
+            await handleSetTimer(interaction, duration, reason, ping, false);
         } else if (subcommand === 'list') {
             await handleListTimers(interaction, false);
         } else if (subcommand === 'cancel') {
@@ -68,7 +73,7 @@ module.exports = {
             const container = buildErrorResponse(
                 'Timer Command',
                 'Please specify an action!',
-                '**Usage:**\n`timer set <duration> [reason]`\n`timer list`\n`timer cancel <id>`\n\n**Examples:**\n`timer set 5m Pizza in oven`\n`timer set 1h30m Meeting break`'
+                '**Usage:**\n`timer set <duration> [reason]`\n`timer set <duration> --no-ping [reason]`\n`timer list`\n`timer cancel <id>`\n\n**Examples:**\n`timer set 5m Pizza in oven`\n`timer set 1h30m --no-ping Meeting break`\n`timer set 10s Test timer`'
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -77,12 +82,21 @@ module.exports = {
 
         if (['set', 'add', 'create'].includes(action)) {
             if (!args[1]) {
-                const container = buildErrorResponse('Missing Duration', 'Please specify a duration!', '**Example:** `timer set 5m Pizza in oven`');
+                const container = buildErrorResponse('Missing Duration', 'Please specify a duration!', '**Example:** `timer set 5m Pizza in oven`\n**With no ping:** `timer set 5m --no-ping Pizza in oven`');
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             const duration = args[1];
-            const reason = args.slice(2).join(' ') || 'No reason provided';
-            await handleSetTimer(message, duration, reason, true);
+            
+            // Check for --no-ping or --noping flag
+            let ping = true;
+            let reasonArgs = args.slice(2);
+            if (reasonArgs.includes('--no-ping') || reasonArgs.includes('--noping')) {
+                ping = false;
+                reasonArgs = reasonArgs.filter(arg => arg !== '--no-ping' && arg !== '--noping');
+            }
+            
+            const reason = reasonArgs.join(' ') || 'No reason provided';
+            await handleSetTimer(message, duration, reason, ping, true);
         } else if (['list', 'view', 'show'].includes(action)) {
             await handleListTimers(message, true);
         } else if (['cancel', 'remove', 'delete', 'stop'].includes(action)) {
@@ -98,7 +112,7 @@ module.exports = {
     }
 };
 
-async function handleSetTimer(target, durationStr, reason, isPrefix) {
+async function handleSetTimer(target, durationStr, reason, ping, isPrefix) {
     const userId = isPrefix ? target.author.id : target.user.id;
     const channelId = target.channel?.id || target.channelId;
 
@@ -138,6 +152,7 @@ async function handleSetTimer(target, durationStr, reason, isPrefix) {
         endTime,
         duration: milliseconds,
         createdAt: Date.now(),
+        ping: ping,
         timeout: null
     };
 
@@ -158,13 +173,14 @@ async function handleSetTimer(target, durationStr, reason, isPrefix) {
             'Timer ID': `\`${timerId}\``,
             'Duration': `**${durationFormatted}**`,
             'Ends': `<t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`,
-            'Reason': reason
+            'Reason': reason,
+            'Ping': ping ? '✅ Yes' : '❌ No'
         }
     );
     container.setAccentColor(0x57F287);
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# You will be notified in <#${channelId}> when the timer ends`
+        `-# You will be ${ping ? 'pinged' : 'notified'} in <#${channelId}> when the timer ends`
     ));
 
     if (isPrefix) {
@@ -198,7 +214,8 @@ async function handleListTimers(target, isPrefix) {
     for (const timer of userTimers) {
         const endTimestamp = Math.floor(timer.endTime / 1000);
         const remaining = timer.endTime - Date.now();
-        timerList += `**ID ${timer.id}** • Ends <t:${endTimestamp}:R>\n`;
+        const pingIcon = timer.ping ? '🔔' : '🔕';
+        timerList += `**ID ${timer.id}** • Ends <t:${endTimestamp}:R> ${pingIcon}\n`;
         timerList += `> ${timer.reason}\n`;
         timerList += `> Channel: <#${timer.channelId}> • Remaining: ${formatDuration(remaining)}\n\n`;
     }
@@ -253,22 +270,29 @@ async function notifyTimerEnd(client, timer) {
         if (!channel?.isTextBased()) return;
 
         const durationFormatted = formatDuration(timer.duration);
+        
+        // Build the notification container
         const container = new ContainerBuilder()
-            .setTitle('⏰ Timer Finished!')
-            .setDescription(`<@${timer.userId}>, your timer has ended!`)
-            .setAccentColor(0x57F287);
+            .setAccentColor(0x57F287)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# ⏰ Timer Ended\n\n` +
+                `${timer.ping ? `<@${timer.userId}>` : `Hey <@${timer.userId}>`}, your timer has ended!`
+            ))
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
 
-        const section = new TextDisplayBuilder().setContent(
-            `**Duration:** ${durationFormatted}\n` +
-            `**Reason:** ${timer.reason}\n` +
-            `**Set:** <t:${Math.floor(timer.createdAt / 1000)}:R>`
-        );
-        container.addTextDisplayComponents(section);
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `**⏱️ Duration:** ${durationFormatted}\n` +
+            `**📝 Reason:** ${timer.reason}\n` +
+            `**🕒 Set:** <t:${Math.floor(timer.createdAt / 1000)}:R> (<t:${Math.floor(timer.createdAt / 1000)}:f>)\n` +
+            `**🔔 Timer ID:** \`${timer.id}\``
+        ));
+
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
+        // Send notification - with or without ping
         await channel.send({ 
-            content: `<@${timer.userId}>`,
+            content: timer.ping ? `<@${timer.userId}>` : undefined,
             components: [container], 
             flags: MessageFlags.IsComponentsV2 
         });
