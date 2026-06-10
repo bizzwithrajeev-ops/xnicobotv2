@@ -368,9 +368,9 @@ async function showFontSelector(interaction, guildId) {
     const options = Object.entries(FONT_STYLES).map(([key, style]) => 
         new StringSelectMenuOptionBuilder()
             .setLabel(style.name)
-            .setValue(`botdeco_selectfont_${guildId}_${key}`)
+            .setValue(`${key}`)
             .setEmoji(style.emoji)
-            .setDescription(`Example: ${style.example}`)
+            .setDescription(`Example: ${style.example.substring(0, 100)}`)
     );
     
     const select = new StringSelectMenuBuilder()
@@ -382,7 +382,7 @@ async function showFontSelector(interaction, guildId) {
     
     await interaction.reply({
         content: '🔤 **Select a font style:**',
-        actionRows: [row],
+        components: [row],
         flags: MessageFlags.Ephemeral
     });
 }
@@ -391,9 +391,9 @@ async function showDecorationSelector(interaction, guildId) {
     const options = Object.entries(AVATAR_DECORATIONS).map(([key, deco]) => 
         new StringSelectMenuOptionBuilder()
             .setLabel(deco.name)
-            .setValue(`botdeco_selectdeco_${guildId}_${key}`)
+            .setValue(`${key}`)
             .setEmoji(deco.emoji)
-            .setDescription(`${deco.prefix}Name${deco.suffix}`)
+            .setDescription(`${deco.prefix}Name${deco.suffix}`.substring(0, 100))
     );
     
     const select = new StringSelectMenuBuilder()
@@ -405,7 +405,7 @@ async function showDecorationSelector(interaction, guildId) {
     
     await interaction.reply({
         content: '✨ **Select a decoration:**',
-        actionRows: [row],
+        components: [row],
         flags: MessageFlags.Ephemeral
     });
 }
@@ -605,8 +605,7 @@ async function resetDecoration(interaction, guildId) {
 }
 
 async function selectFont(interaction, guildId) {
-    const value = interaction.values[0];
-    const fontKey = value.split('_').pop();
+    const fontKey = interaction.values[0];
     const decorations = loadDecorations();
     const config = decorations[guildId] || getGuildDecoration(guildId);
     
@@ -622,8 +621,7 @@ async function selectFont(interaction, guildId) {
 }
 
 async function selectDecoration(interaction, guildId) {
-    const value = interaction.values[0];
-    const decoKey = value.split('_').pop();
+    const decoKey = interaction.values[0];
     const decorations = loadDecorations();
     const config = decorations[guildId] || getGuildDecoration(guildId);
     

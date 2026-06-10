@@ -4111,6 +4111,59 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
 
+            // ═══════ ToS Accept/Decline Buttons ═══════
+            if (interaction.customId === 'tos_accept') {
+                const tosManager = require('./utils/tosManager');
+                
+                // Accept ToS
+                tosManager.acceptTos(interaction.user.id);
+                
+                // Send acceptance DM
+                const dmSent = await tosManager.sendAcceptanceDM(interaction.user);
+                
+                const container = new ContainerBuilder()
+                    .setAccentColor(0x57F287)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# ✅ Terms of Service Accepted\n\n` +
+                        `Thank you for accepting! You can now use all bot commands.\n\n` +
+                        (dmSent ? `A confirmation has been sent to your DMs with useful information.` : `*Note: Couldn't send DM (DMs disabled). Check your DM settings if you want bot notifications.*`) +
+                        `\n\nStart with \`-help\` or \`/help\` to see available commands!`
+                    ));
+                
+                await interaction.update({ 
+                    components: [container], 
+                    actionRows: [],
+                    flags: MessageFlags.IsComponentsV2 
+                });
+                return;
+            }
+            
+            if (interaction.customId === 'tos_decline') {
+                const tosManager = require('./utils/tosManager');
+                
+                // Decline ToS
+                tosManager.declineTos(interaction.user.id);
+                
+                // Send decline DM
+                await tosManager.sendDeclineDM(interaction.user);
+                
+                const container = new ContainerBuilder()
+                    .setAccentColor(0xED4245)
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# ❌ Terms of Service Declined\n\n` +
+                        `You have declined the Terms of Service.\n\n` +
+                        `**You cannot use bot commands until you accept the terms.**\n\n` +
+                        `To accept later, simply try using any bot command and click "Accept & Continue".`
+                    ));
+                
+                await interaction.update({ 
+                    components: [container], 
+                    actionRows: [],
+                    flags: MessageFlags.IsComponentsV2 
+                });
+                return;
+            }
+
             // Handle sticky message interactive buttons
             if (interaction.customId.startsWith('sticky_')) {
                 try {
@@ -7771,6 +7824,18 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     try {
+        // ═══════ ToS Acceptance Check ═══════
+        const tosManager = require('./utils/tosManager');
+        if (!tosManager.hasAcceptedTos(interaction.user.id)) {
+            const { container, buttonRow } = tosManager.buildTosPanel();
+            
+            return interaction.reply({
+                components: [container],
+                actionRows: [buttonRow],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+            });
+        }
+        
         trackCommand(interaction.commandName, interaction.user.id, interaction.guildId);
         await command.execute(interaction, client.lavalinkManager);
     } catch (error) {
@@ -9963,6 +10028,18 @@ client.on('messageCreate', async (message) => {
         }
 
         try {
+            // ═══════ ToS Acceptance Check ═══════
+            const tosManager = require('./utils/tosManager');
+            if (!tosManager.hasAcceptedTos(message.author.id)) {
+                const { container, buttonRow } = tosManager.buildTosPanel();
+                
+                return message.reply({
+                    components: [container],
+                    actionRows: [buttonRow],
+                    flags: MessageFlags.IsComponentsV2
+                });
+            }
+            
             trackCommand(commandName, message.author.id, message.guild?.id);
             await command.executePrefix(message, args, lavalinkManager, client);
         } catch (error) {
