@@ -39,6 +39,7 @@ module.exports = {
                 channelId: channel.id,
                 currentCount: 0,
                 lastUserId: null,
+                lastMessageId: null,
                 highScore: 0,
                 totalCounts: 0,
                 fails: 0
@@ -105,6 +106,7 @@ module.exports = {
 
             data.currentCount = 0;
             data.lastUserId = null;
+            data.lastMessageId = null;
             await db.set(`counting_${interaction.guild.id}`, data);
 
             const container = new ContainerBuilder()
@@ -163,6 +165,7 @@ module.exports = {
                 channelId: channel.id,
                 currentCount: 0,
                 lastUserId: null,
+                lastMessageId: null,
                 highScore: 0,
                 totalCounts: 0,
                 fails: 0
@@ -229,6 +232,7 @@ module.exports = {
 
             data.currentCount = 0;
             data.lastUserId = null;
+            data.lastMessageId = null;
             await db.set(`counting_${message.guild.id}`, data);
 
             const container = new ContainerBuilder()

@@ -7827,11 +7827,10 @@ client.on('interactionCreate', async (interaction) => {
         // ═══════ ToS Acceptance Check ═══════
         const tosManager = require('./utils/tosManager');
         if (!tosManager.hasAcceptedTos(interaction.user.id)) {
-            const { container, buttonRow } = tosManager.buildTosPanel();
+            const container = tosManager.buildTosPanel();
             
             return interaction.reply({
                 components: [container],
-                actionRows: [buttonRow],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
             });
         }
@@ -8919,6 +8918,7 @@ client.on('messageCreate', async (message) => {
                 if (num === expectedNum && !sameUser) {
                     countingData.currentCount = num;
                     countingData.lastUserId = message.author.id;
+                    countingData.lastMessageId = message.id; // Track message ID for delete detection
                     countingData.totalCounts++;
                     if (num > countingData.highScore) countingData.highScore = num;
                     await db.set(`counting_${guildId}`, countingData);
@@ -8935,6 +8935,7 @@ client.on('messageCreate', async (message) => {
                     const oldCount = countingData.currentCount;
                     countingData.currentCount = 0;
                     countingData.lastUserId = null;
+                    countingData.lastMessageId = null;
                     await db.set(`counting_${guildId}`, countingData);
 
                     await message.react('<:Cancel:1473037949187657818>');
@@ -10031,11 +10032,10 @@ client.on('messageCreate', async (message) => {
             // ═══════ ToS Acceptance Check ═══════
             const tosManager = require('./utils/tosManager');
             if (!tosManager.hasAcceptedTos(message.author.id)) {
-                const { container, buttonRow } = tosManager.buildTosPanel();
+                const container = tosManager.buildTosPanel();
                 
                 return message.reply({
                     components: [container],
-                    actionRows: [buttonRow],
                     flags: MessageFlags.IsComponentsV2
                 });
             }
@@ -11452,6 +11452,51 @@ client.on('messageDelete', async (message) => {
     const snipeCommand = client.commands.get('snipe');
     if (snipeCommand && snipeCommand.saveDeletedMessage) {
         snipeCommand.saveDeletedMessage(message);
+    }
+
+    // ═══════ Counting Game Anti-Cheat: Delete Detection ═══════
+    if (message.guild && message.author && !message.author.bot) {
+        try {
+            const { db } = require('./utils/database');
+            const countingData = await db.get(`counting_${message.guild.id}`);
+            
+            if (countingData && message.channel.id === countingData.channelId) {
+                // Check if the deleted message was a valid count
+                if (countingData.lastMessageId === message.id) {
+                    const deletedNumber = countingData.currentCount;
+                    const deleterTag = message.author.tag;
+                    const deleterId = message.author.id;
+                    
+                    // Decrease count by 1 since that number was deleted
+                    countingData.currentCount = Math.max(0, deletedNumber - 1);
+                    countingData.lastUserId = null;
+                    countingData.lastMessageId = null;
+                    countingData.fails++;
+                    await db.set(`counting_${message.guild.id}`, countingData);
+                    
+                    // Send warning message
+                    const container = new ContainerBuilder()
+                        .setAccentColor(0xFEE75C)
+                        .addTextDisplayComponents(
+                            new TextDisplayBuilder().setContent(
+                                `# ⚠️ Number Deleted - Anti-Cheat Alert\n\n` +
+                                `<@${deleterId}> (**${deleterTag}**) deleted their count: **${deletedNumber}**\n\n` +
+                                `**This is considered cheating!**\n\n` +
+                                `**Current Count:** ${countingData.currentCount}\n` +
+                                `**Next Number:** ${countingData.currentCount + 1}\n\n` +
+                                `Continue counting from **${countingData.currentCount + 1}**`
+                            )
+                        );
+                    
+                    await message.channel.send({ 
+                        components: [container], 
+                        flags: MessageFlags.IsComponentsV2 
+                    }).catch(() => {});
+                }
+            }
+        } catch (e) {
+            // Silently handle errors
+        }
     }
 });
 

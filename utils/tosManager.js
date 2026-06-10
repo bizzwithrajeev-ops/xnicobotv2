@@ -57,6 +57,20 @@ function declineTos(userId) {
  * Build ToS acceptance panel
  */
 function buildTosPanel() {
+    const buttonRow = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('tos_accept')
+                .setLabel('Accept & Continue')
+                .setEmoji('✅')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('tos_decline')
+                .setLabel('Decline')
+                .setEmoji('❌')
+                .setStyle(ButtonStyle.Danger)
+        );
+
     const container = new ContainerBuilder()
         .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -78,23 +92,10 @@ function buildTosPanel() {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `**Please select an option below:**`
-        ));
+        ))
+        .addActionRowComponents(buttonRow);
 
-    const buttonRow = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId('tos_accept')
-                .setLabel('Accept & Continue')
-                .setEmoji('✅')
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId('tos_decline')
-                .setLabel('Decline')
-                .setEmoji('❌')
-                .setStyle(ButtonStyle.Danger)
-        );
-
-    return { container, buttonRow };
+    return container;
 }
 
 /**

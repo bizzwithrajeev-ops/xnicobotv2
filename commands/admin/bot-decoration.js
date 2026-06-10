@@ -313,6 +313,10 @@ async function showDecorationPanel(target, isPrefix) {
                 .setStyle(ButtonStyle.Danger)
         );
     
+    container.addActionRowComponents(fontRow);
+    container.addActionRowComponents(actionRow);
+    container.addActionRowComponents(controlRow);
+    
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `-# 👑 Premium Feature • Server-only styling`
@@ -320,7 +324,6 @@ async function showDecorationPanel(target, isPrefix) {
     
     const reply = { 
         components: [container], 
-        actionRows: [fontRow, actionRow, controlRow],
         flags: MessageFlags.IsComponentsV2
     };
     
@@ -525,6 +528,10 @@ async function toggleDecoration(interaction, guildId) {
                         .setStyle(ButtonStyle.Danger)
                 );
             
+            container.addActionRowComponents(fontRow);
+            container.addActionRowComponents(actionRow);
+            container.addActionRowComponents(controlRow);
+            
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
             container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `-# 👑 Premium Feature • Server-only styling`
@@ -532,7 +539,6 @@ async function toggleDecoration(interaction, guildId) {
             
             await interaction.editReply({ 
                 components: [container], 
-                actionRows: [fontRow, actionRow, controlRow],
                 flags: MessageFlags.IsComponentsV2
             });
         } catch (e) {
