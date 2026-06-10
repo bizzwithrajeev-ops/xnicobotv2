@@ -1748,6 +1748,19 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // ── Bot Decoration modal handler ──
+        if (customId.startsWith('botdeco_customsave_')) {
+            try {
+                const botDecoCmd = require('./commands/admin/bot-decoration');
+                if (botDecoCmd && botDecoCmd.handleInteraction) {
+                    await botDecoCmd.handleInteraction(interaction);
+                }
+            } catch (error) {
+                log.error('Bot decoration modal error:', error);
+            }
+            return;
+        }
+
         if (customId === 'botpanel_rotation_delay_modal') {
             const delayText = interaction.fields.getTextInputValue('delay_text');
             const delay = parseInt(delayText);
@@ -2278,6 +2291,19 @@ client.on('interactionCreate', async (interaction) => {
                     if (handled) return;
                 } catch (error) {
                     log.error(`Bot Customize Modal: ${error.message}`, error);
+                }
+            }
+        }
+
+        // ── Bot Decoration modals/buttons ──
+        if (interaction.customId.startsWith('botdeco_')) {
+            const botDecoCmd = require('./commands/admin/bot-decoration');
+            if (botDecoCmd && botDecoCmd.handleInteraction) {
+                try {
+                    await botDecoCmd.handleInteraction(interaction);
+                    return;
+                } catch (error) {
+                    log.error(`Bot Decoration Interaction: ${error.message}`, error);
                 }
             }
         }
