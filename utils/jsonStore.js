@@ -56,6 +56,8 @@ const CRITICAL_STORES = new Set([
     'guilds',
     // Prefix + branding
     'prefixes', 'bot-customize',
+    // Bot panel settings (status, activities)
+    'bot-activities',
     // Economy config
     'custom-shop', 'economy-settings',
     // Moderation / protection config
