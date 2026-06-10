@@ -13,13 +13,13 @@ const {
     StringSelectMenuOptionBuilder,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle
+    TextInputStyle,
+    ComponentType
 } = require('discord.js');
 
-const premiumManager = require('../../utils/premiumManager');
 const jsonStore = require('../../utils/jsonStore');
 
-// Font styles for bot name (Unicode text transformations - ONLY OPTION FOR BOTS)
+// Font styles for bot name (Unicode text transformations)
 const FONT_STYLES = {
     normal: {
         name: 'Normal',
@@ -245,21 +245,20 @@ async function showDecorationPanel(target, isPrefix) {
     const container = new ContainerBuilder()
         .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🎨 Bot Name Styling (Unicode Only)\n\n` +
-            `Apply Unicode font transformations to bot nickname.\n\n` +
-            `-# ⚠️ **CRITICAL:** Discord Nitro Display Name Styles (Gradient/Neon/Pop) are USER-ONLY features and NOT available to bots via ANY API endpoint. This command only provides Unicode font transformations for nicknames.`
+            `# 🎨 Bot Name Styling\n\n` +
+            `Customize bot nickname with Unicode fonts and decorations.`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     
     // Show current configuration
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `**Choose Font** ${currentStyle.emoji}\n` +
-        `Current: **${currentStyle.name}**\n\n` +
-        `**Choose Decoration** ${currentDeco.emoji}\n` +
-        `Current: **${currentDeco.name}**\n\n` +
+        `**Font Style** ${currentStyle.emoji}\n` +
+        `${currentStyle.name} • Example: ${currentStyle.example}\n\n` +
+        `**Decoration** ${currentDeco.emoji}\n` +
+        `${currentDeco.name}\n\n` +
         `**Preview:**\n` +
         `### ${previewName}\n\n` +
-        `**Status:** ${config.enabled ? '✅ Active' : '⚠️ Disabled - click Enable to activate'}`
+        `**Status:** ${config.enabled ? '✅ Active' : '⚠️ Disabled'}`
     ));
     
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
@@ -316,7 +315,7 @@ async function showDecorationPanel(target, isPrefix) {
     
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# 👑 Premium Feature • **CONFIRMED BY RESEARCH:** Discord's Display Name Styles API is restricted to Nitro USER accounts ONLY. Bots can ONLY use Unicode text transformations for nicknames. The styled display names you see on user profiles (like in your screenshot) cannot be replicated for bot accounts through any official or undocumented API.`
+        `-# 👑 Premium Feature • Server-only styling`
     ));
     
     const reply = { 
@@ -352,6 +351,8 @@ module.exports.handleInteraction = async function(interaction) {
         await toggleDecoration(interaction, guildId);
     } else if (action === 'apply') {
         await applyDecoration(interaction, guildId);
+    } else if (action === 'preview') {
+        await showDecorationPanel(interaction, false);
     } else if (action === 'reset') {
         await resetDecoration(interaction, guildId);
     } else if (action === 'fontselect') {
@@ -414,30 +415,27 @@ async function showCustomModal(interaction, guildId) {
     
     const modal = new ModalBuilder()
         .setCustomId(`botdeco_customsave_${guildId}`)
-        .setTitle('Custom Prefix & Suffix');
-    
-    const prefixInput = new TextInputBuilder()
-        .setCustomId('prefix')
-        .setLabel('Custom Prefix (before name)')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('[VIP] or ⭐ or 《')
-        .setMaxLength(10)
-        .setRequired(false)
-        .setValue(config.customPrefix || '');
-    
-    const suffixInput = new TextInputBuilder()
-        .setCustomId('suffix')
-        .setLabel('Custom Suffix (after name)')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('⭐ or 》 or ™')
-        .setMaxLength(10)
-        .setRequired(false)
-        .setValue(config.customSuffix || '');
-    
-    modal.addComponents(
-        new ActionRowBuilder().addComponents(prefixInput),
-        new ActionRowBuilder().addComponents(suffixInput)
-    );
+        .setTitle('Custom Prefix & Suffix')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('prefix')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('[VIP] or ⭐ or 《')
+                    .setMaxLength(10)
+                    .setRequired(false)
+                    .setValue(config.customPrefix || '')
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('suffix')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('⭐ or 》 or ™')
+                    .setMaxLength(10)
+                    .setRequired(false)
+                    .setValue(config.customSuffix || '')
+            )
+        );
     
     await interaction.showModal(modal);
 }
@@ -450,56 +448,135 @@ async function toggleDecoration(interaction, guildId) {
     decorations[guildId] = config;
     saveDecorations(decorations);
     
-    const container = new ContainerBuilder()
-        .setAccentColor(config.enabled ? 0x57F287 : 0xED4245)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ${config.enabled ? '✅' : '❌'} Decoration ${config.enabled ? 'Enabled' : 'Disabled'}\n\n` +
-            `Bot name decorations are now **${config.enabled ? 'active' : 'inactive'}** for this server.\n\n` +
-            `-# Refreshing panel...`
-        ));
+    await interaction.deferUpdate();
     
-    await interaction.update({ components: [container], actionRows: [], flags: MessageFlags.IsComponentsV2 });
-    
-    // Refresh panel after 1.5 seconds
+    // Immediately show refreshed panel
     setTimeout(async () => {
         try {
-            await showDecorationPanel(interaction, false);
+            const currentStyle = FONT_STYLES[config.fontStyle] || FONT_STYLES.normal;
+            const currentDeco = AVATAR_DECORATIONS[config.decoration] || AVATAR_DECORATIONS.none;
+            const botName = interaction.guild?.members?.me?.displayName || interaction.client?.user?.username || 'xNico Bot';
+            const previewName = applyNameStyling(botName, config);
+            
+            const container = new ContainerBuilder()
+                .setAccentColor(0x5865F2)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `# 🎨 Bot Name Styling\n\n` +
+                    `Customize bot nickname with Unicode fonts and decorations.`
+                ))
+                .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+            
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `**Font Style** ${currentStyle.emoji}\n` +
+                `${currentStyle.name} • Example: ${currentStyle.example}\n\n` +
+                `**Decoration** ${currentDeco.emoji}\n` +
+                `${currentDeco.name}\n\n` +
+                `**Preview:**\n` +
+                `### ${previewName}\n\n` +
+                `**Status:** ${config.enabled ? '✅ Active' : '⚠️ Disabled'}`
+            ));
+            
+            container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+            
+            const fontRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_font_${guildId}`)
+                        .setLabel('Select Font Style')
+                        .setEmoji('🔤')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_decoration_${guildId}`)
+                        .setLabel('Select Decoration')
+                        .setEmoji('✨')
+                        .setStyle(ButtonStyle.Primary)
+                );
+            
+            const actionRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_custom_${guildId}`)
+                        .setLabel('Custom Prefix/Suffix')
+                        .setEmoji('✏️')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_toggle_${guildId}`)
+                        .setLabel(config.enabled ? 'Disable' : 'Enable')
+                        .setStyle(config.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
+                );
+            
+            const controlRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_apply_${guildId}`)
+                        .setLabel('Apply to Bot')
+                        .setEmoji('🚀')
+                        .setStyle(ButtonStyle.Success)
+                        .setDisabled(!config.enabled),
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_preview_${guildId}`)
+                        .setLabel('Refresh Preview')
+                        .setEmoji('👁️')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`botdeco_reset_${guildId}`)
+                        .setLabel('Reset All')
+                        .setEmoji('🔄')
+                        .setStyle(ButtonStyle.Danger)
+                );
+            
+            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `-# 👑 Premium Feature • Server-only styling`
+            ));
+            
+            await interaction.editReply({ 
+                components: [container], 
+                actionRows: [fontRow, actionRow, controlRow],
+                flags: MessageFlags.IsComponentsV2
+            });
         } catch (e) {
             console.error('[BotDeco] Failed to refresh panel:', e);
         }
-    }, 1500);
+    }, 100);
 }
 
 async function applyDecoration(interaction, guildId) {
     const config = getGuildDecoration(guildId);
     
     if (!config.enabled) {
-        await interaction.reply({
+        return interaction.reply({
             content: '❌ **Decorations are disabled!** Enable them first.',
             flags: MessageFlags.Ephemeral
         });
-        return;
     }
     
     try {
         const botMember = interaction.guild.members.me;
-        const currentName = botMember.displayName;
-        const styledName = applyNameStyling(currentName, config);
+        if (!botMember) {
+            return interaction.reply({
+                content: '❌ **Failed to find bot member in this server.**',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        
+        const baseName = interaction.client.user.username;
+        const styledName = applyNameStyling(baseName, config);
         
         await botMember.setNickname(styledName);
         
         const container = new ContainerBuilder()
             .setAccentColor(0x57F287)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# ✅ Decoration Applied!\n\n` +
-                `Bot name has been updated with your styling.\n\n` +
+                `# ✅ Styling Applied\n\n` +
+                `Bot nickname updated successfully.\n\n` +
                 `**New Name:** ${styledName}`
             ));
         
         await interaction.update({ components: [container], actionRows: [], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
-        await interaction.reply({
-            content: `❌ **Failed to apply decoration:** ${error.message}`,
+        return interaction.reply({
+            content: `❌ **Failed:** ${error.message}`,
             flags: MessageFlags.Ephemeral
         });
     }
@@ -516,24 +593,15 @@ async function resetDecoration(interaction, guildId) {
     };
     saveDecorations(decorations);
     
-    const container = new ContainerBuilder()
-        .setAccentColor(0xFEE75C)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🔄 Decoration Reset\n\n` +
-            `All decoration settings have been reset to defaults.\n\n` +
-            `-# Refreshing panel...`
-        ));
+    await interaction.deferUpdate();
     
-    await interaction.update({ components: [container], actionRows: [], flags: MessageFlags.IsComponentsV2 });
-    
-    // Refresh panel after 1.5 seconds
     setTimeout(async () => {
         try {
             await showDecorationPanel(interaction, false);
         } catch (e) {
-            console.error('[BotDeco] Failed to refresh panel:', e);
+            console.error('[BotDeco] Failed to refresh after reset:', e);
         }
-    }, 1500);
+    }, 100);
 }
 
 async function selectFont(interaction, guildId) {
