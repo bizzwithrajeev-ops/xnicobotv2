@@ -143,28 +143,7 @@ async function handleSetTimer(target, durationStr, reason, ping, isPrefix) {
     const endTime = Date.now() + milliseconds;
     const endTimestamp = Math.floor(endTime / 1000);
 
-    // Create timer
-    const timer = {
-        id: timerId,
-        userId,
-        channelId,
-        reason,
-        endTime,
-        duration: milliseconds,
-        createdAt: Date.now(),
-        ping: ping,
-        timeout: null
-    };
-
-    // Set timeout
-    timer.timeout = setTimeout(async () => {
-        await notifyTimerEnd(target.client || target.message?.client, timer);
-        activeTimers.delete(`${userId}-${timerId}`);
-    }, milliseconds);
-
-    activeTimers.set(`${userId}-${timerId}`, timer);
-
-    // Success response
+    // Success response - send first
     const durationFormatted = formatDuration(milliseconds);
     const container = buildSuccessResponse(
         '⏰ Timer Set',
@@ -174,7 +153,7 @@ async function handleSetTimer(target, durationStr, reason, ping, isPrefix) {
             'Duration': `**${durationFormatted}**`,
             'Ends': `<t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`,
             'Reason': reason,
-            'Ping': ping ? '✅ Yes' : '❌ No'
+            'Ping': ping ? '🔔 Yes' : '🔕 No'
         }
     );
     container.setAccentColor(0x57F287);
@@ -183,10 +162,34 @@ async function handleSetTimer(target, durationStr, reason, ping, isPrefix) {
         `-# You will be ${ping ? 'pinged' : 'notified'} in <#${channelId}> when the timer ends`
     ));
 
+    let replyMessage;
     if (isPrefix) {
-        return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        replyMessage = await target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } else {
+        replyMessage = await target.reply({ components: [container], flags: MessageFlags.IsComponentsV2, fetchReply: true });
     }
-    return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+
+    // Create timer with message reference
+    const timer = {
+        id: timerId,
+        userId,
+        channelId,
+        reason,
+        endTime,
+        duration: milliseconds,
+        createdAt: Date.now(),
+        ping: ping,
+        messageId: replyMessage.id,
+        timeout: null
+    };
+
+    // Set timeout
+    timer.timeout = setTimeout(async () => {
+        await notifyTimerEnd(target.client || target.message?.client, timer, replyMessage);
+        activeTimers.delete(`${userId}-${timerId}`);
+    }, milliseconds);
+
+    activeTimers.set(`${userId}-${timerId}`, timer);
 }
 
 async function handleListTimers(target, isPrefix) {
@@ -264,40 +267,73 @@ async function handleCancelTimer(target, timerId, isPrefix) {
     return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
-async function notifyTimerEnd(client, timer) {
+async function notifyTimerEnd(client, timer, originalMessage) {
     try {
         const channel = await client.channels.fetch(timer.channelId).catch(() => null);
         if (!channel?.isTextBased()) return;
 
         const durationFormatted = formatDuration(timer.duration);
         
-        // Build the notification container
+        // Build the "Timer Ended" container
         const container = new ContainerBuilder()
             .setAccentColor(0x57F287)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# ⏰ Timer Ended\n\n` +
-                `${timer.ping ? `<@${timer.userId}>` : `Hey <@${timer.userId}>`}, your timer has ended!`
+                `# ⏰ Timer Ended!\n\n` +
+                `Your timer has finished!`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `**⏱️ Duration:** ${durationFormatted}\n` +
             `**📝 Reason:** ${timer.reason}\n` +
-            `**🕒 Set:** <t:${Math.floor(timer.createdAt / 1000)}:R> (<t:${Math.floor(timer.createdAt / 1000)}:f>)\n` +
+            `**🕒 Started:** <t:${Math.floor(timer.createdAt / 1000)}:R> (<t:${Math.floor(timer.createdAt / 1000)}:f>)\n` +
+            `**✅ Completed:** <t:${Math.floor(Date.now() / 1000)}:f>\n` +
             `**🔔 Timer ID:** \`${timer.id}\``
         ));
 
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
-        // Send notification - with or without ping
-        await channel.send({ 
-            content: timer.ping ? `<@${timer.userId}>` : undefined,
-            components: [container], 
-            flags: MessageFlags.IsComponentsV2 
-        });
+        // Edit the original message
+        if (originalMessage) {
+            try {
+                await originalMessage.edit({ 
+                    content: timer.ping ? `<@${timer.userId}>` : undefined,
+                    components: [container], 
+                    flags: MessageFlags.IsComponentsV2 
+                });
+            } catch (editError) {
+                // If edit fails (message deleted, etc), try to fetch and edit
+                try {
+                    const msg = await channel.messages.fetch(timer.messageId).catch(() => null);
+                    if (msg) {
+                        await msg.edit({ 
+                            content: timer.ping ? `<@${timer.userId}>` : undefined,
+                            components: [container], 
+                            flags: MessageFlags.IsComponentsV2 
+                        });
+                    }
+                } catch (fetchError) {
+                    console.error('[Timer] Failed to edit timer message:', fetchError.message);
+                }
+            }
+        } else {
+            // Fallback: try to fetch the message
+            try {
+                const msg = await channel.messages.fetch(timer.messageId).catch(() => null);
+                if (msg) {
+                    await msg.edit({ 
+                        content: timer.ping ? `<@${timer.userId}>` : undefined,
+                        components: [container], 
+                        flags: MessageFlags.IsComponentsV2 
+                    });
+                }
+            } catch (fetchError) {
+                console.error('[Timer] Failed to fetch and edit timer message:', fetchError.message);
+            }
+        }
     } catch (error) {
-        console.error('[Timer] Failed to send notification:', error);
+        console.error('[Timer] Failed to notify timer end:', error.message);
     }
 }
 
