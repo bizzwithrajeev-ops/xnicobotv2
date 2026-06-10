@@ -22,7 +22,7 @@ try {
 }
 const { componentPayload } = require('./hybrid');
 
-const recordingsRoot = path.join(__dirname, '..', '..', 'recordings');
+const recordingsRoot = path.join(__dirname, '..', 'recordings');
 const SAMPLE_RATE = 48_000;
 const CHANNELS = 2;
 const BIT_DEPTH = 16;
@@ -70,20 +70,29 @@ async function startRecording({
         guild.id,
         `${formatTimestampForPath(startedAt)}-${actor.id}`,
     );
-    fs.mkdirSync(outputDir, { recursive: true });
-
-    const connection = joinVoiceChannel({
-        adapterCreator: guild.voiceAdapterCreator,
-        channelId: voiceChannel.id,
-        guildId: guild.id,
-        selfDeaf: false,
-        selfMute: true,
-    });
-
+    
     try {
+        fs.mkdirSync(outputDir, { recursive: true });
+    } catch (error) {
+        return {
+            ok: false,
+            message: `Failed to create recording directory: ${formatError(error)}`,
+        };
+    }
+
+    let connection;
+    try {
+        connection = joinVoiceChannel({
+            adapterCreator: guild.voiceAdapterCreator,
+            channelId: voiceChannel.id,
+            guildId: guild.id,
+            selfDeaf: false,
+            selfMute: true,
+        });
+
         await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
     } catch (error) {
-        connection.destroy();
+        if (connection) connection.destroy();
         return {
             ok: false,
             message: `I could not join ${voiceChannel}: ${formatError(error)}`,
@@ -109,7 +118,11 @@ async function startRecording({
     if (session.mode === RECORDING_MODES.GLOBAL) {
         session.mix = createGlobalMixTrack(session);
         session.mix.interval = setInterval(() => {
-            writeGlobalMixFrame(session, false);
+            try {
+                writeGlobalMixFrame(session, false);
+            } catch (error) {
+                console.error('[Record] Mix frame write error:', error);
+            }
         }, FRAME_DURATION_MS);
     }
 
@@ -118,6 +131,20 @@ async function startRecording({
             console.error('[Record] Failed to record speaker:', error);
         });
     };
+    
+    // Handle connection errors
+    connection.on('error', (error) => {
+        console.error('[Record] Voice connection error:', error);
+        stopRecording(guild.id, { reason: 'connection error' }).catch(() => {});
+    });
+    
+    connection.on('stateChange', (oldState, newState) => {
+        if (newState.status === VoiceConnectionStatus.Disconnected) {
+            console.warn('[Record] Voice connection disconnected');
+            stopRecording(guild.id, { reason: 'disconnected' }).catch(() => {});
+        }
+    });
+    
     session.receiver.speaking.on('start', session.onSpeakingStart);
     session.stopTimer = setTimeout(() => {
         stopRecording(guild.id, { reason: 'time limit reached' })
@@ -228,9 +255,12 @@ function writeDecodedPacket(participant, packet) {
             return;
         }
 
-        participant.fileStream.write(pcm);
+        if (participant.fileStream && !participant.fileStream.destroyed) {
+            participant.fileStream.write(pcm);
+        }
     } catch (error) {
         participant.invalidPackets += 1;
+        console.warn(`[Record] Decode error for ${participant.userId}:`, error?.message);
     }
 }
 
@@ -243,25 +273,45 @@ async function stopRecording(guildId, { reason = 'manual stop' } = {}) {
         };
     }
 
+    // Remove session immediately to prevent double-stop
     sessions.delete(guildId);
-    clearTimeout(session.stopTimer);
-    session.receiver.speaking.off('start', session.onSpeakingStart);
+    
+    // Clean up timers and listeners
+    if (session.stopTimer) clearTimeout(session.stopTimer);
+    if (session.receiver && session.onSpeakingStart) {
+        session.receiver.speaking.off('start', session.onSpeakingStart);
+    }
     if (session.mix?.interval) clearInterval(session.mix.interval);
 
     const durationMs = Date.now() - session.startedAt.getTime();
     const files = [];
 
+    // Finalize all participants
     for (const participant of session.participants.values()) {
-        const finalized = await finalizeParticipant(participant);
-        if (finalized) files.push(finalized);
+        try {
+            const finalized = await finalizeParticipant(participant);
+            if (finalized) files.push(finalized);
+        } catch (error) {
+            console.error(`[Record] Failed to finalize participant ${participant.userId}:`, error);
+        }
     }
 
+    // Finalize global mix if applicable
     if (session.mode === RECORDING_MODES.GLOBAL) {
-        const finalizedMix = await finalizeGlobalMix(session);
-        if (finalizedMix) files.push(finalizedMix);
+        try {
+            const finalizedMix = await finalizeGlobalMix(session);
+            if (finalizedMix) files.push(finalizedMix);
+        } catch (error) {
+            console.error('[Record] Failed to finalize global mix:', error);
+        }
     }
 
-    session.connection.destroy();
+    // Destroy connection
+    try {
+        if (session.connection) session.connection.destroy();
+    } catch (error) {
+        console.error('[Record] Error destroying connection:', error);
+    }
 
     return {
         ok: true,
@@ -274,27 +324,59 @@ async function stopRecording(guildId, { reason = 'manual stop' } = {}) {
 }
 
 async function finalizeParticipant(participant) {
-    participant.subscription.destroy();
-    if (participant.decoder?.delete) participant.decoder.delete();
+    try {
+        if (participant.subscription) {
+            participant.subscription.destroy();
+        }
+    } catch (error) {
+        console.warn(`[Record] Error destroying subscription for ${participant.userId}:`, error);
+    }
+    
+    try {
+        if (participant.decoder?.delete) {
+            participant.decoder.delete();
+        }
+    } catch (error) {
+        console.warn(`[Record] Error deleting decoder for ${participant.userId}:`, error);
+    }
 
     if (participant.mode === RECORDING_MODES.GLOBAL) return null;
 
     await wait(250);
-    await endWritable(participant.fileStream);
+    
+    try {
+        await endWritable(participant.fileStream);
+    } catch (error) {
+        console.warn(`[Record] Error ending file stream for ${participant.userId}:`, error);
+    }
 
     if (participant.pcmBytes <= 0) {
         await fs.promises.rm(participant.filePath, { force: true }).catch(() => null);
         return null;
     }
 
-    await patchWavHeader(participant.filePath, participant.pcmBytes);
+    try {
+        await patchWavHeader(participant.filePath, participant.pcmBytes);
+    } catch (error) {
+        console.error(`[Record] Failed to patch WAV header for ${participant.userId}:`, error);
+        return null;
+    }
+    
     const playable = await createPlayableAudio(participant.filePath).catch((error) => {
         console.warn(`[Record] MP3 conversion failed for ${participant.userId}:`, error?.message || error);
         return null;
     });
+    
     const attachmentPath = playable?.filePath || participant.filePath;
     const attachmentName = playable?.fileName || participant.fileName;
-    const stat = await fs.promises.stat(attachmentPath);
+    
+    let stat;
+    try {
+        stat = await fs.promises.stat(attachmentPath);
+    } catch (error) {
+        console.error(`[Record] Failed to stat file for ${participant.userId}:`, error);
+        return null;
+    }
 
     return {
         attachmentName,
@@ -483,19 +565,25 @@ function createGlobalMixTrack(session) {
 
 function writeGlobalMixFrame(session, allowPartial) {
     if (!session.mix) return false;
+    if (!session.mix.fileStream || session.mix.fileStream.destroyed) return false;
 
     const frames = [...session.participants.values()]
         .filter((participant) => participant.mode === RECORDING_MODES.GLOBAL)
         .map((participant) => takePcmFrame(participant, allowPartial))
         .filter(Boolean);
 
-    if (!frames.length && allowPartial) return false;
+    if (!frames.length && !allowPartial) return false;
 
     const frame = frames.length ? mixPcmFrames(frames) : Buffer.alloc(MIX_FRAME_BYTES);
     if (frames.length) session.mix.hasAudio = true;
 
     session.mix.pcmBytes += frame.length;
-    session.mix.fileStream.write(frame);
+    try {
+        session.mix.fileStream.write(frame);
+    } catch (error) {
+        console.error('[Record] Mix frame write error:', error);
+        return false;
+    }
     return true;
 }
 
@@ -550,25 +638,51 @@ function trimParticipantQueue(participant) {
 }
 
 async function finalizeGlobalMix(session) {
-    while (writeGlobalMixFrame(session, true)) {
-        // Drain queued decoded audio before finalizing the mixed file.
+    let drainCount = 0;
+    const maxDrainAttempts = 1000; // Prevent infinite loop
+    
+    while (writeGlobalMixFrame(session, true) && drainCount < maxDrainAttempts) {
+        drainCount++;
+    }
+    
+    if (drainCount >= maxDrainAttempts) {
+        console.warn('[Record] Hit max drain attempts for global mix');
     }
 
-    await endWritable(session.mix.fileStream);
+    try {
+        await endWritable(session.mix.fileStream);
+    } catch (error) {
+        console.error('[Record] Error ending mix file stream:', error);
+    }
 
     if (!session.mix.hasAudio || session.mix.pcmBytes <= 0) {
         await fs.promises.rm(session.mix.filePath, { force: true }).catch(() => null);
         return null;
     }
 
-    await patchWavHeader(session.mix.filePath, session.mix.pcmBytes);
+    try {
+        await patchWavHeader(session.mix.filePath, session.mix.pcmBytes);
+    } catch (error) {
+        console.error('[Record] Failed to patch mix WAV header:', error);
+        return null;
+    }
+    
     const playable = await createPlayableAudio(session.mix.filePath).catch((error) => {
         console.warn('[Record] Global MP3 conversion failed:', error?.message || error);
         return null;
     });
+    
     const attachmentPath = playable?.filePath || session.mix.filePath;
     const attachmentName = playable?.fileName || session.mix.fileName;
-    const stat = await fs.promises.stat(attachmentPath);
+    
+    let stat;
+    try {
+        stat = await fs.promises.stat(attachmentPath);
+    } catch (error) {
+        console.error('[Record] Failed to stat mix file:', error);
+        return null;
+    }
+    
     const participants = [...session.participants.values()];
 
     return {
