@@ -246,7 +246,7 @@ async function showDecorationPanel(target, isPrefix) {
     const container = new ContainerBuilder()
         .setAccentColor(0xBCF1E4)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🎨 Bot Name Decoration\n\n` +
+            `# 🎨 Bot Display Name Styling\n\n` +
             `Customize how your bot's name appears in this server with fancy fonts and decorations!`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
@@ -260,7 +260,7 @@ async function showDecorationPanel(target, isPrefix) {
     
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     
-    // Action buttons
+    // Action buttons - properly structured for Components V2
     const row1 = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
@@ -301,21 +301,19 @@ async function showDecorationPanel(target, isPrefix) {
     
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# 👑 Premium Feature • Changes take effect when bot nickname is updated`
+        `-# 👑 Premium Feature • Use /bot-customize for avatar & banner customization`
     ));
     
-    if (isPrefix) {
-        return target.reply({ 
-            components: [container], 
-            flags: MessageFlags.IsComponentsV2,
-            actionRows: [row1, row2]
-        });
-    }
-    return target.reply({ 
+    const reply = { 
         components: [container], 
-        flags: MessageFlags.IsComponentsV2,
-        actionRows: [row1, row2]
-    });
+        actionRows: [row1, row2],
+        flags: MessageFlags.IsComponentsV2
+    };
+    
+    if (isPrefix) {
+        return target.reply(reply);
+    }
+    return target.reply(reply);
 }
 
 // Button interactions handler (to be added to interactionCreate event)
@@ -441,15 +439,20 @@ async function toggleDecoration(interaction, guildId) {
         .setAccentColor(config.enabled ? 0x57F287 : 0xED4245)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# ${config.enabled ? '✅' : '❌'} Decoration ${config.enabled ? 'Enabled' : 'Disabled'}\n\n` +
-            `Bot name decorations are now **${config.enabled ? 'active' : 'inactive'}** for this server.`
+            `Bot name decorations are now **${config.enabled ? 'active' : 'inactive'}** for this server.\n\n` +
+            `-# Refreshing panel...`
         ));
     
     await interaction.update({ components: [container], actionRows: [], flags: MessageFlags.IsComponentsV2 });
     
-    // Refresh panel after 2 seconds
+    // Refresh panel after 1.5 seconds
     setTimeout(async () => {
-        await showDecorationPanel(interaction, false);
-    }, 2000);
+        try {
+            await showDecorationPanel(interaction, false);
+        } catch (e) {
+            console.error('[BotDeco] Failed to refresh panel:', e);
+        }
+    }, 1500);
 }
 
 async function applyDecoration(interaction, guildId) {
@@ -502,15 +505,20 @@ async function resetDecoration(interaction, guildId) {
         .setAccentColor(0xFEE75C)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# 🔄 Decoration Reset\n\n` +
-            `All decoration settings have been reset to defaults.`
+            `All decoration settings have been reset to defaults.\n\n` +
+            `-# Refreshing panel...`
         ));
     
     await interaction.update({ components: [container], actionRows: [], flags: MessageFlags.IsComponentsV2 });
     
-    // Refresh panel after 2 seconds
+    // Refresh panel after 1.5 seconds
     setTimeout(async () => {
-        await showDecorationPanel(interaction, false);
-    }, 2000);
+        try {
+            await showDecorationPanel(interaction, false);
+        } catch (e) {
+            console.error('[BotDeco] Failed to refresh panel:', e);
+        }
+    }, 1500);
 }
 
 async function selectFont(interaction, guildId) {
