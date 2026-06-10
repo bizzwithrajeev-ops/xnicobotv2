@@ -213,14 +213,14 @@ function applyNameStyling(name, config) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('bot-decoration')
-        .setDescription('[Premium] Customize bot name style and decorations for this server')
+        .setDescription('[Premium] Customize bot display name styling for this server')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
     prefix: 'bot-decoration',
-    description: '[Premium] Customize bot name style and decorations',
+    description: '[Premium] Customize bot display name styling (server-only)',
     usage: 'bot-decoration',
     category: 'admin',
-    aliases: ['botdeco', 'botstyle'],
+    aliases: ['botdeco', 'botstyle', 'botname'],
     premiumOnly: true,
 
     async execute(interaction) {
