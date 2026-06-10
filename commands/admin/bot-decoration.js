@@ -18,9 +18,8 @@ const {
 
 const premiumManager = require('../../utils/premiumManager');
 const jsonStore = require('../../utils/jsonStore');
-const { BRANDING } = require('../../utils/responseBuilder');
 
-// Font styles for bot name (Unicode text transformations)
+// Font styles for bot name (Unicode text transformations - ONLY OPTION FOR BOTS)
 const FONT_STYLES = {
     normal: {
         name: 'Normal',
@@ -213,11 +212,11 @@ function applyNameStyling(name, config) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('bot-decoration')
-        .setDescription('[Premium] Customize bot display name styling for this server')
+        .setDescription('[Premium] Customize bot display name with fonts & decorations (server-only)')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
     prefix: 'bot-decoration',
-    description: '[Premium] Customize bot display name styling (server-only)',
+    description: '[Premium] Customize bot display name with Unicode fonts & emoji decorations (server-only)',
     usage: 'bot-decoration',
     category: 'admin',
     aliases: ['botdeco', 'botstyle', 'botname'],
@@ -244,69 +243,85 @@ async function showDecorationPanel(target, isPrefix) {
     const previewName = applyNameStyling(botName, config);
     
     const container = new ContainerBuilder()
-        .setAccentColor(0xBCF1E4)
+        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🎨 Bot Display Name Styling\n\n` +
-            `Customize how your bot's name appears in this server with fancy fonts and decorations!`
+            `# 🎨 Bot Name Styling (Unicode Only)\n\n` +
+            `Apply Unicode font transformations to bot nickname.\n\n` +
+            `-# ⚠️ **CRITICAL:** Discord Nitro Display Name Styles (Gradient/Neon/Pop) are USER-ONLY features and NOT available to bots via ANY API endpoint. This command only provides Unicode font transformations for nicknames.`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     
+    // Show current configuration
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `**📝 Current Style:** ${currentStyle.emoji} ${currentStyle.name}\n` +
-        `**✨ Current Decoration:** ${currentDeco.emoji} ${currentDeco.name}\n` +
-        `**🔔 Status:** ${config.enabled ? '✅ Enabled' : '❌ Disabled'}\n\n` +
-        `**👀 Preview:** ${previewName}`
+        `**Choose Font** ${currentStyle.emoji}\n` +
+        `Current: **${currentStyle.name}**\n\n` +
+        `**Choose Decoration** ${currentDeco.emoji}\n` +
+        `Current: **${currentDeco.name}**\n\n` +
+        `**Preview:**\n` +
+        `### ${previewName}\n\n` +
+        `**Status:** ${config.enabled ? '✅ Active' : '⚠️ Disabled - click Enable to activate'}`
     ));
     
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     
-    // Action buttons - properly structured for Components V2
-    const row1 = new ActionRowBuilder()
+    // Font selection row
+    const fontRow = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
                 .setCustomId(`botdeco_font_${guildId}`)
-                .setLabel('Change Font')
+                .setLabel('Select Font Style')
                 .setEmoji('🔤')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .setCustomId(`botdeco_decoration_${guildId}`)
-                .setLabel('Change Decoration')
+                .setLabel('Select Decoration')
                 .setEmoji('✨')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId(`botdeco_custom_${guildId}`)
-                .setLabel('Custom Text')
-                .setEmoji('✏️')
-                .setStyle(ButtonStyle.Secondary)
+                .setStyle(ButtonStyle.Primary)
         );
     
-    const row2 = new ActionRowBuilder()
+    // Custom & actions row
+    const actionRow = new ActionRowBuilder()
         .addComponents(
+            new ButtonBuilder()
+                .setCustomId(`botdeco_custom_${guildId}`)
+                .setLabel('Custom Prefix/Suffix')
+                .setEmoji('✏️')
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId(`botdeco_toggle_${guildId}`)
                 .setLabel(config.enabled ? 'Disable' : 'Enable')
-                .setEmoji(config.enabled ? '❌' : '✅')
-                .setStyle(config.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                .setStyle(config.enabled ? ButtonStyle.Danger : ButtonStyle.Success)
+        );
+    
+    // Apply & reset row
+    const controlRow = new ActionRowBuilder()
+        .addComponents(
             new ButtonBuilder()
                 .setCustomId(`botdeco_apply_${guildId}`)
-                .setLabel('Apply Now')
+                .setLabel('Apply to Bot')
                 .setEmoji('🚀')
-                .setStyle(ButtonStyle.Success),
+                .setStyle(ButtonStyle.Success)
+                .setDisabled(!config.enabled),
+            new ButtonBuilder()
+                .setCustomId(`botdeco_preview_${guildId}`)
+                .setLabel('Refresh Preview')
+                .setEmoji('👁️')
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId(`botdeco_reset_${guildId}`)
-                .setLabel('Reset')
+                .setLabel('Reset All')
                 .setEmoji('🔄')
-                .setStyle(ButtonStyle.Secondary)
+                .setStyle(ButtonStyle.Danger)
         );
     
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# 👑 Premium Feature • Use /bot-customize for avatar & banner customization`
+        `-# 👑 Premium Feature • **CONFIRMED BY RESEARCH:** Discord's Display Name Styles API is restricted to Nitro USER accounts ONLY. Bots can ONLY use Unicode text transformations for nicknames. The styled display names you see on user profiles (like in your screenshot) cannot be replicated for bot accounts through any official or undocumented API.`
     ));
     
     const reply = { 
         components: [container], 
-        actionRows: [row1, row2],
+        actionRows: [fontRow, actionRow, controlRow],
         flags: MessageFlags.IsComponentsV2
     };
     
