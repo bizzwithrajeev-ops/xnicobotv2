@@ -27,8 +27,11 @@ const log = require('./logger-styled');
 const SNAPSHOT_DIR = path.join(__dirname, '..', 'store_snapshots');
 const MAX_SNAPSHOTS = 48;            // keep the newest 48 (e.g. ~2 days at hourly)
 const AUTO_INTERVAL_MS = 60 * 60 * 1000;  // hourly
+const MAX_SNAPSHOT_AGE_MS = 24 * 60 * 60 * 1000;  // 24 hours
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;  // cleanup check every 1 hour
 
 let _autoTimer = null;
+let _cleanupTimer = null;
 
 function _ensureDir() {
     if (!fs.existsSync(SNAPSHOT_DIR)) {
@@ -88,12 +91,58 @@ async function createSnapshot(reason = 'manual') {
 function _pruneOld() {
     try {
         const files = listSnapshots();
-        if (files.length <= MAX_SNAPSHOTS) return;
-        const toDelete = files.slice(MAX_SNAPSHOTS);
-        for (const f of toDelete) {
-            try { fs.unlinkSync(path.join(SNAPSHOT_DIR, f.name)); } catch {}
+        if (files.length === 0) return;
+
+        const now = Date.now();
+        const toDelete = [];
+        let keptByAge = 0;
+        let keptByCount = 0;
+
+        // First pass: mark files older than 24 hours for deletion
+        for (const f of files) {
+            const age = now - f.createdAt.getTime();
+            if (age > MAX_SNAPSHOT_AGE_MS) {
+                toDelete.push(f);
+            } else {
+                keptByAge++;
+            }
         }
-    } catch {}
+
+        // Second pass: if we still have more than MAX_SNAPSHOTS, delete oldest
+        const remainingFiles = files.filter(f => !toDelete.includes(f));
+        if (remainingFiles.length > MAX_SNAPSHOTS) {
+            const excess = remainingFiles.slice(MAX_SNAPSHOTS);
+            toDelete.push(...excess);
+            keptByCount = MAX_SNAPSHOTS;
+        } else {
+            keptByCount = remainingFiles.length;
+        }
+
+        // Delete marked files
+        if (toDelete.length > 0) {
+            let deletedCount = 0;
+            let freedBytes = 0;
+
+            for (const f of toDelete) {
+                try {
+                    const filePath = path.join(SNAPSHOT_DIR, f.name);
+                    freedBytes += f.size;
+                    fs.unlinkSync(filePath);
+                    deletedCount++;
+                } catch {}
+            }
+
+            if (deletedCount > 0) {
+                log.info(
+                    `[StoreSnapshot] Cleanup: Deleted ${deletedCount} old snapshot(s) ` +
+                    `(freed ${(freedBytes / 1024 / 1024).toFixed(2)} MB), ` +
+                    `kept ${keptByCount} recent snapshot(s)`
+                );
+            }
+        }
+    } catch (err) {
+        log.error(`[StoreSnapshot] Cleanup failed: ${err.message}`);
+    }
 }
 
 /**
@@ -187,14 +236,110 @@ async function restoreSnapshot(name, opts = {}) {
 /**
  * Start the automatic hourly snapshot timer (idempotent). Also takes one
  * snapshot shortly after boot so there's always a recent recovery point.
+ * Additionally starts the cleanup timer to remove snapshots older than 24 hours.
  */
 function startAuto() {
     if (_autoTimer) return;
+    
     // First snapshot 2 min after start (let stores finish loading).
-    setTimeout(() => { createSnapshot('auto-boot').catch(() => {}); }, 2 * 60 * 1000).unref?.();
-    _autoTimer = setInterval(() => { createSnapshot('auto').catch(() => {}); }, AUTO_INTERVAL_MS);
+    setTimeout(() => { 
+        createSnapshot('auto-boot').catch(() => {}); 
+    }, 2 * 60 * 1000).unref?.();
+    
+    // Schedule hourly snapshots
+    _autoTimer = setInterval(() => { 
+        createSnapshot('auto').catch(() => {}); 
+    }, AUTO_INTERVAL_MS);
     if (_autoTimer.unref) _autoTimer.unref();
-    log.success('[StoreSnapshot] Auto-snapshot scheduler started (hourly)');
+    
+    // Schedule cleanup checks (runs every hour to remove old snapshots)
+    _cleanupTimer = setInterval(() => {
+        _pruneOld();
+    }, CLEANUP_INTERVAL_MS);
+    if (_cleanupTimer.unref) _cleanupTimer.unref();
+    
+    // Run initial cleanup after 5 minutes
+    setTimeout(() => {
+        _pruneOld();
+    }, 5 * 60 * 1000).unref?.();
+    
+    log.success('[StoreSnapshot] Auto-snapshot scheduler started (hourly, 24h retention)');
+}
+
+/**
+ * Stop all automatic timers (for graceful shutdown).
+ */
+function stopAuto() {
+    if (_autoTimer) {
+        clearInterval(_autoTimer);
+        _autoTimer = null;
+    }
+    if (_cleanupTimer) {
+        clearInterval(_cleanupTimer);
+        _cleanupTimer = null;
+    }
+    log.info('[StoreSnapshot] Auto-snapshot scheduler stopped');
+}
+
+/**
+ * Manually trigger cleanup of old snapshots (24h+).
+ * Can be called by a command or maintenance script.
+ * @returns {{success, deleted, kept, freedMB}}
+ */
+function cleanupOld() {
+    try {
+        const files = listSnapshots();
+        if (files.length === 0) {
+            return { success: true, deleted: 0, kept: 0, freedMB: 0 };
+        }
+
+        const now = Date.now();
+        const toDelete = [];
+        let keptCount = 0;
+
+        // Mark files older than 24 hours
+        for (const f of files) {
+            const age = now - f.createdAt.getTime();
+            if (age > MAX_SNAPSHOT_AGE_MS) {
+                toDelete.push(f);
+            } else {
+                keptCount++;
+            }
+        }
+
+        // Also respect MAX_SNAPSHOTS limit
+        const remainingFiles = files.filter(f => !toDelete.includes(f));
+        if (remainingFiles.length > MAX_SNAPSHOTS) {
+            const excess = remainingFiles.slice(MAX_SNAPSHOTS);
+            toDelete.push(...excess);
+            keptCount = MAX_SNAPSHOTS;
+        } else {
+            keptCount = remainingFiles.length;
+        }
+
+        // Delete marked files
+        let deletedCount = 0;
+        let freedBytes = 0;
+
+        for (const f of toDelete) {
+            try {
+                const filePath = path.join(SNAPSHOT_DIR, f.name);
+                freedBytes += f.size;
+                fs.unlinkSync(filePath);
+                deletedCount++;
+            } catch {}
+        }
+
+        return {
+            success: true,
+            deleted: deletedCount,
+            kept: keptCount,
+            freedMB: (freedBytes / 1024 / 1024).toFixed(2)
+        };
+    } catch (err) {
+        log.error(`[StoreSnapshot] Manual cleanup failed: ${err.message}`);
+        return { success: false, error: err.message };
+    }
 }
 
 module.exports = {
@@ -202,6 +347,9 @@ module.exports = {
     listSnapshots,
     inspectSnapshot,
     restoreSnapshot,
+    cleanupOld,
     startAuto,
+    stopAuto,
     SNAPSHOT_DIR,
+    MAX_SNAPSHOT_AGE_MS,
 };
