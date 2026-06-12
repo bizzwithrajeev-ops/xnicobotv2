@@ -4186,6 +4186,80 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
 
+            // ═══════ Recording Stop Button ═══════
+            if (interaction.customId.startsWith('record_stop_')) {
+                try {
+                    const { stopRecording } = require('./utils/recordings');
+                    
+                    // Helper function
+                    const formatDuration = (ms) => {
+                        const totalSeconds = Math.max(0, Math.round(ms / 1000));
+                        const hours = Math.floor(totalSeconds / 3600);
+                        const minutes = Math.floor((totalSeconds % 3600) / 60);
+                        const seconds = totalSeconds % 60;
+                        if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+                        return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+                    };
+                    
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                    
+                    const result = await stopRecording(interaction.guild.id, { reason: 'manual stop via button' });
+                    
+                    if (!result.ok) {
+                        const errorContainer = new ContainerBuilder()
+                            .setAccentColor(0xFEE75C)
+                            .addUserProfileComponents(interaction.user)
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                `# No Recording Found\n\n` +
+                                `${result.message}`
+                            ));
+                        
+                        return interaction.editReply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
+                    }
+                    
+                    // Notify that recording stopped
+                    const successContainer = new ContainerBuilder()
+                        .setAccentColor(0x57F287)
+                        .addUserProfileComponents(interaction.user)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# 🎙️ Recording Stopped\n\n` +
+                            `Voice recording has been stopped successfully. Audio files are being processed and will be posted in the channel.`
+                        ));
+                    
+                    await interaction.editReply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
+                    
+                    // Post the recording result to the channel
+                    const { recordingAudioPayload } = require('./utils/recordings');
+                    
+                    const container = new ContainerBuilder()
+                        .setAccentColor(0x57F287)
+                        .addUserProfileComponents(interaction.user)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# 🎙️ Recording Complete\n\n` +
+                            `Recording stopped by <@${interaction.user.id}>.`
+                        ))
+                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `**Duration:** ${formatDuration(result.durationMs)}\n` +
+                            `**Files:** ${result.files?.length || 0} track(s) recorded`
+                        ));
+                    
+                    await interaction.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+                    
+                    // Send audio files
+                    const audioPayload = recordingAudioPayload(result);
+                    if (audioPayload) {
+                        await interaction.channel.send(audioPayload).catch(() => {});
+                    }
+                } catch (error) {
+                    log.error(`Recording stop button error: ${error.message}`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to stop recording.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                    }
+                }
+                return;
+            }
+
             // Handle sticky message interactive buttons
             if (interaction.customId.startsWith('sticky_')) {
                 try {

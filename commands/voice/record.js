@@ -6,7 +6,10 @@ const {
     TextDisplayBuilder,
     SeparatorBuilder,
     SeparatorSpacingSize,
-    SlashCommandBuilder
+    SlashCommandBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ActionRowBuilder
 } = require('discord.js');
 const {
     DEFAULT_MAX_MINUTES,
@@ -19,16 +22,10 @@ const {
     stopRecording,
 } = require('../../utils/recordings');
 const {
-    componentPayload,
-    getUser,
-    sendError,
-} = require('../../utils/hybrid');
-const {
     parsePositiveInt,
     requireGuild,
     requireUserPermission,
 } = require('../../utils/moderationChecks');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
 
 const MAX_RECORDING_MINUTES = 180;
 
@@ -92,15 +89,30 @@ module.exports = {
 };
 
 async function runRecord(target, client, subcommand, isPrefix) {
+    const guild = target.guild || target.message?.guild;
+    const user = target.user || target.author;
+    
+    // Permission checks
     const blocked = requireGuild(target)
         || requireUserPermission(target, PermissionFlagsBits.ManageGuild, 'Manage Server');
 
     if (blocked) {
+        const container = new ContainerBuilder()
+            .setAccentColor(0xED4245)
+            .addUserProfileComponents(user)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# Permission Required\n\n` +
+                `${blocked}`
+            ))
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `-# You need **Manage Server** permission to use voice recording.`
+            ));
+        
         if (isPrefix) {
-            const container = buildErrorResponse('Permission Required', blocked);
             return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
-        return sendError(target, blocked);
+        return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     }
 
     if (['start', 'join', 'begin'].includes(subcommand)) {
@@ -112,84 +124,191 @@ async function runRecord(target, client, subcommand, isPrefix) {
     }
 
     if (['status', 'info'].includes(subcommand)) {
-        const guild = target.message?.guild || target.guild;
-        const statusMessage = formatRecordingStatus(getRecording(guild.id));
-        
-        if (isPrefix) {
-            const container = new ContainerBuilder()
-                .setTitle('Recording Status')
-                .setDescription(statusMessage)
-                .setAccentColor(0xBCF1E4);
-            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-            
-            return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-        
-        return respond(target, componentPayload('Recording Status', statusMessage), isPrefix);
+        return showRecordingStatus(target, isPrefix);
     }
 
-    const errorMsg = 'Use `record start`, `record stop`, or `record status`.';
+    // Invalid subcommand
+    const container = new ContainerBuilder()
+        .setAccentColor(0xFEE75C)
+        .addUserProfileComponents(user)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# Invalid Subcommand\n\n` +
+            `Please use one of the available recording commands.`
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### Available Commands\n` +
+            `• \`/record start\` or \`-record start\` — Start recording voice channel\n` +
+            `• \`/record stop\` or \`-record stop\` — Stop recording and upload files\n` +
+            `• \`/record status\` or \`-record status\` — View current recording status`
+        ));
+    
     if (isPrefix) {
-        const container = buildErrorResponse('Invalid Subcommand', errorMsg);
         return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
-    return sendError(target, errorMsg);
+    return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+}
+
+async function showRecordingStatus(target, isPrefix) {
+    const guild = target.guild || target.message?.guild;
+    const user = target.user || target.author;
+    const session = getRecording(guild.id);
+    
+    const container = new ContainerBuilder()
+        .setAccentColor(session ? 0x57F287 : 0x99AAB5)
+        .addUserProfileComponents(user)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            session 
+                ? `# 🎙️ Recording In Progress\n\n` +
+                  `A voice recording session is currently active in this server.`
+                : `# Voice Recording Status\n\n` +
+                  `No recording is currently running in this server.`
+        ));
+    
+    if (session) {
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### Session Details\n` +
+            `**Voice Channel:** <#${session.channelId}>\n` +
+            `**Recording Mode:** ${session.mode === RECORDING_MODES.GLOBAL ? 'Global Mix' : 'Separate Tracks'}\n` +
+            `**Started By:** <@${session.actorId}>\n` +
+            `**Started:** <t:${Math.floor(session.startedAt.getTime() / 1000)}:R>\n` +
+            `**Auto-Stop:** ${session.maxMinutes} minute(s)\n` +
+            `**Active Tracks:** ${session.participants.size} speaker(s)`
+        ));
+        
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        
+        const stopButton = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`record_stop_${guild.id}_${user.id}`)
+                .setLabel('Stop Recording')
+                .setEmoji('⏹️')
+                .setStyle(ButtonStyle.Danger)
+        );
+        
+        container.addActionRowComponents(stopButton);
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `-# Use \`/record stop\` or click the button above to stop and save the recording.`
+        ));
+    } else {
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### How to Start Recording\n` +
+            `• Join a voice channel\n` +
+            `• Use \`/record start\` or \`-record start\`\n` +
+            `• Choose between global mix or separate tracks\n` +
+            `• Set auto-stop duration (default: 60 minutes)\n\n` +
+            `-# Recordings are automatically deleted after 24 hours.`
+        ));
+    }
+    
+    if (isPrefix) {
+        return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    }
+    return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
 }
 
 async function startRecordCommand(target, client, isPrefix) {
-    const guild = target.message?.guild || target.guild;
-    const actor = getUser(target);
+    const guild = target.guild || target.message?.guild;
+    const user = target.user || target.author;
     const voiceChannel = getVoiceChannelOption(target, isPrefix);
     const maxMinutes = getMinutesOption(target, isPrefix);
     const mode = getModeOption(target, isPrefix);
 
     const result = await startRecording({
-        actor,
+        actor: user,
         client,
         guild,
         maxMinutes,
         mode,
-        textChannel: getCurrentChannel(target),
+        textChannel: target.channel || target.message?.channel,
         voiceChannel,
     });
 
+    const container = new ContainerBuilder()
+        .setAccentColor(result.ok ? 0x57F287 : 0xED4245)
+        .addUserProfileComponents(user)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            result.ok
+                ? `# 🎙️ Recording Started\n\n` +
+                  `Voice recording has been initiated successfully.`
+                : `# Recording Failed\n\n` +
+                  `Unable to start voice recording.`
+        ));
+    
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    
+    if (result.ok) {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### Configuration\n` +
+            `**Voice Channel:** ${voiceChannel}\n` +
+            `**Mode:** ${mode === RECORDING_MODES.GLOBAL ? 'Global Mix (everyone in one file)' : 'Separate Tracks (each speaker gets their own file)'}\n` +
+            `**Auto-Stop:** ${maxMinutes} minute(s)\n` +
+            `**Status:** Recording all voice activity\n\n` +
+            `### Next Steps\n` +
+            `• Speak in the voice channel to be recorded\n` +
+            `• Use \`/record stop\` when finished\n` +
+            `• Recording will auto-stop after ${maxMinutes} minute(s)\n` +
+            `• Files will be uploaded when you stop`
+        ));
+    } else {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `**Error:** ${result.message}\n\n` +
+            `### Common Issues\n` +
+            `• Make sure you're in a voice channel\n` +
+            `• Check if a recording is already running (\`/record status\`)\n` +
+            `• Verify the bot has proper voice permissions\n` +
+            `• Ensure the voice channel is accessible`
+        ));
+    }
+    
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `-# Recordings are automatically deleted after 24 hours.`
+    ));
+    
     if (isPrefix) {
-        const container = result.ok
-            ? buildSuccessResponse('Recording Started', result.message)
-            : buildErrorResponse('Recording Blocked', result.message);
-        
-        container.setAccentColor(result.ok ? 0x57F287 : 0xED4245);
-        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-        
         return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
-
-    return respond(target, componentPayload(
-        result.ok ? 'Recording started' : 'Recording blocked',
-        result.message,
-        !result.ok && !target.message,
-    ), isPrefix);
+    return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
 }
 
 async function stopRecordCommand(target, isPrefix) {
-    if (!isPrefix) {
-        await deferIfNeeded(target);
+    const guild = target.guild || target.message?.guild;
+    const user = target.user || target.author;
+    
+    // Defer if interaction
+    if (!isPrefix && !target.deferred && !target.replied) {
+        await target.deferReply().catch(() => null);
     }
 
-    const guild = target.message?.guild || target.guild;
     const result = await stopRecording(guild.id, { reason: 'manual stop' });
 
     if (!result.ok) {
+        const container = new ContainerBuilder()
+            .setAccentColor(0xFEE75C)
+            .addUserProfileComponents(user)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `# No Recording Found\n\n` +
+                `${result.message}`
+            ))
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `-# Use \`/record status\` to check if a recording is active.`
+            ));
+        
         if (isPrefix) {
-            const container = buildErrorResponse('Recording Status', result.message);
             return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
-        return respond(target, componentPayload('Recording status', result.message, !target.message), isPrefix);
+        
+        if (target.deferred) {
+            return target.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+        return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     }
 
-    return sendRecordingResult(target, result, isPrefix);
+    return sendRecordingResult(target, result, user, isPrefix);
 }
 
 function getVoiceChannelOption(target, isPrefix) {
@@ -200,13 +319,14 @@ function getVoiceChannelOption(target, isPrefix) {
     }
 
     // Prefix command parsing
+    const member = target.member;
     const args = target.content?.split(' ').slice(1) || [];
     const explicit = args
         .slice(1)
         .map((arg) => resolveVoiceChannel(target, arg))
         .find(Boolean);
 
-    return explicit || target.member?.voice?.channel || null;
+    return explicit || member?.voice?.channel || null;
 }
 
 function getMinutesOption(target, isPrefix) {
@@ -250,61 +370,86 @@ function resolveVoiceChannel(target, input) {
     ) || null;
 }
 
-function getCurrentChannel(target) {
-    return target.message?.channel || target.channel;
-}
-
-async function deferIfNeeded(target) {
-    if (target.message || target.deferred || target.replied) return;
-    await target.deferReply().catch(() => null);
-}
-
-async function respond(target, payload, isPrefix) {
-    if (target.message) return target.reply(payload);
-    if (target.deferred) return target.editReply(payload);
-    if (target.replied) return target.followUp(payload);
-    return target.reply(payload);
-}
-
-async function sendRecordingResult(target, result, isPrefix) {
-    if (isPrefix) {
-        // Send summary in bot's container format
-        const { omitted, uploadable } = getUploadPlan(result);
-        const lines = [
-            result.session?.mode ? `Mode: **${result.session.mode === RECORDING_MODES.GLOBAL ? 'global mix' : 'separate tracks'}**` : null,
-            `Reason: **${result.reason || 'manual stop'}**`,
-            result.durationMs ? `Duration: **${formatDuration(result.durationMs)}**` : null,
-            `Tracks recorded: **${result.files?.length || 0}**`,
-            uploadable.length ? `Playable tracks: **${uploadable.length}** - posted below` : null,
-            omitted.length ? `Not uploaded: **${omitted.length}** track(s) were too large or over the attachment limit.` : null,
-            result.files?.length ? '' : 'No voice was captured. Someone needs to speak after recording starts.',
-        ].filter((line) => line !== null);
-
-        const container = buildSuccessResponse('Recording Stopped', lines.join('\n'));
-        container.setAccentColor(0x57F287);
+async function sendRecordingResult(target, result, user, isPrefix) {
+    const { omitted, uploadable } = getUploadPlan(result);
+    
+    // Create summary container
+    const container = new ContainerBuilder()
+        .setAccentColor(0x57F287)
+        .addUserProfileComponents(user)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `# 🎙️ Recording Stopped\n\n` +
+            `Voice recording has been stopped and processed.`
+        ));
+    
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    
+    const sessionInfo = [
+        `**Mode:** ${result.session?.mode === RECORDING_MODES.GLOBAL ? 'Global Mix' : 'Separate Tracks'}`,
+        `**Reason:** ${result.reason || 'manual stop'}`,
+        result.durationMs ? `**Duration:** ${formatDuration(result.durationMs)}` : null,
+        `**Tracks Recorded:** ${result.files?.length || 0}`,
+    ].filter(Boolean).join('\n');
+    
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(sessionInfo));
+    
+    if (result.files?.length > 0) {
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-
+        
+        const uploadInfo = [];
+        if (uploadable.length > 0) {
+            uploadInfo.push(`✅ **${uploadable.length}** audio file(s) will be posted below`);
+        }
+        if (omitted.length > 0) {
+            uploadInfo.push(`⚠️ **${omitted.length}** file(s) were too large to upload (over 24MB limit)`);
+        }
+        
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(uploadInfo.join('\n')));
+        
+        // Add track list
+        if (result.files.length <= 10) {
+            container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+            const trackList = result.files.map((file, index) => {
+                const skipped = file.invalidPackets ? ` (skipped ${file.invalidPackets} bad packets)` : '';
+                const speakers = file.speakerCount ? ` • ${file.speakerCount} speakers` : '';
+                return `${index + 1}. **${file.displayName}** — ${formatBytes(file.size)}${speakers}${skipped}`;
+            }).join('\n');
+            
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `### Recorded Tracks\n${trackList}`
+            ));
+        }
+    } else {
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `⚠️ **No voice was captured**\n\nSomeone needs to speak in the voice channel after recording starts for audio to be captured.`
+        ));
+    }
+    
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `-# Recordings are automatically deleted after 24 hours.`
+    ));
+    
+    // Send summary
+    if (isPrefix) {
         await target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } else if (target.deferred) {
+        await target.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } else {
+        await target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    }
 
-        // Send audio files if available
-        const audioPayload = recordingAudioPayload(result);
-        if (audioPayload) {
-            await target.channel.send(audioPayload).catch((error) => {
+    // Send audio files if available
+    const audioPayload = recordingAudioPayload(result);
+    if (audioPayload) {
+        const channel = target.channel || target.message?.channel;
+        if (channel) {
+            await channel.send(audioPayload).catch((error) => {
                 console.warn('[Record] Could not send audio files:', error?.message || error);
             });
         }
-
-        return;
     }
-
-    await respond(target, recordingSummaryPayload(result), isPrefix);
-
-    const audioPayload = recordingAudioPayload(result);
-    if (!audioPayload) return null;
-
-    if (target.message) return target.channel.send(audioPayload);
-    return target.followUp(audioPayload);
 }
 
 function getUploadPlan(result) {
@@ -333,7 +478,18 @@ function getUploadPlan(result) {
 
 function formatDuration(ms) {
     const totalSeconds = Math.max(0, Math.round(ms / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+    }
+    return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
