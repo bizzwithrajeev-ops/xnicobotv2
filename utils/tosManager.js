@@ -54,9 +54,9 @@ function declineTos(userId) {
 }
 
 /**
- * Build ToS acceptance panel
+ * Build ToS acceptance panel with user context
  */
-function buildTosPanel() {
+function buildTosPanel(user) {
     const buttonRow = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
@@ -68,30 +68,38 @@ function buildTosPanel() {
                 .setCustomId('tos_decline')
                 .setLabel('Decline')
                 .setEmoji('❌')
-                .setStyle(ButtonStyle.Danger)
+                .setStyle(ButtonStyle.Secondary)
         );
 
     const container = new ContainerBuilder()
         .setAccentColor(0x5865F2)
+        .addUserProfileComponents(user)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 📜 Terms of Service\n\n` +
-            `Welcome to **xNico Bot**! Before you can use the bot, please read and accept our Terms of Service.\n\n` +
-            `### By using this bot, you agree to:\n` +
-            `• Follow Discord's Terms of Service and Community Guidelines\n` +
-            `• Use the bot's features responsibly and ethically\n` +
-            `• Not abuse, exploit, or misuse bot commands\n` +
-            `• Allow the bot to collect necessary data (user IDs, server settings) for functionality\n` +
-            `• Understand that premium features require separate activation\n\n` +
-            `### We will:\n` +
-            `• Protect your data and never sell it to third parties\n` +
-            `• Provide reliable service to the best of our ability\n` +
-            `• Respect your privacy and server settings\n` +
-            `• Continue improving and updating the bot\n\n` +
-            `-# For full terms, visit: https://thenico.vercel.app/terms`
+            `# Terms of Service Agreement\n\n` +
+            `Welcome, **${user.username}**! Before accessing xNico Bot's features, please review and accept our Terms of Service.`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `**Please select an option below:**`
+            `### Your Responsibilities\n` +
+            `• Comply with Discord's Terms of Service and Community Guidelines\n` +
+            `• Use bot features responsibly and ethically\n` +
+            `• Avoid abuse, exploitation, or misuse of commands\n` +
+            `• Respect other users and server rules\n\n` +
+            `### Data Collection & Privacy\n` +
+            `• We collect user IDs and server settings for bot functionality\n` +
+            `• Your data is protected and never sold to third parties\n` +
+            `• We respect your privacy and follow GDPR guidelines\n` +
+            `• You can request data deletion at any time\n\n` +
+            `### Service Commitment\n` +
+            `• We provide reliable service to the best of our ability\n` +
+            `• Regular updates and improvements to enhance your experience\n` +
+            `• Premium features available with separate activation\n` +
+            `• Support available through our community server`
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `**By clicking "Accept & Continue", you confirm that you have read and agree to these terms.**\n\n` +
+            `-# Full terms available at: https://thenico.vercel.app/terms`
         ))
         .addActionRowComponents(buttonRow);
 
@@ -105,20 +113,24 @@ async function sendAcceptanceDM(user) {
     try {
         const dmEmbed = new ContainerBuilder()
             .setAccentColor(0x57F287)
+            .addUserProfileComponents(user)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# ✅ Terms of Service Accepted\n\n` +
-                `Thank you for accepting the xNico Bot Terms of Service!\n\n` +
-                `You can now use all available bot commands. Start with \`-help\` to see what I can do.\n\n` +
-                `**Popular Commands:**\n` +
-                `• \`-help\` — View all commands\n` +
-                `• \`-play <song>\` — Play music\n` +
-                `• \`-profile\` — View your profile\n` +
-                `• \`-economy\` — Check economy commands\n\n` +
-                `Enjoy using xNico Bot! 🎉`
+                `# Welcome to xNico Bot!\n\n` +
+                `Thank you for accepting our Terms of Service. You now have full access to all bot features.`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `-# Need help? Join our support server: https://discord.gg/Zs35X7Umak`
+                `### Getting Started\n` +
+                `• Use \`/help\` or \`-help\` to view all commands\n` +
+                `• Check \`/profile\` to see your user profile\n` +
+                `• Try \`/play <song>\` to enjoy music features\n` +
+                `• Explore economy with \`/economy\` or \`/daily\`\n\n` +
+                `### Need Assistance?\n` +
+                `Join our support server for help, updates, and community discussions.`
+            ))
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `-# Support Server: https://discord.gg/Zs35X7Umak`
             ));
 
         await user.send({ 
@@ -139,12 +151,23 @@ async function sendDeclineDM(user) {
     try {
         const dmEmbed = new ContainerBuilder()
             .setAccentColor(0xED4245)
+            .addUserProfileComponents(user)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# ❌ Terms of Service Declined\n\n` +
-                `You have declined the xNico Bot Terms of Service.\n\n` +
-                `**You will not be able to use bot commands until you accept the terms.**\n\n` +
-                `To accept the terms later, simply try using any bot command again and click "Accept & Continue".\n\n` +
-                `-# If you have questions, join our support server: https://discord.gg/Zs35X7Umak`
+                `# Terms of Service Declined\n\n` +
+                `You have declined the xNico Bot Terms of Service.`
+            ))
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `### What This Means\n` +
+                `• You cannot use bot commands until you accept the terms\n` +
+                `• No data will be collected or stored about you\n` +
+                `• You can change your decision at any time\n\n` +
+                `### Ready to Accept?\n` +
+                `Simply try using any bot command again, and you'll see the Terms of Service prompt where you can click "Accept & Continue".`
+            ))
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `-# Questions? Join our support server: https://discord.gg/Zs35X7Umak`
             ));
 
         await user.send({ 

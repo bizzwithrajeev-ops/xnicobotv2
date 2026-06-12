@@ -4123,16 +4123,29 @@ client.on('interactionCreate', async (interaction) => {
                 
                 const container = new ContainerBuilder()
                     .setAccentColor(0x57F287)
+                    .addUserProfileComponents(interaction.user)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# ✅ Terms of Service Accepted\n\n` +
-                        `Thank you for accepting! You can now use all bot commands.\n\n` +
-                        (dmSent ? `A confirmation has been sent to your DMs with useful information.` : `*Note: Couldn't send DM (DMs disabled). Check your DM settings if you want bot notifications.*`) +
-                        `\n\nStart with \`-help\` or \`/help\` to see available commands!`
+                        `# Terms of Service Accepted\n\n` +
+                        `Thank you, **${interaction.user.username}**! You now have full access to all bot commands and features.`
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `### Quick Start Guide\n` +
+                        `• Type \`/help\` or \`-help\` to see all available commands\n` +
+                        `• Check out \`/profile\` to view your user profile\n` +
+                        `• Try music commands with \`/play <song>\`\n` +
+                        `• Explore economy features with \`/daily\` and \`/balance\`\n\n` +
+                        (dmSent 
+                            ? `✅ A detailed welcome message has been sent to your DMs.` 
+                            : `⚠️ Couldn't send a DM (your DMs may be disabled). Enable DMs to receive bot notifications.`)
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `-# Enjoy using xNico Bot! Need help? Join our support server.`
                     ));
                 
                 await interaction.update({ 
                     components: [container], 
-                    actionRows: [],
                     flags: MessageFlags.IsComponentsV2 
                 });
                 return;
@@ -4149,16 +4162,25 @@ client.on('interactionCreate', async (interaction) => {
                 
                 const container = new ContainerBuilder()
                     .setAccentColor(0xED4245)
+                    .addUserProfileComponents(interaction.user)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# ❌ Terms of Service Declined\n\n` +
-                        `You have declined the Terms of Service.\n\n` +
-                        `**You cannot use bot commands until you accept the terms.**\n\n` +
-                        `To accept later, simply try using any bot command and click "Accept & Continue".`
+                        `# Terms of Service Declined\n\n` +
+                        `You have declined the Terms of Service, **${interaction.user.username}**.`
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `### Access Restricted\n` +
+                        `You cannot use bot commands until you accept the terms.\n\n` +
+                        `### Changed Your Mind?\n` +
+                        `You can accept the Terms of Service anytime by trying to use any bot command. You'll see the acceptance prompt again where you can click "Accept & Continue".`
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `-# Have questions? Join our support server: https://discord.gg/Zs35X7Umak`
                     ));
                 
                 await interaction.update({ 
                     components: [container], 
-                    actionRows: [],
                     flags: MessageFlags.IsComponentsV2 
                 });
                 return;
@@ -7827,7 +7849,7 @@ client.on('interactionCreate', async (interaction) => {
         // ═══════ ToS Acceptance Check ═══════
         const tosManager = require('./utils/tosManager');
         if (!tosManager.hasAcceptedTos(interaction.user.id)) {
-            const container = tosManager.buildTosPanel();
+            const container = tosManager.buildTosPanel(interaction.user);
             
             return interaction.reply({
                 components: [container],
@@ -10032,7 +10054,7 @@ client.on('messageCreate', async (message) => {
             // ═══════ ToS Acceptance Check ═══════
             const tosManager = require('./utils/tosManager');
             if (!tosManager.hasAcceptedTos(message.author.id)) {
-                const container = tosManager.buildTosPanel();
+                const container = tosManager.buildTosPanel(message.author);
                 
                 return message.reply({
                     components: [container],
