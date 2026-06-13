@@ -46,7 +46,6 @@ module.exports = {
         });
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `### <:Key:1473038690606649375> Bot Invite Links\n` +

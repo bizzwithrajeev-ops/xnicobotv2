@@ -12,7 +12,6 @@ function mockText(text) {
 
 function buildMockContainer(text) {
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# 🤡 Mocking Text\n\n${mockText(text)}`)
         );
@@ -44,7 +43,6 @@ module.exports = {
 
         if (!text) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to mock!\n\n**Usage:** \`-mock <text>\`\n**Example:** \`-mock this is a test\``

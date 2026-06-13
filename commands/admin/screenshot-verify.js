@@ -387,7 +387,6 @@ module.exports = {
                 value: t.id
             }));
             const c = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### <:Editalt:1473038138577256670> Re-assign Task\nPick the correct task for submission \`${subId}\`.`
                 ))
@@ -1107,7 +1106,6 @@ async function handleResetConfirm(interaction) {
 
 async function openChannelSelect(interaction, customId, title, desc) {
     const c = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Chat:1473038936241864865> ${title}\n-# ${desc}`
         ))
@@ -1141,7 +1139,6 @@ async function openTaskTypeSelect(interaction) {
         value: type
     }));
     const c = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Add:1473038100862337035> New Verification Task\nPick the type. We'll pre-fill sensible defaults.`
         ))
@@ -1309,7 +1306,6 @@ async function openActionRoleSelect(interaction, taskId, kind /* 'add_role'|'rem
 async function openActionChannelSelect(interaction, taskId) {
     setPending(interaction.guild.id, interaction.user.id, { kind: 'send_channel', taskId });
     const c = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Chat:1473038936241864865> Pick channel for the announcement\n-# After picking the channel, you'll write the message content.`
         ))

@@ -29,7 +29,7 @@ module.exports = {
         try {
             const result = createBackup(interaction.guild.id);
             if (result.success) {
-                const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const ctr = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Backup Created\n\n` +
                         `**<:Box:1473039115581915256> Name:** \`${result.backupName}\`\n` +
@@ -54,7 +54,7 @@ module.exports = {
         const uid = message.author.id;
         const sid = `${uid}_${Date.now().toString(36)}`;
 
-        const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const ctr = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Box:1473039115581915256> Create Config Backup\n\n` +
                 `This will save all current server configurations (welcomer, tickets, automod, etc.) to a backup file.\n`
@@ -81,7 +81,7 @@ module.exports = {
                 try {
                     const result = createBackup(message.guild.id);
                     if (result.success) {
-                        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                        const ok = new ContainerBuilder()
                             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                 `# <:Checkedbox:1473038547165384804> Backup Created\n\n` +
                                 `**<:Box:1473039115581915256> Name:** \`${result.backupName}\`\n` +
@@ -100,7 +100,7 @@ module.exports = {
                 }
             }
 
-            return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled.'))], flags: MessageFlags.IsComponentsV2 });
+            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled.'))], flags: MessageFlags.IsComponentsV2 });
         });
 
         collector.on('end', (_, reason) => {

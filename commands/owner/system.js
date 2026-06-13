@@ -56,7 +56,6 @@ module.exports = {
         const sysMemPercent = ((usedMem / totalMem) * 100).toFixed(1);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Settings:1473037894703779851> System Monitor`)
             )

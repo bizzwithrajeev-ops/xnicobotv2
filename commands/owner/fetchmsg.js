@@ -51,7 +51,6 @@ module.exports = {
         const components = msg.components.length;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `### <:Document:1473039496995143731> Fetched Message\n` +

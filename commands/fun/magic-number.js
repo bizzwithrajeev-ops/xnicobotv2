@@ -28,7 +28,6 @@ module.exports = {
         const magicNumber = Math.floor(Math.random() * max) + 1;
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🔮 Magic Number\n\n` +
@@ -47,7 +46,6 @@ module.exports = {
         
         if (max < 1 || max > 10000) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Invalid Range\n\nPlease provide a number between 1 and 10000!`
@@ -59,7 +57,6 @@ module.exports = {
         const magicNumber = Math.floor(Math.random() * max) + 1;
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🔮 Magic Number\n\n` +

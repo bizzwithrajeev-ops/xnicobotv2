@@ -40,7 +40,7 @@ const GLOBAL_PRIORITY = new Set([
     'ban', 'unban', 'unbanall', 'banlist', 'hackban', 'softban',
     'kick', 'mute', 'unmute', 'timeout', 'untimeout',
     'warn', 'warnings', 'removewarn', 'clearwarnings', 'warnconfig',
-    'massban', 'masskick', 'massnick', 'massrole',
+    'massban', 'masskick', 'massnick',
     'cases', 'modhistory', 'reason',
 
     // ── Moderation: cleanup & utility ──
@@ -72,7 +72,7 @@ const GLOBAL_PRIORITY = new Set([
     // ── Automation & engagement ──
     'welcomer', 'autorole', 'ticket-setup', 'ticket-add', 'ticket-remove', 'ticket-close', 'ticket-categories',
     'giveaway', 'reactionroles', 'autoresponder', 'autoreact', 'starboard-setup',
-    'poll', 'sticky-message', 'youtube-notify', 'social-notify', 'automeme',
+    'poll', 'sticky-message', 'youtube-notify', 'social-notify',
     'snipe', 'editsnipe', 'afk', 'reminder', 'announce', 'invite-setup',
 
     // ── Builders & tools ──

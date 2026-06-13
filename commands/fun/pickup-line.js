@@ -49,7 +49,6 @@ module.exports = {
         content += `*"${line}"*\n\n-# Use wisely! 💘`;
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(content)
             );
@@ -68,7 +67,6 @@ module.exports = {
         content += `*"${line}"*\n\n-# Use wisely! 💘`;
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(content)
             );

@@ -36,7 +36,7 @@ module.exports = {
         try {
             const result = deleteBackup(interaction.guild.id, name);
             if (result.success) {
-                return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Deleted\n\nDeleted **\`${result.backupName}\`**.`))], flags: MessageFlags.IsComponentsV2 });
+                return interaction.editReply({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Deleted\n\nDeleted **\`${result.backupName}\`**.`))], flags: MessageFlags.IsComponentsV2 });
             }
             return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Delete Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
@@ -88,7 +88,7 @@ module.exports = {
                 try {
                     const result = deleteBackup(message.guild.id, name);
                     if (result.success) {
-                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Deleted\n\nDeleted **\`${name}\`** successfully.`))], flags: MessageFlags.IsComponentsV2 });
+                        return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Deleted\n\nDeleted **\`${name}\`** successfully.`))], flags: MessageFlags.IsComponentsV2 });
                     }
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
                 } catch (err) {
@@ -96,7 +96,7 @@ module.exports = {
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
                 }
             }
-            return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Cancelled. Backup **\`${name}\`** is safe.`))], flags: MessageFlags.IsComponentsV2 });
+            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Cancelled. Backup **\`${name}\`** is safe.`))], flags: MessageFlags.IsComponentsV2 });
         });
 
         collector.on('end', (_, reason) => {

@@ -256,7 +256,6 @@ function userSelectPanel(customId, title, hint) {
     return {
         components: [
             new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:User:1473038971398520977> ${title}\n-# ${hint}`))
                 .addActionRowComponents(new ActionRowBuilder().addComponents(
                     new UserSelectMenuBuilder().setCustomId(customId).setPlaceholder('Pick a member…').setMinValues(1).setMaxValues(1)
@@ -351,7 +350,6 @@ async function handleJ2CButtons(interaction) {
             const inv = await channel.createInvite({ maxAge: 3600, maxUses: 10, unique: true });
             return interaction.reply({
                 components: [new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Attach:1473037923979886694> Voice Channel Invite`))
                     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -382,7 +380,6 @@ async function handleJ2CButtons(interaction) {
 
         return interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Document:1473039496995143731> Channel Information`))
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(

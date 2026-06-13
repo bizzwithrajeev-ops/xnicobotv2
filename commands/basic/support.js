@@ -11,7 +11,6 @@ function buildSupportResponse(client) {
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: client.user.displayAvatarURL({ size: 256 }) } }));
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(

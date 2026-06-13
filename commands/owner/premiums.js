@@ -211,7 +211,7 @@ function buildPage(client, activeUsers, activeServers, page, view) {
         if (activeServers.length > 5) content += `> *...and ${activeServers.length - 5} more*\n`;
     }
 
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
     // Add view switcher

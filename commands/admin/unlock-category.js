@@ -48,7 +48,6 @@ module.exports = {
             })));
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Unlock:1473038516639236269> Unlock Category\n\n> Select a category below to unlock all its channels.\n> This will allow ${roleName} to send messages again.\n> **Role:** ${roleName}`
             ))
@@ -74,7 +73,6 @@ module.exports = {
             }
 
             const loadingContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <a:Loading:1485248248720658472> Unlocking Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
                 ));
@@ -89,7 +87,6 @@ module.exports = {
             }
 
             const resultContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Unlock:1473038516639236269> Category Unlocked\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> **Channels Unlocked:** ${unlocked}\n> **Failed:** ${failed}\n\n<:Checkedbox:1473038547165384804> All channels in this category are now unlocked for ${roleName}.`
                 ));
@@ -130,7 +127,6 @@ module.exports = {
             })));
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Unlock:1473038516639236269> Unlock Category\n\n> Select a category below to unlock all its channels.\n> **Role:** ${roleName}`
             ))
@@ -151,7 +147,6 @@ module.exports = {
             if (!category) return reply.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Error\n\nCategory not found!'))], flags: MessageFlags.IsComponentsV2 });
 
             const loadingContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <a:Loading:1485248248720658472> Unlocking Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
                 ));
@@ -166,7 +161,6 @@ module.exports = {
             }
 
             const resultContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Unlock:1473038516639236269> Category Unlocked\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> **Channels Unlocked:** ${unlocked}\n> **Failed:** ${failed}\n\n<:Checkedbox:1473038547165384804> All channels in this category are now unlocked for ${roleName}.`
                 ));

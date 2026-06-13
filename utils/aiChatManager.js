@@ -159,7 +159,7 @@ async function generateAIResponse(userMessage, channelId, config) {
         const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey || apiKey.length < 10) {
             log.error('[AI Chat] GROQ_API_KEY is not set or too short. Get one from https://console.groq.com/keys');
-            return '❌ AI API key not configured. Ask bot owner to set `GROQ_API_KEY` in environment variables.';
+            return '<:Cancel:1473037949187657818> AI API key not configured. Ask bot owner to set `GROQ_API_KEY` in environment variables.';
         }
 
         // Add user message to history
@@ -207,15 +207,15 @@ async function generateAIResponse(userMessage, channelId, config) {
             log.error(`[AI Chat] Groq API error ${response.status}: ${errorMsg}`);
 
             if (response.status === 401) {
-                return '❌ Invalid API key. The bot owner needs to update `GROQ_API_KEY`. Get a new key at https://console.groq.com/keys';
+                return '<:Cancel:1473037949187657818> Invalid API key. The bot owner needs to update `GROQ_API_KEY`. Get a new key at https://console.groq.com/keys';
             } else if (response.status === 429) {
                 return '⏱️ Rate limited by AI provider. Please wait a moment and try again.';
             } else if (response.status === 404 || response.status === 400) {
                 // Model might be deprecated, try default
                 log.error(`[AI Chat] Model "${model}" may be deprecated. Falling back to ${DEFAULT_MODEL}`);
-                return `❌ AI model error. The server admin should update the model in \`/aichat-setup\`.`;
+                return `<:Cancel:1473037949187657818> AI model error. The server admin should update the model in \`/aichat-setup\`.`;
             } else {
-                return `❌ AI error (${response.status}). Try again later.`;
+                return `<:Cancel:1473037949187657818> AI error (${response.status}). Try again later.`;
             }
         }
 
@@ -223,7 +223,7 @@ async function generateAIResponse(userMessage, channelId, config) {
         const aiMessage = data.choices?.[0]?.message?.content;
 
         if (!aiMessage) {
-            return '❌ No response from AI. Try again.';
+            return '<:Cancel:1473037949187657818> No response from AI. Try again.';
         }
 
         // Add AI response to history
@@ -240,7 +240,7 @@ async function generateAIResponse(userMessage, channelId, config) {
             return '⏱️ AI response took too long. Try again.';
         }
 
-        return `❌ AI error: ${e.message}`;
+        return `<:Cancel:1473037949187657818> AI error: ${e.message}`;
     }
 }
 

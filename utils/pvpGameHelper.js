@@ -136,19 +136,18 @@ function buildChallenge({ gameLabel, gameEmoji = '⚔️', challengerId, opponen
     ].join('\n');
 
     const c = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addActionRowComponents(new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`${idPrefix}_accept_${challengeId}`)
                 .setLabel('Accept')
                 .setStyle(ButtonStyle.Success)
-                .setEmoji('✅'),
+                .setEmoji('<:Checkedbox:1473038547165384804>'),
             new ButtonBuilder()
                 .setCustomId(`${idPrefix}_decline_${challengeId}`)
                 .setLabel('Decline')
                 .setStyle(ButtonStyle.Danger)
-                .setEmoji('❌')
+                .setEmoji('<:Cancel:1473037949187657818>')
         ));
 
     return { components: [c], flags: MessageFlags.IsComponentsV2, allowedMentions: { users: [opponentId] } };

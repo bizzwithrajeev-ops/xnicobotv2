@@ -57,7 +57,6 @@ module.exports = {
                 });
             }
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# 🙃 Upside Down Text\n\n**Original:**\n${text}\n\n**Flipped:**\n${result}`
                 ));

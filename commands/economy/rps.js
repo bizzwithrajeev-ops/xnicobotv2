@@ -26,9 +26,9 @@ const {
 } = require('../../utils/pvpGameHelper');
 
 const CHOICES = {
-    rock:     { emoji: '🪨', label: 'Rock',     beats: 'scissors' },
-    paper:    { emoji: '📜', label: 'Paper',    beats: 'rock'     },
-    scissors: { emoji: '✂️', label: 'Scissors', beats: 'paper'    }
+    rock: { emoji: '🪨', label: 'Rock', beats: 'scissors' },
+    paper: { emoji: '📜', label: 'Paper', beats: 'rock' },
+    scissors: { emoji: '✂️', label: 'Scissors', beats: 'paper' }
 };
 const CHOICE_LIST = Object.keys(CHOICES);
 
@@ -62,7 +62,7 @@ async function handleSolo(reply, userId, guildId, choice, betArg) {
     const now = Date.now();
     if ((cooldowns.get(userId) || 0) > now) {
         const left = Math.ceil((cooldowns.get(userId) - now) / 1000);
-        const c = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const c = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `<:Sandwatch:1473038580094861545> Wait **${left}s** before playing again.`
             ));
@@ -74,7 +74,7 @@ async function handleSolo(reply, userId, guildId, choice, betArg) {
 
     if (!betResult.valid) {
         if (!betArg) {
-            const c = new ContainerBuilder().setAccentColor(0xCAD7E6)
+            const c = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent([
                     `# ✊ Rock Paper Scissors`,
                     ``,
@@ -105,9 +105,9 @@ async function handleSolo(reply, userId, guildId, choice, betArg) {
     const b = CHOICES[botChoice];
 
     let outcome, profit, payout;
-    if (choice === botChoice) { outcome = 'tie';  profit = 0;     payout = bet;     }
-    else if (p.beats === botChoice) { outcome = 'win';  profit = bet;   payout = bet * 2; }
-    else                             { outcome = 'lose'; profit = -bet;  payout = 0;       }
+    if (choice === botChoice) { outcome = 'tie'; profit = 0; payout = bet; }
+    else if (p.beats === botChoice) { outcome = 'win'; profit = bet; payout = bet * 2; }
+    else { outcome = 'lose'; profit = -bet; payout = 0; }
 
     const economy = economyManager.loadEconomy();
     const { userData } = economyManager.getUser(economy, userId);
@@ -123,9 +123,9 @@ async function handleSolo(reply, userId, guildId, choice, betArg) {
     economyManager.saveEconomy(economy);
 
     let resultText, color;
-    if (outcome === 'win')      { resultText = `<:Checkedbox:1473038547165384804> **You Win!** +${formatCoins(profit, guildId)}`; color = 0x57F287; }
-    else if (outcome === 'lose') { resultText = `<:Cancel:1473037949187657818> **You Lose!** -${formatCoins(bet, guildId)}`;   color = 0xED4245; }
-    else                         { resultText = `🤝 **Tie!** Bet refunded.`;                                                          color = 0xFEE75C; }
+    if (outcome === 'win') { resultText = `<:Checkedbox:1473038547165384804> **You Win!** +${formatCoins(profit, guildId)}`; color = 0x57F287; }
+    else if (outcome === 'lose') { resultText = `<:Cancel:1473037949187657818> **You Lose!** -${formatCoins(bet, guildId)}`; color = 0xED4245; }
+    else { resultText = `🤝 **Tie!** Bet refunded.`; color = 0xFEE75C; }
 
     const content = [
         `# ✊ Rock Paper Scissors`,
@@ -152,7 +152,7 @@ function buildPvpPickContainer(game, finalChoices = null) {
     const bName = `<@${game.bId}>`;
     const aPicked = !!game.aPick;
     const bPicked = !!game.bPick;
-    const indicator = (picked) => picked ? '✅ Picked' : '⏳ Choosing...';
+    const indicator = (picked) => picked ? '<:Checkedbox:1473038547165384804> Picked' : '⏳ Choosing...';
 
     let body;
     let accent = 0xCAD7E6;
@@ -234,11 +234,11 @@ async function handleChallengeButton(interaction) {
     const ch = challenges.get(challengeId);
 
     if (!ch) {
-        await interaction.reply({ content: '<:Cancel:1473037949187657818> Challenge expired.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.reply({ content: '<:Cancel:1473037949187657818> Challenge expired.', flags: MessageFlags.Ephemeral }).catch(() => { });
         return true;
     }
     if (interaction.user.id !== ch.opponentId) {
-        await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the challenged user can respond.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the challenged user can respond.', flags: MessageFlags.Ephemeral }).catch(() => { });
         return true;
     }
 
@@ -248,7 +248,7 @@ async function handleChallengeButton(interaction) {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# ✊ Challenge Declined\n\n<@${ch.opponentId}> declined the match.`
             ));
-        await interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        await interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         return true;
     }
 
@@ -257,13 +257,13 @@ async function handleChallengeButton(interaction) {
     const b = economyManager.getUser(economy, ch.opponentId).userData;
     if (a.coins < ch.bet || b.coins < ch.bet) {
         challenges.delete(challengeId);
-        await interaction.update(pvpError(`One of the players no longer has enough coins for this match.`)).catch(() => {});
+        await interaction.update(pvpError(`One of the players no longer has enough coins for this match.`)).catch(() => { });
         return true;
     }
 
     challenges.delete(challengeId);
     const container = startPvpGame(ch.challengerId, ch.opponentId, ch.guildId, ch.bet);
-    await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
     return true;
 }
 
@@ -277,22 +277,22 @@ async function handlePickButton(interaction) {
     const game = games.get(gameId);
 
     if (!game) {
-        await interaction.reply({ content: '<:Cancel:1473037949187657818> Match expired.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.reply({ content: '<:Cancel:1473037949187657818> Match expired.', flags: MessageFlags.Ephemeral }).catch(() => { });
         return true;
     }
 
     if (interaction.user.id !== game.aId && interaction.user.id !== game.bId) {
-        await interaction.reply({ content: '<:Cancel:1473037949187657818> Not your match.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.reply({ content: '<:Cancel:1473037949187657818> Not your match.', flags: MessageFlags.Ephemeral }).catch(() => { });
         return true;
     }
 
     const isA = interaction.user.id === game.aId;
     if (isA && game.aPick) {
-        await interaction.reply({ content: `<:Sandwatch:1473038580094861545> You already picked **${CHOICES[game.aPick].label}**.`, flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.reply({ content: `<:Sandwatch:1473038580094861545> You already picked **${CHOICES[game.aPick].label}**.`, flags: MessageFlags.Ephemeral }).catch(() => { });
         return true;
     }
     if (!isA && game.bPick) {
-        await interaction.reply({ content: `<:Sandwatch:1473038580094861545> You already picked **${CHOICES[game.bPick].label}**.`, flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.reply({ content: `<:Sandwatch:1473038580094861545> You already picked **${CHOICES[game.bPick].label}**.`, flags: MessageFlags.Ephemeral }).catch(() => { });
         return true;
     }
 
@@ -304,7 +304,7 @@ async function handlePickButton(interaction) {
         let outcome, winnerId = null, loserId = null;
         if (game.aPick === game.bPick) outcome = 'tie';
         else if (a.beats === game.bPick) { outcome = 'win'; winnerId = game.aId; loserId = game.bId; }
-        else                              { outcome = 'win'; winnerId = game.bId; loserId = game.aId; }
+        else { outcome = 'win'; winnerId = game.bId; loserId = game.aId; }
 
         settlePvP({
             winnerId, loserId,
@@ -325,11 +325,11 @@ async function handlePickButton(interaction) {
 
     try {
         await interaction.update({ components: [buildPvpPickContainer(game)], flags: MessageFlags.IsComponentsV2 });
-    } catch (e) {}
+    } catch (e) { }
     await interaction.followUp({
         content: `<:Checkedbox:1473038547165384804> Locked in: ${CHOICES[pick].emoji} **${CHOICES[pick].label}**.`,
         flags: MessageFlags.Ephemeral
-    }).catch(() => {});
+    }).catch(() => { });
     return true;
 }
 
@@ -373,8 +373,8 @@ module.exports = {
         .addStringOption(o => o.setName('bet').setDescription(`Amount to bet (max ${MAX_BET.toLocaleString()}) or "all"`).setRequired(true))
         .addStringOption(o => o.setName('choice').setDescription('Your move (solo only — ignored for PvP)').setRequired(false)
             .addChoices(
-                { name: '🪨 Rock',     value: 'rock'     },
-                { name: '📜 Paper',    value: 'paper'    },
+                { name: '🪨 Rock', value: 'rock' },
+                { name: '📜 Paper', value: 'paper' },
                 { name: '✂️ Scissors', value: 'scissors' }
             ))
         .addUserOption(o => o.setName('opponent').setDescription('Challenge a player (optional, bot plays if empty)').setRequired(false)),
@@ -402,7 +402,7 @@ module.exports = {
 
     async handleButton(interaction) {
         if (interaction.customId.startsWith('rpsch_')) return handleChallengeButton(interaction);
-        if (interaction.customId.startsWith('rps_'))   return handlePickButton(interaction);
+        if (interaction.customId.startsWith('rps_')) return handlePickButton(interaction);
         return false;
     }
 };

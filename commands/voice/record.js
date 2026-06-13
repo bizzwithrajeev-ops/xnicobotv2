@@ -91,7 +91,7 @@ module.exports = {
 async function runRecord(target, client, subcommand, isPrefix) {
     const guild = target.guild || target.message?.guild;
     const user = target.user || target.author;
-    
+
     // Permission checks
     const blocked = requireGuild(target)
         || requireUserPermission(target, PermissionFlagsBits.ManageGuild, 'Manage Server');
@@ -99,7 +99,6 @@ async function runRecord(target, client, subcommand, isPrefix) {
     if (blocked) {
         const container = new ContainerBuilder()
             .setAccentColor(0xED4245)
-            .addUserProfileComponents(user)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# Permission Required\n\n` +
                 `${blocked}`
@@ -108,7 +107,7 @@ async function runRecord(target, client, subcommand, isPrefix) {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `-# You need **Manage Server** permission to use voice recording.`
             ));
-        
+
         if (isPrefix) {
             return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -130,7 +129,6 @@ async function runRecord(target, client, subcommand, isPrefix) {
     // Invalid subcommand
     const container = new ContainerBuilder()
         .setAccentColor(0xFEE75C)
-        .addUserProfileComponents(user)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# Invalid Subcommand\n\n` +
             `Please use one of the available recording commands.`
@@ -142,7 +140,7 @@ async function runRecord(target, client, subcommand, isPrefix) {
             `• \`/record stop\` or \`-record stop\` — Stop recording and upload files\n` +
             `• \`/record status\` or \`-record status\` — View current recording status`
         ));
-    
+
     if (isPrefix) {
         return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -153,18 +151,17 @@ async function showRecordingStatus(target, isPrefix) {
     const guild = target.guild || target.message?.guild;
     const user = target.user || target.author;
     const session = getRecording(guild.id);
-    
+
     const container = new ContainerBuilder()
         .setAccentColor(session ? 0x57F287 : 0x99AAB5)
-        .addUserProfileComponents(user)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            session 
+            session
                 ? `# 🎙️ Recording In Progress\n\n` +
-                  `A voice recording session is currently active in this server.`
+                `A voice recording session is currently active in this server.`
                 : `# Voice Recording Status\n\n` +
-                  `No recording is currently running in this server.`
+                `No recording is currently running in this server.`
         ));
-    
+
     if (session) {
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -176,9 +173,9 @@ async function showRecordingStatus(target, isPrefix) {
             `**Auto-Stop:** ${session.maxMinutes} minute(s)\n` +
             `**Active Tracks:** ${session.participants.size} speaker(s)`
         ));
-        
+
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        
+
         const stopButton = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`record_stop_${guild.id}_${user.id}`)
@@ -186,7 +183,7 @@ async function showRecordingStatus(target, isPrefix) {
                 .setEmoji('⏹️')
                 .setStyle(ButtonStyle.Danger)
         );
-        
+
         container.addActionRowComponents(stopButton);
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `-# Use \`/record stop\` or click the button above to stop and save the recording.`
@@ -202,7 +199,7 @@ async function showRecordingStatus(target, isPrefix) {
             `-# Recordings are automatically deleted after 24 hours.`
         ));
     }
-    
+
     if (isPrefix) {
         return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -228,17 +225,16 @@ async function startRecordCommand(target, client, isPrefix) {
 
     const container = new ContainerBuilder()
         .setAccentColor(result.ok ? 0x57F287 : 0xED4245)
-        .addUserProfileComponents(user)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             result.ok
                 ? `# 🎙️ Recording Started\n\n` +
-                  `Voice recording has been initiated successfully.`
+                `Voice recording has been initiated successfully.`
                 : `# Recording Failed\n\n` +
-                  `Unable to start voice recording.`
+                `Unable to start voice recording.`
         ));
-    
+
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    
+
     if (result.ok) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### Configuration\n` +
@@ -262,12 +258,12 @@ async function startRecordCommand(target, client, isPrefix) {
             `• Ensure the voice channel is accessible`
         ));
     }
-    
+
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `-# Recordings are automatically deleted after 24 hours.`
     ));
-    
+
     if (isPrefix) {
         return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -277,7 +273,7 @@ async function startRecordCommand(target, client, isPrefix) {
 async function stopRecordCommand(target, isPrefix) {
     const guild = target.guild || target.message?.guild;
     const user = target.user || target.author;
-    
+
     // Defer if interaction
     if (!isPrefix && !target.deferred && !target.replied) {
         await target.deferReply().catch(() => null);
@@ -288,7 +284,6 @@ async function stopRecordCommand(target, isPrefix) {
     if (!result.ok) {
         const container = new ContainerBuilder()
             .setAccentColor(0xFEE75C)
-            .addUserProfileComponents(user)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# No Recording Found\n\n` +
                 `${result.message}`
@@ -297,11 +292,11 @@ async function stopRecordCommand(target, isPrefix) {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `-# Use \`/record status\` to check if a recording is active.`
             ));
-        
+
         if (isPrefix) {
             return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
-        
+
         if (target.deferred) {
             return target.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -372,40 +367,39 @@ function resolveVoiceChannel(target, input) {
 
 async function sendRecordingResult(target, result, user, isPrefix) {
     const { omitted, uploadable } = getUploadPlan(result);
-    
+
     // Create summary container
     const container = new ContainerBuilder()
         .setAccentColor(0x57F287)
-        .addUserProfileComponents(user)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# 🎙️ Recording Stopped\n\n` +
             `Voice recording has been stopped and processed.`
         ));
-    
+
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    
+
     const sessionInfo = [
         `**Mode:** ${result.session?.mode === RECORDING_MODES.GLOBAL ? 'Global Mix' : 'Separate Tracks'}`,
         `**Reason:** ${result.reason || 'manual stop'}`,
         result.durationMs ? `**Duration:** ${formatDuration(result.durationMs)}` : null,
         `**Tracks Recorded:** ${result.files?.length || 0}`,
     ].filter(Boolean).join('\n');
-    
+
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(sessionInfo));
-    
+
     if (result.files?.length > 0) {
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        
+
         const uploadInfo = [];
         if (uploadable.length > 0) {
-            uploadInfo.push(`✅ **${uploadable.length}** audio file(s) will be posted below`);
+            uploadInfo.push(`<:Checkedbox:1473038547165384804> **${uploadable.length}** audio file(s) will be posted below`);
         }
         if (omitted.length > 0) {
             uploadInfo.push(`⚠️ **${omitted.length}** file(s) were too large to upload (over 24MB limit)`);
         }
-        
+
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(uploadInfo.join('\n')));
-        
+
         // Add track list
         if (result.files.length <= 10) {
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
@@ -414,7 +408,7 @@ async function sendRecordingResult(target, result, user, isPrefix) {
                 const speakers = file.speakerCount ? ` • ${file.speakerCount} speakers` : '';
                 return `${index + 1}. **${file.displayName}** — ${formatBytes(file.size)}${speakers}${skipped}`;
             }).join('\n');
-            
+
             container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `### Recorded Tracks\n${trackList}`
             ));
@@ -425,12 +419,12 @@ async function sendRecordingResult(target, result, user, isPrefix) {
             `⚠️ **No voice was captured**\n\nSomeone needs to speak in the voice channel after recording starts for audio to be captured.`
         ));
     }
-    
+
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `-# Recordings are automatically deleted after 24 hours.`
     ));
-    
+
     // Send summary
     if (isPrefix) {
         await target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -481,7 +475,7 @@ function formatDuration(ms) {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    
+
     if (hours > 0) {
         return `${hours}h ${minutes}m ${seconds}s`;
     }

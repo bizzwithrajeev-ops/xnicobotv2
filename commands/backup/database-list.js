@@ -33,7 +33,7 @@ function buildList(entries, page, filterType, guildId, uid) {
     const slice = entries.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
     const sid = `${uid}_${Date.now().toString(36)}`;
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     const filterLabel = filterType ? ` (${filterType})` : '';
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Checkedbox:1473038547165384804> Database Entries${filterLabel}\n-# ${total} entr${total !== 1 ? 'ies' : 'y'} · Page ${page + 1}/${pages}`
@@ -102,7 +102,7 @@ function buildDetail(entry, idx, uid) {
         dataPreview = `\`\`\`\n${raw.substring(0, 500)}${raw.length > 500 ? '…' : ''}\n\`\`\``;
     }
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# ${emoji} ${entry.name}\n\n` +
         `**Type:** \`${entry.type}\`\n` +
@@ -198,7 +198,7 @@ module.exports = {
                     if (!e) { const { ctr } = buildList(entries, page, filterType, guildId, uid); return i.update({ components: [ctr], flags: MessageFlags.IsComponentsV2 }); }
                     await db.delete(e.key);
                     entries.splice(idx, 1);
-                    const ok = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                    const ok = new ContainerBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Deleted\n\n**${e.name}** (\`${e.type}\`) removed.`))
                         .addActionRowComponents(new ActionRowBuilder().addComponents(
                             new ButtonBuilder().setCustomId(`dbl:back:${uid}_${Date.now().toString(36)}`).setEmoji('<:History:1473037847568318605>').setLabel('Back to List').setStyle(ButtonStyle.Secondary)

@@ -25,7 +25,7 @@ function buildList(backups, page, uid) {
     const slice = backups.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
     const sid = `${uid}_${Date.now().toString(36)}`;
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Checkedbox:1473038547165384804> Server Backups\n-# ${total} backup${total !== 1 ? 's' : ''} · Page ${page + 1}/${pages}`
     ));
@@ -93,7 +93,7 @@ function buildDetail(b, idx, uid) {
         lines.push(`\n-# **Included:** ${['roles','channels','emojis','stickers','messages','bans','settings','botConfig'].filter(k => b.options[k]).map(k => k === 'botConfig' ? 'Bot Config' : k.charAt(0).toUpperCase() + k.slice(1)).join(', ') || 'None'}`);
     }
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
     ctr.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
     ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
@@ -129,7 +129,7 @@ async function collectLoop(sent, userId, backups, startPage) {
                 try { backups = (await listServerBackups(userId)).filter(b => b.createdBy === userId); } catch {}
             }
             if (action === 'new') {
-                const tip = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const tip = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Fire:1473038604812161218> Create Server Backup\n\nUse:\n> `server-backup-create` or `/server-backup-create`'))
                     .addActionRowComponents(new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId(`sbkl:back:${userId}_${Date.now().toString(36)}`).setEmoji('<:History:1473037847568318605>').setLabel('Back').setStyle(ButtonStyle.Secondary)
@@ -156,7 +156,7 @@ async function collectLoop(sent, userId, backups, startPage) {
                 const res = await deleteServerBackup(userId, b.id);
                 if (res.success) {
                     backups.splice(idx, 1);
-                    const ok = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                    const ok = new ContainerBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Deleted\n\nBackup \`${b.id}\` removed.`))
                         .addActionRowComponents(new ActionRowBuilder().addComponents(
                             new ButtonBuilder().setCustomId(`sbkl:back:${userId}_${Date.now().toString(36)}`).setEmoji('<:History:1473037847568318605>').setLabel('Back to List').setStyle(ButtonStyle.Secondary)

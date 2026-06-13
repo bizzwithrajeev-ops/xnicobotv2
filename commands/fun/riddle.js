@@ -44,7 +44,6 @@ async function showRiddle(context, isInteraction) {
     const riddle = riddles[Math.floor(Math.random() * riddles.length)];
     
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# 🤔 Riddle Time!\n\n` +
@@ -67,7 +66,6 @@ async function showRiddle(context, isInteraction) {
 
         if (riddle.accepts.includes(guess)) {
             const winContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Correct!\n\n` +
@@ -78,7 +76,6 @@ async function showRiddle(context, isInteraction) {
             await channel.send({ components: [winContainer], flags: MessageFlags.IsComponentsV2 });
         } else {
             const loseContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Not Quite!\n\n` +
@@ -91,7 +88,6 @@ async function showRiddle(context, isInteraction) {
         }
     } catch {
         const timeoutContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Alarm:1473039068546732214> Time's Up!\n\n` +

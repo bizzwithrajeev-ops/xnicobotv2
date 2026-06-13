@@ -35,7 +35,7 @@ function buildPanel(opts, uid, sid) {
         lines += `${opts[k] ? on : off} ${m.emoji} **${m.label}** — ${m.desc}\n`;
     }
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Box:1473039115581915256> Server Backup Options\n\nSelect what to include in your backup:\n\n${lines.trim()}\n\n-# Toggle items with the buttons below.`
     ));
@@ -74,7 +74,7 @@ function buildPanel(opts, uid, sid) {
 function buildResult(r) {
     const on = '<:Checkedbox:1473038547165384804>';
     const off = '<:Cancel:1473037949187657818>';
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Checkedbox:1473038547165384804> Server Backup Created\n\n` +
         `**Backup ID:** \`${r.backupId}\`\n**Secure Token:** \`${r.secureToken}\`\n\n` +
@@ -137,7 +137,7 @@ module.exports = {
         const msgLimit = interaction.options.getInteger('message-limit') ?? 0;
 
         const selected = OPTION_KEYS.filter(k => opts[k]).map(k => OPTION_META[k].label).join(', ') || 'Nothing';
-        const progress = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const progress = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Lightning:1473038797540298792> Creating Server Backup…\n\nThis may take a few minutes${opts.messages ? ' (backing up all messages)' : ''}.\n\n` +
                 `**Included:** ${selected}`
@@ -208,7 +208,7 @@ module.exports = {
             /* Cancel */
             if (action === 'cancel') {
                 collector.stop('handled');
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No backup was created.'))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No backup was created.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
             /* Confirm — create backup */
@@ -216,7 +216,7 @@ module.exports = {
                 collector.stop('handled');
 
                 const selected = OPTION_KEYS.filter(k => opts[k]).map(k => OPTION_META[k].label).join(', ') || 'Nothing';
-                await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                await i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Lightning:1473038797540298792> Creating Server Backup…\n\nThis may take a few minutes${opts.messages ? ' (backing up all messages)' : ''}.\n\n**Included:** ${selected}`
                 ))], flags: MessageFlags.IsComponentsV2 });
 

@@ -81,7 +81,6 @@ module.exports = {
         
         if (!args.length || args[0]?.toLowerCase() === 'help') {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(buildHelpPanel())
                 );
@@ -121,7 +120,6 @@ module.exports = {
             const starredCount = Object.keys(config.starredMessages || {}).length;
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Fire:1473038604812161218> Starboard Status\n\n` +
@@ -164,7 +162,6 @@ module.exports = {
         saveStarboard(starboard);
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(buildStarboardSetupPanel(channel, threshold, true))
             );

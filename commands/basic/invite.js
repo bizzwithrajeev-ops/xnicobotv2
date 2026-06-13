@@ -7,7 +7,7 @@ function buildInviteResponse(client) {
     const totalChannels = client.channels.cache.size;
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6);
+        ;
 
     const headerSection = new SectionBuilder()
         .addTextDisplayComponents(

@@ -29,7 +29,6 @@ const captchaDifficulty = {
 
 function buildDefaultVerificationPayload(title, description, captchaType, btnRow) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# ${title}\n\n` +
@@ -71,7 +70,6 @@ function buildVerificationPanelPayload(panelConfig, guild, btnRow) {
     } else {
         const content = msgReplacePlaceholders(panelConfig.content || '', null, guild);
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
         return { components: [container, btnRow], flags: MessageFlags.IsComponentsV2 };
     }
@@ -103,11 +101,9 @@ module.exports = {
         .addSubcommand(subcommand => subcommand.setName('reset-panel').setDescription('Reset the verification panel message to default'))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
-    prefix: 'verification-setup',
     description: 'Setup a captcha verification system to protect your server from bots',
     category: 'automation',
-    aliases: ['verify-setup', 'captcha-setup'],
-    usage: 'verification-setup <enable/disable/status/help>',
+    usage: '/verification-setup <enable/disable/status/help>',
 
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
@@ -198,7 +194,6 @@ module.exports = {
                 if (btn.customId === 'verify_setup_confirm') {
                     // Show loading state
                     const loadingContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
                                 `# <a:Loading:1485248248720658472> Activating Verification System\n\n` +
@@ -393,7 +388,6 @@ module.exports = {
             collector.on('collect', async (btn) => {
                 if (btn.customId === 'verify_disable_cancel') {
                     const cancelContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
                                 `# <:Cancel:1473037949187657818> Cancelled\n\n` +
@@ -410,7 +404,6 @@ module.exports = {
                 if (shouldRevert) {
                     // Show loading state
                     const loadingContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
                                 `# <a:Loading:1485248248720658472> Disabling Verification System\n\n` +
@@ -511,7 +504,6 @@ module.exports = {
             
             if (!config) {
                 const noConfigContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Infotriangle:1473038460456800459> Verification Not Configured\n\n` +
@@ -536,7 +528,6 @@ module.exports = {
             const difficulty = captchaDifficulty[config.captchaType] || captchaDifficulty.random;
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Shield:1473038669831995494> Verification System Status\n\n` +
@@ -559,7 +550,6 @@ module.exports = {
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } else if (subcommand === 'help') {
             const helpContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Clipboard:1473039573037617162> Verification System Guide\n\n` +
@@ -597,81 +587,7 @@ module.exports = {
         }
     },
 
-    async executePrefix(message, args) {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('<:Cancel:1473037949187657818> You need Administrator permission to use this command!');
-        }
-
-        const subcommand = args[0]?.toLowerCase();
-
-        if (!subcommand || subcommand === 'help') {
-            const helpContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Clipboard:1473039573037617162> Verification System Guide\n\n` +
-                        `Complete guide to setting up the captcha verification system.\n\n` +
-                        `### <:Settings:1473037894703779851> Quick Setup\n` +
-                        `**1.** Create a verification channel (e.g., #verify)\n` +
-                        `**2.** Create a "Verified" role with server access\n` +
-                        `**3.** Use the slash command: \`/verification-setup enable\`\n\n` +
-                        `### <:Bookmark:1473038643492028517> Captcha Types\n` +
-                        `**Math Problem** <:Star:1473038501766369300> - Solve simple equations\n` +
-                        `**Unscramble Word** <:Star:1473038501766369300><:Star:1473038501766369300> - Rearrange shuffled letters\n` +
-                        `**Emoji Recognition** <:Star:1473038501766369300> - Select matching emoji\n` +
-                        `**Button Letters** <:Star:1473038501766369300><:Star:1473038501766369300><:Star:1473038501766369300> - Type letters (Most secure)\n` +
-                        `**Random** <:Star:1473038501766369300><:Star:1473038501766369300> - Varies each time\n\n` +
-                        `### <:Document:1473039496995143731> Commands\n` +
-                        `\`/verification-setup enable #channel @role\`\n` +
-                        `\`/verification-setup disable\`\n` +
-                        `\`/verification-setup status\`\n\n` +
-                        `*Use slash commands for full functionality*`
-                    )
-                );
-            
-            return message.reply({ components: [helpContainer], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        if (subcommand === 'status') {
-            const config = getVerificationConfig(message.guild.id);
-            
-            if (!config) {
-                return message.reply('<:Cancel:1473037949187657818> Verification system is not enabled. Use `/verification-setup enable` to set it up.');
-            }
-            
-            const channel = message.guild.channels.cache.get(config.channelId);
-            const role = message.guild.roles.cache.get(config.roleId);
-            const captchaTypeDisplay = captchaTypeNames[config.captchaType] || 'Random';
-            
-            const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Shield:1473038669831995494> Verification Status\n\n` +
-                        `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
-                        `**Channel:** ${channel || '*Not found*'}\n` +
-                        `**Role:** ${role || '*Not found*'}\n` +
-                        `**Captcha:** ${captchaTypeDisplay}\n\n` +
-                        `*Use \`/verification-setup\` for full management*`
-                    )
-                );
-            
-            return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        }
-
-        if (subcommand === 'disable') {
-            const config = getVerificationConfig(message.guild.id);
-            
-            if (!config) {
-                return message.reply('<:Cancel:1473037949187657818> Verification system is not enabled.');
-            }
-            
-            deleteVerificationConfig(message.guild.id);
-            return message.reply('<:Checkedbox:1473038547165384804> Verification system has been disabled.');
-        }
-
-        return message.reply('<:Lightbulbalt:1473038470787240009> Unknown subcommand. Use `verification-setup help` for usage information.');
-    },
+    // Slash-only command — no prefix support
 
     async handlePanel(interaction) {
         const config = getVerificationConfig(interaction.guild.id);
@@ -735,7 +651,6 @@ module.exports = {
         } catch {}
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Panel Message Reset\n\n` +
@@ -796,7 +711,6 @@ module.exports = {
             } catch {}
 
             const confirmContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Panel Message Saved!\n\n` +

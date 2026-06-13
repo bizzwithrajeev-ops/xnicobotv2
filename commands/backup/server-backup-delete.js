@@ -39,7 +39,7 @@ module.exports = {
         try {
             const result = await deleteServerBackup(interaction.user.id, backupId);
             if (result.success) {
-                return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` has been permanently removed.`))], flags: MessageFlags.IsComponentsV2 });
+                return interaction.editReply({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` has been permanently removed.`))], flags: MessageFlags.IsComponentsV2 });
             }
             return interaction.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Delete Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
@@ -85,7 +85,7 @@ module.exports = {
                 try {
                     const result = await deleteServerBackup(uid, backupId);
                     if (result.success) {
-                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` removed.`))], flags: MessageFlags.IsComponentsV2 });
+                        return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` removed.`))], flags: MessageFlags.IsComponentsV2 });
                     }
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
                 } catch (err) {
@@ -93,7 +93,7 @@ module.exports = {
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
                 }
             }
-            return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
+            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
         });
 
         collector.on('end', (_, reason) => {

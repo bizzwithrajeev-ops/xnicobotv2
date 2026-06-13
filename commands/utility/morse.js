@@ -76,7 +76,6 @@ module.exports = {
                 });
             }
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# 📡 Morse Code ${mode === 'encode' ? 'Encoder' : 'Decoder'}\n\n` +
                     `**Input:**\n${text}\n\n` +

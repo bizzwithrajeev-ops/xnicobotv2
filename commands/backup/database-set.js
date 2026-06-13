@@ -86,13 +86,13 @@ module.exports = {
                         createdAt: existing?.createdAt || now,
                         updatedAt: now
                     });
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Data Stored\n\n${emoji} **${name}** (\`${type}\`) saved successfully.\n\n> Use \`database-get ${type} ${name}\` to retrieve it.`))], flags: MessageFlags.IsComponentsV2 });
+                    return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Data Stored\n\n${emoji} **${name}** (\`${type}\`) saved successfully.\n\n> Use \`database-get ${type} ${name}\` to retrieve it.`))], flags: MessageFlags.IsComponentsV2 });
                 } catch (err) {
                     console.error('Database Set Error:', err);
                     return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
                 }
             }
-            return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No data was stored.'))], flags: MessageFlags.IsComponentsV2 });
+            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No data was stored.'))], flags: MessageFlags.IsComponentsV2 });
         });
 
         collector.on('end', (_, reason) => {

@@ -54,7 +54,6 @@ module.exports = {
             }
 
             const resultContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:User:1473038971398520977> Mass Nickname Complete\n\n` +
                     `### <:Document:1473039496995143731> Results\n` +
@@ -87,7 +86,6 @@ module.exports = {
 
             if (!args.length) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder()
                             .setContent(`# <:User:1473038971398520977> Mass Nickname\n\n### <:Document:1473039496995143731> Usage\n\`massnick <nickname> [@role]\`\n\n### <:Edit:1473037903625191580> Examples\n\`massnick VIP Member @VIP\` - Set nickname for all VIP role members\n\`massnick reset @Members\` - Reset nicknames for role members\n\`massnick [EVENT] @Everyone\` - Add prefix to all members\n\n-# Bot must have higher role than target members`)
@@ -113,7 +111,6 @@ module.exports = {
             let failed = 0;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(`# <:User:1473038971398520977> Mass Nickname Processing\n\n<:Lightning:1473038797540298792> Changing nicknames for ${members.size} members...\n\n*This may take a moment*`)
@@ -135,7 +132,6 @@ module.exports = {
             }
 
             const resultContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(`# <:User:1473038971398520977> Mass Nickname Complete\n\n### <:Document:1473039496995143731> Results\n<:Checkedbox:1473038547165384804> **Changed:** ${changed} members\n<:Cancel:1473037949187657818> **Failed:** ${failed} members\n\n${nickname ? `**New Nickname:** ${nickname}` : '**Action:** Reset nicknames'}${role ? `\n**Role:** ${role.name}` : ''}`)

@@ -186,7 +186,7 @@ function buildRolesPanel(levelingConfig, guild) {
 
 function buildRolesContainer(levelingConfig, guild) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6);
+        ;
     
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(safeContent(buildRolesPanel(levelingConfig, guild)))
@@ -255,7 +255,7 @@ function buildIgnorePanel(levelingConfig) {
 
 function buildIgnoreContainer(levelingConfig) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6);
+        ;
     
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(safeContent(buildIgnorePanel(levelingConfig)))

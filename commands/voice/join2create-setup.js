@@ -80,7 +80,6 @@ function buildControlPanel() {
     ].join('\n');
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${header}\n${intro}`))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(legend))
@@ -662,7 +661,6 @@ async function openEditModal(interaction, iface) {
 async function openTriggerSelect(interaction, iface) {
     const current = (iface.triggerChannelIds || []).length;
     const c = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Volumeup:1473039290136002844> Pick Trigger Voice Channels\n` +
             `-# Members joining **any** of these VCs will spawn a personal temp channel for **${iface.name}**.\n` +
@@ -697,7 +695,6 @@ async function saveTrigger(interaction, ifaceId) {
 
 async function openPanelSelect(interaction, iface) {
     const c = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Document:1473039496995143731> Pick Control Panel Channel\n-# The voice control panel for **${iface.name}** will be posted here. Pick any text channel.`
         ))
@@ -747,7 +744,6 @@ async function savePanelChannel(interaction, ifaceId) {
 
 async function openCategorySelect(interaction, iface) {
     const c = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Bookopen:1473038576391557130> Pick Spawn Category\n-# Temp VCs for **${iface.name}** will be created inside the chosen category. Leave unset to inherit the trigger's parent.`
         ))

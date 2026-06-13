@@ -61,7 +61,6 @@ module.exports = {
             saveConfig(config);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Toggleon:1473038585501581312> AutoNick Enabled\n\n` +
@@ -79,7 +78,6 @@ module.exports = {
                 saveConfig(config);
             }
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Toggleoff:1473038582813032590> AutoNick Disabled\n\nAuto-nickname system has been disabled.`
@@ -92,7 +90,6 @@ module.exports = {
             const guildConfig = config[interaction.guild.id];
             if (!guildConfig || !guildConfig.enabled) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Folder:1473039340425973972> AutoNick Status\n\n` +
@@ -104,7 +101,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Folder:1473039340425973972> AutoNick Configuration\n\n` +
@@ -124,7 +120,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageNicknames)) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Permission Denied\n\nYou need the **Manage Nicknames** permission!`
@@ -141,7 +136,6 @@ module.exports = {
             const formatInput = args.slice(1).join(' ');
             if (!formatInput) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Missing Format\n\n` +
@@ -160,7 +154,6 @@ module.exports = {
             saveConfig(config);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Toggleon:1473038585501581312> AutoNick Enabled\n\n` +
@@ -178,7 +171,6 @@ module.exports = {
                 saveConfig(config);
             }
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Toggleoff:1473038582813032590> AutoNick Disabled\n\nAuto-nickname system has been disabled.`
@@ -191,7 +183,6 @@ module.exports = {
             const guildConfig = config[message.guild.id];
             if (!guildConfig || !guildConfig.enabled) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Folder:1473039340425973972> AutoNick Status\n\n` +
@@ -203,7 +194,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Folder:1473039340425973972> AutoNick Configuration\n\n` +
@@ -215,7 +205,6 @@ module.exports = {
         }
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Folder:1473039340425973972> AutoNick\n\n` +

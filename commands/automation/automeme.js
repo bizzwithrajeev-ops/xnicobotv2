@@ -99,7 +99,7 @@ function nextPostLine(cfg) {
 }
 
 function buildStatusPanel(guild, cfg, viewerHasPremium) {
-    const container = new ContainerBuilder().setAccentColor(cfg.enabled ? 0xFF4500 : 0x5865F2);
+    const container = new ContainerBuilder();
 
     const tier = viewerHasPremium ? `${E.crown} Premium` : `${E.info} Free`;
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -576,97 +576,7 @@ module.exports = {
     category:    'automation',
     aliases:     ['memepost', 'memeposter'],
 
-    data: new SlashCommandBuilder()
-        .setName('automeme')
-        .setDescription('Auto-post fresh memes to a channel on a schedule')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .setDMPermission(false)
-        .addSubcommand(s => s
-            .setName('setup')
-            .setDescription('Enable AutoMeme and pick the target channel')
-            .addChannelOption(o => o
-                .setName('channel')
-                .setDescription('Where to post')
-                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
-                .setRequired(true)))
-        .addSubcommand(s => s
-            .setName('disable')
-            .setDescription('Pause AutoMeme (config kept)'))
-        .addSubcommand(s => s
-            .setName('reset')
-            .setDescription('Wipe all AutoMeme settings for this server'))
-        .addSubcommand(s => s
-            .setName('interval')
-            .setDescription('How often to post (minutes)')
-            .addIntegerOption(o => o
-                .setName('minutes')
-                .setDescription('Free: 60–1440  ·  Premium: 30–1440')
-                .setMinValue(1)
-                .setMaxValue(MAX_INTERVAL)
-                .setRequired(true)))
-        .addSubcommand(s => s
-            .setName('category')
-            .setDescription('Pick a preset category')
-            .addStringOption(o => o
-                .setName('preset')
-                .setDescription('Which pool to draw from')
-                .addChoices(
-                    { name: '🌍 English',  value: 'english' },
-                    { name: '🇮🇳 Hindi',    value: 'hindi'   },
-                    { name: '🎌 Anime',    value: 'anime'   },
-                    { name: '🎮 Gaming',   value: 'gaming'  },
-                    { name: '✨ Mixed',    value: 'mixed'   },
-                    { name: '🛠️ Custom (Premium)', value: 'custom' },
-                )
-                .setRequired(true)))
-        .addSubcommand(s => s
-            .setName('add-sub')
-            .setDescription('Add a custom subreddit (Premium)')
-            .addStringOption(o => o.setName('name').setDescription('e.g. wholesomememes').setRequired(true).setMaxLength(50)))
-        .addSubcommand(s => s
-            .setName('remove-sub')
-            .setDescription('Remove a custom subreddit')
-            .addStringOption(o => o.setName('name').setDescription('Name to remove').setRequired(true).setMaxLength(50)))
-        .addSubcommand(s => s
-            .setName('list-subs')
-            .setDescription('List your custom subreddits'))
-        .addSubcommand(s => s
-            .setName('ping')
-            .setDescription('Configure pings on each post')
-            .addStringOption(o => o
-                .setName('value')
-                .setDescription('Ping mode')
-                .addChoices(
-                    { name: 'None',     value: 'none' },
-                    { name: '@here',    value: 'here' },
-                    { name: '@everyone',value: 'everyone' },
-                ))
-            .addRoleOption(o => o.setName('role').setDescription('Or pick a specific role')))
-        .addSubcommand(s => s
-            .setName('nsfw')
-            .setDescription('Allow NSFW posts (only in NSFW-marked channels)')
-            .addBooleanOption(o => o.setName('enabled').setDescription('On or off').setRequired(true)))
-        .addSubcommand(s => s
-            .setName('test')
-            .setDescription('Fire one post immediately to verify setup'))
-        .addSubcommand(s => s
-            .setName('status')
-            .setDescription('Show current AutoMeme settings')),
-
-    async execute(interaction) {
-        try {
-            return await executeSlash(interaction);
-        } catch (e) {
-            console.error('[AutoMeme] slash error:', e);
-            const payload = { components: [err('Something Went Wrong', e.message || 'Unexpected error.')], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral };
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp(payload).catch(() => {});
-            } else {
-                await interaction.reply(payload).catch(() => {});
-            }
-        }
-    },
-
+    // Prefix-only command — no slash registration
     executePrefix,
     handleButton,
 };

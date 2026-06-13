@@ -265,7 +265,7 @@ function buildRewardsPanel(guildConfig, guild) {
 
 function buildRewardsContainer(guildConfig, guild) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6);
+        ;
     
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(buildRewardsPanel(guildConfig, guild))
@@ -332,7 +332,7 @@ function buildMessagesPanel(guildConfig) {
 }
 
 function buildMessagesContainer(guildConfig) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(buildMessagesPanel(guildConfig))
@@ -462,7 +462,7 @@ function buildMessageEditorContainer(type, guildConfig) {
 }
 
 function buildVariablesContainer() {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     let content = `# <:Clipboard:1473039573037617162> Available Variables\n\n`;
     content += `Drop any of these placeholders into your message templates and they'll be replaced at send-time.\n\n`;

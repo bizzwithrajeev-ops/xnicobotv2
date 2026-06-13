@@ -200,7 +200,6 @@ function buildPublicPanel(guild) {
     else modeLine = '> <:Cancel:1473037949187657818> Confessions are currently disabled by staff';
 
     const container = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Envelope:1473038885364695113>  Confessions\n` +
             `-# Share your thoughts in **${guild.name}** — your way.`
@@ -312,7 +311,6 @@ module.exports = {
             return message.reply({
                 components: [
                     new ContainerBuilder()
-                        .setAccentColor(0x5865F2)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `## <:Bookopen:1473038576391557130> Confession Log\n\n` +
                             `**ID:** \`${confId}\`\n` +
@@ -759,7 +757,6 @@ module.exports = {
                     return true;
                 }
                 const card = new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `## <:Bookopen:1473038576391557130> Confession Log\n\n` +
                         `**ID:** \`${confId}\`\n` +

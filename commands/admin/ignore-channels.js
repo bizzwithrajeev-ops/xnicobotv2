@@ -80,7 +80,7 @@ function canBypass(member, guildConfig) {
 }
 
 function buildMainPanel(guildConfig, guild) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     
     const channelCount = guildConfig.channels?.length || 0;
     const categoryCount = guildConfig.categories?.length || 0;
@@ -163,7 +163,7 @@ function buildMainPanel(guildConfig, guild) {
 }
 
 function buildChannelListPanel(guildConfig, guild, page = 0) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     
     const channels = guildConfig.channels || [];
     const itemsPerPage = 10;
@@ -233,7 +233,7 @@ function buildChannelListPanel(guildConfig, guild, page = 0) {
 }
 
 function buildCategoryListPanel(guildConfig, guild, page = 0) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     
     const categories = guildConfig.categories || [];
     const itemsPerPage = 10;
@@ -304,7 +304,7 @@ function buildCategoryListPanel(guildConfig, guild, page = 0) {
 }
 
 function buildBypassRolesPanel(guildConfig, guild) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     
     const roles = guildConfig.bypassRoles || [];
     
@@ -369,7 +369,7 @@ function buildBypassRolesPanel(guildConfig, guild) {
 }
 
 function buildSettingsPanel(guildConfig, guild) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     
     let content = `# <:Settings:1473037894703779851> Ignore System Settings\n\n`;
     content += `**Notify Users:** ${guildConfig.notifyUser ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
@@ -410,7 +410,7 @@ function buildSettingsPanel(guildConfig, guild) {
 }
 
 function buildHelpPanel() {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     
     let content = `# <:Lightbulbalt:1473038470787240009> Ignore Channels Help\n\n`;
     content += `### What does this system do?\n`;
@@ -547,7 +547,6 @@ module.exports = {
                 .setMaxValues(5);
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Add:1473038100862337035> Add Ignored Channel\n\nSelect up to 5 channels to ignore:'))
                 .addActionRowComponents(new ActionRowBuilder().addComponents(channelSelect))
                 .addActionRowComponents(new ActionRowBuilder().addComponents(
@@ -586,7 +585,6 @@ module.exports = {
                 .setMaxValues(Math.min(5, categoryOptions.length));
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Folderopen:1473039552783323348> Add Ignored Category\n\nSelect categories to ignore (all channels inside will be affected):'))
                 .addActionRowComponents(new ActionRowBuilder().addComponents(categorySelect))
                 .addActionRowComponents(new ActionRowBuilder().addComponents(

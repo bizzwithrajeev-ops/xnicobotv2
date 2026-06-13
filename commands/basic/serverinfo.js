@@ -72,7 +72,7 @@ async function buildServerInfo(guild) {
     const counts = getOnlineCounts(guild);
     const humans = guild.memberCount - counts.bots;
 
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     // Header
     const headerText =

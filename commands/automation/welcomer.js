@@ -1451,7 +1451,6 @@ module.exports = {
                     .setMaxValues(1)
             );
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `## <:pin:1473038806612447500> Set Welcome Channel\nCurrent: ${currentCh}\n\nSelect the channel where welcome messages will be sent.`
                 ))
@@ -1815,7 +1814,6 @@ module.exports = {
         
         if (customId === 'welcomer_show_variables') {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(buildVariablesPanel()));
             
             await interaction.reply({ 
@@ -2109,7 +2107,6 @@ module.exports = {
                     .setMaxValues(1)
             );
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `## <:pin:1473038806612447500> Set Leave Channel\nCurrent: ${currentCh}\n\nSelect the channel where leave messages will be sent.`
                 ))
@@ -2524,7 +2521,7 @@ module.exports = {
             const managementRow = createTemplateManagementRow();
             
             const tplContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6);
+                ;
             
             tplContainer.addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(panelContent)
@@ -2740,7 +2737,6 @@ module.exports = {
             saveTemplatesFile(templates);
             
             const doneContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`<:Checkedbox:1473038547165384804> Deleted **${deleted}** template(s) successfully!`)
                 );
@@ -3123,7 +3119,6 @@ module.exports = {
                     .setMaxValues(10)
             );
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `## <:Settings:1473037894703779851> AutoRole for ${isBots ? 'Bots' : 'Humans'}\nCurrent: ${currentDisplay}\n\nSelect roles to assign automatically when ${isBots ? 'bots' : 'humans'} join. Leave empty to clear.`
                 ))

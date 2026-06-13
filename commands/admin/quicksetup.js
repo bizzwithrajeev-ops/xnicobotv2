@@ -596,7 +596,6 @@ function buildResultPanel(results, session, guild) {
 
 function buildExpiredPanel() {
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### <:Alarm:1473039068546732214> Setup Session Expired\n`
             + `-# Run \`/quicksetup\` again to start a new session.`
@@ -747,7 +746,6 @@ module.exports = {
         if (customId === 'quicksetup_cancel') {
             deleteSession(key);
             const c = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### <:Cancel:1473037949187657818> Setup Cancelled\n-# No changes were made to your security configuration.`
                 ))

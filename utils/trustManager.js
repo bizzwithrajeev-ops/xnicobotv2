@@ -362,7 +362,6 @@ async function withConfirmation(message, confirmContainer, onConfirm) {
             await onConfirm(i);
         } else {
             const cancelContainer = new CB()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TD().setContent(
                     `# <:Cancel:1473037949187657818> Action Cancelled\n\n> The operation was cancelled.`
                 ));
@@ -370,7 +369,6 @@ async function withConfirmation(message, confirmContainer, onConfirm) {
         }
     } catch {
         const timeoutContainer = new CB()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TD().setContent(
                 `# <:Alarm:1473039068546732214> Confirmation Timed Out\n\n> No response received within 30 seconds. Action cancelled.`
             ));

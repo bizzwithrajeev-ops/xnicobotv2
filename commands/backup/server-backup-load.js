@@ -19,7 +19,7 @@ function makeProgressBar(percent, width = 20) {
 }
 
 function buildRestoreSuccessCard(r) {
-    const ok = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ok = new ContainerBuilder();
     ok.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Checkedbox:1473038547165384804> Server Restored\n\n` +
         `**<:Box:1473039115581915256> Backup:** \`${r.backupId}\`\n**<:Bookopen:1473038576391557130> From:** ${r.originalServerName}\n`
@@ -36,7 +36,7 @@ function buildRestoreSuccessCard(r) {
 
 function buildRestoreRunningCard(backupId, sid, job) {
     const stateText = job.stopped ? 'Stopping…' : (job.paused ? 'Paused' : 'Running');
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const ctr = new ContainerBuilder();
     ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Lightning:1473038797540298792> Restoring Server…\n\n` +
         `**Backup:** \`${backupId}\`\n` +
@@ -67,7 +67,7 @@ function buildRestoreRunningCard(backupId, sid, job) {
 }
 
 function buildRestoreStoppedCard(backupId, stats) {
-    return new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(
+    return new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Infotriangle:1473038460456800459> Restore Stopped\n\n` +
         `Backup \`${backupId}\` was stopped before completion.\n\n` +
         `**Partial progress:**\n` +
@@ -119,21 +119,21 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
         });
     } catch (err) {
         // If we can't create the status channel, abort
-        return sent.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Cannot Start Restore\n\nFailed to create status channel: ${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        return sent.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Cannot Start Restore\n\nFailed to create status channel: ${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
     }
 
     // Notify the original message that progress moved to the status channel
-    const redirectCard = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const redirectCard = new ContainerBuilder();
     redirectCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Lightning:1473038797540298792> Restore Started\n\n` +
         `A dedicated status channel has been created for live progress updates.\n\n` +
         `**➡️ Go to:** <#${statusChannel.id}>\n\n` +
         `-# This channel will be deleted during restore. Track progress in the status channel.`
     ));
-    await sent.edit({ components: [redirectCard], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    await sent.edit({ components: [redirectCard], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
 
     // Post the initial progress card in the status channel
-    const headerCard = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const headerCard = new ContainerBuilder();
     headerCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Lightning:1473038797540298792> Server Restore — Live Status\n\n` +
         `**<:Box:1473039115581915256> Backup:** \`${backupId}\`\n` +
@@ -142,7 +142,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
         `-# This channel was auto-created for restore tracking. It will be renamed when complete.`
     ));
     headerCard.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
-    await statusChannel.send({ components: [headerCard], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    await statusChannel.send({ components: [headerCard], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
 
     // Send the live-updating progress message
     let statusMsg;
@@ -158,7 +158,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
         const now = Date.now();
         if (!force && now - lastRenderAt < 1500) return;
         lastRenderAt = now;
-        await statusMsg.edit({ components: [buildRestoreRunningCard(backupId, sid, job)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        await statusMsg.edit({ components: [buildRestoreRunningCard(backupId, sid, job)], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
     };
 
     // Collector on the status channel message for Pause/Stop/Status buttons
@@ -195,7 +195,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
             });
         }
 
-        return i.deferUpdate().catch(() => {});
+        return i.deferUpdate().catch(() => { });
     });
 
     collector.on('end', async (_, reason) => {
@@ -203,7 +203,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
         if (reason === 'time') {
             job.stopped = true;
             job.details = 'Control session expired (30 min). Stopping restore...';
-            await statusMsg.edit({ components: [buildRestoreRunningCard(backupId, sid, job)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            await statusMsg.edit({ components: [buildRestoreRunningCard(backupId, sid, job)], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         }
     });
 
@@ -232,10 +232,10 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
 
     // ── Post final result to the status channel ──
     if (restoreResult?.success) {
-        await statusMsg.edit({ components: [buildRestoreSuccessCard(restoreResult)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        await statusMsg.edit({ components: [buildRestoreSuccessCard(restoreResult)], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         // Rename the channel to indicate completion
-        await statusChannel.setName('✅restore-complete').catch(() => {});
-        await statusChannel.setTopic(`✅ Backup \`${backupId}\` restored successfully • <t:${Math.floor(Date.now() / 1000)}:f>`).catch(() => {});
+        await statusChannel.setName('<:Checkedbox:1473038547165384804>restore-complete').catch(() => { });
+        await statusChannel.setTopic(`<:Checkedbox:1473038547165384804> Backup \`${backupId}\` restored successfully • <t:${Math.floor(Date.now() / 1000)}:f>`).catch(() => { });
         return;
     }
 
@@ -245,14 +245,14 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
             rolesCreated: 0, categoriesCreated: 0, channelsCreated: 0,
             messagesRestored: 0
         };
-        await statusMsg.edit({ components: [buildRestoreStoppedCard(backupId, stats)], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        await statusChannel.setName('⚠️restore-stopped').catch(() => {});
+        await statusMsg.edit({ components: [buildRestoreStoppedCard(backupId, stats)], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+        await statusChannel.setName('⚠️restore-stopped').catch(() => { });
         return;
     }
 
     const errCard = new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Restore Failed\n\n${restoreResult?.error || 'Unknown restore error.'}`));
-    await statusMsg.edit({ components: [errCard], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-    await statusChannel.setName('❌restore-failed').catch(() => {});
+    await statusMsg.edit({ components: [errCard], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+    await statusChannel.setName('<:Cancel:1473037949187657818>restore-failed').catch(() => { });
 }
 
 module.exports = {
@@ -307,22 +307,22 @@ module.exports = {
             collector.stop('handled');
 
             if (i.customId.split(':')[1] !== 'confirm') {
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
-            await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
+            await i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
 
             try {
                 await runRestoreWithControls(sent, interaction.guild, backupId, secureToken, uid);
             } catch (err) {
                 console.error('Error loading server backup:', err);
-                return sent.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return sent.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
             }
         });
 
         collector.on('end', (_, reason) => {
             if (reason === 'handled') return;
-            sent.edit({ components: [buildExpiredPanel('server-backup-load', 'No changes were made.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            sent.edit({ components: [buildExpiredPanel('server-backup-load', 'No changes were made.')], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         });
     },
 
@@ -342,7 +342,7 @@ module.exports = {
 
         // Lookup backup details
         let bk = null;
-        try { const all = await listServerBackups(uid); bk = all.find(b => b.id === backupId); } catch {}
+        try { const all = await listServerBackups(uid); bk = all.find(b => b.id === backupId); } catch { }
         const info = bk ? `**<:Box:1473039115581915256>** \`${bk.id}\`\n**<:Bookopen:1473038576391557130>** ${bk.serverName}\n**<:Clock:1473039102113878056>** <t:${Math.floor(bk.createdAt / 1000)}:f>` : `**<:Box:1473039115581915256>** \`${backupId}\``;
 
         const warn = new ContainerBuilder().setAccentColor(0xED4245);
@@ -365,22 +365,22 @@ module.exports = {
             collector.stop('handled');
 
             if (i.customId.split(':')[1] !== 'confirm') {
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
-            await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
+            await i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Starting Restore…\n\nLoading backup \`${backupId}\` and preparing controls.`))], flags: MessageFlags.IsComponentsV2 });
 
             try {
                 await runRestoreWithControls(sent, message.guild, backupId, secureToken, uid);
             } catch (err) {
                 console.error('Error loading server backup:', err);
-                return sent.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                return sent.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
             }
         });
 
         collector.on('end', (_, reason) => {
             if (reason === 'handled') return;
-            sent.edit({ components: [buildExpiredPanel('server-backup-load', 'No changes were made.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            sent.edit({ components: [buildExpiredPanel('server-backup-load', 'No changes were made.')], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         });
     }
 };

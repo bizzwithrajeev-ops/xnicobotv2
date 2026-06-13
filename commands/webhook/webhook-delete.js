@@ -110,7 +110,7 @@ module.exports = {
                     const name = wh.name;
                     await wh.delete(`Deleted by ${i.user.username}`);
 
-                    const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                    const result = new ContainerBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> Webhook Deleted\n\n` +
                             `Successfully deleted webhook **${name}**\n` +
@@ -128,7 +128,7 @@ module.exports = {
             }
 
             if (action === 'cancel') {
-                const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const result = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# Cancelled\n\nWebhook deletion was cancelled. **${webhook.name}** is safe.`
                     ));

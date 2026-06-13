@@ -43,7 +43,6 @@ function buildOverview(guild) {
         (top || '*No custom roles yet.*');
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addSectionComponents(headerSection)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(meta))

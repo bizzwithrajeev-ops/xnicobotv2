@@ -26,7 +26,6 @@ const quotes = [
 function getQuoteContainer() {
     const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# 📜 Inspirational Quote\n\n*"${randomQuote.text}"*\n\n— **${randomQuote.author}**`

@@ -39,7 +39,6 @@ async function playScramble(context, isInteraction) {
     }
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# 🔤 Word Scramble!\n\n` +
@@ -63,7 +62,6 @@ async function playScramble(context, isInteraction) {
 
         if (guess === word) {
             const winContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Correct!\n\n` +
@@ -74,7 +72,6 @@ async function playScramble(context, isInteraction) {
             await channel.send({ components: [winContainer], flags: MessageFlags.IsComponentsV2 });
         } else {
             const loseContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Wrong!\n\n` +
@@ -87,7 +84,6 @@ async function playScramble(context, isInteraction) {
         }
     } catch {
         const timeoutContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Alarm:1473039068546732214> Time's Up!\n\n` +

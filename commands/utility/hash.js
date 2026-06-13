@@ -28,7 +28,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (args.length === 0) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to hash!\n\n**Usage:** \`-hash <text> [algorithm]\`\n**Algorithms:** md5, sha1, sha256, sha512\n**Example:** \`-hash mypassword sha256\``
@@ -48,7 +47,6 @@ module.exports = {
         
         if (!text) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to hash!`
@@ -66,7 +64,6 @@ async function generateHash(context, text, algorithm, isInteraction) {
         const hash = crypto.createHash(algorithm).update(text).digest('hex');
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Key:1473038690606649375> Hash Generated\n\n` +
@@ -83,7 +80,6 @@ async function generateHash(context, text, algorithm, isInteraction) {
         }
     } catch (error) {
         const errorContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\nError generating hash: ${error.message}`)
             );

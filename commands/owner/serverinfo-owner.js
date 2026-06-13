@@ -22,7 +22,6 @@ async function buildServerInfoContainer(guild) {
         }));
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(

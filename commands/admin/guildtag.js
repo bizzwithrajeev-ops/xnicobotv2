@@ -8,7 +8,7 @@ const economyManager = require('../../utils/economyManager');
    ═══════════════════════════════════════════════════════ */
 
 function loadGuildTags() {
-    try { if (jsonStore.has('guildtags')) return jsonStore.read('guildtags'); } catch {}
+    try { if (jsonStore.has('guildtags')) return jsonStore.read('guildtags'); } catch { }
     return {};
 }
 
@@ -99,7 +99,7 @@ async function processStreakRewards(client) {
                             for (const ms of rewards.milestones) {
                                 if (days >= ms.days && ms.roleId) {
                                     if (!member.roles.cache.has(ms.roleId)) {
-                                        await member.roles.add(ms.roleId, `Guild tag streak: ${tag.name} — ${days} days`).catch(() => {});
+                                        await member.roles.add(ms.roleId, `Guild tag streak: ${tag.name} — ${days} days`).catch(() => { });
                                         changed = true;
                                     }
                                 }
@@ -121,7 +121,7 @@ async function processStreakRewards(client) {
                                 }
                             }
                         }
-                    } catch {}
+                    } catch { }
                 }
             }
         }
@@ -378,7 +378,7 @@ module.exports = {
                 if (tag.rewardRole) {
                     const rewardRole = message.guild.roles.cache.get(tag.rewardRole);
                     if (rewardRole && !member.roles.cache.has(rewardRole.id)) {
-                        await member.roles.add(rewardRole, `Guild tag: ${tag.name}`).catch(() => {});
+                        await member.roles.add(rewardRole, `Guild tag: ${tag.name}`).catch(() => { });
                     }
                 }
 
@@ -496,13 +496,13 @@ module.exports = {
                 if (member.id !== message.guild.ownerId && member.roles.highest.position < message.guild.members.me.roles.highest.position) {
                     await member.setNickname(newNick, `Guild tag unequipped: ${tagToRemove.name}`);
                 }
-            } catch {}
+            } catch { }
 
             // Remove reward role
             if (tagToRemove.rewardRole) {
                 const rewardRole = message.guild.roles.cache.get(tagToRemove.rewardRole);
                 if (rewardRole && member.roles.cache.has(rewardRole.id)) {
-                    await member.roles.remove(rewardRole, 'Guild tag unequipped').catch(() => {});
+                    await member.roles.remove(rewardRole, 'Guild tag unequipped').catch(() => { });
                 }
             }
 
@@ -608,7 +608,7 @@ module.exports = {
                     streak.lastClaim = new Date().toISOString();
                     streak.totalClaimed = (streak.totalClaimed || 0) + 1;
                     claimedAny = true;
-                    content += `> ✅ **Daily Claimed:** ${claimText}\n`;
+                    content += `> <:Checkedbox:1473038547165384804> **Daily Claimed:** ${claimText}\n`;
                 } else if (rewards.dailyCoins > 0 || rewards.dailyXP > 0) {
                     content += `> ⏳ **Daily:** Already claimed today\n`;
                 }
@@ -619,7 +619,7 @@ module.exports = {
                     const claimed = streak.claimedMilestones || [];
                     for (const ms of rewards.milestones.sort((a, b) => a.days - b.days)) {
                         const done = days >= ms.days;
-                        const icon = done ? '✅' : '⬜';
+                        const icon = done ? '<:Checkedbox:1473038547165384804>' : '⬜';
                         let msText = `${formatDuration(ms.days)}`;
                         if (ms.roleId) msText += ` → <@&${ms.roleId}>`;
                         if (ms.coins > 0) msText += ` + ${ms.coins.toLocaleString()} coins`;
@@ -790,17 +790,17 @@ module.exports = {
                             const nick = member.nickname || member.user.displayName || member.user.username;
                             const clean = stripAllTags(nick, [tag]);
                             if (clean !== nick && member.roles.highest.position < message.guild.members.me.roles.highest.position) {
-                                await member.setNickname(clean || null, 'Guild tag deleted by admin').catch(() => {});
+                                await member.setNickname(clean || null, 'Guild tag deleted by admin').catch(() => { });
                             }
                         }
-                    } catch {}
+                    } catch { }
 
                     // Remove reward role
                     if (tag.rewardRole) {
                         try {
                             const member = message.guild.members.cache.get(userId);
-                            if (member) await member.roles.remove(tag.rewardRole).catch(() => {});
-                        } catch {}
+                            if (member) await member.roles.remove(tag.rewardRole).catch(() => { });
+                        } catch { }
                     }
                 }
             }

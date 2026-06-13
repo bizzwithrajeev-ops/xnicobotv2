@@ -71,7 +71,7 @@ module.exports = {
                     avatarURL: webhook.avatarURL() || undefined
                 });
 
-                const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const ctr = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Message Sent\n\n` +
                         `Successfully sent message through **${webhook.name}**!\n` +
@@ -104,7 +104,7 @@ module.exports = {
         const sid = `${uid}_${Date.now().toString(36)}`;
         const ch = message.guild.channels.cache.get(webhook.channelId);
 
-        const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const ctr = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Editalt:1473038138577256670> Send via ${webhook.name}\n\n` +
                 `**📺 Channel:** ${ch ? `<#${ch.id}>` : 'Unknown'}\n` +
@@ -136,7 +136,7 @@ module.exports = {
 
             if (action === 'cancel') {
                 collector.stop('cancelled');
-                const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const result = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Cancelled.`));
                 return i.update({ components: [result], flags: MessageFlags.IsComponentsV2 });
             }
@@ -264,7 +264,7 @@ module.exports = {
                 avatarURL: avatarURL || webhook.avatarURL() || undefined
             });
 
-            const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+            const result = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Message Sent\n\n` +
                     `Sent through **${username || webhook.name}** in <#${webhook.channelId}>`

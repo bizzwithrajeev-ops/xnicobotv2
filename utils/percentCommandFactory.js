@@ -113,7 +113,6 @@ function createPercentCommand(cfg) {
             .addItems(new MediaGalleryItemBuilder({ media: { url: `attachment://${fileName}` } }));
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addMediaGalleryComponents(gallery)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(footerNote));
 

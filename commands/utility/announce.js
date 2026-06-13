@@ -31,7 +31,6 @@ module.exports = {
         let pingText = ping === 'everyone' ? '@everyone' : ping === 'here' ? '@here' : '';
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Bullhorn:1473038903157199093> Announcement\n\n${msg}`)
             )
@@ -60,7 +59,6 @@ module.exports = {
         }
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Bullhorn:1473038903157199093> Announcement\n\n${content}`)
             )

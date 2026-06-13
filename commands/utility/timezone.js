@@ -119,7 +119,7 @@ module.exports = {
             const tz = data[target.id];
             if (!tz) {
                 return interaction.reply({
-                    components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                    components: [new ContainerBuilder().addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> No Timezone Set\n\n${target.id === interaction.user.id ? 'You haven\'t' : `**${target.username}** hasn't`} set a timezone yet.\n\n-# Use \`/timezone set <zone>\` to set one`)
                     )],
                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -127,7 +127,7 @@ module.exports = {
             }
             const now = formatTime(tz);
             return interaction.reply({
-                components: [new ContainerBuilder().setAccentColor(0x5865F2).addTextDisplayComponents(
+                components: [new ContainerBuilder().addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> ${target.username}'s Time\n\n**Zone:** \`${tz}\`\n**Current Time:** \`${now}\``)
                 )],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -153,7 +153,7 @@ module.exports = {
                 '`UTC` — Universal Coordinated Time',
             ].join('\n');
             return interaction.reply({
-                components: [new ContainerBuilder().setAccentColor(0x5865F2).addTextDisplayComponents(
+                components: [new ContainerBuilder().addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> Common Timezones\n\n${zones}\n\n-# You can also use full IANA names like \`Asia/Kolkata\``)
                 )],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -180,13 +180,13 @@ module.exports = {
             const data = loadTimezones();
             const tz = data[target.id];
             if (!tz) {
-                const container = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                const container = new ContainerBuilder().addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> No Timezone Set\n\n${target.id === message.author.id ? 'You haven\'t' : `**${target.username}** hasn't`} set a timezone.\n\n-# Use \`-timezone set <zone>\``)
                 );
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             const now = formatTime(tz);
-            const container = new ContainerBuilder().setAccentColor(0x5865F2).addTextDisplayComponents(
+            const container = new ContainerBuilder().addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> ${target.username}'s Time\n\n**Zone:** \`${tz}\`\n**Current Time:** \`${now}\``)
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -217,7 +217,7 @@ module.exports = {
 
         if (sub === 'list') {
             const zones = '`IST` India · `EST` US East · `CST` US Central · `PST` US West · `GMT` UK · `CET` Europe · `JST` Japan · `KST` Korea · `AEST` Australia · `SGT` Singapore · `UTC` Universal';
-            const container = new ContainerBuilder().setAccentColor(0x5865F2).addTextDisplayComponents(
+            const container = new ContainerBuilder().addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> Timezones\n\n${zones}\n\n-# Full IANA names also work: \`Asia/Kolkata\`, \`America/New_York\``)
             );
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -232,7 +232,7 @@ module.exports = {
         }
 
         // Unknown subcommand — show help
-        const container = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+        const container = new ContainerBuilder().addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> Timezone\n\n**Commands:**\n> \`-timezone set <zone>\` — Set your timezone\n> \`-timezone view [@user]\` — View time\n> \`-timezone list\` — Common zones\n> \`-timezone remove\` — Clear saved zone`)
         );
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

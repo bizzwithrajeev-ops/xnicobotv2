@@ -9,14 +9,14 @@ DOWNLOAD_URL="https://github.com/lavalink-devs/Lavalink/releases/download/${LAVA
 
 # Check Java
 if ! command -v java &> /dev/null; then
-    echo "❌ Java 17+ is required. Install with:"
+    echo "<:Cancel:1473037949187657818> Java 17+ is required. Install with:"
     echo "   sudo apt install openjdk-17-jre-headless"
     exit 1
 fi
 
 JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | cut -d'.' -f1)
 if [ "$JAVA_VER" -lt 17 ] 2>/dev/null; then
-    echo "❌ Java 17+ required, found Java $JAVA_VER"
+    echo "<:Cancel:1473037949187657818> Java 17+ required, found Java $JAVA_VER"
     exit 1
 fi
 
@@ -25,10 +25,10 @@ if [ ! -f "$LAVALINK_JAR" ]; then
     echo "⬇️  Downloading Lavalink v${LAVALINK_VERSION}..."
     curl -L -o "$LAVALINK_JAR" "$DOWNLOAD_URL"
     if [ $? -ne 0 ]; then
-        echo "❌ Download failed"
+        echo "<:Cancel:1473037949187657818> Download failed"
         exit 1
     fi
-    echo "✅ Downloaded Lavalink v${LAVALINK_VERSION}"
+    echo "<:Checkedbox:1473038547165384804> Downloaded Lavalink v${LAVALINK_VERSION}"
 fi
 
 echo "🚀 Starting Lavalink v${LAVALINK_VERSION} with DAVE support..."

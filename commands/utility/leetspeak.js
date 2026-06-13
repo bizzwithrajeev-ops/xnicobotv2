@@ -22,7 +22,6 @@ module.exports = {
         const result = text.split('').map(char => leetMap[char] || char).join('');
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🎮 Leetspeak Converter\n\n` +
@@ -37,7 +36,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (args.length === 0) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to convert!\n\n**Usage:** \`-leetspeak <text>\`\n**Example:** \`-leetspeak Hello World\``
@@ -50,7 +48,6 @@ module.exports = {
         const result = text.split('').map(char => leetMap[char] || char).join('');
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🎮 Leetspeak Converter\n\n` +

@@ -41,7 +41,6 @@ async function sendSuggestion(client, author, guild, suggestion) {
             : `${E.folder} **Server:** *DM context*`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addSectionComponents(
                 new SectionBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(

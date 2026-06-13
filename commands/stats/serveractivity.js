@@ -64,7 +64,6 @@ function buildServerActivityContainer(guild) {
         `<:Gamepad:1473039216429498409> **Total Commands Used**\n> \`${totalCommands.toLocaleString()}\``;
 
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addSectionComponents(
             new SectionBuilder()
                 .addTextDisplayComponents(

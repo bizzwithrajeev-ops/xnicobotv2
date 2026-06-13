@@ -914,13 +914,17 @@ function wait(ms) {
 }
 
 function endWritable(stream) {
-    return new Promise((resolve) => {
-        if (stream.destroyed || stream.closed) {
+    return new Promise((resolve, reject) => {
+        if (!stream || stream.destroyed || stream.closed) {
             resolve();
             return;
         }
 
-        stream.end(resolve);
+        stream.once('error', reject);
+        stream.end(() => {
+            stream.removeListener('error', reject);
+            resolve();
+        });
     });
 }
 

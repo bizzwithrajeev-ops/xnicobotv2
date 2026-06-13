@@ -47,7 +47,6 @@ module.exports = {
         const flagDisplay = flags.map(f => flagNames[f] || f).join(', ') || 'None';
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `### <:Search:1473038053219106847> User Lookup\n` +

@@ -46,7 +46,6 @@ module.exports = {
             });
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Counting Game Set Up!\n\n` +
@@ -66,7 +65,6 @@ module.exports = {
             
             if (!data) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Not Set Up\n\nCounting game is not set up in this server.\nUse \`/counting setup\` to get started!`
@@ -76,7 +74,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🔢 Counting Statistics\n\n` +
@@ -95,7 +92,6 @@ module.exports = {
             
             if (!data) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Not Set Up\n\nCounting game is not set up in this server.`
@@ -110,7 +106,6 @@ module.exports = {
             await db.set(`counting_${interaction.guild.id}`, data);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Count Reset!\n\nThe count has been reset to **0**.\nStart counting from 1!`
@@ -123,7 +118,6 @@ module.exports = {
             await db.delete(`counting_${interaction.guild.id}`);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Counting Disabled\n\nThe counting game has been disabled for this server.`
@@ -138,7 +132,6 @@ module.exports = {
 
         if (!message.guild) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Server Only\n\nThis command can only be used in a server.`
@@ -149,7 +142,6 @@ module.exports = {
 
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Permission\n\nYou need **Manage Channels** permission to use this command.`
@@ -172,7 +164,6 @@ module.exports = {
             });
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Counting Game Set Up!\n\n` +
@@ -192,7 +183,6 @@ module.exports = {
             
             if (!data) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Not Set Up\n\nCounting game is not set up. Use \`-counting setup\` to get started!`
@@ -202,7 +192,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🔢 Counting Statistics\n\n` +
@@ -221,7 +210,6 @@ module.exports = {
             
             if (!data) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Not Set Up\n\nCounting game is not set up in this server.`
@@ -236,7 +224,6 @@ module.exports = {
             await db.set(`counting_${message.guild.id}`, data);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Count Reset!\n\nThe count has been reset to **0**.\nStart counting from 1!`
@@ -249,7 +236,6 @@ module.exports = {
             await db.delete(`counting_${message.guild.id}`);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Counting Disabled\n\nThe counting game has been disabled for this server.`
@@ -260,7 +246,6 @@ module.exports = {
 
         else {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Invalid Usage\n\n` +

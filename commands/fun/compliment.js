@@ -41,7 +41,6 @@ function buildCompliment(target) {
         .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: target.displayAvatarURL({ size: 256 }) } }));
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addSectionComponents(section);
 }
 

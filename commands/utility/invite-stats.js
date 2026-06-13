@@ -3,7 +3,7 @@ const { getUserStats, fetchRealInviteStats } = require('../../utils/inviteManage
 const { buildExpiredPanel } = require('../../utils/responseBuilder');
 
 function buildStatsContainer(user, stats, avatarUrl, codesPage = 0, prefix = 'invcode') {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     const section = new SectionBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Bookopen:1473038576391557130> Invite Stats`))

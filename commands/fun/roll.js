@@ -35,7 +35,6 @@ module.exports = {
         const total = rolls.reduce((a, b) => a + b, 0);
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🎲 Dice Roll\n\n` +
@@ -54,7 +53,6 @@ module.exports = {
         
         if (sides < 2 || sides > 100) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Invalid Sides\n\nPlease provide a number between 2 and 100!`
@@ -71,7 +69,6 @@ module.exports = {
         const total = rolls.reduce((a, b) => a + b, 0);
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🎲 Dice Roll\n\n` +

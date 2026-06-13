@@ -41,7 +41,7 @@ function buildListView(webhooks, guild, page, uid) {
         ].join('\n');
     }).join('\n\n');
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+    const ctr = new ContainerBuilder()
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines || 'No webhooks on this page.'));
@@ -98,7 +98,7 @@ function buildDetailView(webhook, guild, uid) {
         `**<:Picture:1473039568398843957> Avatar:** ${webhook.avatar ? 'Custom' : 'Default'}`
     ].join('\n');
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+    const ctr = new ContainerBuilder()
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(info));
@@ -143,7 +143,7 @@ function errorContainer(text) {
 }
 
 function successContainer(text) {
-    return new ContainerBuilder().setAccentColor(0xCAD7E6)
+    return new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> ${text}`));
 }
 

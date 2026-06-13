@@ -380,7 +380,6 @@ module.exports = {
 
                 const lines = ALL_LOG_KEYS.map(k => `${logTypeNames[k].emoji} **${logTypeNames[k].name} Logs** — ${logTypeNames[k].desc}`).join('\n');
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> All Logging Channels Configured\n\n` +
@@ -399,7 +398,6 @@ module.exports = {
                 invalidateCache();
                 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> ${info.name} Logs Configured\n\n` +
@@ -474,7 +472,6 @@ module.exports = {
             invalidateCache();
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Log Delivery Mode Updated\n\n` +
@@ -517,7 +514,6 @@ module.exports = {
             
             const typeName = type === 'all' ? 'All Log Types' : logTypeNames[type].name + ' Logs';
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Webhook URL Configured\n\n` +
@@ -730,7 +726,6 @@ module.exports = {
             invalidateCache();
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Log Delivery Mode Updated\n\n` +
@@ -778,7 +773,6 @@ module.exports = {
             
             const typeName = type === 'all' ? 'All Log Types' : logTypeNames[type].name + ' Logs';
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Webhook URL Configured\n\n` +
@@ -805,7 +799,6 @@ module.exports = {
             invalidateCache();
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> All Logging Channels Configured\n\n` +
@@ -823,7 +816,6 @@ module.exports = {
             invalidateCache();
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> ${logTypeNames[action].name} Logs Configured\n\n` +

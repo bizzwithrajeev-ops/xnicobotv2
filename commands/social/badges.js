@@ -22,7 +22,6 @@ module.exports = {
 
             if (badges.length === 0) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addSectionComponents(section)
                     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
                     .addTextDisplayComponents(
@@ -37,7 +36,6 @@ module.exports = {
             ).join('\n\n');
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addSectionComponents(section)
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(

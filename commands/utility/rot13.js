@@ -48,7 +48,6 @@ module.exports = {
                 });
             }
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:History:1473037847568318605> ROT13 Cipher\n\n` +
                     `**Input:**\n${text}\n\n` +

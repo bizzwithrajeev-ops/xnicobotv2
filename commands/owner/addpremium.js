@@ -104,7 +104,7 @@ module.exports = {
                 : '';
 
             const dmContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6);
+                ;
             
             let dmContent = `# <:Sketch:1473038248493453352> Premium Activated!\n\n`;
             dmContent += `Congratulations! You've been granted **Premium** access for **${botName}**.\n\n`;

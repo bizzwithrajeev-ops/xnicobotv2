@@ -10,7 +10,6 @@ module.exports = {
         const subreddit = interaction.options.getString('subreddit') || 'memes';
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 📱 r/${subreddit}\n\n` +
@@ -27,7 +26,6 @@ module.exports = {
         const subreddit = args[0] || 'memes';
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 📱 r/${subreddit}\n\n` +

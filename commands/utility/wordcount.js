@@ -20,7 +20,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (args.length === 0) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to analyze!\n\n**Usage:** \`-wordcount <text>\`\n**Example:** \`-wordcount Hello World\``
@@ -43,7 +42,6 @@ async function analyzeText(context, text, isInteraction) {
         const sentenceCount = text.split(/[.!?]+/).filter(s => s.trim()).length;
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Invoice:1473039492217835550> Text Statistics\n\n` +
@@ -62,7 +60,6 @@ async function analyzeText(context, text, isInteraction) {
         }
     } catch (error) {
         const errorContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error.message}`)
             );

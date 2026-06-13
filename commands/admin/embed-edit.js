@@ -35,7 +35,6 @@ module.exports = {
             const [title, description] = content.split('|').map(s => s.trim());
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# ${title || 'Embed'}\n\n${description || 'No description'}`

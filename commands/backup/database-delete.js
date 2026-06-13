@@ -71,13 +71,13 @@ module.exports = {
                 if (i.customId.split(':')[1] === 'confirm') {
                     try {
                         await db.delete(key);
-                        return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Deleted\n\n${emoji} **${name}** (\`${type}\`) permanently removed.`))], flags: MessageFlags.IsComponentsV2 });
+                        return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Deleted\n\n${emoji} **${name}** (\`${type}\`) permanently removed.`))], flags: MessageFlags.IsComponentsV2 });
                     } catch (err) {
                         console.error('Database Delete Error:', err);
                         return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
                     }
                 }
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
             });
 
             collector.on('end', (_, reason) => {

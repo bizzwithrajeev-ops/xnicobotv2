@@ -247,7 +247,6 @@ module.exports = {
         const spotifyLinks = loadSpotifyLinks();
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(buildMainPanel(interaction.user.id, favorites, spotifyLinks))
             );
@@ -265,7 +264,6 @@ module.exports = {
         const spotifyLinks = loadSpotifyLinks();
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(buildMainPanel(message.author.id, favorites, spotifyLinks))
             );
@@ -289,7 +287,6 @@ module.exports = {
         if (customId === 'mymusic_back') {
             const favorites = await models.FavoriteSong.find({ userId });
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(buildMainPanel(userId, favorites, spotifyLinks))
                 );
@@ -328,7 +325,6 @@ module.exports = {
         if (customId === 'mymusic_spotify') {
             const userLinks = spotifyLinks[userId] || { playlists: [] };
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(buildSpotifyPanel(userId, spotifyLinks))
                 );
@@ -610,7 +606,6 @@ module.exports = {
                 if (!wasPlaying) await player.play();
 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:spotify:1473663456182800446> Playing Playlist\n\n` +
@@ -705,7 +700,6 @@ module.exports = {
             saveSpotifyLinks(spotifyLinks);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Playlist Linked!\n\n` +

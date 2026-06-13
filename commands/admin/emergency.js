@@ -440,7 +440,6 @@ module.exports = {
 
                 return message.reply({
                     components: [new ContainerBuilder()
-                        .setAccentColor(0x5865F2)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# ${E.shield} Targeted Roles\n\n` +
                             `### ${E.bookmark} Roles (${roles.length})\n${display}\n\n` +

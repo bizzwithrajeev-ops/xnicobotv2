@@ -145,7 +145,6 @@ module.exports = {
             content += `\`-speak-config voice male/female\` — Set voice gender`;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));

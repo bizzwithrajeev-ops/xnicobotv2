@@ -83,7 +83,7 @@ module.exports = {
             `**<:Attach:1473037923979886694> URL:** ||${webhook.url}||`
         ].join('\n');
 
-        const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const ctr = new ContainerBuilder()
             .addSectionComponents(section)
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(info))
@@ -166,7 +166,7 @@ module.exports = {
                     const name = wh.name;
                     await wh.delete(`Deleted by ${i.user.username}`);
                     collector.stop('deleted');
-                    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                    const ctr = new ContainerBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> Webhook Deleted\n\nSuccessfully deleted **${name}** (\`${whId}\`).`
                         ));

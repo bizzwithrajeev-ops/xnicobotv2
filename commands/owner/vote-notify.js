@@ -17,7 +17,7 @@ function saveConfig(config) {
 
 function buildVotePanel(config, client) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6);
+        ;
 
     let content = `# <:Fire:1473038604812161218> Top.gg Vote Notifications\n\n`;
     content += `**Status:** ${config?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
@@ -222,7 +222,6 @@ module.exports = {
             statsContent += `-# Thank you for supporting ${interaction.client.user.username}! Every vote helps us grow.`;
 
             const testContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addSectionComponents(headerSection)
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(statsContent));

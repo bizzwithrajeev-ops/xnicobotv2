@@ -99,7 +99,6 @@ module.exports = {
                     const channelCount = selectedCategory.children.cache.size;
 
                     const loadingContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder()
                                 .setContent(`# <a:Loading:1485248248720658472> Deleting Category\n\n> **Category:** \`${categoryName}\`\n> Removing ${channelCount} channels...`)
@@ -114,7 +113,6 @@ module.exports = {
                         await selectedCategory.delete();
 
                         const successContainer = new ContainerBuilder()
-                            .setAccentColor(0xCAD7E6)
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
                                     .setContent(`# <:Checkedbox:1473038547165384804> Category Deleted\n\n> **Category:** \`${categoryName}\`\n> **Channels Removed:** ${channelCount}\n\nThe category and all its channels have been permanently deleted.`)
@@ -130,7 +128,6 @@ ${err.message}`))], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
 
                 } else if (interaction.customId === 'catdel_cancel') {
                     const cancelContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder()
                                 .setContent(`# <:Folderopen:1473039552783323348> Cancelled\n\nCategory deletion has been cancelled. No changes were made.`)

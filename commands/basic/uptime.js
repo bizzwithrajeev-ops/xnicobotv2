@@ -16,7 +16,6 @@ function getUptimeContainer(client) {
     parts.push(`**${seconds}**s`);
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Clock:1473039102113878056> Uptime`)
         )

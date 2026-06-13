@@ -8,6 +8,7 @@
 const jsonStore = require('./jsonStore');
 
 const EMBED_COLORS = {
+    'colorless': { name: 'Colorless', color: null },
     'default': { name: 'Default', color: 0xCAD7E6 },
     'red': { name: 'Red', color: 0xED4245 },
     'green': { name: 'Green', color: 0x57F287 },
@@ -79,7 +80,10 @@ function getConfig(guildId) {
  */
 function getEmbedColor(guildId) {
     const cfg = getConfig(guildId);
-    return EMBED_COLORS[cfg.embedColor]?.color || 0xCAD7E6;
+    const entry = EMBED_COLORS[cfg.embedColor];
+    // Return null for 'colorless' so the runtime patcher skips setting accent_color
+    if (!entry || entry.color === null) return null;
+    return entry.color;
 }
 
 /**

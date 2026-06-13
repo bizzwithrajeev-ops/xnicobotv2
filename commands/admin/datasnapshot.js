@@ -125,7 +125,6 @@ module.exports = {
 
 async function handleCreate(target, isPrefix) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Lightning:1473038797540298792> Creating Snapshot\n\n` +
             `Please wait...`
@@ -183,7 +182,6 @@ async function handleList(target, isPrefix) {
 
     if (snapshots.length === 0) {
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Inforect:1473038624172937287> No Snapshots\n\n` +
                 `No snapshots available. Use \`/datasnapshot create\` to create one.`
@@ -205,7 +203,7 @@ async function handleList(target, isPrefix) {
         const expired = age > storeSnapshot.MAX_SNAPSHOT_AGE_MS;
         const ageText = hoursAgo < 1 ? 'Less than 1h ago' : `${hoursAgo}h ago`;
         const expireIcon = expired ? '🔴' : '🟢';
-        
+
         totalSize += snap.size;
         listText += `${expireIcon} \`${snap.name}\`\n`;
         listText += `> ${(snap.size / 1024).toFixed(1)} KB • ${ageText}${expired ? ' (will be deleted)' : ''}\n\n`;
@@ -239,7 +237,6 @@ async function handleList(target, isPrefix) {
 
 async function handleCleanup(target, isPrefix) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# 🧹 Cleaning Up Snapshots\n\n` +
             `Removing snapshots older than 24 hours...`
@@ -260,14 +257,14 @@ async function handleCleanup(target, isPrefix) {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 result.deleted > 0
                     ? `# <:Checkedbox:1473038547165384804> Cleanup Complete\n\n` +
-                      `Removed ${result.deleted} old snapshot(s)!`
+                    `Removed ${result.deleted} old snapshot(s)!`
                     : `# <:Inforect:1473038624172937287> Nothing to Clean\n\n` +
-                      `All snapshots are within 24 hours.`
+                    `All snapshots are within 24 hours.`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `**🗑️ Deleted:** ${result.deleted} snapshot(s)\n` +
-                `**✅ Kept:** ${result.kept} snapshot(s)\n` +
+                `**<:Checkedbox:1473038547165384804> Kept:** ${result.kept} snapshot(s)\n` +
                 `**💾 Freed:** ${result.freedMB} MB`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
@@ -366,7 +363,7 @@ async function handleRestore(target, name, storesStr, isPrefix) {
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `**📦 Snapshot:** \`${name}\`\n` +
-                `**✅ Restored:** ${result.restored.join(', ')}`
+                `**<:Checkedbox:1473038547165384804> Restored:** ${result.restored.join(', ')}`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(

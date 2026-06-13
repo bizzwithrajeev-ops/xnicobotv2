@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
-const { formatCoins, formatCoinsShort , coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
+const { formatCoins, formatCoinsShort, coinIcon, formatCoinsAmount } = require('../../utils/currencyHelper');
 const { createContainer, addTextDisplay, addSeparator, formatNumber, SeparatorSpacingSize } = require('../../utils/componentHelpers');
 const economyManager = require('../../utils/economyManager');
 const { EMOJIS } = require('../../utils/economyEmojis');
@@ -13,10 +13,10 @@ const cooldowns = new Map();
 const activeHeists = new Map();
 
 const TARGETS = [
-  { id: 'bank',    name: 'Bank Job',        emoji: '<:Bank:1473039150927319192>', baseSuccessRate: 0.55, rewardBase: [1000, 5000],   riskFine: 0.10 },
-  { id: 'museum',  name: 'Museum Heist',    emoji: '🏛', baseSuccessRate: 0.45, rewardBase: [3000, 8000],   riskFine: 0.12 },
-  { id: 'casino',  name: 'Casino Robbery',  emoji: '🎰', baseSuccessRate: 0.35, rewardBase: [5000, 15000],  riskFine: 0.15 },
-  { id: 'vault',   name: 'Royal Vault',     emoji: '👑', baseSuccessRate: 0.25, rewardBase: [10000, 30000], riskFine: 0.20 },
+  { id: 'bank', name: 'Bank Job', emoji: '<:Bank:1473039150927319192>', baseSuccessRate: 0.55, rewardBase: [1000, 5000], riskFine: 0.10 },
+  { id: 'museum', name: 'Museum Heist', emoji: '🏛', baseSuccessRate: 0.45, rewardBase: [3000, 8000], riskFine: 0.12 },
+  { id: 'casino', name: 'Casino Robbery', emoji: '🎰', baseSuccessRate: 0.35, rewardBase: [5000, 15000], riskFine: 0.15 },
+  { id: 'vault', name: 'Royal Vault', emoji: '👑', baseSuccessRate: 0.25, rewardBase: [10000, 30000], riskFine: 0.20 },
 ];
 
 const SUCCESS_LINES = [
@@ -100,7 +100,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       `# ${target.emoji} Heist Success!`,
       `## ${target.name}`,
       '',
-      `✅ *${flavor}*`,
+      `<:Checkedbox:1473038547165384804> *${flavor}*`,
       '',
       `${coinIcon(guildId)} **Total stolen:** ${formatCoinsAmount(totalReward, guildId)}`,
       `👥 **Split between ${allParticipants.length} crew member(s):**`,
@@ -109,7 +109,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       `-# Cooldown: 5 minutes`,
     ].join('\n'));
 
-    if (msg.edit) return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    if (msg.edit) return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
     return interaction.editReply({ components: [c], flags: MessageFlags.IsComponentsV2 });
 
   } else {
@@ -133,7 +133,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       `# ${target.emoji} Heist Failed!`,
       `## ${target.name}`,
       '',
-      `❌ *${flavor}*`,
+      `<:Cancel:1473037949187657818> *${flavor}*`,
       '',
       `${coinIcon(guildId)} **Fines paid:**`,
       ...fineLines,
@@ -141,7 +141,7 @@ async function runHeist(msg, target, leader, members, interaction) {
       `-# Cooldown: 5 minutes`,
     ].join('\n'));
 
-    if (msg.edit) return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    if (msg.edit) return msg.edit({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
     return interaction.editReply({ components: [c], flags: MessageFlags.IsComponentsV2 });
   }
 }
@@ -218,7 +218,7 @@ async function startHeist(interaction, targetId) {
       if (finished) return;
       finished = true;
       clearInterval(ticker);
-      try { collector.stop('timer_expired'); } catch {}
+      try { collector.stop('timer_expired'); } catch { }
       const current = activeHeists.get(leaderId);
       const finalMembers = current ? current.members : members;
       activeHeists.delete(leaderId);
@@ -229,37 +229,37 @@ async function startHeist(interaction, targetId) {
     await msg.edit({
       components: [buildLobbyEmbed(target, interaction.user, currentMembers, secondsLeft), row],
       flags: MessageFlags.IsComponentsV2,
-    }).catch(() => {});
+    }).catch(() => { });
   }, 5000);
 
   collector.on('collect', async btn => {
-    if (finished) return btn.deferUpdate().catch(() => {});
+    if (finished) return btn.deferUpdate().catch(() => { });
 
     if (btn.customId === `heist_join_${leaderId}`) {
       const joiner = btn.user;
       const heist = activeHeists.get(leaderId);
-      if (!heist) return btn.deferUpdate().catch(() => {});
+      if (!heist) return btn.deferUpdate().catch(() => { });
 
       if (joiner.id === leaderId || heist.members.find(m => m.id === joiner.id)) {
-        return btn.reply({ content: 'You are already in this heist!', flags: MessageFlags.Ephemeral }).catch(() => {});
+        return btn.reply({ content: 'You are already in this heist!', flags: MessageFlags.Ephemeral }).catch(() => { });
       }
       heist.members.push(joiner);
       await btn.update({
         components: [buildLobbyEmbed(target, interaction.user, heist.members, secondsLeft), row],
         flags: MessageFlags.IsComponentsV2,
-      }).catch(() => {});
+      }).catch(() => { });
 
     } else if (btn.customId === `heist_start_${leaderId}`) {
       if (btn.user.id !== leaderId) {
-        return btn.reply({ content: 'Only the leader can launch early!', flags: MessageFlags.Ephemeral }).catch(() => {});
+        return btn.reply({ content: 'Only the leader can launch early!', flags: MessageFlags.Ephemeral }).catch(() => { });
       }
-      if (finished) return btn.deferUpdate().catch(() => {});
+      if (finished) return btn.deferUpdate().catch(() => { });
       finished = true;
       clearInterval(ticker);
       collector.stop('early_launch');
       const heist = activeHeists.get(leaderId);
       activeHeists.delete(leaderId);
-      await btn.deferUpdate().catch(() => {});
+      await btn.deferUpdate().catch(() => { });
       return runHeist(msg, target, interaction.user, heist ? heist.members : members, interaction);
     }
   });
@@ -287,7 +287,7 @@ module.exports = {
       user: message.author,
       guild: message.guild,
       reply: message.reply.bind(message),
-      deferReply: async () => {},
+      deferReply: async () => { },
       editReply: message.reply.bind(message),
     };
     return startHeist(fakeInteraction, isNaN(idx) ? null : idx);

@@ -82,7 +82,7 @@ function ensureYouTubeExtras(ytConfig) {
 // ─── Panel Builders ──────────────────────────────────────
 
 function buildMainPanel(guildConfig) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(

@@ -88,7 +88,6 @@ module.exports = {
             let crossNote = inVcMods ? `\n\n<:Infotriangle:1473038460456800459> **Note:** Currently in the **VC Mod** list — will be auto-promoted and removed from it.` : '';
 
             const confirmContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Infotriangle:1473038460456800459> Confirm: Add Moderator\n\n` +
                     `<:Caretright:1473038207221502106> **Target:** ${targetUser || targetRole} (\`${targetId}\`)\n` +

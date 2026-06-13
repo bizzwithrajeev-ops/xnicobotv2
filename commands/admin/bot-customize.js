@@ -76,6 +76,7 @@ const E = {
 };
 
 const EMBED_COLORS = {
+    'colorless': { name: 'Colorless (None)', color: null,     emoji: '🚫' },
     'default': { name: 'Default Blue', color: 0xCAD7E6, emoji: '🔵' },
     'red':     { name: 'Red',          color: 0xED4245, emoji: '🔴' },
     'green':   { name: 'Green',        color: 0x57F287, emoji: '🟢' },
@@ -329,8 +330,9 @@ function isValidImageUrl(url) {
 /* ─────────────────────────── UI builder ─────────────────────────── */
 
 function buildCustomizePanel(guildConfig, guild, client, page = 'main') {
-    const accent = EMBED_COLORS[guildConfig.embedColor]?.color || 0xCAD7E6;
-    const container = new ContainerBuilder().setAccentColor(accent);
+    const accent = EMBED_COLORS[guildConfig.embedColor]?.color ?? null;
+    const container = new ContainerBuilder();
+    if (accent != null) container.setAccentColor(accent);
 
     const botMember = guild.members.me;
     const currentNick = botMember?.nickname || client.user.username;

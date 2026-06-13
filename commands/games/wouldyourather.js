@@ -73,7 +73,6 @@ async function sendWouldYouRather(context, isInteraction) {
     );
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addActionRowComponents(row);
 
@@ -114,7 +113,7 @@ module.exports = {
 
         if (!poll) {
             await interaction.reply({
-                components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                components: [new ContainerBuilder().addTextDisplayComponents(
                     new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Poll Expired\n\nThis poll has expired. Start a new one with `-wouldyourather`!')
                 )],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -139,7 +138,6 @@ module.exports = {
         );
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
             .addActionRowComponents(row);
 

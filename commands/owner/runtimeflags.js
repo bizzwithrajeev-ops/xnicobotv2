@@ -71,7 +71,6 @@ module.exports = {
             `> ${intentNames.length ? intentNames.map(i => `\`${i}\``).join(', ') : '*none*'}\n`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

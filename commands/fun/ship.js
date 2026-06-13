@@ -341,7 +341,6 @@ async function buildAndSend(user1, user2, name1, name2) {
         .addItems(new MediaGalleryItemBuilder({ media: { url: 'attachment://ship.png' } }));
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addMediaGalleryComponents(gallery)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             '-# Compatibility is just for fun — chemistry is real life only.'
@@ -387,7 +386,6 @@ module.exports = {
         if (!u1) {
             return message.reply({
                 components: [new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         '# 💘 Ship\n\n**Usage:** `ship <@user1> [@user2]`\n-# Mention at least one user.'
                     ))],

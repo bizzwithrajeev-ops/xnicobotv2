@@ -29,7 +29,6 @@ function buildBoostersContainer(guild) {
     }
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addSectionComponents(headerSection)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(

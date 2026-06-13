@@ -37,7 +37,6 @@ async function fetchFact() {
 
 function buildFactContainer(fact) {
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `## <:Bookopen:1473038576391557130> Random Fact\n\n> ${fact}\n\n-# Source: uselessfacts.jsph.pl`
         ));

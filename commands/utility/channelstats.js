@@ -20,7 +20,6 @@ async function getChannelStats(channel) {
 
 function buildChannelStatsContainer(channel, stats) {
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Bookopen:1473038576391557130> Channel Statistics: ${channel.name}`)
         )

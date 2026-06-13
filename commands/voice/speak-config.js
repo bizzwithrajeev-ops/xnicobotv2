@@ -39,7 +39,6 @@ module.exports = {
             const gender = args[1]?.toLowerCase();
             if (gender !== 'male' && gender !== 'female') {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Settings:1473037894703779851> Voice Gender\n\n` +
                         `**Usage:** \`-speak-config voice <male|female>\`\n\n` +
@@ -115,7 +114,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
@@ -151,7 +149,6 @@ module.exports = {
             content += `**Example:** \`-speak-config hi\` then \`-speak-config voice male\``;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));

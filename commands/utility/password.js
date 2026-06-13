@@ -25,7 +25,6 @@ function generatePassword(length, includeNumbers, includeSymbols, includeUpperca
 function buildPasswordContainer(password, length) {
     const yes = '<:Checkedbox:1473038547165384804>';
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Key:1473038690606649375> Password Generated\n\n\`\`\`${password}\`\`\``)
         )

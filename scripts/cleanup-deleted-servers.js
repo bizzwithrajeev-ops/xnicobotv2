@@ -20,7 +20,7 @@ const forceMode = args.includes('--force');
 const serverIdsToRemove = args.filter(arg => arg !== '--force');
 
 if (serverIdsToRemove.length === 0) {
-    console.error('❌ Error: Please provide at least one server ID to remove.');
+    console.error('<:Cancel:1473037949187657818> Error: Please provide at least one server ID to remove.');
     console.error('Usage: node scripts/cleanup-deleted-servers.js <guildId1> <guildId2> ... [--force]');
     console.error('');
     console.error('Options:');
@@ -59,7 +59,7 @@ async function main() {
         // Initialize JSON store (connects to PostgreSQL)
         console.log('� Connecting to database...');
         await jsonStore.init();
-        console.log('✅ Database connected\n');
+        console.log('<:Checkedbox:1473038547165384804> Database connected\n');
 
         // In force mode, treat all provided IDs as deleted servers
         const deletedServers = serverIdsToRemove;
@@ -94,12 +94,12 @@ async function main() {
 
         console.log('');
         console.log('━'.repeat(60));
-        
+
         if (totalRemoved === 0) {
             console.log('ℹ️  No entries found for the specified server(s).');
             console.log('   The database is already clean or the server ID was never configured.');
         } else {
-            console.log(`✅ Cleanup complete!`);
+            console.log(`<:Checkedbox:1473038547165384804> Cleanup complete!`);
             console.log(`   📊 Total entries removed: ${totalRemoved}`);
             console.log(`   🗑️  Deleted servers cleaned: ${deletedServers.length}`);
             console.log(`   📁 Stores cleaned: ${[...new Set(removedFrom)].length}`);
@@ -109,7 +109,7 @@ async function main() {
         process.exit(0);
     } catch (error) {
         console.error('');
-        console.error('❌ Error during cleanup:', error.message);
+        console.error('<:Cancel:1473037949187657818> Error during cleanup:', error.message);
         console.error(error.stack);
         process.exit(1);
     }

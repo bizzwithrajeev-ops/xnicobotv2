@@ -29,7 +29,6 @@ async function playWordChain(context, isInteraction) {
 
     if (activeGames.has(channel.id)) {
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Cancel:1473037949187657818> Game In Progress\n\nA word chain game is already active in this channel!`
@@ -56,7 +55,6 @@ async function playWordChain(context, isInteraction) {
     });
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# <:Attach:1473037923979886694> Word Chain Game!\n\n` +
@@ -102,7 +100,6 @@ async function playWordChain(context, isInteraction) {
         if (game.usedWords.has(word)) {
             await msg.react('<:History:1473037847568318605>');
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`**${word}** was already used! Try another word starting with **${game.currentLetter.toUpperCase()}**`)
                 );
@@ -131,7 +128,6 @@ async function playWordChain(context, isInteraction) {
         const duration = Math.floor((Date.now() - game.startTime) / 1000);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🏁 Word Chain Ended!\n\n` +

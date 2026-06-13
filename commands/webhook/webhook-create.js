@@ -68,7 +68,7 @@ module.exports = {
         const sid = `${uid}_${Date.now().toString(36)}`;
 
         // Confirmation prompt
-        const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const ctr = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Attach:1473037923979886694> Create Webhook\n\n` +
                 `Are you sure you want to create this webhook?\n`
@@ -109,7 +109,7 @@ module.exports = {
                         reason: `Webhook created by ${message.author.username}`
                     });
 
-                    const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                    const result = new ContainerBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> Webhook Created\n\n` +
                             `Successfully created webhook **${webhookName}** in <#${channel.id}>!\n`
@@ -174,7 +174,7 @@ module.exports = {
                         }
 
                         if (fAction === 'done') {
-                            const done = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                            const done = new ContainerBuilder()
                                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                     `# <:Checkedbox:1473038547165384804> Webhook Created\n\n` +
                                     `**${webhookName}** is ready in <#${channel.id}>!\n` +
@@ -185,7 +185,7 @@ module.exports = {
                     });
                     followCollector.on('end', (_, reason) => {
                         if (reason === 'handled') return;
-                        const done = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                        const done = new ContainerBuilder()
                             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                 `# <:Checkedbox:1473038547165384804> Webhook Created\n\n` +
                                 `**${webhookName}** is ready in <#${channel.id}>! • <:Fileuser:1473039570630348810> \`${webhook.id}\``
@@ -205,7 +205,7 @@ module.exports = {
             }
 
             if (action === 'cancel') {
-                const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const result = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# Cancelled\n\nWebhook creation was cancelled.`
                     ));

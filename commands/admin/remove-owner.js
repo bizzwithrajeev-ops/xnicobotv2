@@ -34,7 +34,6 @@ module.exports = {
         } catch {}
 
         const confirmContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Infotriangle:1473038460456800459> Confirm: Remove Second Owner\n\n` +
                 `<:Caretright:1473038207221502106> **Current Second Owner:** ${targetUser || `<@${current}>`} (\`${current}\`)\n` +

@@ -43,7 +43,6 @@ module.exports = {
 
             if (config[interaction.guild.id].channels.includes(channel.id)) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Already Media-Only\n\n${channel} is already configured as a media-only channel.`
@@ -57,7 +56,6 @@ module.exports = {
             jsonStore.write('media-only', config);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Media-Only Channel Added\n\n` +
@@ -77,7 +75,6 @@ module.exports = {
 
             if (!config[interaction.guild.id].channels.includes(channel.id)) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Not Media-Only\n\n${channel} is not configured as a media-only channel.`
@@ -91,7 +88,6 @@ module.exports = {
             jsonStore.write('media-only', config);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Media-Only Restriction Removed\n\n${channel} is no longer a media-only channel.\n\nAll message types are now allowed.`
@@ -104,7 +100,6 @@ module.exports = {
 
             if (channels.length === 0) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Image:1473039533112033508> No Media-Only Channels\n\n` +
@@ -163,7 +158,6 @@ module.exports = {
 
         if (channels.length === 0) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Image:1473039533112033508> No Media-Only Channels\n\n` +

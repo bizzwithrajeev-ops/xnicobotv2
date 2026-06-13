@@ -80,7 +80,6 @@ async function playMath(context, isInteraction, difficulty) {
     let totalTime = 0;
 
     const startContainer = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# 🧮 Math Challenge!\n\n` +
@@ -104,7 +103,6 @@ async function playMath(context, isInteraction, difficulty) {
         const startTime = Date.now();
 
         const problemContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🧮 Round ${i + 1}/${rounds}\n\n` +
@@ -129,7 +127,6 @@ async function playMath(context, isInteraction, difficulty) {
             } else {
                 await collected.first().react('<:Cancel:1473037949187657818>');
                 const wrongContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(`<:Cancel:1473037949187657818> Wrong! The answer was **${answer}**`)
                     );
@@ -137,7 +134,6 @@ async function playMath(context, isInteraction, difficulty) {
             }
         } catch {
             const timeoutContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`<:Alarm:1473039068546732214> Too slow! The answer was **${answer}**`)
                 );

@@ -102,7 +102,6 @@ function buildAnonymousCard(text, number, confessionId, cfg) {
 
 function buildPublicCard(text, number, confessionId, author, cfg) {
     const card = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `## ${E.user} Public Confession ${cm.formatNumber(number)}\n` +
             `-# By <@${author.id}> · ID: \`${confessionId}\``
@@ -144,7 +143,6 @@ function buildPublicCard(text, number, confessionId, author, cfg) {
 function buildReplyCard(replyText, confessionId, originalNumber) {
     const ref = originalNumber ? cm.formatNumber(originalNumber) : `\`${confessionId}\``;
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `### ${E.chat} Anonymous Reply to ${ref}\n` +
             `-# Confession \`${confessionId}\``
@@ -413,7 +411,6 @@ module.exports = {
             await interaction.reply({
                 components: [
                     new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `## ${E.bookopen} Confession Rules\n\n` +
                             `> ${E.shield} Be respectful — no harassment, slurs, doxxing, or threats.\n` +
@@ -461,7 +458,6 @@ module.exports = {
             const cfg = cm.getGuildConfig(interaction.guild.id);
             const e = cfg.log?.[confessionId];
             const card = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### ${E.info} Confession Info\n\n` +
                     `**ID:** \`${confessionId}\`\n` +

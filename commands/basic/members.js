@@ -5,7 +5,7 @@ async function buildMembersContainer(guild) {
     const iconUrl = guild.iconURL({ size: 256 });
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6);
+        ;
 
     if (iconUrl) {
         const headerSection = new SectionBuilder()

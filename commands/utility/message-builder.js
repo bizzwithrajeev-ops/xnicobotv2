@@ -791,7 +791,7 @@ function buildTemplatePickerContainer(userTemplates) {
     const userNames = Object.keys(userTemplates);
     const builtIn = getBuiltInTemplates();
     const builtInEntries = Object.entries(builtIn);
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     let listText = `# <:Folderopen:1473039552783323348> Load Template\nPick a template to apply to the builder.\n\n`;
 
@@ -1233,7 +1233,6 @@ module.exports = {
                 `### <:Picture:1473039568398843957> URL Variables\nUse \`{useravatar}\` or \`{servericon}\` in Thumbnail/Image fields!`;
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(varsContent));
             
             await interaction.reply({ 

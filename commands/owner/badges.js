@@ -28,7 +28,6 @@ function buildHelpContainer() {
     content += '-# Click any button below for the exact command syntax.';
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
@@ -77,7 +76,6 @@ module.exports = {
         if (!text) return false;
 
         const helpContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### Command\n${text}`));
 
         await interaction.reply({

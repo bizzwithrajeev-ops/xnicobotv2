@@ -67,7 +67,7 @@ module.exports = {
             const uid = message.author.id;
             const sid = `${uid}_${Date.now().toString(36)}`;
 
-            const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6);
+            const ctr = new ContainerBuilder();
             ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# ${emoji} ${result.name}\n\n` +
                 `**Type:** \`${result.type}\`\n` +
@@ -100,7 +100,7 @@ module.exports = {
                 if (action === 'cfDel') {
                     collector.stop('handled');
                     await db.delete(key);
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Deleted\n\n**${name}** (\`${type}\`) removed.`))], flags: MessageFlags.IsComponentsV2 });
+                    return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Deleted\n\n**${name}** (\`${type}\`) removed.`))], flags: MessageFlags.IsComponentsV2 });
                 }
                 if (action === 'cancel') {
                     return i.update({ components: [ctr], flags: MessageFlags.IsComponentsV2 });

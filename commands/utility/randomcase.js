@@ -20,7 +20,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (args.length === 0) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to randomize!\n\n**Usage:** \`-randomcase <text>\`\n**Example:** \`-randomcase Hello World\``
@@ -41,7 +40,6 @@ async function randomizeCase(context, text, isInteraction) {
         }).join('');
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🎲 Random Case\n\n` +
@@ -57,7 +55,6 @@ async function randomizeCase(context, text, isInteraction) {
         }
     } catch (error) {
         const errorContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error.message}`)
             );

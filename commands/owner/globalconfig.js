@@ -61,7 +61,6 @@ module.exports = {
 
             if (action === 'view') {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(`# <:Settings:1473037894703779851> Global Bot Configuration`)
                     )

@@ -48,7 +48,7 @@ function getGuildConfig(guildId) {
 // ── Panel Builders ──
 
 function buildMainPanel(guildConfig, guild) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     const channelCount = guildConfig.channels?.length || 0;
 
@@ -101,7 +101,7 @@ function buildMainPanel(guildConfig, guild) {
 }
 
 function buildChannelListPanel(guildConfig, guild, page = 0) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     const channels = guildConfig.channels || [];
     const itemsPerPage = 10;
@@ -169,7 +169,7 @@ function buildChannelListPanel(guildConfig, guild, page = 0) {
 }
 
 function buildAddChannelPanel() {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `# <:Add:1473038100862337035> Add Channel\n-# Select a channel to block all bot messages in`
@@ -197,7 +197,7 @@ function buildAddChannelPanel() {
 }
 
 function buildHelpPanel() {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     let content = `# <:Lightbulbalt:1473038470787240009> Bot Block Help\n\n`;
     content += `### What does this system do?\n`;

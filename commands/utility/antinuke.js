@@ -346,7 +346,6 @@ module.exports = {
                         .setMaxValues(1)
                 );
                 const container = new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `## <:Document:1473039496995143731> Set Anti-Nuke Log Channel\nCurrent: ${currentLog}\n\nSelect the channel where Anti-Nuke events will be logged.`
                     ))
@@ -364,7 +363,6 @@ module.exports = {
                         .setMaxValues(1)
                 );
                 const container = new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `## <:Shield:1473038669831995494> Set Anti-Nuke Bypass Role\nCurrent: ${currentBypass}\n\nMembers with this role will bypass Anti-Nuke protection.`
                     ))

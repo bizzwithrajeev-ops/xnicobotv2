@@ -22,7 +22,7 @@ module.exports = {
     usage: 'timer <duration> [reason]',
     category: 'utility',
     aliases: ['settimer', 'countdown', 'remind'],
-    
+
     data: new SlashCommandBuilder()
         .setName('timer')
         .setDescription('Set a timer with notifications')
@@ -91,17 +91,17 @@ module.exports = {
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             const duration = args[1];
-            
+
             // Check for --ping or --role flags
             let ping = false; // Default to false (no ping)
             let pingRole = null;
             let reasonArgs = args.slice(2);
-            
+
             if (reasonArgs.includes('--ping')) {
                 ping = true;
                 reasonArgs = reasonArgs.filter(arg => arg !== '--ping');
             }
-            
+
             // Check for --role flag
             const roleIndex = reasonArgs.findIndex(arg => arg === '--role');
             if (roleIndex !== -1 && reasonArgs[roleIndex + 1]) {
@@ -114,7 +114,7 @@ module.exports = {
                 }
                 reasonArgs.splice(roleIndex, 2); // Remove --role and the role mention
             }
-            
+
             const reason = reasonArgs.join(' ') || 'No reason provided';
             await handleSetTimer(message, duration, reason, ping, pingRole, true);
         } else if (['list', 'view', 'show'].includes(action)) {
@@ -166,14 +166,14 @@ async function handleSetTimer(target, durationStr, reason, ping, pingRole, isPre
 
     // Success response - send first
     const durationFormatted = formatDuration(milliseconds);
-    
+
     let pingText = '🔕 No';
     if (pingRole) {
         pingText = `🔔 Role: ${pingRole.name}`;
     } else if (ping) {
         pingText = '🔔 User';
     }
-    
+
     const container = buildSuccessResponse(
         '⏰ Timer Set',
         `Your timer has been set!`,
@@ -263,7 +263,7 @@ async function handleListTimers(target, isPrefix) {
         .setTitle(`⏰ Your Active Timers (${userTimers.length})`)
         .setDescription(timerList)
         .setAccentColor(0xBCF1E4);
-    
+
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Use `/timer cancel <id>` to cancel a timer'));
 
@@ -309,7 +309,7 @@ async function notifyTimerEnd(client, timer) {
         if (!channel?.isTextBased()) return;
 
         const durationFormatted = formatDuration(timer.duration);
-        
+
         // Build the "Timer Ended" container
         const container = new ContainerBuilder()
             .setAccentColor(0x57F287)
@@ -323,7 +323,7 @@ async function notifyTimerEnd(client, timer) {
             `**⏱️ Duration:** ${durationFormatted}\n` +
             `**📝 Reason:** ${timer.reason}\n` +
             `**🕒 Started:** <t:${Math.floor(timer.createdAt / 1000)}:R> (<t:${Math.floor(timer.createdAt / 1000)}:f>)\n` +
-            `**✅ Completed:** <t:${Math.floor(Date.now() / 1000)}:f>\n` +
+            `**<:Checkedbox:1473038547165384804> Completed:** <t:${Math.floor(Date.now() / 1000)}:f>\n` +
             `**🔔 Timer ID:** \`${timer.id}\``
         ));
 
@@ -348,10 +348,10 @@ async function notifyTimerEnd(client, timer) {
         try {
             const msg = await channel.messages.fetch(timer.messageId).catch(() => null);
             if (msg && msg.editable) {
-                await msg.edit({ 
+                await msg.edit({
                     content: pingContent || undefined,
-                    components: [container], 
-                    flags: MessageFlags.IsComponentsV2 
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2
                 });
             } else {
                 console.error('[Timer] Message not found or not editable:', timer.messageId);
@@ -404,7 +404,7 @@ function generateTimerId(userId) {
 }
 
 // Export for cleanup on shutdown
-module.exports.cleanupTimers = function() {
+module.exports.cleanupTimers = function () {
     for (const [key, timer] of activeTimers.entries()) {
         clearTimeout(timer.timeout);
     }
@@ -412,6 +412,6 @@ module.exports.cleanupTimers = function() {
     console.log('[Timer] All timers cleaned up');
 };
 
-module.exports.getActiveTimersCount = function() {
+module.exports.getActiveTimersCount = function () {
     return activeTimers.size;
 };

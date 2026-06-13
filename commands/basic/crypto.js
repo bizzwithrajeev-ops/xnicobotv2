@@ -29,7 +29,6 @@ function buildCryptoContainer(coin, data) {
     const sign = isUp ? '+' : '';
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Invoice:1473039492217835550> ${coin.charAt(0).toUpperCase() + coin.slice(1)} Price`)
         )

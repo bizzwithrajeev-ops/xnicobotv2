@@ -36,7 +36,6 @@ module.exports = {
             `Use \`dmuser <userId> <message>\` to send a DM, or \`broadcast <text>\` to message every guild.`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

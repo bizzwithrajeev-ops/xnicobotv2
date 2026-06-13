@@ -4,33 +4,58 @@ async function searchGif(query) {
     const apiKey = process.env.TENOR_API_KEY;
     
     if (!apiKey) {
-        return { error: '<:Cancel:1473037949187657818> GIF search is not configured. Please set TENOR_API_KEY in environment variables.' };
+        return { error: 'GIF search is not configured. Please set TENOR_API_KEY in environment variables.' };
     }
 
     try {
-        const response = await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${apiKey}&limit=10`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(
+            `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${apiKey}&limit=10&media_filter=gif`,
+            { signal: controller.signal }
+        );
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+            return { error: `Tenor API returned status ${response.status}. Please try again later.` };
+        }
+
         const data = await response.json();
 
         if (!data.results || data.results.length === 0) {
-            return { error: '<:Cancel:1473037949187657818> No GIFs found for that search!' };
+            return { error: 'No GIFs found for that search!' };
         }
 
         const randomGif = data.results[Math.floor(Math.random() * data.results.length)];
-        
+
+        // Safely resolve the best available format
+        const gifUrl = randomGif.media_formats?.gif?.url
+            || randomGif.media_formats?.mediumgif?.url
+            || randomGif.media_formats?.tinygif?.url
+            || null;
+
+        if (!gifUrl) {
+            return { error: 'Found a result but couldn\'t extract the GIF URL. Try a different query.' };
+        }
+
         const container = new ContainerBuilder()
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`**${query}** — *Powered by Tenor*`)
             )
             .addMediaGalleryComponents(
                 new MediaGalleryBuilder().addItems(
-                    new MediaGalleryItemBuilder().setURL(randomGif.media_formats.gif.url)
+                    new MediaGalleryItemBuilder().setURL(gifUrl)
                 )
             );
 
         return { container };
     } catch (error) {
-        console.error('GIF Error:', error);
-        return { error: '<:Cancel:1473037949187657818> Failed to fetch GIF. Please try again later.' };
+        if (error.name === 'AbortError') {
+            return { error: 'GIF search timed out. Please try again.' };
+        }
+        console.error('[GIF] Search error:', error.message);
+        return { error: 'Failed to fetch GIF. Please try again later.' };
     }
 }
 
@@ -43,6 +68,7 @@ module.exports = {
                 .setDescription('What to search for')
                 .setRequired(true)),
 
+    name: 'gif',
     prefix: 'gif',
     description: 'Search for a GIF from Tenor',
     usage: 'gif <query>',
@@ -57,7 +83,7 @@ module.exports = {
         if (result.error) {
             const errorContainer = new ContainerBuilder()
                 .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> GIF Error\n\n${result.error.replace('<:Cancel:1473037949187657818> ', '')}`)
+                    new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> GIF Error\n\n${result.error}`)
                 );
             return interaction.editReply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
         }
@@ -81,7 +107,7 @@ module.exports = {
         if (result.error) {
             const errorContainer = new ContainerBuilder()
                 .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> GIF Error\n\n${result.error.replace('<:Cancel:1473037949187657818> ', '')}`)
+                    new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> GIF Error\n\n${result.error}`)
                 );
             return message.reply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
         }

@@ -112,7 +112,6 @@ async function buildServerListContainer(guildArray, startIndex, page, totalPages
     }
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# <:Bookopen:1473038576391557130> Server List\n` +

@@ -16,6 +16,10 @@
  */
 
 const SLASH_BLOCKLIST = new Set([
+    // ── Removed/prefix-only automation ──
+    'automeme',     // converted to prefix-only
+    'massrole',     // removed — use /roleall instead
+
     // ── basic / info APIs (kept as prefix-only) ──
     'covid',
     'crypto',

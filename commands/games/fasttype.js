@@ -52,7 +52,6 @@ async function playFastType(message, difficulty) {
     const text     = pickPhrase(difficulty);
 
     const promptContainer = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# ⌨️ Fast Type Challenge!\n\n` +
@@ -108,7 +107,6 @@ async function playFastType(message, difficulty) {
         await channel.send({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
     } catch {
         const timeoutContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Alarm:1473039068546732214> Time's Up!\n\nYou didn't finish in time. Try again!`

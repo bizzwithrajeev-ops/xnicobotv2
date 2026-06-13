@@ -79,7 +79,7 @@ module.exports = {
                     : '';
 
                 const notifContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6);
+                    ;
 
                 let notifContent = `# <:Sketch:1473038248493453352> Server Premium Activated!\n\n`;
                 notifContent += `This server has been upgraded to **Premium** for **${botName}**!\n\n`;

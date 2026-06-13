@@ -284,7 +284,7 @@ async function handleGameButton(interaction) {
 
     if (!game) {
         await interaction.reply({
-            components: [new ContainerBuilder().setAccentColor(0xCAD7E6)
+            components: [new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Game Expired'))],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         }).catch(() => {});

@@ -82,7 +82,6 @@ module.exports = {
             const symbol = getCurrency(guildId);
             const name = getCurrencyName(guildId);
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Money:1473377877239140529> Currency Settings\n\n` +
                     `**Symbol:** ${symbol}\n` +
@@ -143,7 +142,6 @@ module.exports = {
         const symbol = getCurrency(guildId);
         const name = getCurrencyName(guildId);
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Money:1473377877239140529> Currency Settings\n\n` +
                 `**Symbol:** ${symbol}\n` +

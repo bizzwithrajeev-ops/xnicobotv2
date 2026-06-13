@@ -32,7 +32,6 @@ function buildCategorySelectContainer(guild, customId, title, emoji, description
         })));
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# ${emoji} ${title}\n\n> ${description}\n> **Role:** ${roleName}`
         ))
@@ -100,7 +99,6 @@ module.exports = {
             }
 
             const loadingContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <a:Loading:1485248248720658472> Hiding Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
                 ));
@@ -109,7 +107,6 @@ module.exports = {
             const { hidden, failed } = await processCategoryHide(interaction.guild, category, targetRole);
 
             const resultContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Lock:1473038513749491773> Category Hidden\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> **Channels Hidden:** ${hidden}\n> **Failed:** ${failed}\n\n<:Checkedbox:1473038547165384804> All channels in this category are now hidden from ${roleName}.`
                 ));
@@ -150,7 +147,6 @@ module.exports = {
             })));
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Lock:1473038513749491773> Hide Category\n\n> Select a category below to hide all its channels.\n> **Role:** ${roleName}`
             ))
@@ -171,7 +167,6 @@ module.exports = {
             if (!category) return reply.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Error\n\nCategory not found!'))], flags: MessageFlags.IsComponentsV2 });
 
             const loadingContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <a:Loading:1485248248720658472> Hiding Category\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> Processing ${category.children.cache.size} channels...`
                 ));
@@ -180,7 +175,6 @@ module.exports = {
             const { hidden, failed } = await processCategoryHide(message.guild, category, targetRole);
 
             const resultContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Lock:1473038513749491773> Category Hidden\n\n> **Category:** \`${category.name}\`\n> **Role:** ${roleName}\n> **Channels Hidden:** ${hidden}\n> **Failed:** ${failed}\n\n<:Checkedbox:1473038547165384804> All channels in this category are now hidden from ${roleName}.`
                 ));

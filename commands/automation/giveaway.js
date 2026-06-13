@@ -126,7 +126,6 @@ function buildSetupPanel(guildSettings, guild) {
     content += `-# xNico </>`;
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
@@ -197,7 +196,6 @@ function buildGiveawayPanel(guildConfig) {
     content += `Use the buttons below to manage giveaways`;
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
@@ -326,7 +324,6 @@ function buildEndedGiveawayMessage(giveaway, winners) {
     }
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
     const row = new ActionRowBuilder().addComponents(
@@ -395,7 +392,6 @@ async function endGiveaway(client, guildId, messageId) {
         if (winners.length > 0) {
             const winnerMentions = winners.map(w => `<@${w}>`).join(', ');
             const winContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🎊 Congratulations!\n\n${winnerMentions}\n\nYou won **${giveaway.prize}**! <:Present:1473038450465706076>`
@@ -554,7 +550,6 @@ module.exports = {
                 `<:Attach:1473037923979886694> [Jump to Giveaway](https://discord.com/channels/${guildId}/${channel.id}/${giveawayMsg.id})`;
 
             const successContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(successContent));
 
             await interaction.reply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -605,7 +600,6 @@ module.exports = {
 
             const winnerMentions = newWinners.map(w => `<@${w}>`).join(', ');
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🎲 Reroll Results!\n\n**Prize:** ${giveaway.prize}\n**New Winner(s):** ${winnerMentions}\n\nCongratulations! <:Present:1473038450465706076>`
@@ -638,7 +632,6 @@ module.exports = {
             });
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -778,7 +771,6 @@ module.exports = {
 
             const winnerMentions = newWinners.map(w => `<@${w}>`).join(', ');
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🎲 Reroll Results!\n\n**Prize:** ${giveaway.prize}\n**New Winner(s):** ${winnerMentions}\n\nCongratulations! <:Present:1473038450465706076>`
@@ -806,7 +798,6 @@ module.exports = {
             });
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -855,7 +846,6 @@ module.exports = {
                 `\`-giveaway start 2d 3 Steam Gift Card\``;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(helpContent));
 
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1231,7 +1221,6 @@ module.exports = {
             });
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });

@@ -68,7 +68,7 @@ async function safeDeleteMessage(message, reason) {
         // so we don't spam the console with noise on every message.
         try {
             log.debug(`[auto-delete:${reason}] skipped (not deletable) guild=${message?.guild?.id || 'dm'} channel=#${message?.channel?.name || message?.channel?.id || '?'} user=${message?.author?.tag || message?.author?.id || '?'}`);
-        } catch {}
+        } catch { }
         return false;
     }
     const verbose = process.env.DEBUG_AUTO_DELETE === 'verbose';
@@ -146,7 +146,7 @@ function _injectCv2Footer(components, accentColor, footerText) {
                 c.data.components.push({ type: 10, content: footerLine });
             }
             c[sentinel] = true;
-        } catch (_) {}
+        } catch (_) { }
     }
 }
 
@@ -419,12 +419,12 @@ global.updateAntiraidCache = updateAntiraidCache;
 // Expose the per-module cache Maps so utils/storeSync.js can clear()
 // them before re-populating from a fresh snapshot. Without this, a
 // guild row removed from the store entirely would stay cached.
-global.automodCache        = automodCache;
-global.antinukeCache       = antinukeCache;
-global.antialtCache        = antialtCache;
-global.antiraidCache       = antiraidCache;
-global.autoreactCache      = autoreactCache;
-global.autoresponderCache  = autoresponderCache;
+global.automodCache = automodCache;
+global.antinukeCache = antinukeCache;
+global.antialtCache = antialtCache;
+global.antiraidCache = antiraidCache;
+global.autoreactCache = autoreactCache;
+global.autoresponderCache = autoresponderCache;
 
 // Install the shared dashboard <-> bot cache sync listener.
 // Any jsonStore.write/writeImmediate (from this process or via PG poll
@@ -772,7 +772,6 @@ async function handleBotPanelButton(interaction, client) {
         const memMB = (memUsage.heapUsed / 1024 / 1024).toFixed(2);
 
         const statsContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
                     .setContent(`# <:Invoice:1473039492217835550> Bot Statistics\n\n**Uptime:** ${hours}h ${minutes}m\n**Memory:** ${memMB} MB\n**Servers:** ${client.guilds.cache.size}\n**Users:** ${client.users.cache.size}\n**Channels:** ${client.channels.cache.size}\n**Commands:** ${client.commands.size}\n\n**Ping:** ${client.ws.ping}ms`)
@@ -1155,7 +1154,7 @@ client.on(Events.ClientReady, async () => {
         const { warmupCanvasEmojis } = require('./utils/canvasWarmup');
         warmupCanvasEmojis().then(count => {
             log.info(`[Canvas] Warmed up ${count} emoji assets`);
-        }).catch(() => {});
+        }).catch(() => { });
     } catch (e) {
         log.warning('[Canvas] Warmup skipped: ' + (e?.message || e));
     }
@@ -1223,7 +1222,7 @@ client.on(Events.ClientReady, async () => {
                 try {
                     const ids = (history?.winners || []).map(w => w.id).join(', ');
                     log.info(`[Lottery] Draw complete · pot=${history?.totalPot || 0} · winners=${ids || 'none'}`);
-                } catch (_) {}
+                } catch (_) { }
             },
         });
         log.success('[Lottery] Scheduler started');
@@ -1622,6 +1621,14 @@ client.on(Events.ClientReady, async () => {
     } catch (e) {
         log.error(`AutoMeme scheduler failed to start: ${e.message}`);
     }
+
+    // ── Nameplate re-apply on startup ──
+    try {
+        const namestyleCmd = require('./commands/admin/namestyle');
+        await namestyleCmd.reapplyAll(client, log);
+    } catch (e) {
+        log.error(`Nameplate re-apply failed: ${e.message}`);
+    }
 });
 
 // Auto-nickname system
@@ -1685,18 +1692,18 @@ client.on('interactionCreate', async (interaction) => {
                 const isCh = (biCfg.ignoredChannels || []).includes(interaction.channelId);
                 const isUser = (biCfg.ignoredUsers || []).includes(interaction.user.id);
                 const isRole = interaction.member && (biCfg.ignoredRoles || []).some(r => interaction.member.roles.cache.has(r));
-                
+
                 // Allow admins/owner to bypass
                 const isBypassed = interaction.member?.permissions.has(PermissionFlagsBits.Administrator) || interaction.user.id === process.env.OWNER_ID;
-                
+
                 if ((isCh || isUser || isRole) && !isBypassed) {
                     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: "❌ The bot is configured to ignore you or this channel.", flags: MessageFlags.Ephemeral }).catch(()=> { });
+                        await interaction.reply({ content: "<:Cancel:1473037949187657818> The bot is configured to ignore you or this channel.", flags: MessageFlags.Ephemeral }).catch(() => { });
                     }
-                    return; 
+                    return;
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // Handle autocomplete interactions FIRST. They are not chat-input,
@@ -1744,19 +1751,6 @@ client.on('interactionCreate', async (interaction) => {
                 } catch (error) {
                     log.error(`RR Setup Modal: ${error.message}`, error);
                 }
-            }
-            return;
-        }
-
-        // ── Bot Decoration modal handler ──
-        if (customId.startsWith('botdeco_customsave_')) {
-            try {
-                const botDecoCmd = require('./commands/admin/bot-decoration');
-                if (botDecoCmd && botDecoCmd.handleInteraction) {
-                    await botDecoCmd.handleInteraction(interaction);
-                }
-            } catch (error) {
-                log.error('Bot decoration modal error:', error);
             }
             return;
         }
@@ -1959,7 +1953,7 @@ client.on('interactionCreate', async (interaction) => {
                 return interaction.reply({
                     components: [buildPremiumGate(which)],
                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                }).catch(() => {});
+                }).catch(() => { });
             }
             try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -2056,7 +2050,7 @@ client.on('interactionCreate', async (interaction) => {
         // Route economy game modals (hangman letter, numguess number).
         // Each game owns its modal id prefix and dispatches via handleModal.
         const ECONOMY_GAME_MODALS = [
-            { prefix: 'hangmanmodal_',  cmd: 'hangman'  },
+            { prefix: 'hangmanmodal_', cmd: 'hangman' },
             { prefix: 'numguessmodal_', cmd: 'numguess' }
         ];
         const ecoModal = ECONOMY_GAME_MODALS.find(m => interaction.customId.startsWith(m.prefix));
@@ -2291,19 +2285,6 @@ client.on('interactionCreate', async (interaction) => {
                     if (handled) return;
                 } catch (error) {
                     log.error(`Bot Customize Modal: ${error.message}`, error);
-                }
-            }
-        }
-
-        // ── Bot Decoration modals/buttons ──
-        if (interaction.customId.startsWith('botdeco_')) {
-            const botDecoCmd = require('./commands/admin/bot-decoration');
-            if (botDecoCmd && botDecoCmd.handleInteraction) {
-                try {
-                    await botDecoCmd.handleInteraction(interaction);
-                    return;
-                } catch (error) {
-                    log.error(`Bot Decoration Interaction: ${error.message}`, error);
                 }
             }
         }
@@ -2665,14 +2646,14 @@ client.on('interactionCreate', async (interaction) => {
             if (interaction.customId.startsWith('meme_')) {
                 const memeCmd = client.commands.get('meme');
                 if (memeCmd?.handleButton) {
-                    try { const h = await memeCmd.handleButton(interaction); if (h) return; } catch {}
+                    try { const h = await memeCmd.handleButton(interaction); if (h) return; } catch { }
                 }
             }
             // Truth or Dare buttons
             if (interaction.customId.startsWith('tod_')) {
                 const todCmd = client.commands.get('truthdare');
                 if (todCmd?.handleButton) {
-                    try { const h = await todCmd.handleButton(interaction); if (h) return; } catch {}
+                    try { const h = await todCmd.handleButton(interaction); if (h) return; } catch { }
                 }
             }
             // Confession system — admin setup panel buttons (use handleInteraction)
@@ -2723,11 +2704,11 @@ client.on('interactionCreate', async (interaction) => {
             // Joke & Fact next buttons
             if (interaction.customId === 'joke_next') {
                 const jokeCmd = client.commands.get('joke');
-                if (jokeCmd?.handleButton) { try { const h = await jokeCmd.handleButton(interaction); if (h) return; } catch {} }
+                if (jokeCmd?.handleButton) { try { const h = await jokeCmd.handleButton(interaction); if (h) return; } catch { } }
             }
             if (interaction.customId === 'fact_next') {
                 const factCmd = client.commands.get('fact');
-                if (factCmd?.handleButton) { try { const h = await factCmd.handleButton(interaction); if (h) return; } catch {} }
+                if (factCmd?.handleButton) { try { const h = await factCmd.handleButton(interaction); if (h) return; } catch { } }
             }
             if (interaction.customId.startsWith('botcustom_')) {
                 const botCustomCmd = client.commands.get('bot-customize');
@@ -2965,7 +2946,7 @@ client.on('interactionCreate', async (interaction) => {
             // messages with `slb_` ids just defer cleanly. New `statboard`
             // sessions emit `ulb_*` so they hit the unified handler below.
             if (interaction.customId.startsWith('slb_')) {
-                try { await interaction.deferUpdate(); } catch {}
+                try { await interaction.deferUpdate(); } catch { }
                 return;
             }
             if (interaction.customId.startsWith('ulb_')) {
@@ -3110,18 +3091,18 @@ client.on('interactionCreate', async (interaction) => {
             // handleButton dispatches internally between challenge and
             // game-state buttons.
             const ECONOMY_GAME_BUTTONS = [
-                { prefix: 'tttch_',      cmd: 'tictactoe'  },
-                { prefix: 'ttt_',        cmd: 'tictactoe'  },
-                { prefix: 'hangman_',    cmd: 'hangman'    },
-                { prefix: 'numguess_',   cmd: 'numguess'   },
-                { prefix: 'memory_',     cmd: 'memory'     },
-                { prefix: 'g2048_',      cmd: '2048'       },
+                { prefix: 'tttch_', cmd: 'tictactoe' },
+                { prefix: 'ttt_', cmd: 'tictactoe' },
+                { prefix: 'hangman_', cmd: 'hangman' },
+                { prefix: 'numguess_', cmd: 'numguess' },
+                { prefix: 'memory_', cmd: 'memory' },
+                { prefix: 'g2048_', cmd: '2048' },
                 { prefix: 'battleship_', cmd: 'battleship' },
-                { prefix: 'c4ch_',       cmd: 'connect4'   },
-                { prefix: 'c4_',         cmd: 'connect4'   },
-                { prefix: 'rpsch_',      cmd: 'rps'        },
-                { prefix: 'rps_',        cmd: 'rps'        },
-                { prefix: 'btlch_',      cmd: 'battle'     }
+                { prefix: 'c4ch_', cmd: 'connect4' },
+                { prefix: 'c4_', cmd: 'connect4' },
+                { prefix: 'rpsch_', cmd: 'rps' },
+                { prefix: 'rps_', cmd: 'rps' },
+                { prefix: 'btlch_', cmd: 'battle' }
             ];
             const ecoGame = ECONOMY_GAME_BUTTONS.find(g => interaction.customId.startsWith(g.prefix));
             if (ecoGame) {
@@ -3298,7 +3279,7 @@ client.on('interactionCreate', async (interaction) => {
                     return interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 } catch (error) {
                     log.error('Filter apply error', error);
-                    return interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to apply filter.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                    return interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to apply filter.', flags: MessageFlags.Ephemeral }).catch(() => { });
                 }
             }
 
@@ -3440,7 +3421,7 @@ client.on('interactionCreate', async (interaction) => {
                     } catch (error) {
                         log.error(`Emergency Button: ${error.message}`, error);
                         if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                            await interaction.reply({ content: '<:Cancel:1473037949187657818> There was an error processing this action.', flags: MessageFlags.Ephemeral }).catch(() => { });
                         }
                     }
                 }
@@ -3821,7 +3802,6 @@ client.on('interactionCreate', async (interaction) => {
                                             );
 
                                         const welcomeContainer = new ContainerBuilder()
-                                            .setAccentColor(0xCAD7E6)
                                             .addTextDisplayComponents(
                                                 new TextDisplayBuilder()
                                                     .setContent(
@@ -3928,13 +3908,13 @@ client.on('interactionCreate', async (interaction) => {
                                 await interaction.followUp({
                                     content: ephemeralContent.join('\n'),
                                     flags: MessageFlags.Ephemeral
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                             if (responseEmbeds.length > 0) {
                                 await interaction.followUp({
                                     embeds: responseEmbeds.slice(0, 10),
                                     flags: MessageFlags.Ephemeral
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                         } else if (!hasNonMessageActions && ephemeralContent.length > 0 && responseEmbeds.length === 0) {
                             // Pure text message(s) — show them cleanly as ephemeral
@@ -3974,7 +3954,7 @@ client.on('interactionCreate', async (interaction) => {
                                 await interaction.followUp({
                                     components: responseV2,
                                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                         }
                     } else {
@@ -4113,76 +4093,143 @@ client.on('interactionCreate', async (interaction) => {
 
             // ═══════ ToS Accept/Decline Buttons ═══════
             if (interaction.customId === 'tos_accept') {
-                const tosManager = require('./utils/tosManager');
-                
-                // Accept ToS
-                tosManager.acceptTos(interaction.user.id);
-                
-                // Send acceptance DM
-                const dmSent = await tosManager.sendAcceptanceDM(interaction.user);
-                
-                const container = new ContainerBuilder()
-                    .setAccentColor(0x57F287)
-                    .addUserProfileComponents(interaction.user)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# Terms of Service Accepted\n\n` +
-                        `Thank you, **${interaction.user.username}**! You now have full access to all bot commands and features.`
-                    ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `### Quick Start Guide\n` +
-                        `• Type \`/help\` or \`-help\` to see all available commands\n` +
-                        `• Check out \`/profile\` to view your user profile\n` +
-                        `• Try music commands with \`/play <song>\`\n` +
-                        `• Explore economy features with \`/daily\` and \`/balance\`\n\n` +
-                        (dmSent 
-                            ? `✅ A detailed welcome message has been sent to your DMs.` 
-                            : `⚠️ Couldn't send a DM (your DMs may be disabled). Enable DMs to receive bot notifications.`)
-                    ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `-# Enjoy using xNico Bot! Need help? Join our support server.`
-                    ));
-                
-                await interaction.update({ 
-                    components: [container], 
-                    flags: MessageFlags.IsComponentsV2 
-                });
+                try {
+                    const tosManager = require('./utils/tosManager');
+
+                    // Acknowledge the button IMMEDIATELY so Discord doesn't show
+                    // "This interaction failed" while we do async work (DM send, DB write).
+                    await interaction.deferUpdate();
+
+                    // Guard: if user already accepted (e.g. double-click while first
+                    // response was in-flight), skip the DM to prevent duplicates.
+                    const alreadyAccepted = tosManager.hasAcceptedTos(interaction.user.id);
+
+                    let dmSent = false;
+                    if (!alreadyAccepted) {
+                        // Accept ToS (async — must await for data durability)
+                        const saved = await tosManager.acceptTos(interaction.user.id);
+                        if (!saved) {
+                            return interaction.editReply({
+                                content: '<:Cancel:1473037949187657818> Failed to save your acceptance. Please try again.',
+                                components: []
+                            }).catch(() => { });
+                        }
+                        // Send acceptance DM only on first acceptance
+                        dmSent = await tosManager.sendAcceptanceDM(interaction.user);
+                    }
+
+                    const username = interaction.user.username || interaction.user.tag || 'User';
+
+                    const container = new ContainerBuilder()
+                        .setAccentColor(0x57F287)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# Terms of Service Accepted\n\n` +
+                            `Thank you, **${username}**! You now have full access to all bot commands and features.`
+                        ))
+                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `### Quick Start Guide\n` +
+                            `• Type \`/help\` or \`-help\` to see all available commands\n` +
+                            `• Check out \`/profile\` to view your user profile\n` +
+                            `• Try music commands with \`/play <song>\`\n` +
+                            `• Explore economy features with \`/daily\` and \`/balance\`\n\n` +
+                            (dmSent
+                                ? `<:Checkedbox:1473038547165384804> A detailed welcome message has been sent to your DMs.`
+                                : (alreadyAccepted
+                                    ? `<:Checkedbox:1473038547165384804> You have already accepted the Terms of Service.`
+                                    : `⚠️ Couldn't send a DM (your DMs may be disabled). Enable DMs to receive bot notifications.`))
+                        ))
+                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `-# Enjoy using xNico Bot! Need help? Join our support server.`
+                        ));
+
+                    await interaction.editReply({
+                        components: [container],
+                        flags: MessageFlags.IsComponentsV2
+                    }).catch((error) => {
+                        log.error(`[ToS] Failed to update accept interaction: ${error.message}`);
+                    });
+                } catch (error) {
+                    log.error(`[ToS] Accept button error: ${error.message}`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '<:Cancel:1473037949187657818> An error occurred processing your acceptance. Please try again.',
+                            flags: MessageFlags.Ephemeral
+                        }).catch(() => { });
+                    } else {
+                        await interaction.editReply({
+                            content: '<:Cancel:1473037949187657818> An error occurred processing your acceptance. Please try again.',
+                            components: []
+                        }).catch(() => { });
+                    }
+                }
                 return;
             }
-            
+
             if (interaction.customId === 'tos_decline') {
-                const tosManager = require('./utils/tosManager');
-                
-                // Decline ToS
-                tosManager.declineTos(interaction.user.id);
-                
-                // Send decline DM
-                await tosManager.sendDeclineDM(interaction.user);
-                
-                const container = new ContainerBuilder()
-                    .setAccentColor(0xED4245)
-                    .addUserProfileComponents(interaction.user)
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `# Terms of Service Declined\n\n` +
-                        `You have declined the Terms of Service, **${interaction.user.username}**.`
-                    ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `### Access Restricted\n` +
-                        `You cannot use bot commands until you accept the terms.\n\n` +
-                        `### Changed Your Mind?\n` +
-                        `You can accept the Terms of Service anytime by trying to use any bot command. You'll see the acceptance prompt again where you can click "Accept & Continue".`
-                    ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `-# Have questions? Join our support server: https://discord.gg/Zs35X7Umak`
-                    ));
-                
-                await interaction.update({ 
-                    components: [container], 
-                    flags: MessageFlags.IsComponentsV2 
-                });
+                try {
+                    const tosManager = require('./utils/tosManager');
+
+                    // Acknowledge the button IMMEDIATELY
+                    await interaction.deferUpdate();
+
+                    // Guard: if user already declined, skip the DM to prevent duplicates
+                    const alreadyDeclined = tosManager.hasDeclinedTos(interaction.user.id);
+
+                    if (!alreadyDeclined) {
+                        // Decline ToS (async — must await for data durability)
+                        const saved = await tosManager.declineTos(interaction.user.id);
+                        if (!saved) {
+                            return interaction.editReply({
+                                content: '<:Cancel:1473037949187657818> Failed to save your response. Please try again.',
+                                components: []
+                            }).catch(() => { });
+                        }
+                        // Send decline DM only on first decline
+                        await tosManager.sendDeclineDM(interaction.user);
+                    }
+
+                    const username = interaction.user.username || interaction.user.tag || 'User';
+
+                    const container = new ContainerBuilder()
+                        .setAccentColor(0xED4245)
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `# Terms of Service Declined\n\n` +
+                            `You have declined the Terms of Service, **${username}**.`
+                        ))
+                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `### Access Restricted\n` +
+                            `You cannot use bot commands until you accept the terms.\n\n` +
+                            `### Changed Your Mind?\n` +
+                            `You can accept the Terms of Service anytime by trying to use any bot command. You'll see the acceptance prompt again where you can click "Accept & Continue".`
+                        ))
+                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `-# Have questions? Join our support server: https://discord.gg/Zs35X7Umak`
+                        ));
+
+                    await interaction.editReply({
+                        components: [container],
+                        flags: MessageFlags.IsComponentsV2
+                    }).catch((error) => {
+                        log.error(`[ToS] Failed to update decline interaction: ${error.message}`);
+                    });
+                } catch (error) {
+                    log.error(`[ToS] Decline button error: ${error.message}`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '<:Cancel:1473037949187657818> An error occurred processing your response. Please try again.',
+                            flags: MessageFlags.Ephemeral
+                        }).catch(() => { });
+                    } else {
+                        await interaction.editReply({
+                            content: '<:Cancel:1473037949187657818> An error occurred processing your response. Please try again.',
+                            components: []
+                        }).catch(() => { });
+                    }
+                }
                 return;
             }
 
@@ -4190,7 +4237,20 @@ client.on('interactionCreate', async (interaction) => {
             if (interaction.customId.startsWith('record_stop_')) {
                 try {
                     const { stopRecording } = require('./utils/recordings');
-                    
+
+                    // Permission check: only the recording actor or ManageGuild users can stop
+                    const parts = interaction.customId.split('_');
+                    const authorizedUserId = parts[3]; // record_stop_{guildId}_{userId}
+                    if (authorizedUserId && interaction.user.id !== authorizedUserId) {
+                        const member = interaction.member;
+                        if (!member?.permissions?.has(PermissionFlagsBits.ManageGuild)) {
+                            return interaction.reply({
+                                content: '<:Cancel:1473037949187657818> Only the person who started the recording or a server manager can stop it.',
+                                flags: MessageFlags.Ephemeral
+                            });
+                        }
+                    }
+
                     // Helper function
                     const formatDuration = (ms) => {
                         const totalSeconds = Math.max(0, Math.round(ms / 1000));
@@ -4200,40 +4260,37 @@ client.on('interactionCreate', async (interaction) => {
                         if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
                         return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
                     };
-                    
+
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-                    
+
                     const result = await stopRecording(interaction.guild.id, { reason: 'manual stop via button' });
-                    
+
                     if (!result.ok) {
                         const errorContainer = new ContainerBuilder()
                             .setAccentColor(0xFEE75C)
-                            .addUserProfileComponents(interaction.user)
                             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                 `# No Recording Found\n\n` +
                                 `${result.message}`
                             ));
-                        
+
                         return interaction.editReply({ components: [errorContainer], flags: MessageFlags.IsComponentsV2 });
                     }
-                    
+
                     // Notify that recording stopped
                     const successContainer = new ContainerBuilder()
                         .setAccentColor(0x57F287)
-                        .addUserProfileComponents(interaction.user)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# 🎙️ Recording Stopped\n\n` +
                             `Voice recording has been stopped successfully. Audio files are being processed and will be posted in the channel.`
                         ));
-                    
+
                     await interaction.editReply({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
-                    
+
                     // Post the recording result to the channel
                     const { recordingAudioPayload } = require('./utils/recordings');
-                    
+
                     const container = new ContainerBuilder()
                         .setAccentColor(0x57F287)
-                        .addUserProfileComponents(interaction.user)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# 🎙️ Recording Complete\n\n` +
                             `Recording stopped by <@${interaction.user.id}>.`
@@ -4243,18 +4300,18 @@ client.on('interactionCreate', async (interaction) => {
                             `**Duration:** ${formatDuration(result.durationMs)}\n` +
                             `**Files:** ${result.files?.length || 0} track(s) recorded`
                         ));
-                    
+
                     await interaction.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-                    
+
                     // Send audio files
                     const audioPayload = recordingAudioPayload(result);
                     if (audioPayload) {
-                        await interaction.channel.send(audioPayload).catch(() => {});
+                        await interaction.channel.send(audioPayload).catch(() => { });
                     }
                 } catch (error) {
                     log.error(`Recording stop button error: ${error.message}`, error);
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to stop recording.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to stop recording.', flags: MessageFlags.Ephemeral }).catch(() => { });
                     }
                 }
                 return;
@@ -4417,7 +4474,6 @@ client.on('interactionCreate', async (interaction) => {
                     content += `-# Page ${newPage}/${totalPages}`;
 
                     const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
                     const row = new ActionRowBuilder().addComponents(
@@ -4511,7 +4567,7 @@ client.on('interactionCreate', async (interaction) => {
                             await interaction.reply({
                                 content: '<:Cancel:1473037949187657818> Failed to apply panel scoping.',
                                 flags: MessageFlags.Ephemeral,
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
                         return;
                     }
@@ -4581,7 +4637,7 @@ client.on('interactionCreate', async (interaction) => {
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({
                                 ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to claim ticket.'), true),
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
                     }
                     return;
@@ -4640,7 +4696,7 @@ client.on('interactionCreate', async (interaction) => {
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({
                                 ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to open close dialog.'), true),
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
                     }
                     return;
@@ -4665,7 +4721,7 @@ client.on('interactionCreate', async (interaction) => {
                         }
 
                         const closingChannel = interaction.channel;
-                        const closingGuild   = interaction.guild;
+                        const closingGuild = interaction.guild;
                         const tMode = guildConfig.transcriptMode || 'manual';
                         const wantsAuto = (tMode === 'auto' || tMode === 'both') && !!guildConfig.transcriptChannelId;
 
@@ -4705,14 +4761,14 @@ client.on('interactionCreate', async (interaction) => {
                         await closingChannel.send({
                             components: [closingContainer],
                             flags: MessageFlags.IsComponentsV2,
-                        }).catch(() => {});
+                        }).catch(() => { });
 
                         await ticketCloseCmd.performClose({
                             client,
                             channel: closingChannel,
-                            guild:   closingGuild,
+                            guild: closingGuild,
                             ticket,
-                            byTag:   `${interaction.user.tag} (button close)`,
+                            byTag: `${interaction.user.tag} (button close)`,
                             guildConfig,
                         });
                     } catch (error) {
@@ -4720,7 +4776,7 @@ client.on('interactionCreate', async (interaction) => {
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({
                                 ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to close ticket.'), true),
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
                     }
                     return;
@@ -4730,7 +4786,7 @@ client.on('interactionCreate', async (interaction) => {
                 if (interaction.customId === 'ticket_close_cancel') {
                     await interaction.update({
                         components: [ticketUI.infoContainer('Close cancelled.')],
-                    }).catch(() => {});
+                    }).catch(() => { });
                     return;
                 }
 
@@ -4769,21 +4825,21 @@ client.on('interactionCreate', async (interaction) => {
                         const { fetchAllMessages, buildTranscriptAttachments, postTranscriptToLogChannel } = require('./utils/ticketTranscript');
                         const messages = await fetchAllMessages(interaction.channel, { limit: 2000 });
 
-                        const opener  = ticket.userId    ? await interaction.client.users.fetch(ticket.userId).catch(() => null)    : null;
+                        const opener = ticket.userId ? await interaction.client.users.fetch(ticket.userId).catch(() => null) : null;
                         const claimer = ticket.claimedBy ? await interaction.client.users.fetch(ticket.claimedBy).catch(() => null) : null;
 
                         const meta = {
-                            channelName:   interaction.channel.name,
-                            guildName:     interaction.guild.name,
-                            openerTag:     opener?.tag || ticket.userId,
-                            openerId:      ticket.userId,
+                            channelName: interaction.channel.name,
+                            guildName: interaction.guild.name,
+                            openerTag: opener?.tag || ticket.userId,
+                            openerId: ticket.userId,
                             categoryLabel: ticket.categoryLabel || 'N/A',
-                            createdAt:     ticket.createdAt,
-                            closedAt:      Date.now(),
-                            closedBy:      `${interaction.user.tag} (manual save)`,
-                            claimedByTag:  claimer?.tag,
-                            addedMembers:  (ticket.members || []).map(id => ({ id })),
-                            messageCount:  messages.length,
+                            createdAt: ticket.createdAt,
+                            closedAt: Date.now(),
+                            closedBy: `${interaction.user.tag} (manual save)`,
+                            claimedByTag: claimer?.tag,
+                            addedMembers: (ticket.members || []).map(id => ({ id })),
+                            messageCount: messages.length,
                         };
 
                         const attachments = buildTranscriptAttachments(messages, meta);
@@ -4798,11 +4854,11 @@ client.on('interactionCreate', async (interaction) => {
                     } catch (error) {
                         log.error(`[ticket_transcript] ${error.message}`, error);
                         if (interaction.deferred) {
-                            await interaction.editReply({ content: `${require('./utils/ticketUI').E.cancel} Failed to generate transcript.` }).catch(() => {});
+                            await interaction.editReply({ content: `${require('./utils/ticketUI').E.cancel} Failed to generate transcript.` }).catch(() => { });
                         } else if (!interaction.replied) {
                             await interaction.reply({
                                 ...ticketUI.v2Reply(ticketUI.errorContainer('Failed to generate transcript.'), true),
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
                     }
                     return;
@@ -4954,8 +5010,8 @@ client.on('interactionCreate', async (interaction) => {
                             // embeds + IsComponentsV2 cannot coexist — flatten the embed into V2 text
                             let embedText = `# <:Document:1473039496995143731> Support Ticket\n`;
                             embedText += `**Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n`;
-                            if (legacyWelcome.author)      embedText += `*${legReplace(legacyWelcome.author,      interaction.user, interaction.guild, ticketChannel)}*\n`;
-                            if (legacyWelcome.title)       embedText += `### ${legReplace(legacyWelcome.title,    interaction.user, interaction.guild, ticketChannel)}\n`;
+                            if (legacyWelcome.author) embedText += `*${legReplace(legacyWelcome.author, interaction.user, interaction.guild, ticketChannel)}*\n`;
+                            if (legacyWelcome.title) embedText += `### ${legReplace(legacyWelcome.title, interaction.user, interaction.guild, ticketChannel)}\n`;
                             if (legacyWelcome.description) embedText += `${legReplace(legacyWelcome.description, interaction.user, interaction.guild, ticketChannel)}\n`;
                             if (legacyWelcome.fields?.length) {
                                 embedText += '\n';
@@ -4975,7 +5031,6 @@ client.on('interactionCreate', async (interaction) => {
                         } else {
                             const customContent = legReplace(legacyWelcome.content, interaction.user, interaction.guild, ticketChannel);
                             const container = new ContainerBuilder()
-                                .setAccentColor(0xCAD7E6)
                                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                     `# <:Document:1473039496995143731> Support Ticket\n**Ticket #${ticketNumber}** • **Created:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n${customContent}`
                                 ))
@@ -4986,7 +5041,6 @@ client.on('interactionCreate', async (interaction) => {
                         }
                     } else {
                         const container = new ContainerBuilder()
-                            .setAccentColor(0xCAD7E6)
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
                                     .setContent(
@@ -5020,8 +5074,8 @@ client.on('interactionCreate', async (interaction) => {
 
                     interaction.user.send({
                         content: `<:Checkedbox:1473038547165384804> Your support ticket has been opened in **${interaction.guild.name}**.\n` +
-                                 `Jump to it: ${ticketChannel.url}`
-                    }).catch(() => {});
+                            `Jump to it: ${ticketChannel.url}`
+                    }).catch(() => { });
 
                     const successContainer = new ContainerBuilder()
                         .setAccentColor(0x57F287)
@@ -5035,9 +5089,9 @@ client.on('interactionCreate', async (interaction) => {
                     log.error(`Legacy ticket creation: ${error.message}`, error);
                     const errMsg = '<:Cancel:1473037949187657818> There was an error creating the ticket!';
                     if (interaction.deferred) {
-                        await interaction.editReply({ content: errMsg }).catch(() => {});
+                        await interaction.editReply({ content: errMsg }).catch(() => { });
                     } else if (!interaction.replied) {
-                        await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
+                        await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral }).catch(() => { });
                     }
                 } finally {
                     require('./utils/ticketUI').unlockCreation(interaction.guild.id, interaction.user.id);
@@ -5471,7 +5525,7 @@ client.on('interactionCreate', async (interaction) => {
                                 return await interaction.reply({
                                     components: [buildPremiumGate('/247')],
                                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
 
                             let config247 = {};
@@ -5982,7 +6036,7 @@ client.on('interactionCreate', async (interaction) => {
                             await interaction.reply({
                                 content: '<:Cancel:1473037949187657818> Failed to apply panel scoping.',
                                 flags: MessageFlags.Ephemeral,
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
                         return;
                     }
@@ -6037,7 +6091,7 @@ client.on('interactionCreate', async (interaction) => {
             if (interaction.customId === 'cshop_buy_select') {
                 const cshopCmd = client.commands.get('customshop');
                 if (cshopCmd?.handleSelectMenu) {
-                    try { const h = await cshopCmd.handleSelectMenu(interaction); if (h) return; } catch {}
+                    try { const h = await cshopCmd.handleSelectMenu(interaction); if (h) return; } catch { }
                 }
                 return;
             }
@@ -6244,7 +6298,7 @@ client.on('interactionCreate', async (interaction) => {
                     return interaction.reply({
                         components: [buildPremiumGate(which)],
                         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
                 try {
                     const { isValidFont, FONT_FAMILIES, getCustomFontName } = require('./utils/fontRegistry');
@@ -6302,7 +6356,7 @@ client.on('interactionCreate', async (interaction) => {
                     return interaction.reply({
                         components: [buildPremiumGate(which)],
                         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
                 try {
                     const { updateUserData } = require('./utils/dataManager');
@@ -6340,7 +6394,7 @@ client.on('interactionCreate', async (interaction) => {
                     return interaction.reply({
                         components: [buildPremiumGate('/profile-customize')],
                         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
                 try {
                     const { updateUserData } = require('./utils/dataManager');
@@ -6448,7 +6502,7 @@ client.on('interactionCreate', async (interaction) => {
                     }
 
                     // Restrict to the panel's whitelist when present
-                    const allowedCats  = panel ? resolvePanelCategories(guildConfig, panel) : (guildConfig.categories || []);
+                    const allowedCats = panel ? resolvePanelCategories(guildConfig, panel) : (guildConfig.categories || []);
                     const categoryInfo = allowedCats.find(c => c.id === selectedCategory);
 
                     if (!categoryInfo) {
@@ -6508,8 +6562,8 @@ client.on('interactionCreate', async (interaction) => {
                     const ticketChannelName = buildTicketChannelName(categoryInfo.id, interaction.user.username, ticketNumber);
 
                     // Resolve effective overrides (panel-level wins, guild-level fallback)
-                    const effectiveCategoryId   = resolveChannelCategoryId(liveGuildConfig, panel);
-                    const effectiveSupportRole  = resolveSupportRoleId(liveGuildConfig, panel);
+                    const effectiveCategoryId = resolveChannelCategoryId(liveGuildConfig, panel);
+                    const effectiveSupportRole = resolveSupportRoleId(liveGuildConfig, panel);
 
                     const category = effectiveCategoryId ? interaction.guild.channels.cache.get(effectiveCategoryId) : null;
                     if (!category) {
@@ -6521,9 +6575,9 @@ client.on('interactionCreate', async (interaction) => {
                     }
 
                     const overwrites = [
-                        { id: interaction.guild.id,        deny:  ['ViewChannel'] },
-                        { id: interaction.user.id,         allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
-                        { id: interaction.client.user.id,  allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageChannels'] },
+                        { id: interaction.guild.id, deny: ['ViewChannel'] },
+                        { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
+                        { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks', 'ManageChannels'] },
                     ];
                     if (effectiveSupportRole) {
                         overwrites.push({
@@ -6616,8 +6670,8 @@ client.on('interactionCreate', async (interaction) => {
                         } else {
                             let body = headerLine;
                             if (welcomeMsg.mode === 'embed') {
-                                if (welcomeMsg.author)      body += `*${ticketReplace(welcomeMsg.author,      interaction.user, interaction.guild, ticketChannel)}*\n`;
-                                if (welcomeMsg.title)       body += `### ${ticketReplace(welcomeMsg.title,    interaction.user, interaction.guild, ticketChannel)}\n`;
+                                if (welcomeMsg.author) body += `*${ticketReplace(welcomeMsg.author, interaction.user, interaction.guild, ticketChannel)}*\n`;
+                                if (welcomeMsg.title) body += `### ${ticketReplace(welcomeMsg.title, interaction.user, interaction.guild, ticketChannel)}\n`;
                                 if (welcomeMsg.description) body += `${ticketReplace(welcomeMsg.description, interaction.user, interaction.guild, ticketChannel)}\n`;
                                 if (welcomeMsg.fields?.length) {
                                     body += '\n';
@@ -6670,7 +6724,7 @@ client.on('interactionCreate', async (interaction) => {
                         await ticketChannel.send({
                             content: `${ticketUI.E.warn} Welcome message couldn't be rendered. Use the buttons below.`,
                             components: [ticketUI.buildTicketButtons()],
-                        }).catch(() => {});
+                        }).catch(() => { });
                     }
 
                     // Send a separate plain message so role + user actually get pinged
@@ -6683,7 +6737,7 @@ client.on('interactionCreate', async (interaction) => {
                             roles: effectiveSupportRole ? [effectiveSupportRole] : [],
                             users: [interaction.user.id],
                         },
-                    }).catch(() => {});
+                    }).catch(() => { });
 
                     // Best-effort DM to the opener with a jump link
                     interaction.user.send({
@@ -6707,9 +6761,9 @@ client.on('interactionCreate', async (interaction) => {
                     const ticketUI = require('./utils/ticketUI');
                     const errPayload = ticketUI.v2Reply(ticketUI.errorContainer(`There was an error creating the ticket: ${error.message?.slice(0, 200) || 'unknown'}`), true);
                     if (interaction.deferred) {
-                        await interaction.editReply({ components: errPayload.components, flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                        await interaction.editReply({ components: errPayload.components, flags: MessageFlags.IsComponentsV2 }).catch(() => { });
                     } else if (!interaction.replied) {
-                        await interaction.reply(errPayload).catch(() => {});
+                        await interaction.reply(errPayload).catch(() => { });
                     }
                 } finally {
                     require('./utils/ticketUI').unlockCreation(interaction.guild.id, interaction.user.id);
@@ -7155,7 +7209,6 @@ client.on('interactionCreate', async (interaction) => {
                                             );
 
                                         const smWelcomeContainer = new ContainerBuilder()
-                                            .setAccentColor(0xCAD7E6)
                                             .addTextDisplayComponents(
                                                 new TextDisplayBuilder()
                                                     .setContent(
@@ -7234,13 +7287,13 @@ client.on('interactionCreate', async (interaction) => {
                                 await interaction.followUp({
                                     content: ephemeralContent.join('\n'),
                                     flags: MessageFlags.Ephemeral
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                             if (responseEmbeds.length > 0) {
                                 await interaction.followUp({
                                     embeds: responseEmbeds.slice(0, 10),
                                     flags: MessageFlags.Ephemeral
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                         } else if (!hasNonMessageActions && ephemeralContent.length > 0 && responseEmbeds.length === 0) {
                             // Pure text message(s) — show cleanly as ephemeral
@@ -7276,7 +7329,7 @@ client.on('interactionCreate', async (interaction) => {
                                 await interaction.followUp({
                                     components: responseV2,
                                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                         }
                     } else {
@@ -7829,7 +7882,7 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({
                 components: [buildPremiumGate(`/${interaction.commandName}`)],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-            }).catch(() => {});
+            }).catch(() => { });
         } catch {
             return interaction.reply({ content: '<:Cancel:1473037949187657818> This feature requires **Premium**. Use `/redeemkey` to activate or ask an admin to activate server premium.', flags: MessageFlags.Ephemeral }).catch(() => { });
         }
@@ -7884,7 +7937,7 @@ client.on('interactionCreate', async (interaction) => {
             // containers, so we add the footer as a styled `-#` line.
             if (opts.components && Array.isArray(opts.components) && _gCfg.footerText) {
                 _injectCv2Footer(opts.components, _gColor, _gCfg.footerText);
-            } else if (opts.components && Array.isArray(opts.components)) {
+            } else if (opts.components && Array.isArray(opts.components) && _gColor != null) {
                 for (const c of opts.components) {
                     if (c?.data?.type === 17 && c.data.accent_color === undefined) {
                         c.data.accent_color = _gColor;
@@ -7895,7 +7948,7 @@ client.on('interactionCreate', async (interaction) => {
             if (opts.embeds && Array.isArray(opts.embeds)) {
                 for (const e of opts.embeds) {
                     const d = e?.data ?? e;
-                    if (d && d.color === undefined) d.color = _gColor;
+                    if (d && d.color === undefined && _gColor != null) d.color = _gColor;
                     if (d && !d.footer && _gCfg.footerText) {
                         d.footer = { text: _gCfg.footerText };
                         if (_gCfg.footerIcon) d.footer.icon_url = _gCfg.footerIcon;
@@ -7924,13 +7977,13 @@ client.on('interactionCreate', async (interaction) => {
         const tosManager = require('./utils/tosManager');
         if (!tosManager.hasAcceptedTos(interaction.user.id)) {
             const container = tosManager.buildTosPanel(interaction.user);
-            
+
             return interaction.reply({
                 components: [container],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
             });
         }
-        
+
         trackCommand(interaction.commandName, interaction.user.id, interaction.guildId);
         await command.execute(interaction, client.lavalinkManager);
     } catch (error) {
@@ -8135,10 +8188,10 @@ client.on('messageCreate', async (message) => {
                 const isCh = (biCfg.ignoredChannels || []).includes(message.channel.id);
                 const isUser = (biCfg.ignoredUsers || []).includes(message.author.id);
                 const isRole = message.member && (biCfg.ignoredRoles || []).some(r => message.member.roles.cache.has(r));
-                
+
                 // Allow admins/owner to bypass
                 const isBypassed = message.member?.permissions.has(PermissionFlagsBits.Administrator) || message.author.id === process.env.OWNER_ID;
-                
+
                 if ((isCh || isUser || isRole) && !isBypassed) {
                     if (!biCfg.ignorePrefix) {
                         return; // Ignore entirely (automod, leveling, events, everything)
@@ -8151,7 +8204,7 @@ client.on('messageCreate', async (message) => {
                     }
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
     }
     // Handle DMs — only allow commands that explicitly support DMs
     if (!message.guild) {
@@ -8294,7 +8347,7 @@ client.on('messageCreate', async (message) => {
                         const result = await sshotCmd.submitScreenshot({
                             client,
                             guild: message.guild,
-                            user:  message.author,
+                            user: message.author,
                             attachment: imageAttachment,
                             note,
                             taskId: session?.taskId || null
@@ -8319,7 +8372,7 @@ client.on('messageCreate', async (message) => {
                         message.channel.send({
                             content: ack,
                             allowedMentions: { users: [message.author.id] }
-                        }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 10_000)).catch(() => {});
+                        }).then(notice => setTimeout(() => notice.delete().catch(() => { }), 10_000)).catch(() => { });
 
                         // Auto-delete source message (keeps the channel clean)
                         if (result?.ok && (sshotCfg.autoDelete !== false)) {
@@ -8328,7 +8381,7 @@ client.on('messageCreate', async (message) => {
 
                         // Re-float the user panel so it's always at the bottom
                         if (sshotCmd?.refloatUserPanel) {
-                            sshotCmd.refloatUserPanel(message.guild, message.channel).catch(() => {});
+                            sshotCmd.refloatUserPanel(message.guild, message.channel).catch(() => { });
                         }
                         return; // consumed
                     }
@@ -8340,7 +8393,7 @@ client.on('messageCreate', async (message) => {
                     message.channel.send({
                         content: `<:Infotriangle:1473038460456800459> <@${message.author.id}> this channel is for verification screenshots only. Post a screenshot or use \`/screenshot-verify submit\`.`,
                         allowedMentions: { users: [message.author.id] }
-                    }).then(notice => setTimeout(() => notice.delete().catch(() => {}), 8000)).catch(() => {});
+                    }).then(notice => setTimeout(() => notice.delete().catch(() => { }), 8000)).catch(() => { });
                     return; // consumed
                 }
             }
@@ -8396,7 +8449,7 @@ client.on('messageCreate', async (message) => {
                     }
                 } catch (e) {
                     log.error(`AI chat error in ${guildId}: ${e.message}`);
-                    await message.reply({ content: '❌ AI is temporarily unavailable. Please try again later.', allowedMentions: { repliedUser: false } }).catch(() => { });
+                    await message.reply({ content: '<:Cancel:1473037949187657818> AI is temporarily unavailable. Please try again later.', allowedMentions: { repliedUser: false } }).catch(() => { });
                 }
                 return; // Don't process further if AI channel
             }
@@ -8431,7 +8484,7 @@ client.on('messageCreate', async (message) => {
                 // separators ("f.u.c.k", "fück", "ｆｕｃｋ" → "fuck") so
                 // obfuscated bad words still match.
                 let contentNorm = '';
-                try { contentNorm = require('./utils/aiModeration').normalizeText(content); } catch {}
+                try { contentNorm = require('./utils/aiModeration').normalizeText(content); } catch { }
                 for (const word of automodConfig.badWords.words) {
                     const wordLower = word.toLowerCase().trim();
                     if (!wordLower) continue;
@@ -8707,7 +8760,7 @@ client.on('messageCreate', async (message) => {
                             channelId: savedChannel.id,
                             content: savedContent,
                         });
-                    } catch (_) {}
+                    } catch (_) { }
 
                     // ── Log to legacy automod-config logChannel ──
                     if (automodConfig.logChannel) {
@@ -8782,216 +8835,216 @@ client.on('messageCreate', async (message) => {
             const spamCfg = jsonStore.peekGuild('antispam', guildId);
 
             if (spamCfg?.enabled && !message.member?.permissions.has('Administrator')) {
-                    const isSpamWhitelisted = (spamCfg.whitelistedRoles || []).some(roleId => message.member?.roles.cache.has(roleId)) ||
-                        (spamCfg.whitelistedChannels || []).includes(message.channel.id);
+                const isSpamWhitelisted = (spamCfg.whitelistedRoles || []).some(roleId => message.member?.roles.cache.has(roleId)) ||
+                    (spamCfg.whitelistedChannels || []).includes(message.channel.id);
 
-                    if (!isSpamWhitelisted) {
-                        const userId = message.author.id;
-                        const now = Date.now();
-                        const filters = spamCfg.filters || {};
-                        let triggered = null;
-                        let reason = '';
+                if (!isSpamWhitelisted) {
+                    const userId = message.author.id;
+                    const now = Date.now();
+                    const filters = spamCfg.filters || {};
+                    let triggered = null;
+                    let reason = '';
 
-                        // --- Message Spam (rate-based) ---
-                        if (!triggered && filters.messageSpam?.enabled) {
-                            const key = `antispam-msg-${guildId}-${userId}`;
-                            const timeWindow = filters.messageSpam.interval || 5000;
-                            const limit = filters.messageSpam.maxMessages || 5;
-                            if (!spamTracker.has(key)) spamTracker.set(key, []);
-                            const arr = spamTracker.get(key);
-                            arr.push(now);
-                            const recent = arr.filter(t => now - t < timeWindow);
-                            spamTracker.set(key, recent);
-                            if (recent.length >= limit) { triggered = 'Message Spam'; reason = `${recent.length} messages in ${timeWindow / 1000}s`; spamTracker.delete(key); }
-                        }
+                    // --- Message Spam (rate-based) ---
+                    if (!triggered && filters.messageSpam?.enabled) {
+                        const key = `antispam-msg-${guildId}-${userId}`;
+                        const timeWindow = filters.messageSpam.interval || 5000;
+                        const limit = filters.messageSpam.maxMessages || 5;
+                        if (!spamTracker.has(key)) spamTracker.set(key, []);
+                        const arr = spamTracker.get(key);
+                        arr.push(now);
+                        const recent = arr.filter(t => now - t < timeWindow);
+                        spamTracker.set(key, recent);
+                        if (recent.length >= limit) { triggered = 'Message Spam'; reason = `${recent.length} messages in ${timeWindow / 1000}s`; spamTracker.delete(key); }
+                    }
 
-                        // --- Emoji Spam ---
-                        if (!triggered && filters.emojiSpam?.enabled && message.content) {
-                            const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic}|<a?:\w+:\d+>)/gu;
-                            const emojis = message.content.match(emojiRegex);
-                            if (emojis && emojis.length > (filters.emojiSpam.maxEmojis || 10)) {
-                                triggered = 'Emoji Spam'; reason = `${emojis.length} emojis (max: ${filters.emojiSpam.maxEmojis || 10})`;
-                            }
-                        }
-
-                        // --- CAPS Spam ---
-                        if (!triggered && filters.capsSpam?.enabled && message.content) {
-                            const text = message.content.replace(/[^a-zA-Z]/g, '');
-                            const minLen = filters.capsSpam.minLength || 10;
-                            const maxPct = filters.capsSpam.maxPercent || 70;
-                            if (text.length >= minLen) {
-                                const upper = text.replace(/[^A-Z]/g, '').length;
-                                const pct = (upper / text.length) * 100;
-                                if (pct > maxPct) { triggered = 'CAPS Spam'; reason = `${Math.round(pct)}% uppercase (max: ${maxPct}%)`; }
-                            }
-                        }
-
-                        // --- Link Spam ---
-                        if (!triggered && filters.linkSpam?.enabled && message.content) {
-                            const urlRegex = /https?:\/\/[^\s<]+/gi;
-                            const links = message.content.match(urlRegex) || [];
-                            const whitelist = (filters.linkSpam.whitelistedDomains || []).map(d => d.toLowerCase());
-                            const nonWhitelisted = links.filter(url => {
-                                try { const host = new URL(url).hostname.toLowerCase(); return !whitelist.some(d => host === d || host.endsWith('.' + d)); } catch { return true; }
-                            });
-                            if (nonWhitelisted.length > (filters.linkSpam.maxLinks || 3)) {
-                                triggered = 'Link Spam'; reason = `${nonWhitelisted.length} links (max: ${filters.linkSpam.maxLinks || 3})`;
-                            }
-                        }
-
-                        // --- Image Spam (rate-based) ---
-                        if (!triggered && filters.imageSpam?.enabled) {
-                            const imageCount = message.attachments.filter(a => a.contentType?.startsWith('image/')).size + (message.embeds?.filter(e => e.image || e.thumbnail).length || 0);
-                            if (imageCount > 0) {
-                                const key = `antispam-img-${guildId}-${userId}`;
-                                const tw = filters.imageSpam.interval || 10000;
-                                if (!spamTracker.has(key)) spamTracker.set(key, []);
-                                const arr = spamTracker.get(key);
-                                for (let i = 0; i < imageCount; i++) arr.push(now);
-                                const recent = arr.filter(t => now - t < tw);
-                                spamTracker.set(key, recent);
-                                if (recent.length > (filters.imageSpam.maxImages || 3)) { triggered = 'Image Spam'; reason = `${recent.length} images in ${tw / 1000}s`; spamTracker.delete(key); }
-                            }
-                        }
-
-                        // --- Sticker Spam (rate-based) ---
-                        if (!triggered && filters.stickerSpam?.enabled && message.stickers?.size > 0) {
-                            const key = `antispam-stk-${guildId}-${userId}`;
-                            const tw = filters.stickerSpam.interval || 10000;
-                            if (!spamTracker.has(key)) spamTracker.set(key, []);
-                            const arr = spamTracker.get(key);
-                            for (let i = 0; i < message.stickers.size; i++) arr.push(now);
-                            const recent = arr.filter(t => now - t < tw);
-                            spamTracker.set(key, recent);
-                            if (recent.length > (filters.stickerSpam.maxStickers || 3)) { triggered = 'Sticker Spam'; reason = `${recent.length} stickers in ${tw / 1000}s`; spamTracker.delete(key); }
-                        }
-
-                        // --- Mention Spam ---
-                        if (!triggered && filters.mentionSpam?.enabled) {
-                            const mentionCount = (message.mentions.users?.size || 0) + (message.mentions.roles?.size || 0);
-                            if (mentionCount > (filters.mentionSpam.maxMentions || 5)) {
-                                triggered = 'Mention Spam'; reason = `${mentionCount} mentions (max: ${filters.mentionSpam.maxMentions || 5})`;
-                            }
-                        }
-
-                        // --- Duplicate Spam (rate-based) ---
-                        if (!triggered && filters.duplicateSpam?.enabled && message.content) {
-                            const key = `antispam-dup-${guildId}-${userId}`;
-                            const tw = filters.duplicateSpam.interval || 30000;
-                            if (!spamTracker.has(key)) spamTracker.set(key, []);
-                            const arr = spamTracker.get(key);
-                            arr.push({ time: now, content: message.content.toLowerCase().trim() });
-                            const recent = arr.filter(e => now - e.time < tw);
-                            spamTracker.set(key, recent);
-                            const dupes = recent.filter(e => e.content === message.content.toLowerCase().trim()).length;
-                            if (dupes > (filters.duplicateSpam.maxDuplicates || 3)) { triggered = 'Duplicate Spam'; reason = `${dupes} identical messages in ${tw / 1000}s`; spamTracker.delete(key); }
-                        }
-
-                        // --- Invite Spam ---
-                        if (!triggered && filters.inviteSpam?.enabled && message.content) {
-                            const inviteRegex = /(discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\//i;
-                            if (inviteRegex.test(message.content)) {
-                                triggered = 'Invite Spam'; reason = 'Discord invite link detected';
-                            }
-                        }
-
-                        // --- Newline Spam ---
-                        if (!triggered && filters.newlineSpam?.enabled && message.content) {
-                            const newlines = (message.content.match(/\n/g) || []).length;
-                            if (newlines > (filters.newlineSpam.maxNewlines || 15)) {
-                                triggered = 'Newline Spam'; reason = `${newlines} newlines (max: ${filters.newlineSpam.maxNewlines || 15})`;
-                            }
-                        }
-
-                        // --- Execute punishment if any filter triggered ---
-                        if (triggered) {
-                            const action = (spamCfg.action || 'timeout').toLowerCase();
-                            const fullReason = `Anti-Spam [${triggered}]: ${reason}`;
-                            await safeDeleteMessage(message, `antispam:${triggered}`);
-
-                            // Track whether we successfully applied the
-                            // configured action so the log can show
-                            // pass/fail rather than always claiming the
-                            // action was applied.
-                            let acted = false;
-                            let failureReason = null;
-
-                            try {
-                                if (action === 'timeout' && message.member) {
-                                    if (!message.member.moderatable) {
-                                        failureReason = 'bot lacks Timeout permission or member outranks bot';
-                                    } else {
-                                        const duration = spamCfg.timeoutDuration || 60000;
-                                        await message.member.timeout(duration, fullReason);
-                                        acted = true;
-                                        const msg = await message.channel.send(`<:Shield:1473038669831995494> <@${userId}> has been timed out for **${Math.round(duration / 1000)}s** — ${triggered.toLowerCase()} detected.`).catch(() => null);
-                                        if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
-                                    }
-                                } else if (action === 'kick' && message.member) {
-                                    if (!message.member.kickable) {
-                                        failureReason = 'bot cannot kick this member';
-                                    } else {
-                                        await message.member.kick(fullReason);
-                                        acted = true;
-                                        await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been kicked — ${triggered.toLowerCase()} detected.`).catch(() => { });
-                                    }
-                                } else if (action === 'ban' && message.member) {
-                                    if (!message.member.bannable) {
-                                        failureReason = 'bot cannot ban this member';
-                                    } else {
-                                        await message.member.ban({ reason: fullReason, deleteMessageSeconds: 60 });
-                                        acted = true;
-                                        await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been banned — ${triggered.toLowerCase()} detected.`).catch(() => { });
-                                    }
-                                } else if (action === 'warn') {
-                                    // Warn is "delete + public reminder" —
-                                    // never modifies member state, so
-                                    // it's always considered successful.
-                                    const msg = await message.channel.send(`<:Infotriangle:1473038460456800459> <@${userId}>, stop! ${triggered} detected: ${reason}`).catch(() => null);
-                                    if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
-                                    acted = true;
-                                } else if (action === 'delete') {
-                                    // Pure delete — message was already
-                                    // removed above by safeDeleteMessage.
-                                    acted = true;
-                                } else {
-                                    failureReason = `unknown action "${action}"`;
-                                    log.error(`[AntiSpam] Unknown action "${action}" for guild ${guildId}`);
-                                }
-                            } catch (err) {
-                                failureReason = err.message || 'API error';
-                                log.error(`AntiSpam ${action} failed: ${err.message}`);
-                            }
-
-                            if (spamCfg.logChannel) {
-                                const logCh = message.guild.channels.cache.get(spamCfg.logChannel);
-                                if (logCh) {
-                                    const statusLine = acted
-                                        ? `<:Checkedbox:1473038547165384804> **Status:** Action applied (\`${action.toUpperCase()}\`)`
-                                        : `<:Cancel:1473037949187657818> **Status:** Action **failed** — ${failureReason || 'unknown'}`;
-                                    const logContainer = new ContainerBuilder()
-                                        .setAccentColor(acted
-                                            ? (action === 'ban' ? 0xFF0000 : action === 'kick' ? 0xFF6600 : 0xFFA500)
-                                            : 0xFEE75C)
-                                        .addTextDisplayComponents(
-                                            new TextDisplayBuilder().setContent(
-                                                `# <:Shield:1473038669831995494> Anti-Spam Detection\n\n` +
-                                                `**User:** ${message.author.username} (<@${userId}>)\n` +
-                                                `**Channel:** <#${message.channel.id}>\n` +
-                                                `**Action:** \`${action.toUpperCase()}\`\n` +
-                                                `**Filter:** ${triggered}\n` +
-                                                `**Reason:** ${reason}\n` +
-                                                `${statusLine}\n` +
-                                                `-# <t:${Math.floor(Date.now() / 1000)}:R>`
-                                            )
-                                        );
-                                    await logCh.send({ components: [logContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-                                }
-                            }
-                            return;
+                    // --- Emoji Spam ---
+                    if (!triggered && filters.emojiSpam?.enabled && message.content) {
+                        const emojiRegex = /(\p{Emoji_Presentation}|\p{Extended_Pictographic}|<a?:\w+:\d+>)/gu;
+                        const emojis = message.content.match(emojiRegex);
+                        if (emojis && emojis.length > (filters.emojiSpam.maxEmojis || 10)) {
+                            triggered = 'Emoji Spam'; reason = `${emojis.length} emojis (max: ${filters.emojiSpam.maxEmojis || 10})`;
                         }
                     }
+
+                    // --- CAPS Spam ---
+                    if (!triggered && filters.capsSpam?.enabled && message.content) {
+                        const text = message.content.replace(/[^a-zA-Z]/g, '');
+                        const minLen = filters.capsSpam.minLength || 10;
+                        const maxPct = filters.capsSpam.maxPercent || 70;
+                        if (text.length >= minLen) {
+                            const upper = text.replace(/[^A-Z]/g, '').length;
+                            const pct = (upper / text.length) * 100;
+                            if (pct > maxPct) { triggered = 'CAPS Spam'; reason = `${Math.round(pct)}% uppercase (max: ${maxPct}%)`; }
+                        }
+                    }
+
+                    // --- Link Spam ---
+                    if (!triggered && filters.linkSpam?.enabled && message.content) {
+                        const urlRegex = /https?:\/\/[^\s<]+/gi;
+                        const links = message.content.match(urlRegex) || [];
+                        const whitelist = (filters.linkSpam.whitelistedDomains || []).map(d => d.toLowerCase());
+                        const nonWhitelisted = links.filter(url => {
+                            try { const host = new URL(url).hostname.toLowerCase(); return !whitelist.some(d => host === d || host.endsWith('.' + d)); } catch { return true; }
+                        });
+                        if (nonWhitelisted.length > (filters.linkSpam.maxLinks || 3)) {
+                            triggered = 'Link Spam'; reason = `${nonWhitelisted.length} links (max: ${filters.linkSpam.maxLinks || 3})`;
+                        }
+                    }
+
+                    // --- Image Spam (rate-based) ---
+                    if (!triggered && filters.imageSpam?.enabled) {
+                        const imageCount = message.attachments.filter(a => a.contentType?.startsWith('image/')).size + (message.embeds?.filter(e => e.image || e.thumbnail).length || 0);
+                        if (imageCount > 0) {
+                            const key = `antispam-img-${guildId}-${userId}`;
+                            const tw = filters.imageSpam.interval || 10000;
+                            if (!spamTracker.has(key)) spamTracker.set(key, []);
+                            const arr = spamTracker.get(key);
+                            for (let i = 0; i < imageCount; i++) arr.push(now);
+                            const recent = arr.filter(t => now - t < tw);
+                            spamTracker.set(key, recent);
+                            if (recent.length > (filters.imageSpam.maxImages || 3)) { triggered = 'Image Spam'; reason = `${recent.length} images in ${tw / 1000}s`; spamTracker.delete(key); }
+                        }
+                    }
+
+                    // --- Sticker Spam (rate-based) ---
+                    if (!triggered && filters.stickerSpam?.enabled && message.stickers?.size > 0) {
+                        const key = `antispam-stk-${guildId}-${userId}`;
+                        const tw = filters.stickerSpam.interval || 10000;
+                        if (!spamTracker.has(key)) spamTracker.set(key, []);
+                        const arr = spamTracker.get(key);
+                        for (let i = 0; i < message.stickers.size; i++) arr.push(now);
+                        const recent = arr.filter(t => now - t < tw);
+                        spamTracker.set(key, recent);
+                        if (recent.length > (filters.stickerSpam.maxStickers || 3)) { triggered = 'Sticker Spam'; reason = `${recent.length} stickers in ${tw / 1000}s`; spamTracker.delete(key); }
+                    }
+
+                    // --- Mention Spam ---
+                    if (!triggered && filters.mentionSpam?.enabled) {
+                        const mentionCount = (message.mentions.users?.size || 0) + (message.mentions.roles?.size || 0);
+                        if (mentionCount > (filters.mentionSpam.maxMentions || 5)) {
+                            triggered = 'Mention Spam'; reason = `${mentionCount} mentions (max: ${filters.mentionSpam.maxMentions || 5})`;
+                        }
+                    }
+
+                    // --- Duplicate Spam (rate-based) ---
+                    if (!triggered && filters.duplicateSpam?.enabled && message.content) {
+                        const key = `antispam-dup-${guildId}-${userId}`;
+                        const tw = filters.duplicateSpam.interval || 30000;
+                        if (!spamTracker.has(key)) spamTracker.set(key, []);
+                        const arr = spamTracker.get(key);
+                        arr.push({ time: now, content: message.content.toLowerCase().trim() });
+                        const recent = arr.filter(e => now - e.time < tw);
+                        spamTracker.set(key, recent);
+                        const dupes = recent.filter(e => e.content === message.content.toLowerCase().trim()).length;
+                        if (dupes > (filters.duplicateSpam.maxDuplicates || 3)) { triggered = 'Duplicate Spam'; reason = `${dupes} identical messages in ${tw / 1000}s`; spamTracker.delete(key); }
+                    }
+
+                    // --- Invite Spam ---
+                    if (!triggered && filters.inviteSpam?.enabled && message.content) {
+                        const inviteRegex = /(discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\//i;
+                        if (inviteRegex.test(message.content)) {
+                            triggered = 'Invite Spam'; reason = 'Discord invite link detected';
+                        }
+                    }
+
+                    // --- Newline Spam ---
+                    if (!triggered && filters.newlineSpam?.enabled && message.content) {
+                        const newlines = (message.content.match(/\n/g) || []).length;
+                        if (newlines > (filters.newlineSpam.maxNewlines || 15)) {
+                            triggered = 'Newline Spam'; reason = `${newlines} newlines (max: ${filters.newlineSpam.maxNewlines || 15})`;
+                        }
+                    }
+
+                    // --- Execute punishment if any filter triggered ---
+                    if (triggered) {
+                        const action = (spamCfg.action || 'timeout').toLowerCase();
+                        const fullReason = `Anti-Spam [${triggered}]: ${reason}`;
+                        await safeDeleteMessage(message, `antispam:${triggered}`);
+
+                        // Track whether we successfully applied the
+                        // configured action so the log can show
+                        // pass/fail rather than always claiming the
+                        // action was applied.
+                        let acted = false;
+                        let failureReason = null;
+
+                        try {
+                            if (action === 'timeout' && message.member) {
+                                if (!message.member.moderatable) {
+                                    failureReason = 'bot lacks Timeout permission or member outranks bot';
+                                } else {
+                                    const duration = spamCfg.timeoutDuration || 60000;
+                                    await message.member.timeout(duration, fullReason);
+                                    acted = true;
+                                    const msg = await message.channel.send(`<:Shield:1473038669831995494> <@${userId}> has been timed out for **${Math.round(duration / 1000)}s** — ${triggered.toLowerCase()} detected.`).catch(() => null);
+                                    if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
+                                }
+                            } else if (action === 'kick' && message.member) {
+                                if (!message.member.kickable) {
+                                    failureReason = 'bot cannot kick this member';
+                                } else {
+                                    await message.member.kick(fullReason);
+                                    acted = true;
+                                    await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been kicked — ${triggered.toLowerCase()} detected.`).catch(() => { });
+                                }
+                            } else if (action === 'ban' && message.member) {
+                                if (!message.member.bannable) {
+                                    failureReason = 'bot cannot ban this member';
+                                } else {
+                                    await message.member.ban({ reason: fullReason, deleteMessageSeconds: 60 });
+                                    acted = true;
+                                    await message.channel.send(`<:Shield:1473038669831995494> **${message.author.username}** has been banned — ${triggered.toLowerCase()} detected.`).catch(() => { });
+                                }
+                            } else if (action === 'warn') {
+                                // Warn is "delete + public reminder" —
+                                // never modifies member state, so
+                                // it's always considered successful.
+                                const msg = await message.channel.send(`<:Infotriangle:1473038460456800459> <@${userId}>, stop! ${triggered} detected: ${reason}`).catch(() => null);
+                                if (msg) setTimeout(() => msg.delete().catch(() => { }), 8000);
+                                acted = true;
+                            } else if (action === 'delete') {
+                                // Pure delete — message was already
+                                // removed above by safeDeleteMessage.
+                                acted = true;
+                            } else {
+                                failureReason = `unknown action "${action}"`;
+                                log.error(`[AntiSpam] Unknown action "${action}" for guild ${guildId}`);
+                            }
+                        } catch (err) {
+                            failureReason = err.message || 'API error';
+                            log.error(`AntiSpam ${action} failed: ${err.message}`);
+                        }
+
+                        if (spamCfg.logChannel) {
+                            const logCh = message.guild.channels.cache.get(spamCfg.logChannel);
+                            if (logCh) {
+                                const statusLine = acted
+                                    ? `<:Checkedbox:1473038547165384804> **Status:** Action applied (\`${action.toUpperCase()}\`)`
+                                    : `<:Cancel:1473037949187657818> **Status:** Action **failed** — ${failureReason || 'unknown'}`;
+                                const logContainer = new ContainerBuilder()
+                                    .setAccentColor(acted
+                                        ? (action === 'ban' ? 0xFF0000 : action === 'kick' ? 0xFF6600 : 0xFFA500)
+                                        : 0xFEE75C)
+                                    .addTextDisplayComponents(
+                                        new TextDisplayBuilder().setContent(
+                                            `# <:Shield:1473038669831995494> Anti-Spam Detection\n\n` +
+                                            `**User:** ${message.author.username} (<@${userId}>)\n` +
+                                            `**Channel:** <#${message.channel.id}>\n` +
+                                            `**Action:** \`${action.toUpperCase()}\`\n` +
+                                            `**Filter:** ${triggered}\n` +
+                                            `**Reason:** ${reason}\n` +
+                                            `${statusLine}\n` +
+                                            `-# <t:${Math.floor(Date.now() / 1000)}:R>`
+                                        )
+                                    );
+                                await logCh.send({ components: [logContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+                            }
+                        }
+                        return;
+                    }
                 }
+            }
         } catch (e) {
             // Silently ignore antispam errors
         }
@@ -9067,8 +9120,8 @@ client.on('messageCreate', async (message) => {
         const secs = uptimeSec % 60;
         const uptimeStr = days > 0 ? `${days}d ${hours}h ${mins}m`
             : hours > 0 ? `${hours}h ${mins}m`
-            : mins > 0  ? `${mins}m ${secs}s`
-            : `${secs}s`;
+                : mins > 0 ? `${mins}m ${secs}s`
+                    : `${secs}s`;
 
         const apiPing = Math.round(client.ws.ping);
 
@@ -9167,7 +9220,7 @@ client.on('messageCreate', async (message) => {
             components: [container],
             flags: MessageFlags.IsComponentsV2,
             allowedMentions: { repliedUser: false },
-        }).catch(() => {});
+        }).catch(() => { });
     }
 
     if (guildId) {
@@ -9487,7 +9540,6 @@ client.on('messageCreate', async (message) => {
                     }).join('\n\n');
 
                     const afkContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(
                             new TextDisplayBuilder().setContent(
                                 `# <:Inforect:1473038624172937287> Mentioned User${mentionedAfkUsers.length > 1 ? 's' : ''} Are AFK\n` +
@@ -10022,7 +10074,7 @@ client.on('messageCreate', async (message) => {
                 return message.reply({
                     components: [buildPremiumGate(prefixHint)],
                     flags: MessageFlags.IsComponentsV2,
-                }).catch(() => {});
+                }).catch(() => { });
             } catch {
                 return message.reply('<:Cancel:1473037949187657818> This feature requires **Premium**. Use `redeemkey` to activate or ask an admin to activate server premium.').catch(() => { });
             }
@@ -10097,7 +10149,7 @@ client.on('messageCreate', async (message) => {
                 // each container when a custom footer is configured.
                 if (opts.components && Array.isArray(opts.components) && _gFoot) {
                     _injectCv2Footer(opts.components, _gColor, _gFoot);
-                } else if (opts.components && Array.isArray(opts.components)) {
+                } else if (opts.components && Array.isArray(opts.components) && _gColor != null) {
                     for (const c of opts.components) {
                         if (c?.data?.type === 17 && c.data.accent_color === undefined) {
                             c.data.accent_color = _gColor;
@@ -10108,7 +10160,7 @@ client.on('messageCreate', async (message) => {
                 if (opts.embeds && Array.isArray(opts.embeds)) {
                     for (const e of opts.embeds) {
                         const d = e?.data ?? e;
-                        if (d && d.color === undefined) d.color = _gColor;
+                        if (d && d.color === undefined && _gColor != null) d.color = _gColor;
                         if (d && !d.footer && _gFoot) {
                             d.footer = { text: _gFoot };
                             if (_gFootIcon) d.footer.icon_url = _gFootIcon;
@@ -10129,13 +10181,13 @@ client.on('messageCreate', async (message) => {
             const tosManager = require('./utils/tosManager');
             if (!tosManager.hasAcceptedTos(message.author.id)) {
                 const container = tosManager.buildTosPanel(message.author);
-                
+
                 return message.reply({
                     components: [container],
                     flags: MessageFlags.IsComponentsV2
                 });
             }
-            
+
             trackCommand(commandName, message.author.id, message.guild?.id);
             await command.executePrefix(message, args, lavalinkManager, client);
         } catch (error) {
@@ -10294,8 +10346,8 @@ function sendAntiNukeLog(guild, config, executor, action, limit, timeWindow, rec
             timeWindow,
             violations: recentCount,
             target,
-        }).catch(() => {});
-    } catch (_) {}
+        }).catch(() => { });
+    } catch (_) { }
 
     // Backward compat: also send to the legacy `config.logChannel` set in
     // /antinuke if it's configured. Allows guilds who haven't migrated to
@@ -10642,7 +10694,7 @@ client.on('guildMemberAdd', async (member) => {
                                 await logChannel.send({
                                     components: [container],
                                     flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
-                                }).catch(() => {});
+                                }).catch(() => { });
                             }
                         } catch (e) {
                             log.error('Anti-Alt log error', e);
@@ -11133,7 +11185,7 @@ client.on('guildMemberAdd', async (member) => {
                                         .setPlaceholder(md.placeholder || 'Select an option...')
                                         .setMinValues(md.minValues || 1)
                                         .setMaxValues(md.maxValues || 1);
-                                    
+
                                     if (md.options?.length > 0) {
                                         sm.addOptions(md.options.slice(0, 25).map(o => ({
                                             label: o.label,
@@ -11360,7 +11412,7 @@ client.on('guildCreate', async (guild) => {
         if (inviterUser) {
             try {
                 const dmContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6);
+                    ;
 
                 let dmContent = `# <:Checkedbox:1473038547165384804> Thank You for Inviting ${botName}!\n\n`;
                 dmContent += `Hey **${inviterUser.username}**! Thanks for adding me to **${guild.name}**! <:Present:1473038450465706076>\n\n`;
@@ -11422,7 +11474,7 @@ client.on('guildCreate', async (guild) => {
 
             if (targetChannel) {
                 const welcomeContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6);
+                    ;
 
                 let wcContent = `# <:Lightningalt:1473038679906844824> ${botName} has arrived!\n\n`;
                 wcContent += `Thanks for adding me to **${guild.name}**! <:Present:1473038450465706076>\n\n`;
@@ -11555,21 +11607,21 @@ client.on('messageDelete', async (message) => {
         try {
             const { db } = require('./utils/database');
             const countingData = await db.get(`counting_${message.guild.id}`);
-            
+
             if (countingData && message.channel.id === countingData.channelId) {
                 // Check if the deleted message was a valid count
                 if (countingData.lastMessageId === message.id) {
                     const deletedNumber = countingData.currentCount;
                     const deleterTag = message.author.tag;
                     const deleterId = message.author.id;
-                    
+
                     // Decrease count by 1 since that number was deleted
                     countingData.currentCount = Math.max(0, deletedNumber - 1);
                     countingData.lastUserId = null;
                     countingData.lastMessageId = null;
                     countingData.fails++;
                     await db.set(`counting_${message.guild.id}`, countingData);
-                    
+
                     // Send warning message
                     const container = new ContainerBuilder()
                         .setAccentColor(0xFEE75C)
@@ -11583,11 +11635,11 @@ client.on('messageDelete', async (message) => {
                                 `Continue counting from **${countingData.currentCount + 1}**`
                             )
                         );
-                    
-                    await message.channel.send({ 
-                        components: [container], 
-                        flags: MessageFlags.IsComponentsV2 
-                    }).catch(() => {});
+
+                    await message.channel.send({
+                        components: [container],
+                        flags: MessageFlags.IsComponentsV2
+                    }).catch(() => { });
                 }
             }
         } catch (e) {
@@ -11952,7 +12004,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                 try {
                     const { reapplyPersistentStatus } = require('./commands/voice/vcstatus');
                     await reapplyPersistentStatus(client, oldState.channelId);
-                } catch {}
+                } catch { }
             }, 6000); // 6s delay — Discord clears status ~3-5s after last user leaves
         }
     }
@@ -12261,126 +12313,126 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
                 // intentional no-op; vanityguard is inactive on
                 // non-premium servers regardless of saved config.
             } else {
-            const vgConfig = jsonStore.has('vanityguard') ? (jsonStore.read('vanityguard') || {}) : {};
-            const guildVg = vgConfig[newGuild.id];
-            if (guildVg?.enabled) {
-                // Audit log type 1 = GUILD_UPDATE. Vanity changes fall under
-                // this type with `changes[].key === 'vanity_url_code'`.
-                let executorId = null;
-                let executor = null;
-                try {
-                    const auditLogs = await newGuild.fetchAuditLogs({ type: 1, limit: 6 });
-                    const entry = auditLogs.entries.find(e => {
-                        if (!e.changes) return false;
-                        if (Date.now() - e.createdTimestamp > 15_000) return false;
-                        return e.changes.some(c => c.key === 'vanity_url_code');
-                    });
-                    if (entry) {
-                        executorId = entry.executor?.id || null;
-                        executor = entry.executor || null;
-                    }
-                } catch (auditErr) {
-                    log.warning(`[VanityGuard] Could not fetch audit logs in ${newGuild.id}: ${auditErr.message}`);
-                }
-
-                // Trust check: server owner OR explicit whitelist OR antinuke whitelist
-                const trust = require('./utils/trustManager');
-                let isAllowed = false;
-                if (executorId) {
-                    if (trust.isServerOwner(newGuild, executorId)) isAllowed = true;
-                    if ((guildVg.whitelistedUsers || []).includes(executorId)) isAllowed = true;
-                    // Also honor the antinuke whitelist if present.
+                const vgConfig = jsonStore.has('vanityguard') ? (jsonStore.read('vanityguard') || {}) : {};
+                const guildVg = vgConfig[newGuild.id];
+                if (guildVg?.enabled) {
+                    // Audit log type 1 = GUILD_UPDATE. Vanity changes fall under
+                    // this type with `changes[].key === 'vanity_url_code'`.
+                    let executorId = null;
+                    let executor = null;
                     try {
-                        const antinukeData = jsonStore.has('antinuke') ? jsonStore.read('antinuke') : {};
-                        const aw = antinukeData?.[newGuild.id]?.whitelist;
-                        if (Array.isArray(aw) && aw.includes(executorId)) isAllowed = true;
-                    } catch {}
-                    // Bot itself is always allowed (e.g. boost-tier downgrade clears vanity)
-                    if (executorId === client.user.id) isAllowed = true;
-                }
-
-                if (!isAllowed) {
-                    // Restore the previous vanity. setVanityCode requires the
-                    // boost tier to still be 3+; if not, just log and skip.
-                    if (newGuild.premiumTier >= 3 && oldGuild.vanityURLCode) {
-                        try {
-                            await newGuild.setVanityCode(oldGuild.vanityURLCode, 'Vanity Guard — unauthorized change reverted');
-                            log.warning(`[VanityGuard] Reverted vanity change in ${newGuild.name} (${newGuild.id}) by ${executor?.tag || executorId || 'unknown'}`);
-                        } catch (revertErr) {
-                            log.error(`[VanityGuard] Failed to revert vanity for ${newGuild.id}: ${revertErr.message}`);
+                        const auditLogs = await newGuild.fetchAuditLogs({ type: 1, limit: 6 });
+                        const entry = auditLogs.entries.find(e => {
+                            if (!e.changes) return false;
+                            if (Date.now() - e.createdTimestamp > 15_000) return false;
+                            return e.changes.some(c => c.key === 'vanity_url_code');
+                        });
+                        if (entry) {
+                            executorId = entry.executor?.id || null;
+                            executor = entry.executor || null;
                         }
-                    } else {
-                        log.warning(`[VanityGuard] Cannot revert vanity in ${newGuild.id} — boost tier ${newGuild.premiumTier} insufficient`);
+                    } catch (auditErr) {
+                        log.warning(`[VanityGuard] Could not fetch audit logs in ${newGuild.id}: ${auditErr.message}`);
                     }
 
-                    // Punish executor if configured. The action is
-                    // separate from "revert" — a successful revert
-                    // happens regardless of whether we can punish the
-                    // person who tried to change the vanity.
-                    if (executorId && executorId !== client.user.id && guildVg.action && guildVg.action !== 'none') {
+                    // Trust check: server owner OR explicit whitelist OR antinuke whitelist
+                    const trust = require('./utils/trustManager');
+                    let isAllowed = false;
+                    if (executorId) {
+                        if (trust.isServerOwner(newGuild, executorId)) isAllowed = true;
+                        if ((guildVg.whitelistedUsers || []).includes(executorId)) isAllowed = true;
+                        // Also honor the antinuke whitelist if present.
                         try {
-                            const member = await newGuild.members.fetch(executorId).catch(() => null);
-                            if (member) {
-                                if (guildVg.action === 'ban') {
-                                    if (member.bannable) {
-                                        await member.ban({ reason: 'Vanity Guard — unauthorized vanity change' });
-                                        log.warning(`[VanityGuard] Banned ${member.user?.tag || executorId} in ${newGuild.id}`);
-                                    } else {
-                                        log.warning(`[VanityGuard] Cannot ban ${member.user?.tag || executorId} — bot lacks permission`);
-                                    }
-                                } else if (guildVg.action === 'kick') {
-                                    if (member.kickable) {
-                                        await member.kick('Vanity Guard — unauthorized vanity change');
-                                        log.warning(`[VanityGuard] Kicked ${member.user?.tag || executorId} in ${newGuild.id}`);
-                                    } else {
-                                        log.warning(`[VanityGuard] Cannot kick ${member.user?.tag || executorId} — bot lacks permission`);
+                            const antinukeData = jsonStore.has('antinuke') ? jsonStore.read('antinuke') : {};
+                            const aw = antinukeData?.[newGuild.id]?.whitelist;
+                            if (Array.isArray(aw) && aw.includes(executorId)) isAllowed = true;
+                        } catch { }
+                        // Bot itself is always allowed (e.g. boost-tier downgrade clears vanity)
+                        if (executorId === client.user.id) isAllowed = true;
+                    }
+
+                    if (!isAllowed) {
+                        // Restore the previous vanity. setVanityCode requires the
+                        // boost tier to still be 3+; if not, just log and skip.
+                        if (newGuild.premiumTier >= 3 && oldGuild.vanityURLCode) {
+                            try {
+                                await newGuild.setVanityCode(oldGuild.vanityURLCode, 'Vanity Guard — unauthorized change reverted');
+                                log.warning(`[VanityGuard] Reverted vanity change in ${newGuild.name} (${newGuild.id}) by ${executor?.tag || executorId || 'unknown'}`);
+                            } catch (revertErr) {
+                                log.error(`[VanityGuard] Failed to revert vanity for ${newGuild.id}: ${revertErr.message}`);
+                            }
+                        } else {
+                            log.warning(`[VanityGuard] Cannot revert vanity in ${newGuild.id} — boost tier ${newGuild.premiumTier} insufficient`);
+                        }
+
+                        // Punish executor if configured. The action is
+                        // separate from "revert" — a successful revert
+                        // happens regardless of whether we can punish the
+                        // person who tried to change the vanity.
+                        if (executorId && executorId !== client.user.id && guildVg.action && guildVg.action !== 'none') {
+                            try {
+                                const member = await newGuild.members.fetch(executorId).catch(() => null);
+                                if (member) {
+                                    if (guildVg.action === 'ban') {
+                                        if (member.bannable) {
+                                            await member.ban({ reason: 'Vanity Guard — unauthorized vanity change' });
+                                            log.warning(`[VanityGuard] Banned ${member.user?.tag || executorId} in ${newGuild.id}`);
+                                        } else {
+                                            log.warning(`[VanityGuard] Cannot ban ${member.user?.tag || executorId} — bot lacks permission`);
+                                        }
+                                    } else if (guildVg.action === 'kick') {
+                                        if (member.kickable) {
+                                            await member.kick('Vanity Guard — unauthorized vanity change');
+                                            log.warning(`[VanityGuard] Kicked ${member.user?.tag || executorId} in ${newGuild.id}`);
+                                        } else {
+                                            log.warning(`[VanityGuard] Cannot kick ${member.user?.tag || executorId} — bot lacks permission`);
+                                        }
                                     }
                                 }
+                            } catch (e) {
+                                log.error(`[VanityGuard] Punishment error: ${e.message}`);
                             }
-                        } catch (e) {
-                            log.error(`[VanityGuard] Punishment error: ${e.message}`);
                         }
+
+                        // Send a guard alert via the central security logger so
+                        // the configured /logging set-security channel receives a
+                        // consistent, webhook-aware message with mentions
+                        // suppressed.
+                        try {
+                            await logVanityGuard(newGuild, {
+                                executor: executor ? { id: executorId, username: executor.username || executor.tag } : null,
+                                oldVanity: oldGuild.vanityURLCode || null,
+                                newVanity: newGuild.vanityURLCode || null,
+                                reverted: newGuild.premiumTier >= 3 && Boolean(oldGuild.vanityURLCode),
+                                punishment: guildVg.action || 'none',
+                            });
+                        } catch (_) { }
+
+                        // Backward compat: also send to the legacy
+                        // `vanityguard.logChannelId` if set on this guild.
+                        try {
+                            const logChId = guildVg.logChannelId;
+                            if (logChId) {
+                                const ch = newGuild.channels.cache.get(logChId);
+                                if (ch?.isTextBased()) {
+                                    const alert =
+                                        `## <:Shield:1473038669831995494> Vanity Guard Triggered\n` +
+                                        `> Vanity changed from \`${oldGuild.vanityURLCode || 'none'}\` to \`${newGuild.vanityURLCode || 'none'}\`\n` +
+                                        `> Executor: ${executor ? `<@${executorId}> (${executor.tag})` : '*unknown*'}\n` +
+                                        `> Result: ${newGuild.premiumTier >= 3 ? 'Reverted' : 'Could not revert (insufficient boost tier)'}`;
+                                    const container = new ContainerBuilder()
+                                        .setAccentColor(0xED4245)
+                                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(alert));
+                                    await ch.send({
+                                        components: [container],
+                                        allowedMentions: { parse: [] },
+                                        flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+                                    }).catch(() => { });
+                                }
+                            }
+                        } catch { }
                     }
-
-                    // Send a guard alert via the central security logger so
-                    // the configured /logging set-security channel receives a
-                    // consistent, webhook-aware message with mentions
-                    // suppressed.
-                    try {
-                        await logVanityGuard(newGuild, {
-                            executor: executor ? { id: executorId, username: executor.username || executor.tag } : null,
-                            oldVanity: oldGuild.vanityURLCode || null,
-                            newVanity: newGuild.vanityURLCode || null,
-                            reverted: newGuild.premiumTier >= 3 && Boolean(oldGuild.vanityURLCode),
-                            punishment: guildVg.action || 'none',
-                        });
-                    } catch (_) {}
-
-                    // Backward compat: also send to the legacy
-                    // `vanityguard.logChannelId` if set on this guild.
-                    try {
-                        const logChId = guildVg.logChannelId;
-                        if (logChId) {
-                            const ch = newGuild.channels.cache.get(logChId);
-                            if (ch?.isTextBased()) {
-                                const alert =
-                                    `## <:Shield:1473038669831995494> Vanity Guard Triggered\n` +
-                                    `> Vanity changed from \`${oldGuild.vanityURLCode || 'none'}\` to \`${newGuild.vanityURLCode || 'none'}\`\n` +
-                                    `> Executor: ${executor ? `<@${executorId}> (${executor.tag})` : '*unknown*'}\n` +
-                                    `> Result: ${newGuild.premiumTier >= 3 ? 'Reverted' : 'Could not revert (insufficient boost tier)'}`;
-                                const container = new ContainerBuilder()
-                                    .setAccentColor(0xED4245)
-                                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(alert));
-                                await ch.send({
-                                    components: [container],
-                                    allowedMentions: { parse: [] },
-                                    flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
-                                }).catch(() => {});
-                            }
-                        }
-                    } catch {}
                 }
-            }
             } // end premium-gated else
         } catch (err) {
             log.error(`[VanityGuard] Error enforcing vanity guard: ${err.message}`);
@@ -13495,7 +13547,6 @@ if (shardId === 0) {
                     reminderContent += `-# Click below to vote now!`;
 
                     const reminderContainer = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(reminderContent));
 
                     const reminderBtn = new ActionRowBuilder().addComponents(

@@ -111,7 +111,6 @@ function buildResultContainer(clearing, statusText, channel, permanent, username
 
 async function showModeSelector(message, channel, statusText) {
     const container = new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Volumeup:1473039290136002844> Voice Status Setup\n\n` +
             `**Channel:** <#${channel.id}>\n` +
@@ -151,7 +150,6 @@ async function showModeSelector(message, channel, statusText) {
 
     if (!collected) {
         const expired = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `<:Clock:1473039102113878056> **Timed Out** — Voice status setup cancelled.`
             ));
@@ -162,7 +160,6 @@ async function showModeSelector(message, channel, statusText) {
 
     if (action === 'cancel') {
         const cancelled = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `<:Cancel:1473037949187657818> **Cancelled** — No changes made.`
             ));
@@ -285,7 +282,6 @@ module.exports = {
             });
 
             const container = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }

@@ -127,7 +127,6 @@ module.exports = {
         try {
             if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Bot Missing Permissions\n\nI need the **Manage Roles** permission to assign roles.`
@@ -144,7 +143,6 @@ module.exports = {
                 const error = validateRole(role, interaction.guild);
                 if (error) {
                     const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error}`));
                     return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
                 }
@@ -153,7 +151,6 @@ module.exports = {
 
                 if (guildConfig[subcommand].includes(role.id)) {
                     const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Already Configured\n\n${role} is already in the **${subcommand}** autorole list.`
                         ));
@@ -165,7 +162,6 @@ module.exports = {
 
                 const label = subcommand === 'humans' ? 'human members' : 'bots';
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Autorole Configured\n\n` +
                         `${role} will now be assigned to new **${label}** when they join.\n\n` +
@@ -183,7 +179,6 @@ module.exports = {
                 const index = guildConfig[type].indexOf(role.id);
                 if (index === -1) {
                     const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Not Found\n\n${role} is not in the **${type}** autorole list.`
                         ));
@@ -194,7 +189,6 @@ module.exports = {
                 saveConfig(config);
 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Autorole Removed\n\n${role} has been removed from the **${type}** autorole list.`
                     ));
@@ -206,7 +200,6 @@ module.exports = {
                 saveConfig(config);
 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Toggleoff:1473038582813032590> Autorole Disabled\n\nAll autoroles have been cleared. New members will no longer receive automatic roles.`
                     ));
@@ -230,7 +223,6 @@ module.exports = {
         try {
             if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Permission Denied\n\nYou need the **Manage Roles** permission.`
                     ));
@@ -239,7 +231,6 @@ module.exports = {
 
             if (!message.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Bot Missing Permissions\n\nI need the **Manage Roles** permission to assign roles.`
                     ));
@@ -250,7 +241,6 @@ module.exports = {
 
             if (!args.length) {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Shield:1473038669831995494> Autorole\n\n` +
                         `**Usage:**\n` +
@@ -270,7 +260,6 @@ module.exports = {
                 delete config[message.guild.id];
                 saveConfig(config);
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Toggleoff:1473038582813032590> Autorole Disabled\n\nAll autoroles have been cleared.`
                     ));
@@ -300,7 +289,6 @@ module.exports = {
                 guildConfig[type].splice(index, 1);
                 saveConfig(config);
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Autorole Removed\n\n${role} removed from **${type}** autorole list.`
                     ));
@@ -312,7 +300,6 @@ module.exports = {
                 const error = validateRole(role, message.guild);
                 if (error) {
                     const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error}`));
                     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
@@ -327,7 +314,6 @@ module.exports = {
 
                 const label = sub === 'humans' ? 'human members' : 'bots';
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Autorole Configured\n\n` +
                         `${role} will now be assigned to new **${label}**.\n\n` +
@@ -343,7 +329,6 @@ module.exports = {
                 const error = validateRole(role, message.guild);
                 if (error) {
                     const container = new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error}`));
                     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
@@ -355,7 +340,6 @@ module.exports = {
                 saveConfig(config);
 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Autorole Configured\n\n` +
                         `${role} will now be assigned to new **human members**.\n\n` +
@@ -367,7 +351,6 @@ module.exports = {
 
             // Unknown subcommand
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Cancel:1473037949187657818> Invalid Usage\n\n` +
                     `Use \`-autorole humans @role\`, \`-autorole bots @role\`, \`-autorole status\`, or \`-autorole disable\``

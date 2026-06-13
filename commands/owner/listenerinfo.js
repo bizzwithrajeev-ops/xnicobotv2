@@ -50,7 +50,6 @@ module.exports = {
         }
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(body));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

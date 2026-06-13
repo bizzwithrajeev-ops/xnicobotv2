@@ -42,7 +42,7 @@ function buildMangaContainer(manga) {
         HIATUS:           '<:Timer:1473039056710406204> Hiatus',
     };
 
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     const headerSection = new SectionBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Bookopen:1473038576391557130> ${title}`));

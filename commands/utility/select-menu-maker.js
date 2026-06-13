@@ -339,7 +339,6 @@ module.exports = {
         saveMenusConfig(config);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Select Menu Created\n\n` +
@@ -412,7 +411,6 @@ module.exports = {
         saveMenusConfig(config);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Option Added\n\n` +
@@ -526,7 +524,6 @@ module.exports = {
         const actionRow = new ActionRowBuilder().addComponents(actionMenu);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
             .addActionRowComponents(actionRow);
 
@@ -821,7 +818,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Select Menu Attached\n\n` +
@@ -850,7 +846,6 @@ module.exports = {
 
         if (Object.keys(guildMenus).length === 0) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Document:1473039496995143731> No Select Menus Created\n\n` +
@@ -885,7 +880,6 @@ module.exports = {
         content += `• \`/select-menu-maker send\` - Send to channel`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
         return interaction.reply({
@@ -952,7 +946,6 @@ module.exports = {
         }
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
         return interaction.reply({
@@ -1015,7 +1008,6 @@ module.exports = {
 
     async handleHelp(interaction) {
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 📖 Select Menu Maker Guide\n\n` +
@@ -1073,7 +1065,6 @@ module.exports = {
 
         if (!subcommand || subcommand === 'help') {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Palette:1473039029476917461> Select Menu Maker\n\n` +
@@ -1106,7 +1097,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1153,7 +1143,6 @@ module.exports = {
 
             if (head === 'sel_action_done') {
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Option Saved\n\n` +
                         `**Menu:** \`${menuId}\`\n` +

@@ -377,7 +377,6 @@ module.exports = {
         const styleEmoji = { primary: '🔵', secondary: '⚪', success: '🟢', danger: '🔴', link: '🔗' }[style];
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
                     .setContent(
@@ -668,7 +667,6 @@ module.exports = {
                 }
                 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder()
                             .setContent(
@@ -695,7 +693,6 @@ module.exports = {
                 const reply = await targetMessage.reply({ components: rows });
                 
                 const container = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder()
                             .setContent(
@@ -725,7 +722,6 @@ module.exports = {
 
         if (Object.keys(guildButtons).length === 0) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(
@@ -763,7 +759,6 @@ module.exports = {
         content += `• \`/button-maker delete\` - Remove button`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(content)
             );
@@ -892,7 +887,6 @@ module.exports = {
         saveButtonsConfig(config);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
                     .setContent(
@@ -972,7 +966,6 @@ module.exports = {
         }
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
         return interaction.reply({
@@ -1026,7 +1019,6 @@ module.exports = {
 
     async handleHelp(interaction) {
         const helpContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Clipboard:1473039573037617162> Button Maker - Complete Guide\n\n` +
@@ -1102,7 +1094,6 @@ module.exports = {
         content += `### <:Add:1473038100862337035> Add Action`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(content)
             );
@@ -1277,7 +1268,6 @@ module.exports = {
 
         if (!subcommand || subcommand === 'help') {
             const helpContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(
@@ -1360,7 +1350,6 @@ module.exports = {
             saveButtonsConfig(config);
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(
@@ -1405,7 +1394,7 @@ module.exports = {
 
             try {
                 if (useContainer) {
-                    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+                    const container = new ContainerBuilder();
                     if (messageText) {
                         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(messageText));
                         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
@@ -1442,7 +1431,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(content)
                 );
@@ -1637,7 +1625,6 @@ module.exports = {
             const actionCount = btnData?.actions?.length || 0;
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Button Saved\n\n` +

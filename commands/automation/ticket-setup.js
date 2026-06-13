@@ -247,7 +247,6 @@ function _buildPanelMessageInner({ guildConfig, panel, panelId, supportRole, gui
     // Default body
     const body = buildDefaultPanelContent({ supportRole, categories, panelLabel: panel?.label });
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
         .addActionRowComponents(row);
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
@@ -564,7 +563,6 @@ module.exports = {
         saveAll(config);
 
         const setupContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 buildSetupConfirmation({
                     panelChannel: channel,
@@ -727,7 +725,6 @@ module.exports = {
 
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
@@ -816,7 +813,6 @@ module.exports = {
         }
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))],
             flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         });
@@ -866,7 +862,6 @@ module.exports = {
 
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Style Applied\n\n` +
                     `**Preset:** ${preset.label}\n` +
@@ -948,7 +943,6 @@ module.exports = {
 
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Transcript Settings Saved\n\n` +
                     `**Mode:** \`${mode}\`\n` +
@@ -1009,7 +1003,6 @@ module.exports = {
 
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Document:1473039496995143731> Ticket System Status\n\n` +
                     `### <:Settings:1473037894703779851> Defaults\n` +
@@ -1106,7 +1099,6 @@ module.exports = {
         }
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Panel Message Reset\n\n` +
                     `Panel message reverted to default. Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.`
@@ -1126,7 +1118,6 @@ module.exports = {
         saveAll(config);
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Welcome Message Reset\n\n` +
                     `Default welcome will be used for all new tickets.`
@@ -1178,7 +1169,6 @@ module.exports = {
                 }
                 await btnInteraction.update({
                     components: [new ContainerBuilder()
-                        .setAccentColor(0xCAD7E6)
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                             `# <:Checkedbox:1473038547165384804> Panel Message Saved\n\n` +
                             `Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.\n` +
@@ -1205,7 +1195,6 @@ module.exports = {
             saveAll(config);
             await btnInteraction.update({
                 components: [new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Welcome Message Saved\n\n` +
                         `**Mode:** ${data.mode === 'embed' ? '<:Document:1473039496995143731> Embed' : data.mode === 'components' ? '<:Settings:1473037894703779851> Components V2' : '<:Chat:1473038936241864865> Simple'}\n\n` +
@@ -1251,7 +1240,6 @@ module.exports = {
     async handleHelp(interaction) {
         await interaction.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Clipboard:1473039573037617162> Ticket System — Complete Guide\n\n` +
                     `Multi-panel ticket support with per-panel category scoping, presets, customizable messages, and full transcripts.\n\n` +
@@ -1310,7 +1298,6 @@ module.exports = {
             config[message.guild.id] = guildConfig; saveAll(config);
             return message.reply({
                 components: [new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Welcome Message Reset\n\n` +
                         `Default welcome will be used for all new tickets.`
@@ -1330,7 +1317,6 @@ module.exports = {
             }
             return message.reply({
                 components: [new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Panel Message Reset\n\n` +
                         `Panel reverted to default. Refreshed **${refreshed}** panel${refreshed === 1 ? '' : 's'}.`
@@ -1341,7 +1327,6 @@ module.exports = {
         if (!args.length || sub === 'help') {
             return message.reply({
                 components: [new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Clipboard:1473039573037617162> Ticket System — Quick Setup\n\n` +
                         `### <:Document:1473039496995143731> Usage\n` +
@@ -1433,7 +1418,6 @@ module.exports = {
 
         await message.reply({
             components: [new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     buildSetupConfirmation({
                         panelChannel: channel, ticketCategory: category, supportRole: role, panelLabel: 'Default'

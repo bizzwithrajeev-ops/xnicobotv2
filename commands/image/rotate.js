@@ -15,7 +15,6 @@ function isIntegerString(value) {
 
 function buildResponse(degrees, sourceType) {
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`<:Refresh:1473037911581528165> **Rotated Image**\n-# Rotated ${sourceType} by ${degrees}°`)
         )

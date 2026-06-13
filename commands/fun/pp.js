@@ -67,7 +67,6 @@ async function buildAndSend(targetUser, displayName) {
         .addItems(new MediaGalleryItemBuilder({ media: { url: 'attachment://pp.png' } }));
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addMediaGalleryComponents(gallery)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             '-# Just a fun random number — please don\'t take it seriously.'

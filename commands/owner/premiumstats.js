@@ -65,7 +65,6 @@ module.exports = {
             content += `> \`transferpremium <@from> <@to>\` — Transfer`;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

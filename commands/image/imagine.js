@@ -50,7 +50,6 @@ function buildImagineContainer(opts) {
     if (opts.model)    lines.push(`**Model:** ${truncate(opts.model, 80)}`);
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))
         .addMediaGalleryComponents(
             new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL('attachment://imagine.png'))

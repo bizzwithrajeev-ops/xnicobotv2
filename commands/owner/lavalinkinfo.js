@@ -85,6 +85,5 @@ function buildLavalinkContainer(nodes, lavalinkManager) {
     content += `Active Players: ${activePlayers}`;
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }

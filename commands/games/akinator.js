@@ -157,7 +157,6 @@ module.exports = {
 
         if (!game) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🧞 Akinator\n\n*This game has expired. Start a new one!*`));
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;

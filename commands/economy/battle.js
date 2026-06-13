@@ -36,7 +36,7 @@ const {
 } = require('../../utils/pvpGameHelper');
 
 let economyCanvas = null;
-try { economyCanvas = require('../../utils/economyCanvas'); } catch {}
+try { economyCanvas = require('../../utils/economyCanvas'); } catch { }
 
 /* ═══════════════════════════════════════════════════
    COOLDOWNS / CONSTANTS
@@ -53,16 +53,16 @@ const challenges = new Map();   // challengeId → { challengerId, opponentId, b
    ═══════════════════════════════════════════════════ */
 
 const ENEMIES = [
-    { name: 'Goblin',         emoji: '👺', tier: 1, baseHp: 60,  baseAtk: 8,  baseDef: 3,  baseSpd: 5,  skills: ['slash'],                                  loot: { minCoins: 40,   maxCoins: 100  } },
-    { name: 'Skeleton',       emoji: '💀', tier: 1, baseHp: 50,  baseAtk: 10, baseDef: 2,  baseSpd: 6,  skills: ['bone_throw'],                             loot: { minCoins: 50,   maxCoins: 120  } },
-    { name: 'Slime',          emoji: '🟢', tier: 1, baseHp: 80,  baseAtk: 5,  baseDef: 5,  baseSpd: 3,  skills: ['absorb'],                                 loot: { minCoins: 30,   maxCoins: 80   } },
-    { name: 'Wolf Alpha',     emoji: '🐺', tier: 2, baseHp: 100, baseAtk: 18, baseDef: 8,  baseSpd: 12, skills: ['slash', 'howl'],                          loot: { minCoins: 100,  maxCoins: 250  } },
-    { name: 'Dark Mage',      emoji: '🧙', tier: 2, baseHp: 70,  baseAtk: 25, baseDef: 5,  baseSpd: 8,  skills: ['fireball', 'drain'],                      loot: { minCoins: 120,  maxCoins: 300  } },
-    { name: 'Stone Golem',    emoji: '🗿', tier: 2, baseHp: 180, baseAtk: 12, baseDef: 20, baseSpd: 2,  skills: ['slam', 'fortify'],                        loot: { minCoins: 150,  maxCoins: 350  } },
-    { name: 'Shadow Knight',  emoji: '🖤', tier: 3, baseHp: 200, baseAtk: 30, baseDef: 15, baseSpd: 10, skills: ['slash', 'dark_strike', 'fortify'],        loot: { minCoins: 250,  maxCoins: 500  } },
-    { name: 'Ice Dragon',     emoji: '🐲', tier: 3, baseHp: 300, baseAtk: 35, baseDef: 18, baseSpd: 14, skills: ['fireball', 'frost_breath', 'howl'],       loot: { minCoins: 400,  maxCoins: 800  } },
-    { name: 'Demon Lord',     emoji: '👿', tier: 4, baseHp: 450, baseAtk: 45, baseDef: 22, baseSpd: 16, skills: ['dark_strike', 'drain', 'inferno'],        loot: { minCoins: 600,  maxCoins: 1200 } },
-    { name: 'Void Entity',    emoji: '🌑', tier: 4, baseHp: 500, baseAtk: 50, baseDef: 25, baseSpd: 20, skills: ['dark_strike', 'drain', 'inferno', 'void_collapse'], loot: { minCoins: 800, maxCoins: 1500 } },
+    { name: 'Goblin', emoji: '👺', tier: 1, baseHp: 60, baseAtk: 8, baseDef: 3, baseSpd: 5, skills: ['slash'], loot: { minCoins: 40, maxCoins: 100 } },
+    { name: 'Skeleton', emoji: '💀', tier: 1, baseHp: 50, baseAtk: 10, baseDef: 2, baseSpd: 6, skills: ['bone_throw'], loot: { minCoins: 50, maxCoins: 120 } },
+    { name: 'Slime', emoji: '🟢', tier: 1, baseHp: 80, baseAtk: 5, baseDef: 5, baseSpd: 3, skills: ['absorb'], loot: { minCoins: 30, maxCoins: 80 } },
+    { name: 'Wolf Alpha', emoji: '🐺', tier: 2, baseHp: 100, baseAtk: 18, baseDef: 8, baseSpd: 12, skills: ['slash', 'howl'], loot: { minCoins: 100, maxCoins: 250 } },
+    { name: 'Dark Mage', emoji: '🧙', tier: 2, baseHp: 70, baseAtk: 25, baseDef: 5, baseSpd: 8, skills: ['fireball', 'drain'], loot: { minCoins: 120, maxCoins: 300 } },
+    { name: 'Stone Golem', emoji: '🗿', tier: 2, baseHp: 180, baseAtk: 12, baseDef: 20, baseSpd: 2, skills: ['slam', 'fortify'], loot: { minCoins: 150, maxCoins: 350 } },
+    { name: 'Shadow Knight', emoji: '🖤', tier: 3, baseHp: 200, baseAtk: 30, baseDef: 15, baseSpd: 10, skills: ['slash', 'dark_strike', 'fortify'], loot: { minCoins: 250, maxCoins: 500 } },
+    { name: 'Ice Dragon', emoji: '🐲', tier: 3, baseHp: 300, baseAtk: 35, baseDef: 18, baseSpd: 14, skills: ['fireball', 'frost_breath', 'howl'], loot: { minCoins: 400, maxCoins: 800 } },
+    { name: 'Demon Lord', emoji: '👿', tier: 4, baseHp: 450, baseAtk: 45, baseDef: 22, baseSpd: 16, skills: ['dark_strike', 'drain', 'inferno'], loot: { minCoins: 600, maxCoins: 1200 } },
+    { name: 'Void Entity', emoji: '🌑', tier: 4, baseHp: 500, baseAtk: 50, baseDef: 25, baseSpd: 20, skills: ['dark_strike', 'drain', 'inferno', 'void_collapse'], loot: { minCoins: 800, maxCoins: 1500 } },
 ];
 
 // Battle skill table is sourced from the shared `petHelpers` catalog
@@ -339,7 +339,7 @@ function buildResultContainer({ petA, petB, finalA, finalB, won, turnLog, rounds
         addSeparator(container, SeparatorSpacingSize.Small);
         const lines = ['### <:Award:1473038391632203887> Rewards'];
         if (rewards.coins) lines.push(`> <:Money:1473377877239140529> **+${formatNumber(rewards.coins)}** coins`);
-        if (rewards.exp)   lines.push(`> <:Lightning:1473038797540298792> **+${rewards.exp}** XP`);
+        if (rewards.exp) lines.push(`> <:Lightning:1473038797540298792> **+${rewards.exp}** XP`);
         if (rewards.leveledUp) lines.push(`> <:Fire:1473038604812161218> **Level Up → Lv.${rewards.newLevel}**`);
         addTextDisplay(container, lines.join('\n'));
     }
@@ -394,10 +394,10 @@ async function handlePVE(reply, userId, guildId) {
         if (storedPet.exp >= expForLevel) {
             storedPet.exp -= expForLevel;
             storedPet.level = (storedPet.level || 1) + 1;
-            storedPet.baseHp  = Math.floor((storedPet.baseHp  || 50) * 1.06);
+            storedPet.baseHp = Math.floor((storedPet.baseHp || 50) * 1.06);
             storedPet.baseAtk = Math.floor((storedPet.baseAtk || 10) * 1.05);
-            storedPet.baseDef = Math.floor((storedPet.baseDef || 5)  * 1.04);
-            storedPet.baseSpd = Math.floor((storedPet.baseSpd || 5)  * 1.03);
+            storedPet.baseDef = Math.floor((storedPet.baseDef || 5) * 1.04);
+            storedPet.baseSpd = Math.floor((storedPet.baseSpd || 5) * 1.03);
         }
         ph.savePets(petsData);
 
@@ -409,8 +409,8 @@ async function handlePVE(reply, userId, guildId) {
         ecoUser.totalEarned = (ecoUser.totalEarned || 0) + coinReward;
         ecoUser.battlesWon = (ecoUser.battlesWon || 0) + 1;
         const xpResult = economyManager.addXP(economy, userId, 10 + enemy.tier * 5);
-        if (ecoUser.battlesWon === 1)  economyManager.checkAchievement(economy, userId, 'first_battle');
-        if (ecoUser.battlesWon >= 50)  economyManager.checkAchievement(economy, userId, 'battle_50');
+        if (ecoUser.battlesWon === 1) economyManager.checkAchievement(economy, userId, 'first_battle');
+        if (ecoUser.battlesWon >= 50) economyManager.checkAchievement(economy, userId, 'battle_50');
         economyManager.saveEconomy(economy);
 
         rewards = { coins: coinReward, exp: expGain, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel, rounds };
@@ -489,7 +489,7 @@ async function handlePVP(message, target, betArg, guildId) {
     if (!b.animals.find(p => p.id === b.activeBattlePet)) return message.reply(pvpError(`${target.username}'s active pet was not found.`));
 
     if (hasPendingChallenge(message.author.id)) return message.reply(pvpError('You already have a pending challenge — wait for it to resolve or expire.'));
-    if (hasPendingChallenge(target.id))         return message.reply(pvpError(`<@${target.id}> already has a pending challenge.`));
+    if (hasPendingChallenge(target.id)) return message.reply(pvpError(`<@${target.id}> already has a pending challenge.`));
 
     /* ── Bet parsing ── */
     let bet = 0;
@@ -513,10 +513,10 @@ async function handlePVP(message, target, betArg, guildId) {
     const challengeId = `${message.author.id}-${target.id}-${Date.now()}`;
     challenges.set(challengeId, {
         challengerId: message.author.id,
-        opponentId:   target.id,
+        opponentId: target.id,
         bet,
         guildId,
-        expiresAt:    Date.now() + CHALLENGE_TTL_MS,
+        expiresAt: Date.now() + CHALLENGE_TTL_MS,
     });
 
     const challenge = bet > 0
@@ -547,7 +547,6 @@ async function handlePVP(message, target, betArg, guildId) {
  */
 function buildBetlessChallenge({ challengerId, opponentId, challengeId }) {
     const c = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent([
             `# ⚔️ Pet Battle Challenge`,
             ``,
@@ -560,12 +559,12 @@ function buildBetlessChallenge({ challengerId, opponentId, challengeId }) {
                 .setCustomId(`btlch_accept_${challengeId}`)
                 .setLabel('Accept')
                 .setStyle(ButtonStyle.Success)
-                .setEmoji('✅'),
+                .setEmoji('<:Checkedbox:1473038547165384804>'),
             new ButtonBuilder()
                 .setCustomId(`btlch_decline_${challengeId}`)
                 .setLabel('Decline')
                 .setStyle(ButtonStyle.Danger)
-                .setEmoji('❌'),
+                .setEmoji('<:Cancel:1473037949187657818>'),
         ));
     return { components: [c], flags: MessageFlags.IsComponentsV2, allowedMentions: { users: [opponentId] } };
 }
@@ -622,7 +621,7 @@ async function resolveAcceptedChallenge(interaction, ch) {
         const { turnLog, petA: finalA, petB: finalB, rounds } = runBattle(petA, petB);
         const challengerWon = finalA.hp > 0;
         const winnerId = challengerWon ? ch.challengerId : ch.opponentId;
-        const loserId  = challengerWon ? ch.opponentId  : ch.challengerId;
+        const loserId = challengerWon ? ch.opponentId : ch.challengerId;
 
         /* ── Reward bookkeeping ── */
         let rewards = null;
@@ -638,12 +637,12 @@ async function resolveAcceptedChallenge(interaction, ch) {
             const economy = economyManager.loadEconomy();
             const w = economyManager.getUser(economy, winnerId).userData;
             const l = economyManager.getUser(economy, loserId).userData;
-            w.battlesWon  = (w.battlesWon  || 0) + 1;
+            w.battlesWon = (w.battlesWon || 0) + 1;
             l.battlesLost = (l.battlesLost || 0) + 1;
             const xpResult = economyManager.addXP(economy, winnerId, 10);
             economyManager.addXP(economy, loserId, 3);
-            if (w.battlesWon === 1)  economyManager.checkAchievement(economy, winnerId, 'first_battle');
-            if (w.battlesWon >= 50)  economyManager.checkAchievement(economy, winnerId, 'battle_50');
+            if (w.battlesWon === 1) economyManager.checkAchievement(economy, winnerId, 'first_battle');
+            if (w.battlesWon >= 50) economyManager.checkAchievement(economy, winnerId, 'battle_50');
             economyManager.saveEconomy(economy);
             rewards = { exp: 10, leveledUp: xpResult.leveledUp, newLevel: xpResult.newLevel, rounds };
         }
@@ -676,7 +675,7 @@ async function resolveAcceptedChallenge(interaction, ch) {
                 a2.coins += ch.bet;
                 b2.coins += ch.bet;
                 economyManager.saveEconomy(economy);
-            } catch {}
+            } catch { }
         }
         console.error('[battle] Simulation failed:', err?.message || err);
         await editPanel(pvpError(
@@ -736,7 +735,7 @@ module.exports = {
         const id = interaction.customId;
         if (!id.startsWith('btlch_')) return false;
 
-        const accept  = id.startsWith('btlch_accept_');
+        const accept = id.startsWith('btlch_accept_');
         const decline = id.startsWith('btlch_decline_');
         if (!accept && !decline) return false;
 
@@ -756,7 +755,7 @@ module.exports = {
             try {
                 if (interaction.replied || interaction.deferred) await interaction.editReply(payload);
                 else await interaction.update(payload);
-            } catch {}
+            } catch { }
             return true;
         }
 
@@ -769,7 +768,7 @@ module.exports = {
                     content: '<:Cancel:1473037949187657818> Only the challenged user can respond.',
                     flags: MessageFlags.Ephemeral,
                 });
-            } catch {}
+            } catch { }
             return true;
         }
 

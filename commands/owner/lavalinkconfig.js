@@ -17,7 +17,6 @@ module.exports = {
 
         if (!subcommand || subcommand === 'help') {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Music:1473039311057190972> Lavalink Configuration Help\n\n` +
@@ -84,7 +83,6 @@ module.exports = {
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Lavalink Node Added\n\n` +
@@ -124,7 +122,6 @@ module.exports = {
             }
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Music:1473039311057190972> Configured Lavalink Nodes\n\n` +

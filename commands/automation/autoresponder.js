@@ -181,7 +181,6 @@ module.exports = {
         updateCache(guildId, config[guildId]);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Autoresponse Added\n\n` +
@@ -219,7 +218,6 @@ module.exports = {
     async handleList(interaction, guildConfig) {
         if (!guildConfig.responses || guildConfig.responses.length === 0) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Fire:1473038604812161218> No Autoresponses\n\n` +
@@ -250,7 +248,6 @@ module.exports = {
         });
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -343,7 +340,6 @@ module.exports = {
                 overflowHint: '\n-# +${n} more not shown — remove some entries to see them all',
             });
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }

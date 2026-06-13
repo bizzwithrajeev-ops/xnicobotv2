@@ -167,7 +167,7 @@ module.exports = {
             // Status callback for large purges
             const statusCb = isBigPurge ? async (deleted, left, batch) => {
                 await interaction.editReply({
-                    components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                    components: [new ContainerBuilder().addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(`# <a:Loading:1485248248720658472> Clearing Messages\n\n**Deleted:** ${deleted} so far\n**Remaining:** ~${left}\n**Batch:** ${batch}\n\n-# 5 second cooldown between batches to respect rate limits.`)
                     )],
                     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -315,7 +315,7 @@ module.exports = {
 
             if (isBigPurge) {
                 statusMsg = await message.channel.send({
-                    components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                    components: [new ContainerBuilder().addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(`# <a:Loading:1485248248720658472> Clearing Messages\n\n**Target:** ${amount} messages\n**Status:** Starting...\n\n-# 5 second cooldown between batches.`)
                     )],
                     flags: MessageFlags.IsComponentsV2
@@ -324,7 +324,7 @@ module.exports = {
 
             const statusCb = isBigPurge && statusMsg ? async (deleted, left, batch) => {
                 await statusMsg.edit({
-                    components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                    components: [new ContainerBuilder().addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(`# <a:Loading:1485248248720658472> Clearing Messages\n\n**Deleted:** ${deleted} so far\n**Remaining:** ~${left}\n**Batch:** ${batch}\n\n-# 5 second cooldown between batches.`)
                     )],
                     flags: MessageFlags.IsComponentsV2
@@ -402,7 +402,7 @@ module.exports = {
             return `\`${num}.\` **${h.count}** msgs in <#${h.channelId}> by <@${h.moderatorId}> ${time}${filterInfo}`;
         }).join('\n');
 
-        const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+        const container = new ContainerBuilder();
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Document:1473039496995143731> Deleted Message History\n\n` +
             `${lines}\n\n` +
@@ -472,7 +472,7 @@ module.exports = {
             content += `\n\n-# Page ${page + 1}/${totalPages} — ${msgs.length} recorded messages`;
         }
 
-        const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+        const container = new ContainerBuilder();
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
         // Always show navigation row (back + pagination)
@@ -518,7 +518,7 @@ module.exports = {
 
         const history = getHistory(guildId);
         if (history.length === 0) {
-            const c = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+            const c = new ContainerBuilder().addTextDisplayComponents(
                 new TextDisplayBuilder().setContent('# <:Document:1473039496995143731> Deleted Message History\n\nNo recent clear operations recorded.\n\n-# History is stored in memory and resets when the bot restarts.')
             );
             return ctx.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
@@ -556,7 +556,7 @@ module.exports = {
         if (customId.startsWith('clrhist_list_')) {
             const page = parseInt(customId.split('_')[2]) || 0;
             if (history.length === 0) {
-                const c = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+                const c = new ContainerBuilder().addTextDisplayComponents(
                     new TextDisplayBuilder().setContent('# <:Document:1473039496995143731> Deleted Message History\n\nNo recent clear operations recorded.')
                 );
                 await interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
@@ -592,7 +592,7 @@ module.exports = {
 
         const history = getHistory(guildId);
         if (history.length === 0) {
-            const c = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(
+            const c = new ContainerBuilder().addTextDisplayComponents(
                 new TextDisplayBuilder().setContent('# <:Document:1473039496995143731> Deleted Message History\n\nNo recent clear operations recorded.')
             );
             return interaction.reply({ components: [c], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });

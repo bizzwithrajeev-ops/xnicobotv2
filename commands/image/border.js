@@ -21,7 +21,6 @@ function isValidBorderColor(color) {
 
 function buildResponse(color, sourceType) {
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`<:Attach:1473037923979886694> **Border Added**\n-# Added ${color} border to ${sourceType}`)
         )

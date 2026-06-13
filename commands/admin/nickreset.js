@@ -45,7 +45,6 @@ module.exports = {
             await member.setNickname(null);
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(`# <:Checkedbox:1473038547165384804> Nickname Reset`)
@@ -99,7 +98,6 @@ module.exports = {
             await member.setNickname(null);
             
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent(`# <:Checkedbox:1473038547165384804> Nickname Reset`)

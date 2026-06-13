@@ -57,9 +57,9 @@ function isUnicodeEmoji(str) {
     const codePoints = [...str].map(c => c.codePointAt(0));
     return codePoints.every(cp =>
         (cp >= 0x1F300 && cp <= 0x1FAFF) ||      // pictographs / emoticons / transport / supplemental
-        (cp >= 0x2600  && cp <= 0x26FF && str.includes('\uFE0F')) || // misc symbols (with VS-16)
-        (cp >= 0x2700  && cp <= 0x27BF && str.includes('\uFE0F')) || // dingbats (with VS-16)
-        cp === 0x200D  || cp === 0xFE0F           // ZWJ + VS-16 joiners
+        (cp >= 0x2600 && cp <= 0x26FF && str.includes('\uFE0F')) || // misc symbols (with VS-16)
+        (cp >= 0x2700 && cp <= 0x27BF && str.includes('\uFE0F')) || // dingbats (with VS-16)
+        cp === 0x200D || cp === 0xFE0F           // ZWJ + VS-16 joiners
     );
 }
 
@@ -82,7 +82,7 @@ const BAD_EMOJI_FALLBACKS = {
     // generic ui (older server emojis)
     '1417485105437478943': '◀️',   // back
     '1417485139595890728': '▶️',   // next
-    '1415659106735599646': '✅',   // correct
+    '1415659106735599646': '<:Checkedbox:1473038547165384804>',   // correct
     '1473038659514007616': '❤️',  // Heart
     '1417581304299741184': '👤',   // user
     '1430999565011648512': '⚪',   // offline
@@ -119,13 +119,13 @@ const BAD_EMOJI_FALLBACKS = {
     '1415659874729201735': '📁',   // folder
     '1415658776488448080': '🎉',   // giveaway
     '1415659457760854026': '📈',   // up
-    '1415659121927262258': '❌',   // wrong
+    '1415659121927262258': '<:Cancel:1473037949187657818>',   // wrong
     '1423904534928953426': '💬',   // messages
     '1426523323646345309': '📌',   // pin
     '1426523275206332426': '✉️',   // mail
     '1454871326144725066': '🎨',   // war/palette
     '1455551935716393080': '✨',   // shine
-    '1455550639584186439': '✅',   // verify
+    '1455550639584186439': '<:Checkedbox:1473038547165384804>',   // verify
     '1388078753481101353': '🔗',   // glazewhite_link
     '1388078703724204142': '💎',   // 2_boost_blue
     '1386229088141967390': '🎙️',  // wvoice

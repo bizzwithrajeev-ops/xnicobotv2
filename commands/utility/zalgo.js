@@ -59,7 +59,6 @@ module.exports = {
                 });
             }
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 👹 Zalgo Text\n\n${result}`));
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

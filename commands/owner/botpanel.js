@@ -127,7 +127,6 @@ module.exports = {
 
 function buildBotPanel(client) {
     const container = new ContainerBuilder();
-    container.setAccentColor(0xCAD7E6);
 
     const presence = client.user.presence;
     const currentStatus = presence?.status || 'online';
@@ -387,7 +386,6 @@ function buildNicknameModal() {
 
 function buildActivityManagerPanel(client, page = 0) {
     const container = new ContainerBuilder();
-    container.setAccentColor(0xCAD7E6);
 
     const activityData = getActivities();
     const activities = activityData.activities || [];
@@ -531,7 +529,6 @@ function buildActivityManagerPanel(client, page = 0) {
 
 function buildRotationSettingsPanel(client) {
     const container = new ContainerBuilder();
-    container.setAccentColor(0xCAD7E6);
 
     const activityData = getActivities();
     const delay = activityData.rotateInterval || 30;
@@ -629,7 +626,6 @@ module.exports.resolveVariables = resolveVariables;
 
 function buildCustomStatusManagerPanel(client, page = 0) {
     const container = new ContainerBuilder();
-    container.setAccentColor(0xCAD7E6);
 
     const activityData = getActivities();
     const statuses = activityData.customStatuses || [];
@@ -738,7 +734,6 @@ module.exports.buildAddCustomModal = buildAddCustomModal;
 
 function buildVariablesPanel(client) {
     const container = new ContainerBuilder();
-    container.setAccentColor(0xCAD7E6);
 
     // Show live values
     const liveValues = resolveVariables(

@@ -21,7 +21,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (args.length === 0) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to convert!\n\n**Usage:** \`-hex <text> [encode/decode]\`\n**Example:** \`-hex Hello World\``
@@ -41,7 +40,6 @@ module.exports = {
         
         if (!text) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to convert!`
@@ -69,7 +67,6 @@ async function convertHex(context, text, mode, isInteraction) {
             
             if (!result) {
                 const errorContainer = new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `# <:Cancel:1473037949187657818> Invalid Format\n\nInvalid hexadecimal format! Use space-separated hex codes.`
@@ -85,7 +82,6 @@ async function convertHex(context, text, mode, isInteraction) {
         
         if (result.length > 3900) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Too Long\n\nResult is too long to display! (Max 3900 characters)`
@@ -99,7 +95,6 @@ async function convertHex(context, text, mode, isInteraction) {
         }
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🔢 Hexadecimal ${mode === 'encode' ? 'Encoder' : 'Decoder'}\n\n` +
@@ -115,7 +110,6 @@ async function convertHex(context, text, mode, isInteraction) {
         }
     } catch (error) {
         const errorContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error.message}`)
             );

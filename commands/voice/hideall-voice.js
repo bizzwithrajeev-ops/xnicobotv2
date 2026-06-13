@@ -51,7 +51,6 @@ module.exports = {
             `Successfully hidden **${hidden}/${voiceChannels.size}** voice channels from **${roleName}**.`,
             { 'Hidden': `${hidden}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Cannot see channels', 'Moderator': message.author.username }
         );
-        container.setAccentColor(0x5865F2);
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 

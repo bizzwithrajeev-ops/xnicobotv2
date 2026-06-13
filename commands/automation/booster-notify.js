@@ -52,7 +52,7 @@ function getDefaultGuildConfig() {
 }
 
 function buildBoosterPanel(guildConfig, guild) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
 
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('# <a:nitro_boost:1388164213988192370> Booster Notifications\n-# Thank your supporters with custom notifications')
@@ -156,7 +156,7 @@ function buildBoosterPanel(guildConfig, guild) {
 }
 
 function buildEmbedConfigPanel(guildConfig) {
-    const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+    const container = new ContainerBuilder();
     const embedConfig = guildConfig.boostMessage;
 
     container.addTextDisplayComponents(

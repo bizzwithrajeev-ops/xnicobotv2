@@ -88,7 +88,6 @@ module.exports = {
             }
 
             const confirmContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Infotriangle:1473038460456800459> Confirm: Add Admin\n\n` +
                     `<:Caretright:1473038207221502106> **Target:** ${targetUser || targetRole} (\`${targetId}\`)\n` +

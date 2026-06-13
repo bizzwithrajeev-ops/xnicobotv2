@@ -42,7 +42,6 @@ module.exports = {
         const roast = roasts[Math.floor(Math.random() * roasts.length)];
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Fire:1473038604812161218> Roasted!\n\n` +
@@ -59,7 +58,6 @@ module.exports = {
         const roast = roasts[Math.floor(Math.random() * roasts.length)];
         
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# <:Fire:1473038604812161218> Roasted!\n\n` +

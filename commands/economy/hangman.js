@@ -20,12 +20,12 @@ const { gamblingGuard } = require('../../utils/economyGuards');
 const { formatCoinsShort, formatCoins } = require('../../utils/currencyHelper');
 
 const WORDS = [
-    'APPLE','BRAVE','CLOUD','DANCE','EAGLE','FLAME','GRACE','HEART','IVORY',
-    'JEWEL','KNIFE','LEMON','MANGO','NOBLE','OCEAN','PIANO','RIVER','STORM',
-    'TIGER','ULTRA','VAPOR','WITCH','AMBER','BLAZE','CORAL','DRIFT','EMBER',
-    'FROST','GLADE','HAVEN','JOKER','KARMA','LUNAR','MAPLE','NEXUS','ORBIT',
-    'PRISM','RADAR','SOLAR','TEMPO','UNION','WORLD','PIXEL','REBEL','SHADE',
-    'TOWER','VALOR','ARENA','BRUSH','CRANE','DELTA','EQUIP','FLAIR','GLOBE'
+    'APPLE', 'BRAVE', 'CLOUD', 'DANCE', 'EAGLE', 'FLAME', 'GRACE', 'HEART', 'IVORY',
+    'JEWEL', 'KNIFE', 'LEMON', 'MANGO', 'NOBLE', 'OCEAN', 'PIANO', 'RIVER', 'STORM',
+    'TIGER', 'ULTRA', 'VAPOR', 'WITCH', 'AMBER', 'BLAZE', 'CORAL', 'DRIFT', 'EMBER',
+    'FROST', 'GLADE', 'HAVEN', 'JOKER', 'KARMA', 'LUNAR', 'MAPLE', 'NEXUS', 'ORBIT',
+    'PRISM', 'RADAR', 'SOLAR', 'TEMPO', 'UNION', 'WORLD', 'PIXEL', 'REBEL', 'SHADE',
+    'TOWER', 'VALOR', 'ARENA', 'BRUSH', 'CRANE', 'DELTA', 'EQUIP', 'FLAIR', 'GLOBE'
 ];
 
 const STAGES = [
@@ -71,7 +71,7 @@ function buildContainer(game, payoutInfo = null) {
         body = [
             display,
             ``,
-            `❌ Wrong (${game.wrong}/6): ${wrongLetters.length > 0 ? wrongLetters.join('  ') : 'None'}`,
+            `<:Cancel:1473037949187657818> Wrong (${game.wrong}/6): ${wrongLetters.length > 0 ? wrongLetters.join('  ') : 'None'}`,
             `-# All guessed: ${game.guessed.length > 0 ? game.guessed.join('  ') : 'None'}`,
         ].join('\n');
     }
@@ -159,11 +159,11 @@ module.exports = {
         const gameId = customId.slice('hangman_'.length);
         const game = games.get(gameId);
         if (!game || game.status !== 'playing') {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> Game expired.', flags: MessageFlags.Ephemeral }).catch(() => {});
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Game expired.', flags: MessageFlags.Ephemeral }).catch(() => { });
             return true;
         }
         if (interaction.user.id !== game.playerId) {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> Not your game.', flags: MessageFlags.Ephemeral }).catch(() => {});
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Not your game.', flags: MessageFlags.Ephemeral }).catch(() => { });
             return true;
         }
 
@@ -221,8 +221,8 @@ module.exports = {
 
         const container = buildContainer(game, info);
         // Edit the original message; deferUpdate the modal.
-        await interaction.deferUpdate().catch(() => {});
-        await interaction.message?.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        await interaction.deferUpdate().catch(() => { });
+        await interaction.message?.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         return true;
     }
 };

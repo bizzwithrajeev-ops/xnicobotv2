@@ -24,7 +24,6 @@ module.exports = {
         const msg = await message.reply({
             components: [
                 new ContainerBuilder()
-                    .setAccentColor(0xCAD7E6)
                     .addTextDisplayComponents(new TextDisplayBuilder()
                         .setContent('# <:Lightning:1473038797540298792> Cleaning Webhooks\n\nScanning all stores for deleted servers...')
                     )

@@ -5,7 +5,6 @@ function buildQRCodeContainer(text) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodedText}`;
 
     return new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# 📱 QR Code Generated\n\n**Content:**\n\`\`\`${text.substring(0, 200)}${text.length > 200 ? '...' : ''}\`\`\``

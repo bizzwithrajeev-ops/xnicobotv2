@@ -45,7 +45,6 @@ function buildAvatarResponse(user, member, mode = 'auto') {
     section.setThumbnailAccessory(new ThumbnailBuilder({ media: { url: source.displayAvatarURL({ size: 256 }) } }));
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addSectionComponents(section)
         .addMediaGalleryComponents(
             new MediaGalleryBuilder().addItems(

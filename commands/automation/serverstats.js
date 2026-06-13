@@ -59,7 +59,7 @@ module.exports = {
     async _handleSetup(ctx, user, guild, isSlash) {
         const existing = getGuildConfig(guild.id);
         if (existing && existing.enabled) {
-            const c = new ContainerBuilder().setAccentColor(0xCAD7E6);
+            const c = new ContainerBuilder();
             c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Settings:1473037894703779851> Server Stats Already Active\n\n` +
                 `Stats channels are already set up with **${existing.stats.length}** stat counters.\n\n` +
@@ -80,7 +80,7 @@ module.exports = {
             default: ['members', 'humans', 'bots', 'channels', 'roles', 'online'].includes(key)
         }));
 
-        const container = new ContainerBuilder().setAccentColor(0xCAD7E6);
+        const container = new ContainerBuilder();
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Settings:1473037894703779851> Server Stats Setup\n\n` +
             `Select which statistics to display as voice channels.\n` +
@@ -141,7 +141,7 @@ module.exports = {
                     .setMaxValues(Object.keys(STAT_TYPES).length)
                     .addOptions(allOptions);
 
-                const updatedContainer = new ContainerBuilder().setAccentColor(0xCAD7E6);
+                const updatedContainer = new ContainerBuilder();
                 updatedContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Settings:1473037894703779851> Server Stats Setup\n\n` +
                     `**All ${Object.keys(STAT_TYPES).length} stats selected!** Click **Create Channels** to proceed.\n\n` +
@@ -158,14 +158,14 @@ module.exports = {
 
             if (action === 'cancel') {
                 collector.stop('cancelled');
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No channels were created.'))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No channels were created.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
             if (action === 'create') {
                 collector.stop('handled');
 
                 // Show loading state
-                await i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Creating Stats Channels\n\nSetting up **${selectedStats.length}** stat channels\u2026`))], flags: MessageFlags.IsComponentsV2 });
+                await i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Lightning:1473038797540298792> Creating Stats Channels\n\nSetting up **${selectedStats.length}** stat channels\u2026`))], flags: MessageFlags.IsComponentsV2 });
 
                 try {
                     const result = await setupStatsChannels(guild, selectedStats);
@@ -177,7 +177,7 @@ module.exports = {
                         return `> <:Volumedown:1473039303691993233> \`${formatChannelName(key, val)}\``;
                     }).join('\n');
 
-                    const ok = new ContainerBuilder().setAccentColor(0xCAD7E6);
+                    const ok = new ContainerBuilder();
                     ok.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> Server Stats Created\n\n` +
                         `Successfully created **${selectedStats.length}** stat channels in the **<:Invoice:1473039492217835550> Server Stats** category.\n`
@@ -236,12 +236,12 @@ module.exports = {
             collector.stop('handled');
 
             if (i.customId.includes('rmcancel')) {
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. Stats channels remain active.'))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. Stats channels remain active.'))], flags: MessageFlags.IsComponentsV2 });
             }
 
             const result = await removeStatsChannels(guild);
             if (result.success) {
-                return i.update({ components: [new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Stats Removed\n\nDeleted **${result.deleted}** channels. Server stats are now disabled.`))], flags: MessageFlags.IsComponentsV2 });
+                return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Stats Removed\n\nDeleted **${result.deleted}** channels. Server stats are now disabled.`))], flags: MessageFlags.IsComponentsV2 });
             }
             return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
         });
@@ -270,7 +270,7 @@ module.exports = {
                 return `> <:Volumedown:1473039303691993233> \`${formatChannelName(key, val)}\``;
             }).join('\n');
 
-            const ok = new ContainerBuilder().setAccentColor(0xCAD7E6);
+            const ok = new ContainerBuilder();
             ok.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Checkedbox:1473038547165384804> Stats Refreshed\n\n${lines}\n\n-# All channels updated to current values.`
             ));
@@ -286,7 +286,7 @@ module.exports = {
     async _handleStatus(ctx, user, guild, isSlash) {
         const config = getGuildConfig(guild.id);
         if (!config || !config.enabled) {
-            const c = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Settings:1473037894703779851> Server Stats\n\n**Status:** Not configured\n\n> Use `serverstats setup` to get started.'));
+            const c = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Settings:1473037894703779851> Server Stats\n\n**Status:** Not configured\n\n> Use `serverstats setup` to get started.'));
             return isSlash ? ctx.reply({ components: [c], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }) : ctx.reply({ components: [c], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -301,7 +301,7 @@ module.exports = {
 
         const lastUpdate = config.lastUpdate ? `<t:${Math.floor(config.lastUpdate / 1000)}:R>` : 'Never';
 
-        const c = new ContainerBuilder().setAccentColor(0xCAD7E6);
+        const c = new ContainerBuilder();
         c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Settings:1473037894703779851> Server Stats Status\n\n` +
             `**Status:** <:Checkedbox:1473038547165384804> Active\n` +

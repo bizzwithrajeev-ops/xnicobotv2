@@ -19,7 +19,6 @@ const CHANNEL_TYPES = {
 
 function buildChannelInfo(channel) {
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Pin:1473038806612447500> Channel Information: #${channel.name}`)
         )

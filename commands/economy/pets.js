@@ -46,7 +46,7 @@ function viewOverview(user, uid) {
       '<:Cancel:1473037949187657818> No pets yet.',
       '', '> Use `hunt` to catch your first pet!'
     );
-    return new ContainerBuilder().setAccentColor(0xCAD7E6)
+    return new ContainerBuilder()
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
   }
 
@@ -63,7 +63,7 @@ function viewOverview(user, uid) {
   lines.push('');
   lines.push('-# Use `hunt` to catch new pets • `battle` to fight with your active pet');
 
-  const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+  const ctr = new ContainerBuilder()
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
 
   const opts = ph.RARITY_ORDER

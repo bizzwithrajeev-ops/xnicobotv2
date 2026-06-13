@@ -18,7 +18,7 @@ function errCtr(txt) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> ${txt}`));
 }
 function okCtr(txt) {
-    return new ContainerBuilder().setAccentColor(0xCAD7E6)
+    return new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> ${txt}`));
 }
 function fmtDate(d) {
@@ -40,7 +40,7 @@ function buildList(backups, guild, page, uid) {
         return `**${idx}. \`${b.name}\`**\n> <:Bookopen:1473038576391557130> ${fmtDate(b.date)}\n> <:Folderopen:1473039552783323348> **${b.configCount}** config files`;
     }).join('\n\n');
 
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+    const ctr = new ContainerBuilder()
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines || 'No backups on this page.'));
@@ -70,7 +70,7 @@ function buildList(backups, guild, page, uid) {
 
 /* ─── view: detail ─── */
 function buildDetail(backup, guild, uid) {
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+    const ctr = new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Box:1473039115581915256> Backup Details\n\n` +
             `**<:Edit:1473037903625191580> Name:** \`${backup.name}\`\n` +
@@ -104,7 +104,7 @@ function buildConfirmDel(name, uid) {
 
 /* ─── view: confirm load ─── */
 function buildConfirmLoad(name, uid) {
-    const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+    const ctr = new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# <:Infotriangle:1473038460456800459> Confirm Restore\n\n` +
             `Restore server config from backup **\`${name}\`**?\n\n` +

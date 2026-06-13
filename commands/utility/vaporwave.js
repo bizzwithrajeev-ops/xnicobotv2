@@ -23,7 +23,6 @@ module.exports = {
     async executePrefix(message, args) {
         if (args.length === 0) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Missing Text\n\nPlease provide text to convert!\n\n**Usage:** \`-vaporwave <text>\`\n**Example:** \`-vaporwave Hello World\``
@@ -49,7 +48,6 @@ async function convertVaporwave(context, text, isInteraction) {
 
         if (result.length > 2000) {
             const errorContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Cancel:1473037949187657818> Too Long\n\nResult is too long! (Max 2000 characters)`
@@ -63,7 +61,6 @@ async function convertVaporwave(context, text, isInteraction) {
         }
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# 🌊 Ｖａｐｏｒｗａｖｅ\n\n${result}`)
             );
@@ -75,7 +72,6 @@ async function convertVaporwave(context, text, isInteraction) {
         }
     } catch (error) {
         const errorContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${error.message}`)
             );

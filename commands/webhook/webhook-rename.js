@@ -76,7 +76,7 @@ module.exports = {
             }
 
             // Confirm prompt
-            const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+            const ctr = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Editalt:1473038138577256670> Confirm Rename\n\n` +
                     `**Current Name:** ${webhook.name}\n` +
@@ -116,7 +116,7 @@ module.exports = {
                         const oldName = wh.name;
                         await wh.edit({ name: newName, reason: `Renamed by ${i.user.username}` });
 
-                        const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                        const result = new ContainerBuilder()
                             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                                 `# <:Checkedbox:1473038547165384804> Webhook Renamed\n\n` +
                                 `**${oldName}** → **${newName}**\n` +
@@ -134,7 +134,7 @@ module.exports = {
                 }
 
                 if (action === 'cancel') {
-                    const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                    const result = new ContainerBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# Cancelled\n\nWebhook rename was cancelled.`));
                     return i.update({ components: [result], flags: MessageFlags.IsComponentsV2 });
                 }
@@ -149,7 +149,7 @@ module.exports = {
 
         /* ── MODAL MODE (no name in args) — show button to open rename modal ── */
         const ch = message.guild.channels.cache.get(webhook.channelId);
-        const ctr = new ContainerBuilder().setAccentColor(0xCAD7E6)
+        const ctr = new ContainerBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Editalt:1473038138577256670> Rename Webhook\n\n` +
                 `**<:Edit:1473037903625191580> Current Name:** ${webhook.name}\n` +
@@ -176,7 +176,7 @@ module.exports = {
 
             if (action === 'cancel') {
                 collector.stop('cancelled');
-                const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+                const result = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Cancelled.`));
                 return i.update({ components: [result], flags: MessageFlags.IsComponentsV2 });
             }
@@ -254,7 +254,7 @@ module.exports = {
             const oldName = webhook.name;
             await webhook.edit({ name: newName, reason: `Renamed by ${interaction.user.username}` });
 
-            const result = new ContainerBuilder().setAccentColor(0xCAD7E6)
+            const result = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# <:Checkedbox:1473038547165384804> Webhook Renamed\n\n` +
                     `**${oldName}** → **${newName}**\n` +

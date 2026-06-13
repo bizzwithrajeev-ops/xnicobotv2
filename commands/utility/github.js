@@ -90,7 +90,6 @@ async function fetchGitHub(type, query) {
                 .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: user.avatar_url } }));
 
             return new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addSectionComponents(section);
 
         } else {
@@ -114,7 +113,6 @@ async function fetchGitHub(type, query) {
             content += `**[View Repository](${repo.html_url})**`;
 
             return new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
         }
     } catch (error) {

@@ -8,7 +8,6 @@ function buildIconResponse(guild) {
     }
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`# <:Picture:1473039568398843957> ${guild.name}'s Icon`)
         )

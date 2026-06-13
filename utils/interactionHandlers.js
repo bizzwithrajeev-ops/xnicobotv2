@@ -94,7 +94,6 @@ async function handleWelcomerButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:pin:1473038806612447500> Set Leave Channel\nCurrent: ${currentCh}\n\nSelect the channel where leave messages will be sent.`
             ))
@@ -150,7 +149,6 @@ async function handleWelcomerButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:pin:1473038806612447500> Set Welcome Channel\nCurrent: ${currentCh}\n\nSelect the channel where welcome messages will be sent.`
             ))
@@ -496,7 +494,6 @@ async function handleWelcomerButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:pin:1473038806612447500> Set Welcome Channel\nCurrent: ${currentCh}\n\nSelect the channel where welcome messages will be sent.`
             ))
@@ -4165,7 +4162,6 @@ async function handleAutomodButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:Document:1473039496995143731> Set AutoMod Log Channel\nCurrent: ${currentCh}\n\nSelect the channel where AutoMod events will be logged.`
             ))
@@ -4240,7 +4236,6 @@ async function handleAutomodButtons(interaction) {
                 .setMaxValues(10)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:Settings:1473037894703779851> Advanced AutoMod Settings\n**Ignored Roles:** ${ignoredRolesDisplay}\n**Ignored Channels:** ${ignoredChannelsDisplay}\n\nSelect roles and/or channels to exclude from AutoMod. Submit each dropdown separately.`
             ))
@@ -4305,7 +4300,6 @@ async function handleAutomodButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:Shield:1473038669831995494> Set AutoMod Bypass Role\nCurrent: ${currentBypass}\n\nMembers with this role will bypass AutoMod filters.`
             ))
@@ -4327,7 +4321,6 @@ async function handleAutomodButtons(interaction) {
                 .setMaxValues(10)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `## <:Volumeoff:1473039301414621427> Ignore Channels\nCurrent: ${ignoredChannelsDisplay}\n\nSelect channels where AutoMod will not apply. Leave empty to clear.`
             ))
@@ -4898,7 +4891,7 @@ async function handleVerificationButtons(interaction) {
         config[guildId].pendingContent = messageContent;
         jsonStore.write('sticky', config);
 
-        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent('### <:Checkedbox:1473038547165384804> Content Saved\nNow click **Set Channel**, then pick a **Display Type**.'));
+        const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('### <:Checkedbox:1473038547165384804> Content Saved\nNow click **Set Channel**, then pick a **Display Type**.'));
         await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     }
 
@@ -4933,7 +4926,7 @@ async function handleVerificationButtons(interaction) {
 
         const hasPending = !!config[guildId].pendingContent;
         const next = hasPending ? 'Now pick a **Display Type** to create the sticky.' : 'Now click **Set Message** to write content, then pick a **Display Type**.';
-        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Channel Set\nTarget: <#${channelId}>\n\n${next}`));
+        const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Channel Set\nTarget: <#${channelId}>\n\n${next}`));
         await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
     }
 
@@ -4968,7 +4961,6 @@ async function handleVerificationButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `### <:Pin:1473038806612447500> Choose a Channel\n**Content saved!** Now select the channel where the sticky message will appear.\n**Type:** ${finalType.charAt(0).toUpperCase() + finalType.slice(1)}`
             ))
@@ -5027,7 +5019,7 @@ async function handleVerificationButtons(interaction) {
             config[guildId].messages[channelId].messageId = stickyMsg.id;
             jsonStore.write('sticky', config);
 
-            const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Created\n**Type:** Embed\n**Channel:** <#${channelId}>`));
+            const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Created\n**Type:** Embed\n**Channel:** <#${channelId}>`));
             await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } catch (error) {
             log.error('Sticky embed send error:', error);
@@ -5064,12 +5056,12 @@ async function handleVerificationButtons(interaction) {
 
         try {
             const processed = replacePlaceholders(messageContent, interaction.user, interaction.guild, channel);
-            const container = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(processed));
+            const container = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(processed));
             const stickyMsg = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
             config[guildId].messages[channelId].messageId = stickyMsg.id;
             jsonStore.write('sticky', config);
 
-            const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Created\n**Type:** Container\n**Channel:** <#${channelId}>`));
+            const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Created\n**Type:** Container\n**Channel:** <#${channelId}>`));
             await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } catch (error) {
             log.error('Sticky container send error:', error);
@@ -5110,7 +5102,7 @@ async function handleVerificationButtons(interaction) {
             config[guildId].messages[channelId].messageId = stickyMsg.id;
             jsonStore.write('sticky', config);
 
-            const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Created\n**Type:** Content\n**Channel:** <#${channelId}>`));
+            const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Created\n**Type:** Content\n**Channel:** <#${channelId}>`));
             await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } catch (error) {
             log.error('Sticky content send error:', error);
@@ -5145,7 +5137,7 @@ async function handleVerificationButtons(interaction) {
             delete config[guildId].messages[channelId];
             jsonStore.write('sticky', config);
 
-            const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Removed\nSticky message removed from <#${channelId}>.`));
+            const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Removed\nSticky message removed from <#${channelId}>.`));
             await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } else {
             const err = new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Cancel:1473037949187657818> Not Found\nNo sticky message in <#${channelId}>.`));
@@ -5246,7 +5238,6 @@ async function handleProfileButtons(interaction) {
                 : `### <:Award:1473038391632203887> No Badges Yet\nYou don't have any badges. Earn them by being active!`;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -6202,7 +6193,6 @@ async function handleStickyButtons(interaction) {
         
         if (messageList.length === 0) {
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder()
                         .setContent('### <:Pin:1473038806612447500> No Sticky Messages\nUse Quick Setup to create one.')
@@ -6222,7 +6212,6 @@ async function handleStickyButtons(interaction) {
         listText += `-# ${messageList.length} message(s) total`;
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
 
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -6244,7 +6233,6 @@ async function handleStickyButtons(interaction) {
         saveStickyConfig(config);
 
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder()
                     .setContent(`### <:Trash:1473038090074591293> All Cleared\nRemoved **${count}** sticky message(s).`)
@@ -6311,7 +6299,6 @@ async function handleStickyButtons(interaction) {
                 .setMaxValues(1)
         );
         const container = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent('### <:Pin:1473038806612447500> Set Sticky Channel\nSelect the channel where your sticky message will appear.'))
             .addActionRowComponents(row);
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -6384,7 +6371,7 @@ async function handleStickyButtons(interaction) {
                 const embed = new EmbedBuilder().setDescription(processed).setColor(0xCAD7E6);
                 stickyMsg = await channel.send({ embeds: [embed] });
             } else if (selectedType === 'container') {
-                const c = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(processed));
+                const c = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(processed));
                 stickyMsg = await channel.send({ components: [c], flags: MessageFlags.IsComponentsV2 });
             } else {
                 stickyMsg = await channel.send({ content: processed });
@@ -6404,7 +6391,7 @@ async function handleStickyButtons(interaction) {
         config[guildId] = guildConfig;
         saveStickyConfig(config);
 
-        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Message Created\n**Channel:** <#${channelId}>\n**Type:** ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}\n\n-# Re-appears when pushed up by new messages`));
+        const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Message Created\n**Channel:** <#${channelId}>\n**Type:** ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}\n\n-# Re-appears when pushed up by new messages`));
         await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return;
     }
@@ -6434,7 +6421,7 @@ async function handleStickyButtons(interaction) {
         const next = hasPending
             ? 'Now pick a **Display Type** from the panel to create the sticky.'
             : 'Now click **Set Message** to write content, then pick a **Display Type**.';
-        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Channel Set\n**Target:** <#${channel.id}>\n\n${next}`));
+        const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Channel Set\n**Target:** <#${channel.id}>\n\n${next}`));
         await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return;
     }
@@ -6462,7 +6449,7 @@ async function handleStickyButtons(interaction) {
         config[guildId] = guildConfig;
         saveStickyConfig(config);
 
-        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Removed\nSticky message removed from <#${selectedChannelId}>.`));
+        const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Removed\nSticky message removed from <#${selectedChannelId}>.`));
         await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return;
     }
@@ -6509,7 +6496,7 @@ async function handleStickyButtons(interaction) {
                 const embed = new EmbedBuilder().setDescription(processed).setColor(0xCAD7E6);
                 stickyMsg = await channel.send({ embeds: [embed] });
             } else if (finalType === 'container') {
-                const c = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(processed));
+                const c = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(processed));
                 stickyMsg = await channel.send({ components: [c], flags: MessageFlags.IsComponentsV2 });
             } else {
                 stickyMsg = await channel.send({ content: processed });
@@ -6527,7 +6514,7 @@ async function handleStickyButtons(interaction) {
         config[guildId] = guildConfig;
         saveStickyConfig(config);
 
-        const ok = new ContainerBuilder().setAccentColor(0xCAD7E6).addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Message Created\n**Channel:** <#${channelId}>\n**Type:** ${finalType.charAt(0).toUpperCase() + finalType.slice(1)}\n\n-# Re-appears when pushed up by new messages`));
+        const ok = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Checkedbox:1473038547165384804> Sticky Message Created\n**Channel:** <#${channelId}>\n**Type:** ${finalType.charAt(0).toUpperCase() + finalType.slice(1)}\n\n-# Re-appears when pushed up by new messages`));
         await interaction.reply({ components: [ok], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return;
     }

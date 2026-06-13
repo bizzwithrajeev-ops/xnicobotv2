@@ -45,7 +45,6 @@ module.exports = {
                 .addItems(new MediaGalleryItemBuilder({ media: { url: 'attachment://tweet.png' } }));
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addMediaGalleryComponents(gallery)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# This is a fake tweet generated for fun. Not real.`));
 
@@ -69,7 +68,6 @@ module.exports = {
             content += `-# Generates a realistic tweet image for fun`;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -116,7 +114,6 @@ module.exports = {
                 .addItems(new MediaGalleryItemBuilder({ media: { url: 'attachment://tweet.png' } }));
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addMediaGalleryComponents(gallery)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# This is a fake tweet generated for fun. Not real.`));
 

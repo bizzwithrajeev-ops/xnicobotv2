@@ -78,7 +78,6 @@ module.exports = {
             const truncate = (s, n = 200) => s.length > n ? s.substring(0, n) + '...' : s;
 
             const container = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# 🔢 Octal ${mode === 'encode' ? 'Encoder' : 'Decoder'}\n\n` +
                     `**Input:**\n${truncate(text)}\n\n` +

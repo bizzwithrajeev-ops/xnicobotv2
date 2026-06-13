@@ -175,7 +175,7 @@ function buildApplicationReview(guild, appData) {
         answers;
 
     const container = new ContainerBuilder()
-        .setAccentColor(0x5865F2);
+        ;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
@@ -606,7 +606,6 @@ module.exports = {
 
         if (interaction.customId === 'app_set_review') {
             const selectContainer = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### <:Chat:1473038936241864865> Select Review Channel\n-# Applications will be sent here for staff to review`
                 ));
@@ -624,7 +623,6 @@ module.exports = {
 
         if (interaction.customId === 'app_set_log') {
             const selectContainer = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### <:Document:1473039496995143731> Select Log Channel\n-# Application events will be logged here (optional)`
                 ));

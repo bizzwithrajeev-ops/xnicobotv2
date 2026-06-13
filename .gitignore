@@ -62,3 +62,5 @@ recordings/
 _tmp_*
 tmp_*
 *.tmp.*
+
+nameplate_info.html

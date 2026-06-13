@@ -38,7 +38,6 @@ async function playWordle(context, isInteraction) {
     const guesses = [];
 
     const container = new ContainerBuilder()
-        .setAccentColor(0xCAD7E6)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `# 🟩 Wordle\n\n` +
@@ -73,7 +72,6 @@ async function playWordle(context, isInteraction) {
         const board = buildBoard(guesses);
         const remaining = maxAttempts - guesses.length;
         const hintContainer = new ContainerBuilder()
-            .setAccentColor(0xCAD7E6)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
                     `# 🟩 Wordle\n\n` +
@@ -97,7 +95,6 @@ async function playWordle(context, isInteraction) {
             else rating = '😅 **Close one!**';
 
             const winContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🟩 Wordle - You Win!\n\n` +
@@ -110,7 +107,6 @@ async function playWordle(context, isInteraction) {
             await channel.send({ components: [winContainer], flags: MessageFlags.IsComponentsV2 });
         } else if (reason === 'lost') {
             const loseContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# 🟩 Wordle - Game Over!\n\n` +
@@ -122,7 +118,6 @@ async function playWordle(context, isInteraction) {
             await channel.send({ components: [loseContainer], flags: MessageFlags.IsComponentsV2 });
         } else if (reason === 'time') {
             const timeoutContainer = new ContainerBuilder()
-                .setAccentColor(0xCAD7E6)
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `# <:Alarm:1473039068546732214> Time's Up!\n\n` +

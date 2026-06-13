@@ -155,7 +155,7 @@ function buildFeedbackCard({ rating, review, imageUrl, user, feedbackNumber }) {
 function buildPanel(guild) {
     const botAvatar = guild.client.user.displayAvatarURL({ size: 256, extension: 'png' });
 
-    const c = new ContainerBuilder().setAccentColor(0x5865F2);
+    const c = new ContainerBuilder();
 
     c.addSectionComponents(
         new SectionBuilder()
@@ -203,7 +203,6 @@ function buildSetupPanel(guildId) {
     const avgStr = avg > 0 ? `${avg.toFixed(1)} / 5.0` : 'No data yet';
 
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `## ${E.settings} Feedback System\n` +
@@ -296,7 +295,6 @@ async function handleInteraction(interaction) {
                 .addChannelTypes(ChannelType.GuildText)
         );
         const c = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${E.channel} **Select the channel** where feedback cards will be posted.`))
             .addActionRowComponents(row);
         return interaction.reply({ components: [c], flags: CV2 | MessageFlags.Ephemeral });
@@ -315,7 +313,6 @@ async function handleInteraction(interaction) {
                 .addChannelTypes(ChannelType.GuildText)
         );
         const c = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${E.comment} **Select the logs channel** where all reviews will be mirrored for moderation.`))
             .addActionRowComponents(row);
         return interaction.reply({ components: [c], flags: CV2 | MessageFlags.Ephemeral });
@@ -426,7 +423,6 @@ async function handleInteraction(interaction) {
             const logsChannel = interaction.guild.channels.cache.get(guildData.logsChannelId);
             if (logsChannel) {
                 const logCard = new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `${E.info} **Review #${String(guildData.totalCount).padStart(4, '0')}** logged\n` +
                         `${E.user} ${interaction.user.username} \`${interaction.user.id}\`\n` +
@@ -520,7 +516,6 @@ module.exports = {
             }
 
             const c = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `## ${E.fire} Feedback Statistics\n` +
                     `-# ${interaction.guild.name}`
@@ -573,7 +568,6 @@ module.exports = {
                 bars += `${'⭐'.repeat(i)}  \`${bar}\`  **${count}**\n`;
             }
             const c = new ContainerBuilder()
-                .setAccentColor(0x5865F2)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `## ${E.fire} Feedback Statistics\n\n` +
                     `**Total Reviews:** ${total}\n` +

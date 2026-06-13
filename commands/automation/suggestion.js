@@ -28,25 +28,25 @@ const CV2 = MessageFlags.IsComponentsV2;
 
 // ─── Custom emojis ─────────────────────────────────────────────────────────────
 const E = {
-    bulb:     '<:Lightbulbalt:1473038470787240009>',
-    check:    '<:Checkedbox:1473038547165384804>',
-    uncheck:  '<:Uncheckbox:1473038543768109076>',
-    edit:     '<:Edit:1473037903625191580>',
-    cancel:   '<:Cancel:1473037949187657818>',
-    chat:     '<:Chat:1473038936241864865>',
-    user:     '<:User:1473038971398520977>',
-    clock:    '<:Clock:1473039102113878056>',
-    sandwatch:'<:Lightning:1473038797540298792>',
-    fire:     '<:Fire:1473038604812161218>',
-    comment:  '<:Commentblock:1473370739351490794>',
-    info:     '<:Inforect:1473038624172937287>',
+    bulb: '<:Lightbulbalt:1473038470787240009>',
+    check: '<:Checkedbox:1473038547165384804>',
+    uncheck: '<:Uncheckbox:1473038543768109076>',
+    edit: '<:Edit:1473037903625191580>',
+    cancel: '<:Cancel:1473037949187657818>',
+    chat: '<:Chat:1473038936241864865>',
+    user: '<:User:1473038971398520977>',
+    clock: '<:Clock:1473039102113878056>',
+    sandwatch: '<:Lightning:1473038797540298792>',
+    fire: '<:Fire:1473038604812161218>',
+    comment: '<:Commentblock:1473370739351490794>',
+    info: '<:Inforect:1473038624172937287>',
     envelope: '<:Envelope:1473038885364695113>',
     settings: '<:Settings:1473037894703779851>',
-    trash:    '<:Trash:1473038090074591293>',
-    dislike:  '<:Dislike:1473038962762317834>',
-    star:     '<:Star:1473038501766369300>',
-    refresh:  '<:Refresh:1473037911581528165>',
-    channel:  '<:Chat:1473038936241864865>',
+    trash: '<:Trash:1473038090074591293>',
+    dislike: '<:Dislike:1473038962762317834>',
+    star: '<:Star:1473038501766369300>',
+    refresh: '<:Refresh:1473037911581528165>',
+    channel: '<:Chat:1473038936241864865>',
 };
 
 // ─── In-memory cooldown store (per-user, per-guild) ────────────────────────────
@@ -151,7 +151,6 @@ function buildConfirmCard(tempId, text) {
     const charCount = text.length;
     const preview = text.length > 400 ? text.slice(0, 400) + '…' : text;
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `## ${E.comment} Suggestion Preview\n` +
@@ -202,7 +201,6 @@ function buildSuggestionCard({ authorUsername, authorId, authorAvatarURL, text, 
     const idLabel = suggestionId ? `${formatSugId(suggestionId)}  •  ` : '';
 
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addSectionComponents(
             new SectionBuilder()
                 .addTextDisplayComponents(
@@ -256,9 +254,9 @@ function buildStatusCard({ authorUsername, authorId, authorAvatarURL, text, stat
     const idLabel = suggestionId ? `${formatSugId(suggestionId)}  •  ` : '';
 
     const STATUS = {
-        approved:   { emoji: E.check,    label: 'Approved',            accent: 0x57F287 },
-        denied:     { emoji: E.cancel,   label: 'Denied',              accent: 0xED4245 },
-        considered: { emoji: E.info,     label: 'Under Consideration', accent: 0xFEE75C },
+        approved: { emoji: E.check, label: 'Approved', accent: 0x57F287 },
+        denied: { emoji: E.cancel, label: 'Denied', accent: 0xED4245 },
+        considered: { emoji: E.info, label: 'Under Consideration', accent: 0xFEE75C },
     };
     const s = STATUS[status] ?? { emoji: E.sandwatch, label: 'Pending', accent: 0x5865F2 };
 
@@ -338,7 +336,6 @@ function buildLogEntry({ authorUsername, authorId, authorAvatarURL, text, upvote
 function buildThreadWelcome(suggestionId) {
     const idPart = suggestionId ? ` for Suggestion ${formatSugId(suggestionId)}` : '';
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `${E.chat} **Discussion Thread${idPart}**\n` +
@@ -359,7 +356,6 @@ function buildSetupPanel(guildId) {
     const pending = Object.values(guildData.suggestions || {}).filter(s => s.status === 'pending').length;
 
     return new ContainerBuilder()
-        .setAccentColor(0x5865F2)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
                 `## ${E.settings} Suggestion System\n` +
@@ -431,9 +427,9 @@ function buildDmCard({ text, status, moderatorTag, upvotes, downvotes, guildName
     const downCount = downvotes.length;
     const idLabel = suggestionId ? `${formatSugId(suggestionId)}  •  ` : '';
     const STATUS = {
-        approved:   { emoji: E.check,  label: 'Approved',            accent: 0x57F287, msg: 'Great news! Your suggestion was **approved**.' },
-        denied:     { emoji: E.cancel, label: 'Denied',              accent: 0xED4245, msg: 'Your suggestion was **denied** by the moderation team.' },
-        considered: { emoji: E.info,   label: 'Under Consideration', accent: 0xFEE75C, msg: 'Your suggestion is **under consideration** by the team.' },
+        approved: { emoji: E.check, label: 'Approved', accent: 0x57F287, msg: 'Great news! Your suggestion was **approved**.' },
+        denied: { emoji: E.cancel, label: 'Denied', accent: 0xED4245, msg: 'Your suggestion was **denied** by the moderation team.' },
+        considered: { emoji: E.info, label: 'Under Consideration', accent: 0xFEE75C, msg: 'Your suggestion is **under consideration** by the team.' },
     };
     const s = STATUS[status] ?? { emoji: E.sandwatch, label: 'Updated', accent: 0x5865F2, msg: 'Your suggestion status has been updated.' };
 
@@ -633,7 +629,7 @@ async function moderateSuggestion(guildId, messageId, moderatorTag, status, clie
                 flags: CV2,
             }).catch(() => null); // DMs may be closed — silently ignore
         }
-    } catch (_) {}
+    } catch (_) { }
 
     return { success: true };
 }
@@ -714,7 +710,7 @@ async function handleSetupButton(interaction) {
         store[guildId] = guildData;
         saveStore(store);
         await interaction.reply({ content: `${E.check} Suggestion system configuration removed.`, flags: MessageFlags.Ephemeral });
-        try { await interaction.message.edit({ components: [buildSetupPanel(guildId)], flags: CV2 }); } catch (_) {}
+        try { await interaction.message.edit({ components: [buildSetupPanel(guildId)], flags: CV2 }); } catch (_) { }
         return;
     }
 }
@@ -906,8 +902,8 @@ module.exports = {
                         .setDescription('New status')
                         .setRequired(true)
                         .addChoices(
-                            { name: '✅ Approve', value: 'approved' },
-                            { name: '❌ Deny', value: 'denied' },
+                            { name: '<:Checkedbox:1473038547165384804> Approve', value: 'approved' },
+                            { name: '<:Cancel:1473037949187657818> Deny', value: 'denied' },
                             { name: '🤔 Under Consideration', value: 'considered' }
                         )
                 )
@@ -970,7 +966,7 @@ module.exports = {
                 return message.reply(`${E.cancel} You need **Manage Messages** permission.`);
             }
             const messageId = args[1]?.trim();
-            const status    = args[2]?.toLowerCase();
+            const status = args[2]?.toLowerCase();
             if (!messageId || !['approved', 'denied', 'considered'].includes(status)) {
                 return message.reply(`${E.cancel} Usage: \`suggest moderate <messageId> <approved|denied|considered>\``);
             }
@@ -1057,7 +1053,6 @@ module.exports = {
         const confirmMsg = await message.channel.send({
             components: [
                 new ContainerBuilder()
-                    .setAccentColor(0x5865F2)
                     .addTextDisplayComponents(
                         new TextDisplayBuilder().setContent(
                             `${E.bulb} <@${message.author.id}> — your message was captured! Review and submit your suggestion below.\n` +
