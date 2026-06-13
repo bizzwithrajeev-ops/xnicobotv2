@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, buildInvalidUsage, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
 
 const PURGE_FILTERS = {
     bots: { label: 'Bot Messages', filter: m => m.author.bot },
@@ -7,8 +7,7 @@ const PURGE_FILTERS = {
     images: { label: 'Images/Attachments', filter: m => m.attachments.size > 0 },
     invites: { label: 'Discord Invites', filter: m => /(discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\/[a-zA-Z0-9]+/i.test(m.content) },
     links: { label: 'Links', filter: m => /https?:\/\/[^\s]+/i.test(m.content) },
-    mentions: { label: 'Mentions', filter: m => m.mentions.users.size > 0 || m.mentions.roles.size > 0 },
-};
+    mentions: { label: 'Mentions', filter: m => m.mentions.users.size > 0 || m.mentions.roles.size > 0 } };
 
 function buildFilterDescription() {
     return Object.keys(PURGE_FILTERS).map(k => `\`${k}\``).join(', ');
@@ -203,8 +202,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.SUCCESS)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             
             await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } catch (error) {
@@ -242,8 +240,7 @@ module.exports = {
         // Map purge-* aliases to filter types
         const aliasMap = {
             'purge-bots': 'bots', 'purge-embeds': 'embeds', 'purge-images': 'images',
-            'purge-invites': 'invites', 'purge-links': 'links', 'purge-mentions': 'mentions',
-        };
+            'purge-invites': 'invites', 'purge-links': 'links', 'purge-mentions': 'mentions' };
 
         if (invoked.endsWith('purge-user')) {
             if (!targetUser) {
@@ -360,8 +357,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.SUCCESS)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             if (statusMsg) {
                 await statusMsg.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });

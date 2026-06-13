@@ -9,9 +9,8 @@
 const {
     ContainerBuilder, TextDisplayBuilder,
     MediaGalleryBuilder, MediaGalleryItemBuilder,
-    SeparatorBuilder, SeparatorSpacingSize, MessageFlags,
-} = require('discord.js');
-const { buildErrorResponse, COLORS, EMOJIS: PALETTE, BRANDING } = require('../../utils/responseBuilder');
+    SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+const { buildErrorResponse, COLORS, EMOJIS: PALETTE } = require('../../utils/responseBuilder');
 const { parseEmojiInput, emojiCdnUrl, emojiUsability } = require('../../utils/emojiSystem');
 
 function findEmoji(guild, input) {
@@ -53,7 +52,6 @@ function buildEmojiInfoContainer(emoji) {
             `**URL:** ${previewUrl}`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {
@@ -87,5 +85,4 @@ module.exports = {
             const err = buildErrorResponse('Unexpected Error', 'Something went wrong loading emoji info.');
             await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

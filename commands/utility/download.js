@@ -483,7 +483,6 @@ function buildStatusContainer(color, content) {
     const container = new ContainerBuilder().setAccentColor(color);
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -605,7 +604,6 @@ async function processDownload(editFn, url, mediaInfo, format, platform) {
                     .setEmoji('⬇️')
             )
         );
-        successContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         await editFn({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
 
@@ -689,7 +687,6 @@ async function handleCommand(editFn, msgObj, url, userId) {
     const infoContainer = buildInfoPanel(mediaInfo, platform);
     const buttons       = buildFormatButtons(mediaInfo, userId);
     for (const row of buttons) infoContainer.addActionRowComponents(row);
-    infoContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     await editFn({ components: [infoContainer], flags: MessageFlags.IsComponentsV2 });
     setupCollector(msgObj, editFn, url, mediaInfo, platform, userId);

@@ -1,7 +1,7 @@
 const { isOwner } = require('../../utils/helpers');
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
-const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 function searchGuilds(client, query, minMembers, maxMembers, sortBy) {
     let guilds = Array.from(client.guilds.cache.values());
@@ -62,7 +62,6 @@ function buildGuildSearchResult(guilds, query, filters) {
                 `### <:Invoice:1473039492217835550> Filters Applied\n> ${filterText}`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
         return { components: [container], flags: MessageFlags.IsComponentsV2 };
     }
 
@@ -70,9 +69,7 @@ function buildGuildSearchResult(guilds, query, filters) {
         header: `# <:Bookopen:1473038576391557130> Guild Search\n-# **${guilds.length}** results found • ${filterText}`,
         lines,
         perPage: 8,
-        accentColor: COLORS.INFO,
-        footer: BRANDING
-    });
+        accentColor: COLORS.INFO });
 }
 
 module.exports = {

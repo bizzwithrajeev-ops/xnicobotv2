@@ -244,8 +244,6 @@ function buildSetupPanel(guild, cfg) {
             .addOptions(opts);
         container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
     }
-
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -345,8 +343,6 @@ function buildTaskEditor(guild, cfg, task) {
             .addOptions(opts);
         container.addActionRowComponents(new ActionRowBuilder().addComponents(sel));
     }
-
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -411,8 +407,6 @@ function buildUserPanel(cfg) {
             .setStyle(ButtonStyle.Success)
             .setEmoji('<:Document:1473039496995143731>')
     ));
-
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -482,7 +476,6 @@ function buildReviewMessage(submission, task, cfg, ai) {
                     .setEmoji('<:Editalt:1473038138577256670>')
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildReviewedMessage(submission, task, cfg, action, moderatorId, reason, actionResults = []) {
@@ -528,7 +521,6 @@ function buildReviewedMessage(submission, task, cfg, action, moderatorId, reason
                 new MediaGalleryItemBuilder().setURL(submission.imageUrl)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {

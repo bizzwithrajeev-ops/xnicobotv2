@@ -1,6 +1,6 @@
 'use strict';
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
-const { buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, COLORS } = require('../../utils/responseBuilder');
 
 async function processUnlockAll(guild, user, targetRole) {
     const textChannels = guild.channels.cache.filter(ch => ch.type === ChannelType.GuildText);
@@ -57,8 +57,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.SUCCESS)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
@@ -109,8 +108,7 @@ module.exports = {
         const resultContainer = new ContainerBuilder()
             .setAccentColor(COLORS.SUCCESS)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         processingMsg.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }

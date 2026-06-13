@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 const jsonStore = require('../../utils/jsonStore');
@@ -125,9 +125,7 @@ module.exports = {
                     `-# **${channels.length}** channel${channels.length === 1 ? '' : 's'} • only attachments are allowed`,
                 lines,
                 perPage:     15,
-                accentColor: COLORS.INFO,
-                footer:      BRANDING,
-            });
+                accentColor: COLORS.INFO });
 
             const reply = await interaction.reply({ ...result, fetchReply: true });
             setupPaginationCollector(reply, result._pageData, interaction.user.id);
@@ -181,9 +179,7 @@ module.exports = {
                 `-# **${channels.length}** channel${channels.length === 1 ? '' : 's'} • only attachments are allowed`,
             lines,
             perPage:     15,
-            accentColor: COLORS.INFO,
-            footer:      BRANDING,
-        });
+            accentColor: COLORS.INFO });
 
         const reply = await message.reply(result);
         setupPaginationCollector(reply, result._pageData, message.author.id);

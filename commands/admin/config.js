@@ -9,7 +9,7 @@ const {
 } = require('discord.js');
 const { loadConfig: loadAntinuke } = require('../../utils/panels/antinukePanel');
 const { THEME, formatCheck } = require('../../utils/theme');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 const jsonStore = require('../../utils/jsonStore');
@@ -95,8 +95,7 @@ function buildConfigPanel(guild, an, ar) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(threatText))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(summary))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     return container;
 }

@@ -8,7 +8,7 @@
  */
 
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS, EMOJIS: PALETTE, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS, EMOJIS: PALETTE } = require('../../utils/responseBuilder');
 
 const EMOJI_MAP = {
     a: '🇦', b: '🇧', c: '🇨', d: '🇩', e: '🇪', f: '🇫', g: '🇬', h: '🇭',
@@ -22,8 +22,7 @@ const EMOJI_MAP = {
     '?': '❓',
     '#': '#\uFE0F\u20E3',
     '*': '*\uFE0F\u20E3',
-    ' ': '   ',
-};
+    ' ': '   ' };
 
 const MAX_OUTPUT_CHARS = 1800;
 
@@ -57,8 +56,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# ${PALETTE.PALETTE} Emojify\n\n${result}`
             ))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\n${BRANDING}`));
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-    },
-};
+    } };

@@ -5,7 +5,7 @@ const {
     ContainerBuilder, TextDisplayBuilder,
     SeparatorBuilder, SeparatorSpacingSize
 } = require('discord.js');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 const log = require('../../utils/logger-styled');
 
@@ -26,8 +26,7 @@ function panel(content, color = 0xCAD7E6) {
     return new ContainerBuilder()
         .setAccentColor(color)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function denied() {

@@ -1,6 +1,6 @@
 'use strict';
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
-const { buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, COLORS } = require('../../utils/responseBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -54,8 +54,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Checkedbox:1473038547165384804> All Channels Unhidden\n\nSuccessfully made all channels visible to ${roleName}.\n\n### <:Bookopen:1473038576391557130> Results\n> **Unhidden:** ${unhidden} channels\n${failed > 0 ? `> **Failed:** ${failed} channels\n` : ''}\n**Unhidden By:** ${interaction.user.username}\n**Role:** ${roleName}\n\n> <:Checkedbox:1473038547165384804> All channels are now visible to ${roleName}.`
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         await interaction.editReply({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
     },
@@ -107,8 +106,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# <:Checkedbox:1473038547165384804> All Channels Unhidden\n\nSuccessfully made all channels visible to ${roleName}.\n\n### <:Bookopen:1473038576391557130> Results\n> **Unhidden:** ${unhidden} channels\n${failed > 0 ? `> **Failed:** ${failed} channels\n` : ''}\n**Unhidden By:** ${message.author.username}\n**Role:** ${roleName}\n\n> <:Checkedbox:1473038547165384804> All channels are now visible to ${roleName}.\n> Use \`-hideall\` to hide them again.`
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         await msg.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }

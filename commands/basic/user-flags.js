@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, buildUserNotFound, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildUserNotFound, COLORS } = require('../../utils/responseBuilder');
 
 // Each entry: emoji, display label, short description.
 const FLAG_DETAILS = {
@@ -24,8 +24,7 @@ const FLAG_DETAILS = {
     TeamPseudoUser:           { emoji: '<:Userplus:1473038912212435086>', label: 'Team User', desc: 'Pseudo account belonging to a Team' },
     Spammer:                  { emoji: '<:Infotriangle:1473038460456800459>', label: 'Flagged as Spammer', desc: 'Discord has flagged this account' },
     Quarantined:              { emoji: '<:Commentblock:1473370739351490794>', label: 'Quarantined', desc: 'Account temporarily restricted' },
-    BotHTTPInteractions:      { emoji: '<:Bookopen:1473038576391557130>', label: 'HTTP Interactions Bot', desc: 'Bot that uses HTTP-only interactions' },
-};
+    BotHTTPInteractions:      { emoji: '<:Bookopen:1473038576391557130>', label: 'HTTP Interactions Bot', desc: 'Bot that uses HTTP-only interactions' } };
 
 function buildContainer(user, flags) {
     const sorted = flags.slice().sort();
@@ -68,7 +67,6 @@ function buildContainer(user, flags) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(badges))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 async function resolveUser(client, target) {
@@ -127,5 +125,4 @@ module.exports = {
             const err = buildErrorResponse('Lookup Failed', 'Could not fetch user flags.', error.message);
             await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

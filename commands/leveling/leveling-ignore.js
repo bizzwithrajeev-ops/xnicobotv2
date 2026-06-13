@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
 const { getGuildConfig, updateGuildConfig } = require('../../utils/database');
-const { buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 /**
@@ -15,8 +15,7 @@ function buildIgnoreListResult(guild, ignoreChannels, ignoreRoles) {
         chan:   '<:Folderblock:1473039508545994996>',
         role:   '<:Userplus:1473038912212435086>',
         caret:  '<:Caretright:1473038207221502106>',
-        none:   '<:Cancel:1473037949187657818>',
-    };
+        none:   '<:Cancel:1473037949187657818>' };
 
     const channelLines = ignoreChannels.length > 0
         ? ignoreChannels.map((id, i) => {
@@ -48,9 +47,7 @@ function buildIgnoreListResult(guild, ignoreChannels, ignoreRoles) {
             `-# Members do not gain XP in these channels or with these roles.`,
         lines,
         perPage:     20,
-        accentColor: COLORS.WARNING,
-        footer:      BRANDING,
-    });
+        accentColor: COLORS.WARNING });
 }
 
 module.exports = {

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { buildErrorResponse, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -114,16 +114,14 @@ function buildStatusPanel(guildConfig) {
             '`/antispam whitelist-channel <channel>` — Toggle channel whitelist\n' +
             '`/antispam reset` — Reset all settings'
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildOk(title, desc) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.PRIMARY)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent('# ' + EMOJIS.SUCCESS + ' ' + title + '\n\n' + desc))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 function buildErr(title, desc) {
     return new ContainerBuilder()
@@ -401,8 +399,7 @@ function showConfigurePanel(message, guildConfig, filterName) {
     }
     const container = new ContainerBuilder().setAccentColor(COLORS.PRIMARY)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(t))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 

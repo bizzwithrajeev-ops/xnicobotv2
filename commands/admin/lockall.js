@@ -1,6 +1,6 @@
 'use strict';
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
-const { buildPermissionDenied, buildInvalidUsage, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 
 function loadLockdown() {
@@ -145,8 +145,7 @@ module.exports = {
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     buildResultContent(lock, processed, failed, interaction.user, roleName)
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
@@ -209,8 +208,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 buildResultContent(lock, processed, failed, message.author, roleName)
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         processingMsg.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }

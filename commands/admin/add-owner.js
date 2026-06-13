@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 module.exports = {
@@ -37,8 +37,7 @@ module.exports = {
                     `<:Caretright:1473038207221502106> They can manage admins, mods, and VC mods.\n` +
                     `<:Caretright:1473038207221502106> Only **one** second owner is allowed at a time.`
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -135,8 +134,7 @@ module.exports = {
                     ((inAdmins || inMods || inVcMods) ? `<:Caretright:1473038207221502106> **Auto-removed from:** ${[inAdmins ? 'Admins' : '', inMods ? 'Moderators' : '', inVcMods ? 'VC Mods' : ''].filter(Boolean).join(', ')}\n` : '') +
                     `\n> They can now manage admins, mods, and VC mods in this server.`
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             await i.update({ components: [success], flags: MessageFlags.IsComponentsV2 });
         });
         } catch (error) {

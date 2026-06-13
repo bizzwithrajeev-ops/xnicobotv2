@@ -1,6 +1,6 @@
 'use strict';
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits, ChannelType, SlashCommandBuilder } = require('discord.js');
-const { buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, COLORS } = require('../../utils/responseBuilder');
 
 async function processHideAll(guild, user, targetRole) {
     const channels = guild.channels.cache.filter(ch =>
@@ -61,8 +61,7 @@ module.exports = {
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     buildResultContent(hidden, failed, interaction.user, roleName)
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
@@ -104,8 +103,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 buildResultContent(hidden, failed, message.author, roleName)
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         await msg.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }

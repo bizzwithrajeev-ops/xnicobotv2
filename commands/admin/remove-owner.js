@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 module.exports = {
@@ -69,8 +69,7 @@ module.exports = {
                     `<:Caretright:1473038207221502106> **Removed by:** ${message.author.username}\n\n` +
                     `<:Caretright:1473038207221502106> This user no longer has second owner privileges.`
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             await i.update({ components: [success], flags: MessageFlags.IsComponentsV2 });
         });
         } catch (error) {

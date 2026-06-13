@@ -241,7 +241,6 @@ function buildHelpPayload(browserPage) {
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji(E.back),
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
@@ -278,7 +277,6 @@ function buildStealResultPayload(ok, fail, browserPage) {
         new ButtonBuilder().setCustomId(`${ID_PREFIX}_back:${browserPage}`).setLabel('Back to browser').setStyle(ButtonStyle.Secondary).setEmoji(E.back),
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 

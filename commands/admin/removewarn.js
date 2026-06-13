@@ -2,7 +2,7 @@
 
 const { PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
-const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 
 
@@ -62,8 +62,6 @@ module.exports = {
       `**Remaining:** ${userWarns.length || 0} warning${(userWarns.length || 0) !== 1 ? 's' : ''}`,
     ].join('\n'));
     addSeparator(container);
-    addTextDisplay(container, BRANDING);
 
     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-  },
-};
+  } };

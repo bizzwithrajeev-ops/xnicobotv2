@@ -28,8 +28,7 @@ function panel(content, color) {
     return new ContainerBuilder()
         .setAccentColor(color)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildAppliedPanel(role, affectedCount) {

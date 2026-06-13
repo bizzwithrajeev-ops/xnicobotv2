@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, buildPermissionDenied, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse, buildPermissionDenied, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
 
@@ -179,8 +179,7 @@ function stripAllTags(nickname, guildTags) {
             'fancy': [`「${symbol}」`],
             'star': [`★${symbol}★`],
             'dot': [`·${symbol}·`],
-            'pipe': [`|${symbol}|`],
-        };
+            'pipe': [`|${symbol}|`] };
         const variations = brackets[tag.bracket || 'none'] || [symbol];
         for (const v of variations) {
             const withEmoji = tag.emoji ? `${tag.emoji} ${v}` : v;
@@ -188,7 +187,7 @@ function stripAllTags(nickname, guildTags) {
             clean = clean.replace(new RegExp(escapeRegex(v), 'gi'), '');
         }
     }
-    return clean.replace(/\s{2,}/g, ' ').trim();
+    return clean.replace(/\s{2 }/g, ' ').trim();
 }
 
 function escapeRegex(str) {
@@ -263,8 +262,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.CYAN)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -424,7 +422,7 @@ module.exports = {
                 );
                 container.setAccentColor(0x57F287);
                 container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Use \`guildtag unequip\` to remove • \`guildtag list\` to browse\n${BRANDING}`));
+                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Use \`guildtag unequip\` to remove • \`guildtag list\` to browse`));
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             } catch (err) {
@@ -513,7 +511,7 @@ module.exports = {
             );
             container.setAccentColor(COLORS.WARNING);
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Use \`guildtag equip <name>\` to equip another tag\n${BRANDING}`));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Use \`guildtag equip <name>\` to equip another tag`));
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -556,8 +554,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.CYAN)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -639,8 +636,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0xFF9900)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -664,8 +660,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -753,7 +748,7 @@ module.exports = {
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
             container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `-# Customize with \`guildtag customize ${name} <option> <value>\`\n` +
-                `-# Options: position, separator, bracket, emoji, cost, level, role, rewardrole, coinreward, xpreward, description\n${BRANDING}`
+                `-# Options: position, separator, bracket, emoji, cost, level, role, rewardrole, coinreward, xpreward, description`
             ));
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -855,8 +850,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -892,8 +886,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -1086,8 +1079,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -1132,8 +1124,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -1305,8 +1296,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -1362,8 +1352,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.CYAN)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }

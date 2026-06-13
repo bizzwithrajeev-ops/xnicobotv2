@@ -4,7 +4,7 @@ const {
     SnowflakeUtil, SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder,
     SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, buildInvalidUsage, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
 
 const SNOWFLAKE_REGEX = /^\d{17,19}$/;
 const DISCORD_EPOCH = 1420070400000;
@@ -46,7 +46,6 @@ function buildSnowflake(client, snowflake) {
             `<:Caretright:1473038207221502106> **Increment:** \`${increment}\``
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {
@@ -97,5 +96,4 @@ module.exports = {
             const container = buildErrorResponse('Decode Failed', 'Could not decode the snowflake ID.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

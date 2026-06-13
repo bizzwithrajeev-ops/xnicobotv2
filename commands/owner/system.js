@@ -1,7 +1,7 @@
 const { isOwner } = require('../../utils/helpers');
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const os = require('os');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'system',
@@ -96,7 +96,6 @@ module.exports = {
                     `> <:Alarm:1473039068546732214> **Bot Uptime:** ${formatUptime(uptime)}`
                 )
             )
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         const opts = { components: [container], flags: MessageFlags.IsComponentsV2 };
         return context.editReply ? context.editReply(opts) : context.reply(opts);

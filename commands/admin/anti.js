@@ -16,7 +16,7 @@ const {
 } = require('discord.js');
 const { loadConfig, saveConfig, getDefaultConfig } = require('../../utils/panels/antinukePanel');
 const { checkAndExpire } = require('../../utils/panelExpiration');
-const { buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse } = require('../../utils/responseBuilder');
 const { THEME, formatCheck } = require('../../utils/theme');
 const { ACTIONS_FOR, isValidActionFor, commonActions, v2InvalidReply } = require('../../utils/securityUI');
 const trust = require('../../utils/trustManager');
@@ -116,8 +116,7 @@ function buildAntiPanel(guildConfig, guildName) {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(selectMenu)
         .addActionRowComponents(quickButtons)
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     return container;
 }
@@ -325,8 +324,7 @@ module.exports = {
             if (!allowed.includes(action)) {
                 return interaction.reply({
                     components: [buildErrorResponse('Invalid Action', `Allowed actions for bulk apply: \`${allowed.join('`, `')}\`\n\n*Note: \`kick_bot\` / \`ban_bot\` only apply to the **Bot Add** module — set those individually.*`)],
-                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                });
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
             for (const cat of Object.values(CATEGORIES)) {
                 if (cat.hasLimit && guildConfig[cat.key]) {

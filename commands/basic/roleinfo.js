@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
     SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, buildRoleNotFound, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildRoleNotFound } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 function bool(yes) {
@@ -50,7 +50,6 @@ function buildOverview(role) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(previewBlock))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildPermsPages(role) {
@@ -64,9 +63,7 @@ function buildPermsPages(role) {
             `-# **${perms.length}** permission${perms.length === 1 ? '' : 's'} granted to this role`,
         lines,
         perPage: 15,
-        accentColor: role.color || 0xCAD7E6,
-        footer: BRANDING,
-    });
+        accentColor: role.color || 0xCAD7E6 });
 }
 
 function resolveRole(message, args) {
@@ -141,5 +138,4 @@ module.exports = {
             const container = buildErrorResponse('Failed', 'Could not load role info.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

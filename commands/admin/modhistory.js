@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 
@@ -22,7 +22,6 @@ async function sendModHistory(replyTarget, user, guildId, callerId) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, `# <:Checkedbox:1473038547165384804> Clean Record\n\n**${user.username}** has no moderation history!`);
         addSeparator(container);
-        addTextDisplay(container, BRANDING);
         return replyTarget.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -35,9 +34,7 @@ async function sendModHistory(replyTarget, user, guildId, callerId) {
         header: `# <:Bookopen:1473038576391557130> Moderation History — ${user.username}\n-# ${logs.length} total infraction${logs.length !== 1 ? 's' : ''}`,
         lines: allLines,
         perPage: 5,
-        accentColor: 0xCAD7E6,
-        footer: BRANDING
-    });
+        accentColor: 0xCAD7E6 });
 
     const reply = await replyTarget.reply(result);
     setupPaginationCollector(reply, result._pageData, callerId);

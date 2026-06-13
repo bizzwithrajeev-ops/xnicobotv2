@@ -355,8 +355,7 @@ async function handleJ2CButtons(interaction) {
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `**Channel:** ${channel.name}\n**Link:** ${inv.url}\n**Expires:** <t:${Math.floor(Date.now() / 1000) + 3600}:R>\n**Max Uses:** \`10\`\n\n-# Share this link to invite others`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING))],
+],
                 flags: CV2_EPH
             });
         } catch {
@@ -390,8 +389,7 @@ async function handleJ2CButtons(interaction) {
                     `**Currently in channel:** ${memberLine}${mc > 10 ? ` +${mc - 10} more` : ''}\n` +
                     `**Trusted co-owners:** ${trusted}`
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING))],
+],
             flags: CV2_EPH
         });
     }

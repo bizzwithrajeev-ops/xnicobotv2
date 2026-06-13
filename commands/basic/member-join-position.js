@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, buildUserNotFound, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildUserNotFound, COLORS } = require('../../utils/responseBuilder');
 
 function ordinal(n) {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -68,7 +68,6 @@ async function buildJoinPosition(member, guild) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(timeline))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 module.exports = {
@@ -116,5 +115,4 @@ module.exports = {
             const container = buildErrorResponse('Failed', 'Could not calculate join position.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

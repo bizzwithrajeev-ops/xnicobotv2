@@ -13,7 +13,7 @@ const {
     TextInputBuilder,
     TextInputStyle
 } = require('discord.js');
-const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, BRANDING } = require('../../utils/responseBuilder');
+const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
@@ -160,7 +160,6 @@ function buildAntiraidPanel(guildConfig) {
         .addActionRowComponents(settingsButtons);
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }

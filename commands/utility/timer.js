@@ -10,7 +10,7 @@ const {
     ButtonStyle,
     ActionRowBuilder
 } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 // Store active timers
 const activeTimers = new Map();
@@ -328,7 +328,6 @@ async function notifyTimerEnd(client, timer) {
         ));
 
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         // Build ping content
         let pingContent = '';

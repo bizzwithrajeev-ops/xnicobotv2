@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 const { getProviderStatus, GOOGLE_VOICES, AZURE_VOICES } = require('../../utils/ttsEngine');
 
 const jsonStore = require('../../utils/jsonStore');
@@ -23,8 +23,7 @@ module.exports = {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
             const errContainer = new ContainerBuilder().setAccentColor(0xED4245)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Permission Denied\n\nYou need **Manage Server** permission to use this command.'))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [errContainer], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -47,8 +46,7 @@ module.exports = {
                         `\`male\` — Male voice\n\n` +
                         `-# Voice varies by provider: Google Neural2, Azure Neural, or Google TTS`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -69,8 +67,7 @@ module.exports = {
                     `${voiceEmoji} Default voice set to **${gender}**.\n\n` +
                     `-# Try it: \`-speak Hello world\``
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -115,8 +112,7 @@ module.exports = {
 
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -150,8 +146,7 @@ module.exports = {
 
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -180,8 +175,7 @@ module.exports = {
                         `-# Tip: Use \`-speak-config voice male\` or \`-speak-config voice female\` to change voice`
                     )
             )
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 };

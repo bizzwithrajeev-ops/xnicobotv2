@@ -1,5 +1,5 @@
 const { PermissionFlagsBits, SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { buildErrorResponse, buildInvalidUsage, buildLoadingResponse, BRANDING, buildExpiredPanel } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildInvalidUsage, buildLoadingResponse, buildExpiredPanel } = require('../../utils/responseBuilder');
 
 function buildConfirmPrompt(count, reason) {
     return new ContainerBuilder()
@@ -31,8 +31,7 @@ function buildConfirmPrompt(count, reason) {
                     .setEmoji('<:Cancel:1473037949187657818>')
             )
         )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildResultContainer(kicked, failed, invalidIds, notInServer, reason, moderator) {
@@ -53,8 +52,7 @@ function buildResultContainer(kicked, failed, invalidIds, notInServer, reason, m
                 `**<:User:1473038971398520977> Moderator:** ${moderator}`
             )
         )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 async function performMassKick(guild, ids, reason, moderator) {

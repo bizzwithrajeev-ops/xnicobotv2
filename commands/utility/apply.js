@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -51,7 +51,6 @@ module.exports = {
         );
 
         container.addActionRowComponents(row);
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

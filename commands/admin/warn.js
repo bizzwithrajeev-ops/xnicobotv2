@@ -2,7 +2,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, formatDuration, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse, buildModerationResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse, buildModerationResponse } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 
 /* ═══════════════════ DATA HELPERS ═══════════════════ */
@@ -46,8 +46,7 @@ function addModlog(guildId, userId, action, moderator, reason) {
     userId,
     moderator,
     reason,
-    timestamp: Date.now(),
-  });
+    timestamp: Date.now() });
   save('modlogs', modlogs);
 }
 
@@ -113,7 +112,6 @@ function buildWarnContainer(memberUser, memberId, moderator, reason, warnCount, 
   });
   addTextDisplay(container, `### <:Document:1473039496995143731> Punishment Ladder\n${ladderLines.join('\n')}`);
   addSeparator(container, SeparatorSpacingSize.Small);
-  addTextDisplay(container, BRANDING);
 
   return container;
 }
@@ -172,8 +170,7 @@ module.exports = {
       warnings[interaction.guild.id][member.id].push({
         moderator: interaction.user.id,
         reason,
-        timestamp: Date.now(),
-      });
+        timestamp: Date.now() });
       save('warnings', warnings);
 
       const warnCount = warnings[interaction.guild.id][member.id].length;
@@ -248,8 +245,7 @@ module.exports = {
       warnings[message.guild.id][member.id].push({
         moderator: message.author.id,
         reason,
-        timestamp: Date.now(),
-      });
+        timestamp: Date.now() });
       save('warnings', warnings);
 
       const warnCount = warnings[message.guild.id][member.id].length;
@@ -284,5 +280,4 @@ module.exports = {
       );
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
-  },
-};
+  } };

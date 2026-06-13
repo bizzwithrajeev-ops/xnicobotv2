@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ContainerBuilder, TextDisplayBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { invalidateCache } = require('../../utils/logger');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -43,8 +43,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
     const replyContainer = (color, body) => new ContainerBuilder()
         .setAccentColor(color)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     if (sub === 'ignore-user') {
         const user = interaction.options.getUser('user', true);
@@ -58,8 +57,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
                 `Total ignored users: \`${filters.ignoredUsers.length}\`\n\n` +
                 `*Events from this user will ${r.action === 'added' ? 'no longer' : 'now'} appear in any log channel.*`
             )],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     }
 
     if (sub === 'ignore-channel') {
@@ -73,8 +71,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
                 `<:Pin:1473038806612447500> ${ch} (\`${ch.id}\`) — **${r.action === 'added' ? 'Added to' : 'Removed from'}** the ignore list.\n\n` +
                 `Total ignored channels: \`${filters.ignoredChannels.length}\``
             )],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     }
 
     if (sub === 'ignore-role') {
@@ -89,8 +86,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
                 `Total ignored roles: \`${filters.ignoredRoles.length}\`\n\n` +
                 `*Members holding this role will be skipped in member/voice/moderation logs.*`
             )],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     }
 
     if (sub === 'ignore-bots') {
@@ -104,8 +100,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
                     ? `<:bots:1473368718120849500> Bot-authored events will no longer appear in member, voice, or moderation logs.`
                     : `<:bots:1473368718120849500> Bot-authored events will appear in logs again.`)
             )],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     }
 
     if (sub === 'view') {
@@ -121,8 +116,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
                 `### <:Pin:1473038806612447500> Ignored Channels (${(f.ignoredChannels || []).length})\n${chList}\n\n` +
                 `### <:Shield:1473038669831995494> Ignored Roles (${(f.ignoredRoles || []).length})\n${roleList}`
             )],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     }
 
     if (sub === 'clear') {
@@ -133,8 +127,7 @@ async function handleFilterSlash(interaction, logs, guildId) {
                 `# <:Toggleoff:1473038582813032590> All Filters Cleared\n\n` +
                 `<:Checkedbox:1473038547165384804> All ignore lists have been removed. Logs will record all events again.`
             )],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     }
 }
 
@@ -150,8 +143,7 @@ const logTypeNames = {
     boost:      { name: 'Boost',      emoji: '<:Sketch:1473038248493453352>',   desc: 'server boost / unboost events' },
     commands:   { name: 'Commands',   emoji: '<:Gamepad:1473039216429498409>',  desc: 'slash and prefix command usage' },
     reactions:  { name: 'Reactions',  emoji: '<:Fire:1473038604812161218>',     desc: 'reaction adds & removes (with target message + author)' },
-    pins:       { name: 'Pins',       emoji: '<:Pin:1473038806612447500>',      desc: 'message pin & unpin events with executor attribution' },
-};
+    pins:       { name: 'Pins',       emoji: '<:Pin:1473038806612447500>',      desc: 'message pin & unpin events with executor attribution' } };
 const ALL_LOG_KEYS = Object.keys(logTypeNames);
 
 function buildLoggingPanel(config, guild) {
@@ -214,8 +206,7 @@ function buildLoggingContainer(config, guild) {
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(buildLoggingPanel(config, guild))
         )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 module.exports = {
@@ -388,8 +379,7 @@ module.exports = {
                             `*Use \`/logging view\` to see your full configuration*`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             } else {
                 const info = logTypeNames[type];
@@ -408,8 +398,7 @@ module.exports = {
                             `*Use \`/logging view\` to see your full configuration*`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -435,8 +424,7 @@ module.exports = {
                             `*Use \`/logging set-all #channel\` to quickly re-enable all logging*`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             } else {
                 const info = logTypeNames[type];
@@ -454,8 +442,7 @@ module.exports = {
                                 `*Use \`/logging set-${type} #channel\` to re-enable*`
                             )
                         )
-                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                     await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 } else {
                     await interaction.reply({ 
@@ -482,8 +469,7 @@ module.exports = {
                         `*All log messages are always sent silently (no user pings)*`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 
         } else if (subcommand === 'set-webhook') {
@@ -525,8 +511,7 @@ module.exports = {
                         `*Use \`/logging view\` to see your full configuration*`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
         } catch (error) {
@@ -575,8 +560,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(color)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             };
 
@@ -687,8 +671,7 @@ module.exports = {
                             `All logging has been disabled for this server.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
             
@@ -705,8 +688,7 @@ module.exports = {
                                 `# <:Toggleoff:1473038582813032590> ${logTypeNames[type].name} Logging Disabled`
                             )
                         )
-                        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 } else {
                     return message.reply(`<:Cancel:1473037949187657818> ${logTypeNames[type].name} logging is not currently enabled!`);
@@ -736,8 +718,7 @@ module.exports = {
                         `*All log messages are always sent silently (no user pings)*`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -784,8 +765,7 @@ module.exports = {
                         `*Use \`-logging view\` to see your full configuration*`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -805,8 +785,7 @@ module.exports = {
                         `All ${ALL_LOG_KEYS.length} log types have been set to ${channel}`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -823,8 +802,7 @@ module.exports = {
                         `**Type:** ${logTypeNames[action].emoji} ${logTypeNames[action].name} Logs`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 

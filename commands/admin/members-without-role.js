@@ -26,7 +26,6 @@ function buildEmpty() {
             )
         )
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildPagedList(members, guildName) {
@@ -42,7 +41,6 @@ function buildPagedList(members, guildName) {
         lines,
         perPage: 15,
         accentColor: COLORS.WARNING || 0xFEE75C,
-        footer: BRANDING,
     });
 }
 

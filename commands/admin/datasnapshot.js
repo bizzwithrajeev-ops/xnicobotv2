@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
 const storeSnapshot = require('../../utils/storeSnapshot');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -75,8 +75,7 @@ module.exports = {
                     `\`inspect <name>\` - View snapshot details\n` +
                     `\`restore <name> [stores]\` - Restore snapshot`
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -153,8 +152,7 @@ async function handleCreate(target, isPrefix) {
                 `**💾 Size:** ${(result.bytes / 1024).toFixed(1)} KB\n` +
                 `**📅 Retention:** 24 hours`
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         if (isPrefix && response) {
             await response.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
@@ -267,8 +265,7 @@ async function handleCleanup(target, isPrefix) {
                 `**<:Checkedbox:1473038547165384804> Kept:** ${result.kept} snapshot(s)\n` +
                 `**💾 Freed:** ${result.freedMB} MB`
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         if (isPrefix && response) {
             await response.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
@@ -322,8 +319,7 @@ async function handleInspect(target, name, isPrefix) {
             `**📊 Store Count:** ${result.storeCount}\n\n` +
             `**Stores:** ${storeList}${result.storeNames.length > 30 ? '...' : ''}`
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     if (isPrefix) {
         return target.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });

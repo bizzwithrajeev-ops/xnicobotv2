@@ -1,6 +1,6 @@
 const { isOwner } = require('../../utils/helpers');
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 async function performSync(client) {
     const results = {
@@ -88,8 +88,7 @@ function buildSyncResult(results) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.SUCCESS)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 module.exports = {

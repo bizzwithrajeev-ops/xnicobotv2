@@ -1,5 +1,5 @@
 const { PermissionFlagsBits, SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { buildInvalidUsage, buildLoadingResponse, buildErrorResponse, BRANDING, buildExpiredPanel } = require('../../utils/responseBuilder');
+const { buildInvalidUsage, buildLoadingResponse, buildErrorResponse, buildExpiredPanel } = require('../../utils/responseBuilder');
 
 function buildConfirmPrompt(count, reason) {
     return new ContainerBuilder()
@@ -31,8 +31,7 @@ function buildConfirmPrompt(count, reason) {
                     .setEmoji('<:Cancel:1473037949187657818>')
             )
         )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildResultContainer(banned, failed, invalidIds, reason, moderator) {
@@ -52,8 +51,7 @@ function buildResultContainer(banned, failed, invalidIds, reason, moderator) {
                 `**<:User:1473038971398520977> Moderator:** ${moderator}`
             )
         )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 async function performMassBan(guild, ids, reason, moderator) {

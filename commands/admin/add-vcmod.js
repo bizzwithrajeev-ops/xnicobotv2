@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 module.exports = {
@@ -39,8 +39,7 @@ module.exports = {
                         `<:Caretright:1473038207221502106> VC Mods receive the **Trusted VC Mod** role with permissions:\n` +
                         `<:Caretright:1473038207221502106> Mute Members, Deafen Members, Move Members in voice channels.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -128,8 +127,7 @@ module.exports = {
                         `<:Caretright:1473038207221502106> **Added by:** ${message.author.username}\n\n` +
                         `<:Caretright:1473038207221502106> They now have VC moderator-level trust and permissions in this server.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 await i.update({ components: [success], flags: MessageFlags.IsComponentsV2 });
             });
         } catch (error) {

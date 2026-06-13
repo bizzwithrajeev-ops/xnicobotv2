@@ -112,8 +112,7 @@ function wrapPanel({ accent, header, status, body, components = [] } = {}) {
         c.addTextDisplayComponents(new TextDisplayBuilder().setContent(body));
     }
     for (const comp of components) c.addActionRowComponents(comp);
-    c.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(brandFooter()));
+    // Footer will be injected by the runtime patcher
     return c;
 }
 

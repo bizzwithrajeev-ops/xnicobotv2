@@ -51,7 +51,6 @@ function _attachBrand(container) {
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     );
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(BRANDING)
     );
     return container;
 }

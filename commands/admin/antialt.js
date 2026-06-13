@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { buildErrorResponse, buildPermissionDenied, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildPermissionDenied, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 const { checkAndExpire } = require('../../utils/panelExpiration');
 
 const jsonStore = require('../../utils/jsonStore');
@@ -75,8 +75,7 @@ function buildStatusPanel(guildConfig) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(new ActionRowBuilder().addComponents(toggle, setAge, setAction, setLog))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 module.exports = {
@@ -125,8 +124,7 @@ module.exports = {
                             `# ${EMOJIS.SUCCESS} Anti-Alt Enabled\n\nAccounts younger than **${guildConfig.minAge} days** will be detected.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -141,8 +139,7 @@ module.exports = {
                             `# ${EMOJIS.ERROR} Anti-Alt Disabled\n\nAlt account detection has been turned off.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -158,8 +155,7 @@ module.exports = {
                             `# ${EMOJIS.SUCCESS} Age Updated\n\nMinimum account age set to **${days} days**.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -193,8 +189,7 @@ module.exports = {
                             `# ${EMOJIS.SUCCESS} Anti-Alt Enabled\n\nAccounts younger than **${guildConfig.minAge} days** will be detected.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -209,8 +204,7 @@ module.exports = {
                             `# ${EMOJIS.ERROR} Anti-Alt Disabled\n\nAlt account detection has been turned off.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -236,8 +230,7 @@ module.exports = {
                             `# ${EMOJIS.SUCCESS} Age Updated\n\nMinimum account age set to **${days} days**.`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -258,8 +251,7 @@ module.exports = {
         if (!interaction.member?.permissions?.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({
                 components: [buildPermissionDenied('Administrator')],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-            });
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             return true;
         }
 
@@ -331,8 +323,7 @@ module.exports = {
                 if (isNaN(days) || days < 1 || days > 365) {
                     await interaction.reply({
                         components: [buildErrorResponse('Invalid Age', 'Minimum age must be between **1** and **365** days.')],
-                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                    });
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
                     return true;
                 }
                 guildConfig.minAge = days;
@@ -346,8 +337,7 @@ module.exports = {
                 if (!VALID_ACTIONS.includes(action)) {
                     await interaction.reply({
                         components: [buildErrorResponse('Invalid Action', `Allowed: \`${VALID_ACTIONS.join('`, `')}\``)],
-                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                    });
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
                     return true;
                 }
                 guildConfig.action = action;
@@ -366,8 +356,7 @@ module.exports = {
                     if (!channel) {
                         await interaction.reply({
                             components: [buildErrorResponse('Invalid Channel', 'Channel not found in this server.')],
-                            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-                        });
+                            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
                         return true;
                     }
                     guildConfig.logChannel = channelId;
@@ -379,5 +368,4 @@ module.exports = {
             }
         }
         return false;
-    },
-};
+    } };

@@ -35,7 +35,6 @@ function buildSentReceipt(channel, actorName, sentMessage, original) {
             )
         )
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function isSendableTextChannel(channel) {

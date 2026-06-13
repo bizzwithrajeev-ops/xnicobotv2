@@ -4,7 +4,7 @@ const {
     ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType,
     ChannelSelectMenuBuilder, RoleSelectMenuBuilder, StringSelectMenuBuilder
 } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, buildPermissionDenied, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse, buildPermissionDenied, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 
 const activeSetups = new Map();
@@ -135,7 +135,6 @@ function buildMainPanel(guild, guildConfig) {
     container.addActionRowComponents(row1);
     container.addActionRowComponents(row2);
     container.addActionRowComponents(row3);
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }
@@ -158,7 +157,6 @@ function buildApplyButton(guildConfig) {
     );
 
     container.addActionRowComponents(row);
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }
@@ -187,7 +185,6 @@ function buildApplicationReview(guild, appData) {
     );
 
     container.addActionRowComponents(row);
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }
@@ -771,8 +768,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0xFEE75C)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
@@ -846,8 +842,7 @@ module.exports = {
                     `<:Alarm:1473039068546732214> **Time:** <t:${Math.floor(Date.now() / 1000)}:R>` +
                     (guildConfig.acceptRole ? `\n<:Userplus:1473038912212435086> **Role Given:** <@&${guildConfig.acceptRole}>` : '')
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             await interaction.update({ components: [updatedContainer] });
 
@@ -988,8 +983,7 @@ async function handleDeny(interaction, guildId, appId, guildConfig, reason) {
             `<:Alarm:1473039068546732214> **Time:** <t:${Math.floor(Date.now() / 1000)}:R>` +
             (reason ? `\n<:Chat:1473038936241864865> **Reason:** ${reason}` : '')
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     if (interaction.isModalSubmit()) {
         await interaction.reply({ components: [updatedContainer], flags: MessageFlags.IsComponentsV2 });

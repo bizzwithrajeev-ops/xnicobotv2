@@ -29,7 +29,7 @@ const {
     PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize,
     StringSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType
 } = require('discord.js');
-const { buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 const jsonStore = require('../../utils/jsonStore');
 
@@ -518,7 +518,7 @@ function buildPanel(session, guild) {
         .addActionRowComponents(applyRow)
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `-# <:Infotriangle:1473038460456800459> Changes are applied only when you click **Apply Configuration**.\n${BRANDING}`
+            `-# <:Infotriangle:1473038460456800459> Changes are applied only when you click **Apply Configuration**.`
         ));
 
     return container;
@@ -588,8 +588,7 @@ function buildResultPanel(results, session, guild) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:Settings:1473037894703779851> Log Channel\n${logText}`))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(tipsSection))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     return container;
 }
@@ -600,8 +599,7 @@ function buildExpiredPanel() {
             `### <:Alarm:1473039068546732214> Setup Session Expired\n`
             + `-# Run \`/quicksetup\` again to start a new session.`
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -749,8 +747,7 @@ module.exports = {
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### <:Cancel:1473037949187657818> Setup Cancelled\n-# No changes were made to your security configuration.`
                 ))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             await interaction.update({ components: [c], flags: MessageFlags.IsComponentsV2 });
             return true;
         }

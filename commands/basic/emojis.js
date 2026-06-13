@@ -29,9 +29,8 @@
 const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder,
     SeparatorBuilder, SeparatorSpacingSize, MessageFlags,
-    ActionRowBuilder, ButtonBuilder, ButtonStyle,
-} = require('discord.js');
-const { COLORS, BRANDING, EMOJIS: PALETTE } = require('../../utils/responseBuilder');
+    ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { COLORS, EMOJIS: PALETTE } = require('../../utils/responseBuilder');
 const { emojiUsability } = require('../../utils/emojiSystem');
 
 const EMOJIS_PER_PAGE = 30;
@@ -50,8 +49,7 @@ function collectEntries(guild) {
             name: e.name || 'unnamed',
             animated: e.animated,
             usable,
-            inline: usable ? e.toString() : `\`:${e.name}:\``,
-        });
+            inline: usable ? e.toString() : `\`:${e.name}:\`` });
     }
     // Static first, then animated; alphabetical inside each bucket.
     entries.sort((a, b) => {
@@ -91,7 +89,6 @@ function renderPage(entries, page, pageCount, guild) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body || '*(no emojis on this page)*'))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }
@@ -220,16 +217,14 @@ module.exports = {
         if (interaction.user.id !== ownerId) {
             await interaction.reply({
                 content: `${PALETTE.ERROR} Run \`/emojis\` yourself to navigate.`,
-                flags: MessageFlags.Ephemeral,
-            }).catch(() => {});
+                flags: MessageFlags.Ephemeral }).catch(() => {});
             return true;
         }
         const session = getSession(interaction.message?.id);
         if (!session) {
             await interaction.reply({
                 content: `${PALETTE.ERROR} This emoji panel has expired — run \`/emojis\` again.`,
-                flags: MessageFlags.Ephemeral,
-            }).catch(() => {});
+                flags: MessageFlags.Ephemeral }).catch(() => {});
             return true;
         }
         let { page } = session;
@@ -244,8 +239,6 @@ module.exports = {
         const container = renderPage(session.entries, page, session.pageCount, guild);
         await interaction.update({
             components: [container, buildButtons(ownerId, page, session.pageCount)],
-            flags: MessageFlags.IsComponentsV2,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         return true;
-    },
-};
+    } };

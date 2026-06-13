@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 module.exports = {
@@ -39,8 +39,7 @@ module.exports = {
                         `<:Caretright:1473038207221502106> The **Trusted Moderator** role will be revoked.\n` +
                         `<:Caretright:1473038207221502106> All moderator-level bot access will be removed.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -94,8 +93,7 @@ module.exports = {
                         `<:Caretright:1473038207221502106> **Removed by:** ${message.author.username}\n\n` +
                         `<:Caretright:1473038207221502106> They no longer have moderator-level trust in this server.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 await i.update({ components: [success], flags: MessageFlags.IsComponentsV2 });
             });
         } catch (error) {

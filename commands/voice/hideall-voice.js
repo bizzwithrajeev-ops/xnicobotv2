@@ -1,7 +1,7 @@
 'use strict';
 
 const { ChannelType, PermissionFlagsBits, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'hideall-voice',
@@ -52,7 +52,6 @@ module.exports = {
             { 'Hidden': `${hidden}/${voiceChannels.size}`, 'Role': roleName, 'Effect': 'Cannot see channels', 'Moderator': message.author.username }
         );
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

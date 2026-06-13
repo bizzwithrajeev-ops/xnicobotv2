@@ -2,7 +2,7 @@
 
 const { PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { createContainer, addTextDisplay, addSeparator, SeparatorSpacingSize } = require('../../utils/componentHelpers');
-const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildPermissionDenied, buildInvalidUsage, buildErrorResponse } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 
 
@@ -11,8 +11,7 @@ const ACTION_LABELS = {
   none:    '<:Checkedbox:1473038547165384804> Warning only',
   timeout: '<:Alarm:1473039068546732214> Timeout',
   kick:    '<:Userblock:1473038868184826149> Kick',
-  ban:     '<:banhammer:1473367388597780592> Ban',
-};
+  ban:     '<:banhammer:1473367388597780592> Ban' };
 
 const DEFAULT_THRESHOLDS = [
   { warns: 1, action: 'none',    duration: null, label: 'Warning only'      },
@@ -97,7 +96,6 @@ module.exports = {
         `-# **Duration (timeout only):** \`5m\`, \`1h\`, \`1d\``,
       ].join('\n'));
       addSeparator(container);
-      addTextDisplay(container, BRANDING);
 
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -111,7 +109,6 @@ module.exports = {
       const container = createContainer(0xCAD7E6);
       addTextDisplay(container, `# <:Checkedbox:1473038547165384804> Config Reset\n\nWarning thresholds have been reset to defaults.`);
       addSeparator(container);
-      addTextDisplay(container, BRANDING);
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -138,7 +135,6 @@ module.exports = {
       const container = createContainer(0xCAD7E6);
       addTextDisplay(container, `# <:Checkedbox:1473038547165384804> Threshold Removed\n\nRemoved punishment for **${warnNum}** warns.`);
       addSeparator(container);
-      addTextDisplay(container, BRANDING);
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -196,7 +192,6 @@ module.exports = {
         `-# Use \`warnconfig view\` to see all thresholds.`,
       ].join('\n'));
       addSeparator(container);
-      addTextDisplay(container, BRANDING);
 
       return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
@@ -214,5 +209,4 @@ module.exports = {
       ]
     );
     return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
-  },
-};
+  } };

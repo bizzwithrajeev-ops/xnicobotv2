@@ -26,11 +26,10 @@
 const {
     SlashCommandBuilder, MessageFlags,
     ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
-    ActionRowBuilder, ButtonBuilder, ButtonStyle,
-} = require('discord.js');
+    ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 
 /* ─────────────────────────── store helpers ─────────────────────── */
 
@@ -133,8 +132,7 @@ function buildAfkPanel({
     totalTime,
     timestamp,
     showActions  = true,
-    footnote,
-} = {}) {
+    footnote } = {}) {
     const container = new ContainerBuilder().setAccentColor(accent);
 
     const lines = [];
@@ -201,7 +199,6 @@ function buildAfkPanel({
     container.addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     );
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }
@@ -239,8 +236,7 @@ async function startAfk({ userId, guild, member, reason, dmNotifications, prefix
         guildId:           guild.id,
         mentions:          [],
         previousNickname:  member?.nickname ?? null,
-        dmNotifications:   !!dmNotifications,
-    };
+        dmNotifications:   !!dmNotifications };
     saveAfkConfig(afkConfig);
 
     await applyAfkNickname(member);
@@ -253,8 +249,7 @@ async function startAfk({ userId, guild, member, reason, dmNotifications, prefix
         totalTime:       afkStats[userId].totalTime,
         timestamp,
         showActions:     true,
-        footnote:        `Send any message to clear your AFK automatically${prefixHint ? `, or use \`${prefixHint}\`/\`/afk\` again to update it` : ''}.`,
-    });
+        footnote:        `Send any message to clear your AFK automatically${prefixHint ? `, or use \`${prefixHint}\`/\`/afk\` again to update it` : ''}.` });
 }
 
 /**
@@ -294,8 +289,7 @@ async function endAfk({ userId, member }) {
             `<:Bookopen:1473038576391557130> **AFK sessions** \`${stats[userId].count}\`` +
             mentionLine
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     return { ok: true, container };
 }
@@ -324,10 +318,8 @@ async function handleButton(interaction) {
                     body:   id === 'afk_end'
                         ? 'You are not currently AFK, or this panel belongs to someone else.'
                         : 'You are not currently AFK. Set yourself AFK first to change DM preferences.',
-                    accent: ACCENT_OFF,
-                })],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-            }).catch(() => {});
+                    accent: ACCENT_OFF })],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
         }
     }
 
@@ -340,8 +332,7 @@ async function handleButton(interaction) {
         // close-out for the session.
         return interaction.update({
             components: [result.container],
-            flags: MessageFlags.IsComponentsV2,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }
 
     /* ── Toggle DM notifications ──────────────────────────────── */
@@ -363,8 +354,7 @@ async function handleButton(interaction) {
             totalTime:       stats.totalTime,
             timestamp:       entry.timestamp,
             showActions:     true,
-            footnote:        `DM notifications are now **${entry.dmNotifications ? 'enabled' : 'disabled'}**.`,
-        });
+            footnote:        `DM notifications are now **${entry.dmNotifications ? 'enabled' : 'disabled'}**.` });
         return interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     }
 
@@ -384,12 +374,10 @@ async function handleButton(interaction) {
         const container = new ContainerBuilder()
             .setAccentColor(ACCENT)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Invoice:1473039492217835550> Your AFK Stats\n\n${lines.join('\n')}`))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
         return interaction.reply({
             components: [container],
-            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
     }
 
     /* ── Help ─────────────────────────────────────────────────── */
@@ -406,12 +394,10 @@ async function handleButton(interaction) {
                 `> Mentions are deduplicated, so spammers only count once.\n` +
                 `> Use \`/afklist\` to see everyone currently AFK in the server.`
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
         return interaction.reply({
             components: [help],
-            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => {});
     }
 
     return false;
@@ -454,13 +440,11 @@ module.exports = {
             guild:            interaction.guild,
             member,
             reason,
-            dmNotifications,
-        });
+            dmNotifications });
 
         await interaction.reply({
             components: [panel],
-            flags: MessageFlags.IsComponentsV2,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     },
 
     async executePrefix(message, args) {
@@ -475,18 +459,15 @@ module.exports = {
             guild:            message.guild,
             member:           message.member,
             reason,
-            dmNotifications,
-        });
+            dmNotifications });
 
         await message.reply({
             components: [panel],
-            flags: MessageFlags.IsComponentsV2,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     },
 
     handleButton,
 
     // Internal helpers exposed for the messageCreate handler in index.js
     // (already calls jsonStore directly; these are kept for future use).
-    _internal: { startAfk, endAfk, formatDuration },
-};
+    _internal: { startAfk, endAfk, formatDuration } };

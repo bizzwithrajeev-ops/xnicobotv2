@@ -14,10 +14,9 @@
  */
 
 const {
-    SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ChannelType,
-} = require('discord.js');
+    SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
 
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 /* ─────────────────────────── helpers ───────────────────────────── */
@@ -34,8 +33,7 @@ const E = {
     camera:    '<:Camera:1473039293088927996>',
     summary:   '<:Invoice:1473039492217835550>',
     none:      '<:Cancel:1473037949187657818>',
-    info:      '<:Inforect:1473038624172937287>',
-};
+    info:      '<:Inforect:1473038624172937287>' };
 
 function memberStatusIcons(voiceState) {
     const tags = [];
@@ -110,15 +108,14 @@ function buildPaginatedResult(guild) {
     const footer =
         `${E.summary} **Channels** \`${voiceChannels.size}\`  ·  ` +
         `**Active** \`${occupied}\`  ·  ` +
-        `**Connected** \`${totalConnected}\`\n${BRANDING}`;
+        `**Connected** \`${totalConnected}\``;
 
     return paginate({
         header,
         lines,
         perPage:     6,
         accentColor: COLORS.CYAN,
-        footer,
-    });
+        footer });
 }
 
 function buildEmptyContainer() {
@@ -149,8 +146,7 @@ module.exports = {
         if (result.empty) {
             return interaction.reply({
                 components: [buildEmptyContainer()],
-                flags: MessageFlags.IsComponentsV2,
-            });
+                flags: MessageFlags.IsComponentsV2 });
         }
         const reply = await interaction.reply({ ...result, fetchReply: true });
         setupPaginationCollector(reply, result._pageData, interaction.user.id);
@@ -161,10 +157,8 @@ module.exports = {
         if (result.empty) {
             return message.reply({
                 components: [buildEmptyContainer()],
-                flags: MessageFlags.IsComponentsV2,
-            });
+                flags: MessageFlags.IsComponentsV2 });
         }
         const reply = await message.reply(result);
         setupPaginationCollector(reply, result._pageData, message.author.id);
-    },
-};
+    } };

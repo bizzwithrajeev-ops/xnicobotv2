@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
 const jsonStore = require('../../utils/jsonStore');
 const { invalidateCache } = require('../../utils/logger');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -102,8 +102,7 @@ module.exports = {
                               `All configured servers are currently active.`
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             if (editableMessage) {
                 await editableMessage.edit({
@@ -125,8 +124,7 @@ module.exports = {
                         `An error occurred during cleanup:\n\`\`\`${error.message}\`\`\``
                     )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             if (editableMessage) {
                 await editableMessage.edit({

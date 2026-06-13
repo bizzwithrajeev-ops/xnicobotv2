@@ -30,8 +30,7 @@ function buildSuccess(oldName, newName, emojiStr, moderator) {
             `${emojiStr} \`:${oldName}:\` → \`:${newName}:\`\n` +
             `**Moderator:** ${moderator}`
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildError(desc) {

@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 const { resolveUser } = require('../../utils/resolveUser');
 
 module.exports = {
@@ -45,7 +45,6 @@ module.exports = {
             );
             container.setAccentColor(0x57F287);
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

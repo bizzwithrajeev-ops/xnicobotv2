@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, ChannelType, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, buildInvalidUsage, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse, buildInvalidUsage } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'voicemoveall',
@@ -63,7 +63,6 @@ module.exports = {
         );
         container.setAccentColor(0x57F287);
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

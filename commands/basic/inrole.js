@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, buildInvalidUsage, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 function buildHeaderContainer(role) {
@@ -34,7 +34,6 @@ function buildHeaderContainer(role) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(meta))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildInRolePages(role) {
@@ -53,9 +52,7 @@ function buildInRolePages(role) {
             `-# **${role.members.size}** member${role.members.size === 1 ? '' : 's'} hold this role`,
         lines,
         perPage: 15,
-        accentColor: role.color || COLORS.INFO,
-        footer: BRANDING,
-    });
+        accentColor: role.color || COLORS.INFO });
 }
 
 async function send(replyFn, role, userId) {
@@ -120,5 +117,4 @@ module.exports = {
             const container = buildErrorResponse('Lookup Failed', 'Could not list members for that role.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

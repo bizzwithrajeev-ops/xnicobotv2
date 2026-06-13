@@ -1,5 +1,5 @@
 const { PermissionFlagsBits, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { COLORS, buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const fs = require('fs');
 const path = require('path');
 const jsonStore = require('../../utils/jsonStore');
@@ -206,8 +206,7 @@ module.exports = {
                 .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(recsText))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Run this command periodically to ensure your server stays protected`))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

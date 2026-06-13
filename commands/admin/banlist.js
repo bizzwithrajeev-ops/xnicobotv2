@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildErrorResponse, buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildPermissionDenied, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 
@@ -25,7 +25,6 @@ module.exports = {
                 const container = createContainer(COLORS.INFO);
                 addTextDisplay(container, `# <:Shield:1473038669831995494> Ban List\n\n> No banned users found in this server.`);
                 addSeparator(container);
-                addTextDisplay(container, BRANDING);
                 return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -39,9 +38,7 @@ module.exports = {
                 header: `# <:Shield:1473038669831995494> Ban List — ${bans.size} Banned Users`,
                 lines: allLines,
                 perPage: 15,
-                accentColor: COLORS.PRIMARY,
-                footer: BRANDING
-            });
+                accentColor: COLORS.PRIMARY });
 
             const reply = await interaction.editReply(result);
             setupPaginationCollector(reply, result._pageData, interaction.user.id);
@@ -73,7 +70,6 @@ module.exports = {
                 const container = createContainer(COLORS.INFO);
                 addTextDisplay(container, `# <:Shield:1473038669831995494> Ban List\n\n> No banned users found in this server.`);
                 addSeparator(container);
-                addTextDisplay(container, BRANDING);
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -87,9 +83,7 @@ module.exports = {
                 header: `# <:Shield:1473038669831995494> Ban List — ${bans.size} Banned Users`,
                 lines: allLines,
                 perPage: 15,
-                accentColor: COLORS.PRIMARY,
-                footer: BRANDING
-            });
+                accentColor: COLORS.PRIMARY });
 
             const reply = await message.reply(result);
             setupPaginationCollector(reply, result._pageData, message.author.id);

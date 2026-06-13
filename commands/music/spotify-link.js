@@ -3,11 +3,10 @@
 const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder,
     ButtonBuilder, ButtonStyle, SeparatorBuilder, SeparatorSpacingSize,
-    MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder,
-} = require('discord.js');
+    MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 const { musicError, replyMusic } = require('../../utils/musicResponse');
 const { checkAndExpire } = require('../../utils/panelExpiration');
 const { formatTime } = require('../../utils/musicHelpers');
@@ -97,7 +96,6 @@ function buildProfilePanel(userId, links, favorites) {
         '-# Use `/like` while music plays to save tracks to your favorites.'
     ));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -139,7 +137,6 @@ async function showOtherProfile(ctx, user) {
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     const isSlash = typeof ctx.isRepliable === 'function';
     return ctx.reply({ components: [container], flags: isSlash ? CV2_EPH : CV2 });
@@ -198,8 +195,7 @@ async function handleButton(interaction, links) {
         const options = links[userId].playlists.slice(0, 25).map((pl, i) => ({
             label: pl.name.length > 50 ? pl.name.slice(0, 47) + '…' : pl.name,
             value: String(i),
-            emoji: { id: '1473039311057190972' },
-        }));
+            emoji: { id: '1473039311057190972' } }));
         const select = new StringSelectMenuBuilder()
             .setCustomId('spotlink_remove_select')
             .setPlaceholder('Select a playlist to remove')
@@ -207,8 +203,7 @@ async function handleButton(interaction, links) {
         await interaction.reply({
             content: '**Pick a playlist to remove:**',
             components: [new ActionRowBuilder().addComponents(select)],
-            flags: MessageFlags.Ephemeral,
-        });
+            flags: MessageFlags.Ephemeral });
         return true;
     }
 
@@ -241,8 +236,7 @@ async function handleButton(interaction, links) {
         const container = new ContainerBuilder()
             .setAccentColor(COLOR_SPOTIFY)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
         await interaction.reply({ components: [container], flags: CV2_EPH });
         return true;
     }
@@ -380,11 +374,9 @@ module.exports = {
                 if (interaction.isRepliable?.() && !interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         components: [musicError('Spotify Action Failed', 'Something went wrong.', err.message || 'Unknown error')],
-                        flags: CV2_EPH,
-                    });
+                        flags: CV2_EPH });
                 }
             } catch {}
         }
         return false;
-    },
-};
+    } };

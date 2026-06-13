@@ -209,8 +209,7 @@ function buildResultContainer(ok, fail) {
             `-# ${ok.length} succeeded, ${fail.length} failed\n\n` +
             (lines.join('\n') || '*Nothing was processed.*')
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildErrorContainer(desc) {

@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 const SNIPPET_LIMIT = 80;
@@ -34,9 +34,7 @@ async function buildPinnedMessages(channel) {
             `-# **${pins.size}**/50 pins in ${channel}`,
         lines,
         perPage: 6,
-        accentColor: COLORS.INFO,
-        footer: BRANDING,
-    });
+        accentColor: COLORS.INFO });
 }
 
 module.exports = {
@@ -89,5 +87,4 @@ module.exports = {
             const container = buildErrorResponse('Failed to Fetch', 'Could not fetch pinned messages.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

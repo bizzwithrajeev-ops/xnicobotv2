@@ -28,9 +28,8 @@
 const {
     ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
     SeparatorSpacingSize, MessageFlags, PermissionFlagsBits,
-    ActionRowBuilder, ButtonBuilder, ButtonStyle,
-} = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+    ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
@@ -53,8 +52,7 @@ const E = {
     ban:         '<:banhammer:1473367388597780592>',
     block:       '<:Userblock:1473038868184826149>',
     document:    '<:Document:1473039496995143731>',
-    redo:        '<:History:1473037847568318605>',
-};
+    redo:        '<:History:1473037847568318605>' };
 
 const DANGEROUS_PERMS = [
     'Administrator',
@@ -91,8 +89,7 @@ function getDefault() {
         activatedBy: null,
         authorisedUsers: [],
         emergencyRoles: [],
-        savedRolePerms: {},
-    };
+        savedRolePerms: {} };
 }
 
 function getGuildConfig(guildId) {
@@ -255,8 +252,7 @@ function buildPanel(gc, guildName) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(commandsText))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(buttonRow)
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     return container;
 }
@@ -289,8 +285,7 @@ module.exports = {
             }
             return message.reply({
                 components: [buildPanel(gc, message.guild.name)],
-                flags: MessageFlags.IsComponentsV2,
-            });
+                flags: MessageFlags.IsComponentsV2 });
         }
 
         /* ────── enable ────── */
@@ -336,8 +331,7 @@ module.exports = {
             } catch (err) {
                 console.error('[Emergency] activate error:', err);
                 await statusMsg.edit({
-                    content: `${E.cancel} Failed to activate emergency mode: ${err.message}`,
-                }).catch(() => {});
+                    content: `${E.cancel} Failed to activate emergency mode: ${err.message}` }).catch(() => {});
             }
             return;
         }
@@ -374,8 +368,7 @@ module.exports = {
             } catch (err) {
                 console.error('[Emergency] deactivate error:', err);
                 await statusMsg.edit({
-                    content: `${E.cancel} Failed to disable emergency mode: ${err.message}`,
-                }).catch(() => {});
+                    content: `${E.cancel} Failed to disable emergency mode: ${err.message}` }).catch(() => {});
             }
             return;
         }
@@ -406,8 +399,7 @@ module.exports = {
                         `> This role will be targeted when emergency mode is activated.`,
                         `-# Total targeted roles: ${gc.emergencyRoles.length}`,
                     ])],
-                    flags: MessageFlags.IsComponentsV2,
-                });
+                    flags: MessageFlags.IsComponentsV2 });
             }
 
             if (action === 'remove') {
@@ -428,8 +420,7 @@ module.exports = {
                         `> This role will no longer be targeted during emergency mode.`,
                         `-# Remaining targeted roles: ${gc.emergencyRoles.length}`,
                     ])],
-                    flags: MessageFlags.IsComponentsV2,
-                });
+                    flags: MessageFlags.IsComponentsV2 });
             }
 
             if (action === 'list') {
@@ -445,8 +436,7 @@ module.exports = {
                             `### ${E.bookmark} Roles (${roles.length})\n${display}\n\n` +
                             `-# Use \`emergency role add @role\` or \`emergency role remove @role\` to manage`
                         ))],
-                    flags: MessageFlags.IsComponentsV2,
-                });
+                    flags: MessageFlags.IsComponentsV2 });
             }
 
             return message.reply(
@@ -484,8 +474,7 @@ module.exports = {
                         `> This user can now activate and deactivate emergency mode.`,
                         `-# Total authorised users: ${gc.authorisedUsers.length}`,
                     ])],
-                    flags: MessageFlags.IsComponentsV2,
-                });
+                    flags: MessageFlags.IsComponentsV2 });
             }
 
             if (action === 'remove') {
@@ -506,8 +495,7 @@ module.exports = {
                         `> This user can no longer use emergency mode.`,
                         `-# Remaining authorised users: ${gc.authorisedUsers.length}`,
                     ])],
-                    flags: MessageFlags.IsComponentsV2,
-                });
+                    flags: MessageFlags.IsComponentsV2 });
             }
 
             return message.reply(
@@ -522,8 +510,7 @@ module.exports = {
         }
         return message.reply({
             components: [buildPanel(gc, message.guild.name)],
-            flags: MessageFlags.IsComponentsV2,
-        });
+            flags: MessageFlags.IsComponentsV2 });
     },
 
     /**
@@ -541,8 +528,7 @@ module.exports = {
         if (!isAuthorised(interaction.guild, interaction.user.id, gc)) {
             await interaction.reply({
                 content: `${E.cancel} You are not authorised to use emergency mode.`,
-                flags: MessageFlags.Ephemeral,
-            }).catch(() => {});
+                flags: MessageFlags.Ephemeral }).catch(() => {});
             return true;
         }
 
@@ -552,8 +538,7 @@ module.exports = {
             if (gc.enabled) {
                 await interaction.followUp({
                     content: `${E.warn} Emergency mode is already active.`,
-                    flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                    flags: MessageFlags.Ephemeral }).catch(() => {});
                 return true;
             }
             try {
@@ -562,8 +547,7 @@ module.exports = {
                     await interaction.followUp({
                         content: `${E.cancel} Could not strip permissions from any role. ` +
                                  `Make sure the bot's role is positioned above the target roles.`,
-                        flags: MessageFlags.Ephemeral,
-                    }).catch(() => {});
+                        flags: MessageFlags.Ephemeral }).catch(() => {});
                     return true;
                 }
                 gc.enabled = true;
@@ -575,16 +559,14 @@ module.exports = {
                 console.error('[Emergency] button activate error:', err);
                 await interaction.followUp({
                     content: `${E.cancel} Failed: ${err.message}`,
-                    flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                    flags: MessageFlags.Ephemeral }).catch(() => {});
                 return true;
             }
         } else {
             if (!gc.enabled) {
                 await interaction.followUp({
                     content: `${E.warn} Emergency mode is not active.`,
-                    flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                    flags: MessageFlags.Ephemeral }).catch(() => {});
                 return true;
             }
             try {
@@ -598,8 +580,7 @@ module.exports = {
                 console.error('[Emergency] button deactivate error:', err);
                 await interaction.followUp({
                     content: `${E.cancel} Failed: ${err.message}`,
-                    flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                    flags: MessageFlags.Ephemeral }).catch(() => {});
                 return true;
             }
         }
@@ -607,8 +588,6 @@ module.exports = {
         // Refresh the panel in place.
         await interaction.editReply({
             components: [buildPanel(gc, interaction.guild.name)],
-            flags: MessageFlags.IsComponentsV2,
-        }).catch(() => {});
+            flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         return true;
-    },
-};
+    } };

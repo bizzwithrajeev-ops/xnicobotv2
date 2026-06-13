@@ -1,5 +1,5 @@
 const { MessageFlags } = require('discord.js');
-const { COLORS, buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 const trust = require('../../utils/trustManager');
@@ -19,7 +19,6 @@ module.exports = {
                 const container = createContainer(COLORS.INFO);
                 addTextDisplay(container, `# <:Shield:1473038669831995494> Trusted Moderators\n\n*No moderators in the trust list*\n\n-# Use \`addmod @user\` to add moderators`);
                 addSeparator(container);
-                addTextDisplay(container, BRANDING);
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -39,9 +38,7 @@ module.exports = {
                     `**Permissions:** Kick, Manage Messages/Nicknames, Mute, Deafen, Move, Timeout`,
                 lines: allLines,
                 perPage: 15,
-                accentColor: COLORS.INFO,
-                footer: BRANDING
-            });
+                accentColor: COLORS.INFO });
 
             const reply = await message.reply(result);
             setupPaginationCollector(reply, result._pageData, message.author.id);

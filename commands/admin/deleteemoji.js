@@ -32,8 +32,7 @@ function buildSuccess(emojiName, moderator) {
             `**Name:** \`:${emojiName}:\`\n` +
             `**Moderator:** ${moderator}`
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildError(desc) {

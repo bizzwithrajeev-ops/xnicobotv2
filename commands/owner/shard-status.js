@@ -1,6 +1,6 @@
 const { isOwner } = require('../../utils/helpers');
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS, EMOJIS } = require('../../utils/responseBuilder');
 const os = require('os');
 
 function formatBytes(bytes) {
@@ -120,8 +120,7 @@ async function buildShardStatus(client) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.INFO)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function calculateHealth(ping, heapPercent, cpuPercent) {

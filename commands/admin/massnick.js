@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -63,7 +63,6 @@ module.exports = {
                     `${role ? `\n**Role:** ${role.name}` : ''}`
                 ));
             resultContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            resultContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
             await interaction.editReply({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
@@ -90,8 +89,7 @@ module.exports = {
                         new TextDisplayBuilder()
                             .setContent(`# <:User:1473038971398520977> Mass Nickname\n\n### <:Document:1473039496995143731> Usage\n\`massnick <nickname> [@role]\`\n\n### <:Edit:1473037903625191580> Examples\n\`massnick VIP Member @VIP\` - Set nickname for all VIP role members\n\`massnick reset @Members\` - Reset nicknames for role members\n\`massnick [EVENT] @Everyone\` - Add prefix to all members\n\n-# Bot must have higher role than target members`)
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -137,7 +135,6 @@ module.exports = {
                         .setContent(`# <:User:1473038971398520977> Mass Nickname Complete\n\n### <:Document:1473039496995143731> Results\n<:Checkedbox:1473038547165384804> **Changed:** ${changed} members\n<:Cancel:1473037949187657818> **Failed:** ${failed} members\n\n${nickname ? `**New Nickname:** ${nickname}` : '**Action:** Reset nicknames'}${role ? `\n**Role:** ${role.name}` : ''}`)
                 );
             resultContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            resultContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
             await processingMsg.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

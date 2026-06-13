@@ -95,7 +95,6 @@ function buildPromptPayload(candidate, sessionId, indexLabel) {
     ));
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
@@ -145,8 +144,7 @@ function buildSummaryPayload(results) {
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n') || '*Nothing to report.*'))
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING)),
-        ],
+                        ],
         flags: MessageFlags.IsComponentsV2,
     };
 }

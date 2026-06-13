@@ -3,11 +3,10 @@
 const {
     SlashCommandBuilder,
     ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder,
-    SeparatorBuilder, SeparatorSpacingSize,
-} = require('discord.js');
+    SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { models } = require('../../utils/database');
 const { formatTime } = require('../../utils/musicHelpers');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 const { musicError, replyMusic, COLOR } = require('../../utils/musicResponse');
 
 function buildAddedContainer(track) {
@@ -33,8 +32,7 @@ function buildAddedContainer(track) {
     }
 
     container
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
     return container;
 }
 
@@ -65,8 +63,7 @@ async function run(target, lavalinkManager) {
         duration:   track.info.duration,
         artworkUrl: track.info.artworkUrl || track.info.thumbnail,
         sourceName: track.info.sourceName,
-        addedAt:    new Date().toISOString(),
-    });
+        addedAt:    new Date().toISOString() });
 
     return replyMusic(target, buildAddedContainer(track));
 }
@@ -83,5 +80,4 @@ module.exports = {
     aliases: ['favorite', 'fav'],
 
     async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
-    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
-};
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); } };

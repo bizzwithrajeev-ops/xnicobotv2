@@ -1,7 +1,7 @@
 'use strict';
 
 const { MessageFlags, PermissionFlagsBits, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 
 module.exports = {
@@ -60,7 +60,6 @@ module.exports = {
         );
         container.setAccentColor(0x57F287);
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
         return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }

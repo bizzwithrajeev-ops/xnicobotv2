@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -50,7 +50,6 @@ function buildSpotlightContainer(newest) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(account))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildLeaderboard(members) {
@@ -63,9 +62,7 @@ function buildLeaderboard(members) {
             `-# **${members.length}** human members ordered by join date`,
         lines,
         perPage: 12,
-        accentColor: COLORS.SUCCESS || 0x57F287,
-        footer: BRANDING,
-    });
+        accentColor: COLORS.SUCCESS || 0x57F287 });
 }
 
 async function send(replyFn, guild, userId, args) {
@@ -128,5 +125,4 @@ module.exports = {
             const err = buildErrorResponse('Lookup Failed', 'Could not load members.', error.message);
             await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

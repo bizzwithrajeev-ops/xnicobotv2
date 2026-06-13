@@ -85,7 +85,6 @@ function buildControlPanel() {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(legend))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(row1, row2, row3, row4)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -186,7 +185,6 @@ function buildAdminDashboard(guild, requesterUserId) {
     container.addActionRowComponents(row1);
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -250,7 +248,6 @@ function buildInterfaceEditor(guild, iface, requesterUserId) {
 
     container.addActionRowComponents(row1, row2, row3);
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 
@@ -587,8 +584,7 @@ async function statusSummary(target) {
     const container = new ContainerBuilder()
         .setAccentColor(tier === 'premium' ? 0xF1C40F : 0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
     const reply = { components: [container], flags: CV2_EPH };
     return target.reply ? target.reply(reply) : null;

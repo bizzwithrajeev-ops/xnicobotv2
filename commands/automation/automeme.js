@@ -154,7 +154,6 @@ function buildStatusPanel(guild, cfg, viewerHasPremium) {
     container.addActionRowComponents(row1);
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }

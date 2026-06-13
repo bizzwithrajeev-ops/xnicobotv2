@@ -257,8 +257,7 @@ function buildResultContainer({ role, targetType, action, stats, executorTag }) 
     return new ContainerBuilder()
         .setAccentColor(stats.failed > 0 ? COLORS.WARNING : COLORS.SUCCESS)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function renderBar(pct, length = 14) {

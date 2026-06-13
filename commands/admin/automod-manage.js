@@ -10,7 +10,7 @@ const {
 const { loadConfig, saveConfig, getGuildConfig, getDefaultConfig } = require('../../utils/panels/automodPanel');
 const { syncToDiscord } = require('../../utils/automodSync');
 const { THEME, formatCheck, createFooterText } = require('../../utils/theme');
-const { BRANDING, EMOJIS, COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
+const {  EMOJIS, COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 
 const VALID_FILTERS = ['badwords', 'spam', 'links', 'invites', 'massmention', 'caps'];
 const FILTER_MAP = {
@@ -27,8 +27,7 @@ function buildOk(title, desc) {
     return new ContainerBuilder()
         .setAccentColor(COLORS.SUCCESS)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${EMOJIS.SUCCESS} ${title}\n\n${desc}`))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildErr(title, desc) {
@@ -82,8 +81,7 @@ function buildConfigDisplay(guildConfig) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${THEME.EMOJIS.SHIELD} Filters\n${filtersGrid}`))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${THEME.EMOJIS.SETTINGS} Settings\n${settingsText}`))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildIgnoreShowDisplay(guildConfig) {
@@ -106,8 +104,7 @@ function buildIgnoreShowDisplay(guildConfig) {
 
     return new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 async function handleSubcommand(sub, options, guild) {

@@ -7,7 +7,7 @@
  */
 
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS, EMOJIS: PALETTE, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS, EMOJIS: PALETTE } = require('../../utils/responseBuilder');
 const { EMOJI_TAG_RE_GLOBAL, emojiCdnUrl } = require('../../utils/emojiSystem');
 
 module.exports = {
@@ -57,8 +57,7 @@ module.exports = {
                 `-# Found **${found.length}** unique emoji${found.length === 1 ? '' : 's'}\n\n` +
                 list
             ))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\n${BRANDING}`));
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-    },
-};
+    } };

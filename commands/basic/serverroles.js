@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 function buildOverview(guild) {
@@ -53,7 +53,6 @@ function buildOverview(guild) {
             `-# Run \`serverroles list\` to browse every role with pagination`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildList(guild) {
@@ -78,9 +77,7 @@ function buildList(guild) {
             `-# **${allRoles.length}** roles • <:Crown:1506010837368963142> admin • <:Pin:1473038806612447500> hoisted • <:bots:1473368718120849500> managed`,
         lines,
         perPage: 15,
-        accentColor: 0xCAD7E6,
-        footer: BRANDING,
-    });
+        accentColor: 0xCAD7E6 });
 }
 
 module.exports = {
@@ -134,5 +131,4 @@ module.exports = {
             const container = buildErrorResponse('Failed', 'Could not load roles.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

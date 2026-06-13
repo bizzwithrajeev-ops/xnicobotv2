@@ -4,15 +4,14 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 const TIER_PERKS = {
     0: ['50 MB upload limit', '128 Kbps audio quality'],
     1: ['100 MB upload limit', '128 Kbps audio quality', 'Custom server invite background', 'Animated server icon', '+15 emoji slots'],
     2: ['150 MB upload limit', '256 Kbps audio quality', 'Server banner', '+30 emoji slots', '1080p Go Live streaming'],
-    3: ['200 MB upload limit', '384 Kbps audio quality', 'Vanity URL', '+50 emoji slots', 'Animated server banner'],
-};
+    3: ['200 MB upload limit', '384 Kbps audio quality', 'Vanity URL', '+50 emoji slots', 'Animated server banner'] };
 
 const BOOSTS_REQUIRED = { 1: 2, 2: 7, 3: 14 };
 
@@ -76,7 +75,6 @@ function buildOverviewContainer(guild) {
             `-# Run \`server-boost-info boosters\` to browse the boosters list`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildBoostersList(guild) {
@@ -97,9 +95,7 @@ function buildBoostersList(guild) {
             `-# **${boosters.length}** active booster${boosters.length === 1 ? '' : 's'}`,
         lines,
         perPage: 12,
-        accentColor: COLORS.PINK || 0xE91E63,
-        footer: BRANDING,
-    });
+        accentColor: COLORS.PINK || 0xE91E63 });
 }
 
 module.exports = {
@@ -157,5 +153,4 @@ module.exports = {
             const container = buildErrorResponse('Failed', 'Could not load boost info.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

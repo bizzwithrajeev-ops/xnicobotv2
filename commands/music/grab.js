@@ -3,13 +3,11 @@
 const {
     SlashCommandBuilder,
     ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder,
-    SeparatorBuilder, SeparatorSpacingSize,
-} = require('discord.js');
+    SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { formatTime } = require('../../utils/musicHelpers');
-const { BRANDING } = require('../../utils/responseBuilder');
+const { } = require('../../utils/responseBuilder');
 const {
-    musicSuccess, musicError, replyMusic, COLOR,
-} = require('../../utils/musicResponse');
+    musicSuccess, musicError, replyMusic, COLOR } = require('../../utils/musicResponse');
 
 function buildTrackDmContainer(track, guildName) {
     const container = new ContainerBuilder().setAccentColor(COLOR.BRAND);
@@ -34,8 +32,7 @@ function buildTrackDmContainer(track, guildName) {
     }
 
     container
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
     return container;
 }
 
@@ -79,5 +76,4 @@ module.exports = {
     aliases: ['save', 'snatch'],
 
     async execute(interaction, lavalinkManager)         { return run(interaction, lavalinkManager); },
-    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); },
-};
+    async executePrefix(message, _args, lavalinkManager){ return run(message,     lavalinkManager); } };

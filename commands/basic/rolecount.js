@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 function buildLines(guild) {
@@ -43,7 +43,7 @@ module.exports = {
                 const container = buildErrorResponse('No Roles', 'This server has no custom roles yet.');
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
-            const result = paginate({ header, lines, perPage: 15, accentColor: COLORS.INFO, footer: BRANDING });
+            const result = paginate({ header, lines, perPage: 15, accentColor: COLORS.INFO });
             const reply = await interaction.reply({ ...result, fetchReply: true });
             setupPaginationCollector(reply, result._pageData, interaction.user.id);
         } catch (error) {
@@ -60,7 +60,7 @@ module.exports = {
                 const container = buildErrorResponse('No Roles', 'This server has no custom roles yet.');
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
-            const result = paginate({ header, lines, perPage: 15, accentColor: COLORS.INFO, footer: BRANDING });
+            const result = paginate({ header, lines, perPage: 15, accentColor: COLORS.INFO });
             const reply = await message.reply(result);
             setupPaginationCollector(reply, result._pageData, message.author.id);
         } catch (error) {
@@ -68,5 +68,4 @@ module.exports = {
             const container = buildErrorResponse('Failed', 'Could not load role data.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

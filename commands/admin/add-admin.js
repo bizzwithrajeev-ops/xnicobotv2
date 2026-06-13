@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 module.exports = {
@@ -39,8 +39,7 @@ module.exports = {
                         `<:Caretright:1473038207221502106> Admins receive the **Trusted Admin** role with full moderation permissions.\n` +
                         `<:Caretright:1473038207221502106> Permissions include: Manage Channels, Roles, Messages, Ban, Kick, and more.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -141,8 +140,7 @@ module.exports = {
                         `<:Caretright:1473038207221502106> **Added by:** ${message.author.username}${autoRemoved}\n\n` +
                         `<:Caretright:1473038207221502106> They now have admin-level trust and permissions in this server.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 await i.update({ components: [success], flags: MessageFlags.IsComponentsV2 });
             });
         } catch (error) {

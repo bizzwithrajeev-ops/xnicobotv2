@@ -1,6 +1,6 @@
 
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 
 const editedMessages = new Map();
 const MAX_SNIPES = 10;
@@ -32,7 +32,6 @@ function buildEditSnipeContainer(snipedMessage, index, total) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Before:**\n${before}\n\n**After:**\n${after}`));
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }

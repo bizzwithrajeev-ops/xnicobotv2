@@ -11,7 +11,7 @@
  */
 
 const { MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 const trust = require('../../utils/trustManager');
@@ -22,8 +22,7 @@ const E = {
     role:      '<:Userplus:1473038912212435086>',
     caret:     '<:Caretright:1473038207221502106>',
     shield:    '<:Shield:1473038669831995494>',
-    cancel:    '<:Cancel:1473037949187657818>',
-};
+    cancel:    '<:Cancel:1473037949187657818>' };
 
 function formatEntryLine(entry) {
     const mention  = entry.type === 'user' ? `<@${entry.id}>` : `<@&${entry.id}>`;
@@ -55,11 +54,9 @@ module.exports = {
                     `-# Use \`add-vcmod @user\` to grant trust.`,
                 );
                 addSeparator(container);
-                addTextDisplay(container, BRANDING);
                 return message.reply({
                     components: [container],
-                    flags: MessageFlags.IsComponentsV2,
-                });
+                    flags: MessageFlags.IsComponentsV2 });
             }
 
             const lines = entries.map(formatEntryLine);
@@ -74,9 +71,7 @@ module.exports = {
                     `-# Use \`add-vcmod @user\` or \`remove-vcmod @user\` to manage.`,
                 lines,
                 perPage:     15,
-                accentColor: COLORS.INFO,
-                footer:      BRANDING,
-            });
+                accentColor: COLORS.INFO });
 
             const reply = await message.reply(result);
             setupPaginationCollector(reply, result._pageData, message.author.id);
@@ -89,8 +84,6 @@ module.exports = {
             );
             return message.reply({
                 components: [container],
-                flags: MessageFlags.IsComponentsV2,
-            });
+                flags: MessageFlags.IsComponentsV2 });
         }
-    },
-};
+    } };

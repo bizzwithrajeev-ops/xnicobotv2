@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING, buildErrorResponse } = require('../../utils/responseBuilder');
+const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 module.exports = {
@@ -45,8 +45,7 @@ module.exports = {
                 `-# Use \`add-owner @user\` to assign a second owner (server owner only)\n` +
                 `-# Use \`admins\`, \`mods\`, \`vcmods\` to view each trust list`
             ))
-            .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

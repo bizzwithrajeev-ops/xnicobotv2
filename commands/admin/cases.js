@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 const { createContainer, addTextDisplay, addSeparator } = require('../../utils/componentHelpers');
 
@@ -28,7 +28,6 @@ async function sendCases(replyTarget, guildId, userId) {
         const container = createContainer(0xCAD7E6);
         addTextDisplay(container, `# <:Checkedbox:1473038547165384804> No Cases\n\nNo moderation cases found for this server.`);
         addSeparator(container);
-        addTextDisplay(container, BRANDING);
         return replyTarget.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
 
@@ -42,9 +41,7 @@ async function sendCases(replyTarget, guildId, userId) {
         header: `# <:Bookopen:1473038576391557130> Recent Moderation Cases\n-# ${allCases.length} total case${allCases.length !== 1 ? 's' : ''}`,
         lines: allLines,
         perPage: 5,
-        accentColor: 0xCAD7E6,
-        footer: BRANDING
-    });
+        accentColor: 0xCAD7E6 });
 
     const reply = await replyTarget.reply(result);
     setupPaginationCollector(reply, result._pageData, userId);

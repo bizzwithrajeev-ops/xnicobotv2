@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 const YEAR = 1000 * 60 * 60 * 24 * 365;
@@ -54,7 +54,6 @@ function buildSpotlightContainer(oldest) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(server))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildLeaderboard(members) {
@@ -67,9 +66,7 @@ function buildLeaderboard(members) {
             `-# **${members.length}** human members ordered by account age`,
         lines,
         perPage: 12,
-        accentColor: COLORS.PURPLE || 0x9B59B6,
-        footer: BRANDING,
-    });
+        accentColor: COLORS.PURPLE || 0x9B59B6 });
 }
 
 async function send(replyFn, guild, userId, args) {
@@ -132,5 +129,4 @@ module.exports = {
             const err = buildErrorResponse('Lookup Failed', 'Could not load members.', error.message);
             await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

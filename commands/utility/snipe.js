@@ -1,6 +1,6 @@
 
 const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 
 const deletedMessages = new Map();
 const MAX_SNIPES = 10;
@@ -65,7 +65,6 @@ function buildSnipeContainer(snipedMessage, index, total) {
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 
     return container;
 }

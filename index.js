@@ -7931,18 +7931,14 @@ client.on('interactionCreate', async (interaction) => {
                 opts.flags = (opts.flags || 0) | MessageFlags.Ephemeral;
             }
             // Accent color on Components V2 containers (type 17) and
-            // append the custom footer text as a small TextDisplay
-            // (type 10) at the end of the container if one is set.
-            // Discord doesn't have a native "footer" slot for CV2
-            // containers, so we add the footer as a styled `-#` line.
-            if (opts.components && Array.isArray(opts.components) && _gCfg.footerText) {
-                _injectCv2Footer(opts.components, _gColor, _gCfg.footerText);
-            } else if (opts.components && Array.isArray(opts.components) && _gColor != null) {
-                for (const c of opts.components) {
-                    if (c?.data?.type === 17 && c.data.accent_color === undefined) {
-                        c.data.accent_color = _gColor;
-                    }
-                }
+            // append footer text as a small TextDisplay (type 10) at
+            // the end of every container. Uses the guild's custom
+            // footerText when set, otherwise falls back to the default
+            // BRANDING line. This centralises branding so individual
+            // commands never need to hardcode it.
+            if (opts.components && Array.isArray(opts.components)) {
+                const _footerText = _gCfg.footerText || 'xNico </>';
+                _injectCv2Footer(opts.components, _gColor, _footerText);
             }
             // Embed color + footer
             if (opts.embeds && Array.isArray(opts.embeds)) {
@@ -10142,19 +10138,12 @@ client.on('messageCreate', async (message) => {
             const _patchMsgOpts = (opts) => {
                 if (typeof opts === 'string') opts = { content: opts };
                 if (!opts) opts = {};
-                // Accent color on Components V2 containers (type 17) +
-                // optional footer line. CV2 containers don't have a
-                // native "footer" slot, so we append a TextDisplay
-                // formatted as a small grey line at the very end of
-                // each container when a custom footer is configured.
-                if (opts.components && Array.isArray(opts.components) && _gFoot) {
-                    _injectCv2Footer(opts.components, _gColor, _gFoot);
-                } else if (opts.components && Array.isArray(opts.components) && _gColor != null) {
-                    for (const c of opts.components) {
-                        if (c?.data?.type === 17 && c.data.accent_color === undefined) {
-                            c.data.accent_color = _gColor;
-                        }
-                    }
+                // Accent color + footer on Components V2 containers.
+                // Always injects a footer line — either the guild's
+                // custom text or the default BRANDING.
+                if (opts.components && Array.isArray(opts.components)) {
+                    const _footerLine = _gFoot || 'xNico </>';
+                    _injectCv2Footer(opts.components, _gColor, _footerLine);
                 }
                 // Embed color + footer
                 if (opts.embeds && Array.isArray(opts.embeds)) {

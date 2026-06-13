@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, MessageFlags, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse } = require('../../utils/responseBuilder');
 const log = require('../../utils/logger-styled');
 
 const jsonStore = require('../../utils/jsonStore');
@@ -45,8 +45,7 @@ const LANG_MAP = {
     'it':       { tts: 'it', label: 'Italian' },
     'pl':       { tts: 'pl', label: 'Polish' },
     'sv':       { tts: 'sv', label: 'Swedish' },
-    'fil':      { tts: 'fil', label: 'Filipino' },
-};
+    'fil':      { tts: 'fil', label: 'Filipino' } };
 
 function readGuildSpeakConfig(guildId) {
     try {
@@ -146,8 +145,7 @@ module.exports = {
 
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 

@@ -4,7 +4,7 @@ const {
     SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder,
     ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags
 } = require('discord.js');
-const { buildErrorResponse, buildUserNotFound, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildUserNotFound, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 // Higher-impact permissions surfaced first in the spotlight section.
@@ -58,7 +58,6 @@ function buildSpotlight(member, allPerms) {
             )
         )
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
 }
 
 function buildFullList(member, allPerms) {
@@ -73,9 +72,7 @@ function buildFullList(member, allPerms) {
             `-# **${allPerms.length}** total permission${allPerms.length === 1 ? '' : 's'} (key permissions highlighted)`,
         lines,
         perPage: 15,
-        accentColor: member.displayColor || COLORS.INFO,
-        footer: BRANDING,
-    });
+        accentColor: member.displayColor || COLORS.INFO });
 }
 
 async function send(replyFn, member, userId, args) {
@@ -149,5 +146,4 @@ module.exports = {
             const container = buildErrorResponse('Failed', 'Could not load permissions.', error.message);
             await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
-    },
-};
+    } };

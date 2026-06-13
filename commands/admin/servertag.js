@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, buildPermissionDenied, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse, buildPermissionDenied, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
@@ -131,8 +131,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0xFEE75C)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -255,7 +254,7 @@ module.exports = {
                 container.setAccentColor(0x57F287);
                 container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
                 container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `-# Keep the tag in your name to keep the role${rewardText ? ' • Rewards are one-time' : ''} • Use \`servertag unequip\` to remove\n${BRANDING}`
+                    `-# Keep the tag in your name to keep the role${rewardText ? ' • Rewards are one-time' : ''} • Use \`servertag unequip\` to remove`
                 ));
 
                 // Channel announcement
@@ -321,7 +320,7 @@ module.exports = {
                 if (tagIdx !== -1) {
                     newNick = (currentName.substring(0, tagIdx) + currentName.substring(tagIdx + guildConfig.tag.length)).trim();
                     // Clean up double spaces
-                    newNick = newNick.replace(/\s{2,}/g, ' ').trim();
+                    newNick = newNick.replace(/\s{2 }/g, ' ').trim();
                 }
 
                 // If nickname becomes empty or matches username, reset to null
@@ -351,7 +350,7 @@ module.exports = {
                 );
                 container.setAccentColor(COLORS.WARNING);
                 container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# You can re-equip anytime with \`servertag equip\`\n${BRANDING}`));
+                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# You can re-equip anytime with \`servertag equip\``));
 
                 // Channel announcement
                 if (guildConfig.notifyChannel) {
@@ -453,7 +452,7 @@ module.exports = {
             );
             container.setAccentColor(0x57F287);
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Tip: Use \`servertag reward <coins> [xp]\` to set rewards • \`servertag scan\` to sync\n${BRANDING}`));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Tip: Use \`servertag reward <coins> [xp]\` to set rewards • \`servertag scan\` to sync`));
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -485,8 +484,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(0xFEE75C)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -758,8 +756,7 @@ module.exports = {
                 const container = new ContainerBuilder()
                     .setAccentColor(COLORS.CYAN)
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
@@ -787,8 +784,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(0x57F287)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }

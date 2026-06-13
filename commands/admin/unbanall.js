@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, BRANDING, buildExpiredPanel } = require('../../utils/responseBuilder');
+const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, buildExpiredPanel } = require('../../utils/responseBuilder');
 
 function buildConfirmPrompt(banCount) {
     const container = new ContainerBuilder()
@@ -30,8 +30,7 @@ function buildConfirmPrompt(banCount) {
                     .setEmoji('<:Cancel:1473037949187657818>')
             )
         )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
     return container;
 }
 
@@ -113,8 +112,7 @@ module.exports = {
                             `**<:User:1473038971398520977> Unbanned By:** ${interaction.user.username}`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 await interaction.editReply({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
             });
@@ -184,8 +182,7 @@ module.exports = {
                             `**<:User:1473038971398520977> Unbanned By:** ${message.author.username}`
                         )
                     )
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
                 await msg.edit({ components: [resultContainer], flags: MessageFlags.IsComponentsV2 });
             });

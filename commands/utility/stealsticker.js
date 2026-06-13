@@ -218,8 +218,7 @@ function buildSuccessSingle(sticker, sourceType) {
             `**Format:** ${STICKER_FORMAT_LABEL[sticker.format] || 'PNG'}` +
             (badge ? `\n**Source:** ${badge}` : '')
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildResultMulti(ok, fail) {
@@ -247,8 +246,7 @@ function buildResultMulti(ok, fail) {
             `-# ${ok.length} succeeded, ${fail.length} failed\n\n` +
             (lines.join('\n') || '*Nothing was processed.*')
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 function buildErrorContainer(title, desc) {

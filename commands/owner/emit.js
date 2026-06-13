@@ -167,8 +167,7 @@ function buildEventListContainer() {
     return new ContainerBuilder()
         .setAccentColor(COLORS.CYAN || 0x5BC0EB)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(listContent))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 }
 
 /* ─────────────── module ─────────────── */

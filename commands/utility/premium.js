@@ -252,7 +252,7 @@ function buildStatusContainer({ targetUser, requesterUser, guild, client }) {
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${BRANDING}`));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     return container;
 }

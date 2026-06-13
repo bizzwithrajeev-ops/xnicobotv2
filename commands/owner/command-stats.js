@@ -1,7 +1,7 @@
 const { isOwner } = require('../../utils/helpers');
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
-const { COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 
@@ -52,7 +52,6 @@ function buildCommandStatsDisplay(stats, client, filter) {
                 `-# Commands will be tracked as they are used.`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
         return { components: [container], flags: MessageFlags.IsComponentsV2 };
     }
 
@@ -90,9 +89,7 @@ function buildCommandStatsDisplay(stats, client, filter) {
             `> <:Caretright:1473038207221502106> **Filter:** \`${filter || 'most-used'}\``,
         lines,
         perPage: 10,
-        accentColor: COLORS.INFO,
-        footer: BRANDING
-    });
+        accentColor: COLORS.INFO });
 }
 
 function buildSingleCommandStats(stats, commandName) {
@@ -143,8 +140,7 @@ function buildSingleCommandStats(stats, commandName) {
     const container = new ContainerBuilder()
         .setAccentColor(COLORS.INFO)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
@@ -174,7 +170,6 @@ module.exports = {
                     `# ${EMOJIS.SUCCESS} Statistics Reset\n\nAll command usage statistics have been cleared.`
                 ))
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 

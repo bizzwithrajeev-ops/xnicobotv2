@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits, ChannelType } = require('discord.js');
-const { buildErrorResponse, buildSuccessResponse, COLORS, EMOJIS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildSuccessResponse, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 const { resolveUser } = require('../../utils/resolveUser');
@@ -52,8 +52,7 @@ module.exports = {
             const container = new ContainerBuilder()
                 .setAccentColor(COLORS.CYAN)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
 
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
@@ -112,7 +111,7 @@ module.exports = {
             );
             container.setAccentColor(COLORS.ERROR);
             container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Use \`voiceunban @${member.user.username}\` to remove the ban\n${BRANDING}`));
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Use \`voiceunban @${member.user.username}\` to remove the ban`));
 
             message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

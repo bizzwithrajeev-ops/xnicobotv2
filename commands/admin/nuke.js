@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { buildErrorResponse, buildPermissionDenied, buildLoadingResponse, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildPermissionDenied, buildLoadingResponse } = require('../../utils/responseBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -54,8 +54,7 @@ module.exports = {
                             `> <:Alarm:1473039068546732214> **Time:** <t:${Math.floor(Date.now() / 1000)}:R>`
                         )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             
             await newChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
@@ -108,8 +107,7 @@ module.exports = {
                             `> <:Alarm:1473039068546732214> **Time:** <t:${Math.floor(Date.now() / 1000)}:R>`
                         )
                 )
-                .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
             
             await newChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {

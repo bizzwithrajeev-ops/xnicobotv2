@@ -1,5 +1,5 @@
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, PermissionFlagsBits } = require('discord.js');
-const { buildErrorResponse, buildPermissionDenied, COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { buildErrorResponse, buildPermissionDenied, COLORS } = require('../../utils/responseBuilder');
 const { paginate, setupPaginationCollector } = require('../../utils/pagination');
 
 module.exports = {
@@ -31,8 +31,7 @@ module.exports = {
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `# <:Checkedbox:1473038547165384804> No Inactive Members\n\nNo members found who joined more than **${days}** days ago.`
                     ))
-                    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+;
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
@@ -44,9 +43,7 @@ module.exports = {
                 header: `# <:Timer:1473039056710406204> Inactive Members (${inactiveMembers.size})\n-# Members who joined more than **${days}** days ago`,
                 lines: allLines,
                 perPage: 15,
-                accentColor: COLORS.PRIMARY,
-                footer: BRANDING
-            });
+                accentColor: COLORS.PRIMARY });
 
             const reply = await message.reply(result);
             setupPaginationCollector(reply, result._pageData, message.author.id);

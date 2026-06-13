@@ -80,15 +80,8 @@ function buildSuccessResponse(title, description, details = null, showBranding =
         }
     }
 
-    const container = new ContainerBuilder()
+    return new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-    
-    if (showBranding) {
-        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
-    }
-    
-    return container;
 }
 
 function buildErrorResponse(title, description, suggestion = null) {
@@ -178,9 +171,7 @@ function buildModerationResponse(action, target, moderator, reason = null, durat
     if (caseId) content += `**Case ID:** #${caseId}\n`;
     
     return new ContainerBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 function buildListResponse(title, items, emptyMessage = 'No items found.') {
@@ -200,9 +191,7 @@ function buildListResponse(title, items, emptyMessage = 'No items found.') {
     }
     
     return new ContainerBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 function buildProgressResponse(title, current, total, description = '', stage = null) {
@@ -221,10 +210,7 @@ function buildProgressResponse(title, current, total, description = '', stage = 
     if (description) content += `\n\n${description}`;
 
     return new ContainerBuilder()
-        .setAccentColor(COLORS.INFO)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 function buildConfirmResponse(title, description, confirmId, cancelId) {
@@ -309,9 +295,7 @@ function buildStatsResponse(title, stats) {
     }
     
     return new ContainerBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 function buildPermissionDenied(requiredPermission = null) {
@@ -441,10 +425,7 @@ function buildLoadingResponse(title, description, hint = null) {
     }
 
     return new ContainerBuilder()
-        .setAccentColor(COLORS.INFO)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
 }
 
 /**
@@ -465,12 +446,7 @@ function buildExpiredPanel(commandHint, contextMsg = null) {
         : `This panel timed out due to inactivity.\n`;
     content += `-# Run \`${commandHint}\` to start a new session.`;
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-    container.addSeparatorComponents(
-        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
-    );
-    container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`-# xNico </> · Expired <t:${now}:R>`)
-    );
+    // Footer will be injected by the runtime patcher
     return container;
 }
 
@@ -498,8 +474,6 @@ function buildPremiumGate(commandName) {
     content += `-# Premium also bypasses command cooldowns and unlocks bot customization, custom currency, custom shop, loans, and more.`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(BRANDING));
     return container;
 }
 

@@ -3,12 +3,11 @@ const {
     TextDisplayBuilder,
     SeparatorBuilder,
     SeparatorSpacingSize,
-    MessageFlags,
-} = require('discord.js');
+    MessageFlags } = require('discord.js');
 
 const badgeManager = require('../../utils/badgeManager');
 const { isOwner } = require('../../utils/helpers');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 
 function err(title, body) {
     return new ContainerBuilder()
@@ -30,7 +29,7 @@ function ok(badge) {
             `\nGrant it with \`/badge-give @user ${badge.badgeId}\`.`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${BRANDING}`));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 }
 
 const VALID_HEX = /^#?[0-9a-fA-F]{6}$/;
@@ -90,5 +89,4 @@ module.exports = {
         const r = await handleCreate(payload);
         if (r.error) return message.reply({ components: [r.error], flags: MessageFlags.IsComponentsV2 });
         return message.reply({ components: [r.container], flags: MessageFlags.IsComponentsV2 });
-    },
-};
+    } };
