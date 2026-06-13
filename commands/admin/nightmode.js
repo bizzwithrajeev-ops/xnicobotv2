@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 const jsonStore = require('../../utils/jsonStore');
 
@@ -50,8 +50,7 @@ function buildPanel(guildConfig, guildName) {
         `### <:Lightningalt:1473038679906844824> Commands\n` +
         `<:Caretright:1473038207221502106> \`nightmode enable\` — Lock the server down\n` +
         `<:Caretright:1473038207221502106> \`nightmode disable\` — Restore normal permissions\n\n` +
-        `-# <:Infotriangle:1473038460456800459> Use during raids or off-hours to prevent damage\n\n` +
-        BRANDING;
+        `-# <:Infotriangle:1473038460456800459> Use during raids or off-hours to prevent damage`;
 
     const container = new ContainerBuilder()
         .setAccentColor(guildConfig.enabled ? 0xED4245 : 0x57F287);

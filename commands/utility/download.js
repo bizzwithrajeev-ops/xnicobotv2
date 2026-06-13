@@ -23,7 +23,6 @@ const ffmpegStatic = require('ffmpeg-static');
 const { uploadFile } = require('../../utils/tempFileServer');
 
 const execAsync = promisify(exec);
-const BRANDING        = '-# xNico </>';
 const LOGO_PATH       = path.join(__dirname, '../../assets/images/nico-avatar.png');
 const TEMP_DIR        = path.join(__dirname, '../../temp_downloads');
 const COOKIES_FILE    = path.join(__dirname, '../../data/cookies.txt');

@@ -48,7 +48,6 @@ function buildGuildFeatures(guild) {
         .setAccentColor(COLORS.INFO)
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 }
 
 module.exports = {

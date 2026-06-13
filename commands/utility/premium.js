@@ -24,11 +24,10 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    MessageFlags,
-} = require('discord.js');
+    MessageFlags } = require('discord.js');
 
 const premiumManager = require('../../utils/premiumManager');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 
 /* ─── Custom emojis ─── */
 const E = {
@@ -52,8 +51,7 @@ const E = {
     settings: '<:Settings:1473037894703779851>',
     support:  '<:topgg:1473546762248523839>',
     edit:     '<:Edit:1473037903625191580>',
-    lightning:'<:Lightning:1473038797540298792>',
-};
+    lightning:'<:Lightning:1473038797540298792>' };
 
 /* ─── Premium feature catalog ───────────────────────────────────────
  *
@@ -66,80 +64,67 @@ const PREMIUM_FEATURES = [
         title: 'Bot Customization',
         emoji: E.settings,
         description: 'Custom bot nickname, avatar, prefix, embed colors and footer per server.',
-        commands: ['/bot-customize'],
-    },
+        commands: ['/bot-customize'] },
     {
         title: 'AI Chat Assistant',
         emoji: E.bots,
         description: 'Set up a dedicated AI chat channel powered by Llama 3 / Groq.',
-        commands: ['/aichat-setup'],
-    },
+        commands: ['/aichat-setup'] },
     {
         title: 'Suggestion + Feedback Systems',
         emoji: E.edit,
         description: 'Numbered suggestion cards with vote bars, threads, mod review, DMs, and star-rated feedback panel.',
-        commands: ['/suggestion', '/feedback'],
-    },
+        commands: ['/suggestion', '/feedback'] },
     {
         title: 'Anonymous Confessions',
         emoji: E.shield,
         description: 'Anonymous confession channel with reply threads and admin-only audit log.',
-        commands: ['/confess', '/confession-setup'],
-    },
+        commands: ['/confess', '/confession-setup'] },
     {
         title: 'Auto-Nick',
         emoji: E.user,
         description: 'Automatically nick new members to a custom format with `{user}` placeholders.',
-        commands: ['/autonick'],
-    },
+        commands: ['/autonick'] },
     {
         title: 'Vanity Guard',
         emoji: E.shield,
         description: 'Detect, revert, and optionally ban anyone who changes the server vanity URL without permission.',
-        commands: ['/vanityguard'],
-    },
+        commands: ['/vanityguard'] },
     {
         title: 'Night Mode',
         emoji: E.clock,
         description: 'Schedule channel lockdowns based on time of day to fight late-night raids.',
-        commands: ['/nightmode'],
-    },
+        commands: ['/nightmode'] },
     {
         title: 'Super Threat Mode',
         emoji: E.fire,
         description: 'Tighten every protection (anti-nuke, anti-raid, automod) at once during an active threat.',
-        commands: ['/superthreatmode'],
-    },
+        commands: ['/superthreatmode'] },
     {
         title: 'Custom Currency',
         emoji: E.money,
         description: 'Rename and re-emoji the server currency (gems, gold, credits — anything).',
-        commands: ['/currency'],
-    },
+        commands: ['/currency'] },
     {
         title: 'Custom Shop',
         emoji: E.fire,
         description: 'Build a guild-specific shop with custom items and reward actions (give role, DM, add coins...).',
-        commands: ['/customshop'],
-    },
+        commands: ['/customshop'] },
     {
         title: 'Loan Office',
         emoji: E.money,
         description: 'Borrow against your bank with daily interest and repay anytime.',
-        commands: ['/loan'],
-    },
+        commands: ['/loan'] },
     {
         title: 'No Cooldowns',
         emoji: E.lightning,
         description: 'Premium users bypass per-server slash and prefix command cooldowns.',
-        commands: [],
-    },
+        commands: [] },
     {
         title: 'Premium Profile Badge',
         emoji: E.crown,
         description: 'A premium badge on your `/profile` and `/userinfo` views.',
-        commands: [],
-    },
+        commands: [] },
 ];
 
 /* ─── Helpers ─── */
@@ -285,7 +270,7 @@ function buildFeaturesContainer({ hasAccess }) {
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# More premium-only features ship every release · ${BRANDING}`
+        `-# More premium-only features ship every release �`
     ));
 
     return container;
@@ -330,7 +315,7 @@ function buildPricingContainer({ hasAccess }) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# Questions? Open a ticket in the support server. · ${BRANDING}`
+        `-# Questions? Open a ticket in the support server. �`
     ));
 
     return container;
@@ -372,8 +357,7 @@ module.exports = {
             requesterUser: interaction.user,
             guild: interaction.guild,
             client: interaction.client,
-            hasAccess: premiumManager.hasPremiumAccess(targetUser.id, interaction.guild?.id),
-        };
+            hasAccess: premiumManager.hasPremiumAccess(targetUser.id, interaction.guild?.id) };
         const components = [
             buildView(sub, ctx),
             buildButtonRow(sub),
@@ -394,8 +378,7 @@ module.exports = {
             requesterUser: message.author,
             guild: message.guild,
             client: message.client,
-            hasAccess: premiumManager.hasPremiumAccess(targetUser.id, message.guild?.id),
-        };
+            hasAccess: premiumManager.hasPremiumAccess(targetUser.id, message.guild?.id) };
         const components = [
             buildView(view, ctx),
             buildButtonRow(view),
@@ -418,8 +401,7 @@ module.exports = {
             requesterUser: interaction.user,
             guild: interaction.guild,
             client: interaction.client,
-            hasAccess: premiumManager.hasPremiumAccess(targetUser.id, interaction.guild?.id),
-        };
+            hasAccess: premiumManager.hasPremiumAccess(targetUser.id, interaction.guild?.id) };
         const components = [
             buildView(view, ctx),
             buildButtonRow(view),
@@ -429,5 +411,4 @@ module.exports = {
         return true;
     },
 
-    PREMIUM_FEATURES,
-};
+    PREMIUM_FEATURES };

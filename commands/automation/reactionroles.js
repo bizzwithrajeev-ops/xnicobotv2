@@ -160,7 +160,7 @@ function buildSetupMessage(setup, guild) {
     container.addActionRowComponents(row3);
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
@@ -270,7 +270,7 @@ function buildPanelPreview(setup, guild) {
     }
 
     panelContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+    panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     return panelContainer;
 }
@@ -815,7 +815,7 @@ module.exports = {
             new TextDisplayBuilder().setContent(`## ${title}\n${description}\n\n-# No roles added yet — use \`/reactionroles add\` to add roles`)
         );
         panelContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+        panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
         const roleMessage = await channel.send({
             components: [panelContainer],
@@ -1193,7 +1193,7 @@ module.exports = {
         }
 
         panelContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+        panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
         await message.edit({ components: [panelContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
 
@@ -1244,7 +1244,7 @@ module.exports = {
                         new TextDisplayBuilder().setContent(`## ${title}\nReact with the emojis below to assign yourself a role.\n\n-# No roles added yet`)
                     );
                 panelContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-                panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+                panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
                 const roleMessage = await message.channel.send({ components: [panelContainer], flags: MessageFlags.IsComponentsV2 });
 

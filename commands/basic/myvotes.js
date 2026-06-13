@@ -104,7 +104,6 @@ function buildVoteStatsPanel(user, userData, clientId) {
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(statsContent))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     const voteRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

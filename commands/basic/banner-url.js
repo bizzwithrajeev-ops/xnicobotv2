@@ -12,7 +12,6 @@ function buildBannerResponse(user, bannerURL) {
                 new MediaGalleryItemBuilder().setURL(bannerURL)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

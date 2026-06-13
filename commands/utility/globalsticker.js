@@ -129,7 +129,7 @@ function buildBrowserPayload(state) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# ${E.bulb} Server boost level limits sticker slots • ${BRANDING}`
+        `-# ${E.bulb} Server boost level limits sticker slots • `
     ));
 
     return { components: [container], flags: MessageFlags.IsComponentsV2 };

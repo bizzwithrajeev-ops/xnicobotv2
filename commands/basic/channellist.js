@@ -42,7 +42,6 @@ function buildChannelListContainer(guild) {
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     return container;
 }

@@ -197,7 +197,6 @@ async function buildUserInfo(user, guild, client) {
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     return { container, buttons };
 }

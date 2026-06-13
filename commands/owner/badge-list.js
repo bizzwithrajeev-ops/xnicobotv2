@@ -20,7 +20,6 @@ function buildEmptyContainer(title) {
             `# ${BADGE_ICONS.Award} ${title}\n\n*No badges to show.*`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 }
 
 function userBadgeLine(b) {
@@ -45,7 +44,6 @@ async function buildUserBadgesPayload(user) {
         lines,
         perPage: 8,
         accentColor: ACCENT,
-        footer: `-# xNico </>`
     });
     return { payload: { components: result.components, flags: result.flags }, pageData: result._pageData };
 }
@@ -69,7 +67,6 @@ async function buildAllBadgesPayload() {
         lines,
         perPage: 10,
         accentColor: ACCENT,
-        footer: `-# xNico </>`
     });
     return { payload: { components: result.components, flags: result.flags }, pageData: result._pageData };
 }

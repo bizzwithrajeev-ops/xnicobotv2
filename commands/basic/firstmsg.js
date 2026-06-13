@@ -20,7 +20,6 @@ async function buildFirstMsg(channel) {
             `### <:Edit:1473037903625191580> Content\n> ${firstMessage.content || '*No text content*'}`
         ))
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

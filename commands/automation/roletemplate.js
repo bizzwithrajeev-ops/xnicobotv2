@@ -189,7 +189,7 @@ function buildTemplatePanel(session) {
         .addActionRowComponents(controlButtons)
         .addActionRowComponents(applyRow)
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# <:Infotriangle:1473038460456800459> Roles will be auto-created below the bot\'s highest role\n-# xNico </>'));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# <:Infotriangle:1473038460456800459> Roles will be auto-created below the bot\'s highest role'));
 
     return container;
 }
@@ -228,7 +228,7 @@ function buildRolePanel(template, roleMap) {
     panelContainer.addActionRowComponents(selectMenu);
 
     panelContainer.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-    panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Select an option to get the role • Select again to remove it\n-# xNico </>`));
+    panelContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Select an option to get the role • Select again to remove it`));
 
     return panelContainer;
 }
@@ -271,7 +271,7 @@ function buildResultPanel(results) {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(tipsText))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     return container;
 }

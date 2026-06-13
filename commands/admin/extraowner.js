@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 
 function buildPanel(guild, secondOwnerId) {
@@ -25,8 +25,7 @@ function buildPanel(guild, secondOwnerId) {
         `<:Caretright:1473038207221502106> \`extraowner set @user\` — Set a user as extra owner\n` +
         `<:Caretright:1473038207221502106> \`extraowner view\` — View current extra owner\n` +
         `<:Caretright:1473038207221502106> \`extraowner reset\` — Remove the extra owner\n\n` +
-        `-# <:Infotriangle:1473038460456800459> Only the server owner can manage this setting\n\n` +
-        BRANDING;
+        `-# <:Infotriangle:1473038460456800459> Only the server owner can manage this setting`;
 
     const container = new ContainerBuilder()
         .setAccentColor(secondOwnerId ? 0x57F287 : null);

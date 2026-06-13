@@ -1,12 +1,11 @@
 const {
     ContainerBuilder,
     TextDisplayBuilder,
-    MessageFlags,
-} = require('discord.js');
+    MessageFlags } = require('discord.js');
 
 const badgeManager = require('../../utils/badgeManager');
 const { isOwner } = require('../../utils/helpers');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 
 const VALID_HEX = /^#?[0-9a-fA-F]{6}$/;
 const VALID_URL = /^https?:\/\/\S+\.\S+/;
@@ -26,7 +25,7 @@ function ok(badge) {
             `# <:Checkedbox:1473038547165384804> Badge Updated\n\n` +
             `${badge.emoji} **${badge.name}** \`(${badge.badgeId})\`\n` +
             (badge.description ? `> ${badge.description}\n` : '') +
-            `\n-# ${BRANDING}`
+            `\n-# `
         ));
 }
 
@@ -92,5 +91,4 @@ module.exports = {
         const result = await badgeManager.editBadge(id, patch);
         if (!result.success) return message.reply({ components: [err('Edit Failed', result.message || 'Could not edit the badge.')], flags: MessageFlags.IsComponentsV2 });
         return message.reply({ components: [ok(result.badge)], flags: MessageFlags.IsComponentsV2 });
-    },
-};
+    } };

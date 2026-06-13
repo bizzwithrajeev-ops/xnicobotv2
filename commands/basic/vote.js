@@ -19,7 +19,6 @@ function buildVoteResponse(client) {
     const container = new ContainerBuilder()
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

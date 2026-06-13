@@ -16,7 +16,6 @@ function buildIconResponse(guild) {
                 new MediaGalleryItemBuilder().setURL(iconURL)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

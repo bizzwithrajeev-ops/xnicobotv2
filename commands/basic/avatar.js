@@ -51,7 +51,6 @@ function buildAvatarResponse(user, member, mode = 'auto') {
                 new MediaGalleryItemBuilder().setURL(avatarURL)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     // Build action row with toggle buttons + open in browser
     const row = new ActionRowBuilder().addComponents(

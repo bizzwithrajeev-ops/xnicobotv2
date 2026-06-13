@@ -32,7 +32,7 @@ async function buildUserBannerResponse(client, user) {
                 new MediaGalleryItemBuilder().setURL(bannerURL)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -61,7 +61,7 @@ async function buildServerBannerResponse(guild) {
                 new MediaGalleryItemBuilder().setURL(bannerURL)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

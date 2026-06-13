@@ -12,7 +12,6 @@ function buildSpotifyUnavailable() {
         .setAccentColor(0x1DB954)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 }
 
 module.exports = {

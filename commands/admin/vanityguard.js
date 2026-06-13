@@ -1,5 +1,5 @@
 const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
-const { COLORS, BRANDING } = require('../../utils/responseBuilder');
+const { COLORS } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 const jsonStore = require('../../utils/jsonStore');
 
@@ -58,8 +58,7 @@ function buildPanel(guildConfig, guildName) {
         `<:Caretright:1473038207221502106> \`vanityguard enable / disable\`\n` +
         `<:Caretright:1473038207221502106> \`vanityguard wl @user\` — Toggle whitelist\n` +
         `<:Caretright:1473038207221502106> \`vanityguard log #channel\` — Set alert channel\n` +
-        `<:Caretright:1473038207221502106> \`vanityguard action none|kick|ban\` — Punishment on violation\n\n` +
-        BRANDING;
+        `<:Caretright:1473038207221502106> \`vanityguard action none|kick|ban\` — Punishment on violation`;
 
     const container = new ContainerBuilder()
         .setAccentColor(guildConfig.enabled ? 0x57F287 : 0xED4245);

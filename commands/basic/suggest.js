@@ -56,7 +56,6 @@ async function sendSuggestion(client, author, guild, suggestion) {
                 `${E.clock} **Submitted:** <t:${Math.floor(Date.now() / 1000)}:R>`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
         await owner.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
         return { success: true };

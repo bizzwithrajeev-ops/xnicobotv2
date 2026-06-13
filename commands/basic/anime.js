@@ -76,8 +76,6 @@ function buildAnimeContainer(anime) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`[View on AniList](${anime.siteUrl})`));
     }
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
-
     return container;
 }
 

@@ -7,7 +7,6 @@ const {
 } = require('discord.js');
 const {
     buildPermissionDenied, buildErrorResponse, buildLoadingResponse,
-    BRANDING
 } = require('../../utils/responseBuilder');
 
 const CHANNEL_TYPE_LABELS = {

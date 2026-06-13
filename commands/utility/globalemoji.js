@@ -186,7 +186,7 @@ function buildBrowserPayload(state) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# ${E.bulb} Tap **Search** to filter, **Steal by ID** to grab any emoji you have an ID for • ${BRANDING}`
+        `-# ${E.bulb} Tap **Search** to filter, **Steal by ID** to grab any emoji you have an ID for • `
     ));
 
     return { components: [container], flags: MessageFlags.IsComponentsV2 };

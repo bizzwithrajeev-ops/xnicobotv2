@@ -21,7 +21,6 @@ function buildSupportResponse(client) {
             )
         )
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

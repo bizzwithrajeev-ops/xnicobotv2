@@ -45,7 +45,6 @@ module.exports = {
                 lines: [...allLines],
                 perPage: 5,
                 accentColor: COLORS.INFO,
-                footer: `-# xNico </>`
             });
 
             const reply = await message.reply(result);

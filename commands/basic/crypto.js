@@ -40,7 +40,7 @@ function buildCryptoContainer(coin, data) {
             )
         )
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </> • Data from CoinGecko`));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Data from CoinGecko`));
 }
 
 module.exports = {

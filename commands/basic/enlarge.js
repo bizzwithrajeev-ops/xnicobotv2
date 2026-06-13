@@ -20,7 +20,6 @@ function buildEnlarged(customEmoji) {
                 new MediaGalleryItemBuilder().setURL(url)
             )
         )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 }
 
 module.exports = {

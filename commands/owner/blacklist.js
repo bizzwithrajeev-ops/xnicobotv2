@@ -39,7 +39,6 @@ function buildBlacklistPaginated(blacklist) {
             .setAccentColor(COLORS.INFO)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Commentblock:1473370739351490794> Blacklist\n\n*No blacklisted users or servers.*`))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
         return { components: [container], flags: MessageFlags.IsComponentsV2 };
     }
 
@@ -48,7 +47,6 @@ function buildBlacklistPaginated(blacklist) {
         lines: allLines,
         perPage: 10,
         accentColor: COLORS.INFO,
-        footer: `-# xNico </>`
     });
 }
 
@@ -101,7 +99,6 @@ module.exports = {
                         `<:Caretright:1473038207221502106> **Reason:** ${reason}`
                     ))
                     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             } catch {
                 return message.reply('<:Cancel:1473037949187657818> Could not find that user!');
@@ -144,7 +141,6 @@ module.exports = {
                     (guild ? `\n<:Caretright:1473038207221502106> **Left server:** Yes` : '')
                 ))
                 .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
@@ -171,7 +167,6 @@ module.exports = {
                 `<:Caretright:1473038207221502106> \`blacklist remove-server <id>\` - Remove server`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
         
         return message.reply({ components: [helpContainer], flags: MessageFlags.IsComponentsV2 });
     }

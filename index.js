@@ -7,7 +7,7 @@ const path = require('path');
 const emojiGuard = require('./utils/emojiGuard');
 emojiGuard.installPatches();
 
-const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, ActivityType, PresenceUpdateStatus, ContainerBuilder, TextDisplayBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, SectionBuilder, ThumbnailBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SeparatorBuilder, SeparatorSpacingSize, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, ActivityType, PresenceUpdateStatus, DefaultWebSocketManagerOptions, ContainerBuilder, TextDisplayBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, SectionBuilder, ThumbnailBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SeparatorBuilder, SeparatorSpacingSize, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { formatTime, isOwner } = require('./utils/helpers');
 const { createLavalinkManager, setupLavalinkEvents, initLavalink, autoplayStatus, lastPlayedTracks, autoplayHistory, panelUpdateIntervals, panelUpdateInProgress, previousVolume, nowPlayingMessages, musicPanelCache, musicPanelChannelCache, inactivityTimers } = require('./utils/lavalinkSetup');
 const premiumManager = require('./utils/premiumManager');
@@ -176,23 +176,36 @@ function startActivityRotation(client) {
     const intervalMs = (activityData.rotateInterval || 30) * 1000;
 
     activityRotationInterval = setInterval(() => {
-        const data = getActivities();
-        if (!data.rotating || data.activities.length === 0) {
-            stopActivityRotation();
-            return;
+        try {
+            const data = getActivities();
+            if (!data.rotating || data.activities.length === 0) {
+                stopActivityRotation();
+                return;
+            }
+
+            // Build list of included activity indices (respects rotation settings)
+            const settings = data.rotationSettings || {};
+            const includedIndices = data.activities
+                .map((_, i) => i)
+                .filter(i => settings[i] !== false);
+            if (includedIndices.length === 0) return;
+
+            activityRotationIndex = (activityRotationIndex + 1) % includedIndices.length;
+            const activity = data.activities[includedIndices[activityRotationIndex]];
+            if (!activity) return;
+
+            const typeMap = { 'Playing': ActivityType.Playing, 'Watching': ActivityType.Watching, 'Listening': ActivityType.Listening, 'Competing': ActivityType.Competing, 'Streaming': ActivityType.Streaming };
+
+            const resolvedText = resolveVariables(activity.text, client);
+            const presenceOpts = {
+                status: data.savedStatus || 'online',
+                activities: [{ name: resolvedText, type: typeMap[activity.type] || ActivityType.Playing }]
+            };
+            if (activity.type === 'Streaming') presenceOpts.activities[0].url = 'https://www.twitch.tv/discord';
+            client.user.setPresence(presenceOpts);
+        } catch (e) {
+            log.error('Activity rotation error: ' + e.message);
         }
-
-        activityRotationIndex = (activityRotationIndex + 1) % data.activities.length;
-        const activity = data.activities[activityRotationIndex];
-        const typeMap = { 'Playing': ActivityType.Playing, 'Watching': ActivityType.Watching, 'Listening': ActivityType.Listening, 'Competing': ActivityType.Competing, 'Streaming': ActivityType.Streaming };
-
-        const resolvedText = resolveVariables(activity.text, client);
-        const presenceOpts = {
-            status: data.savedStatus || 'online',
-            activities: [{ name: resolvedText, type: typeMap[activity.type] || ActivityType.Playing }]
-        };
-        if (activity.type === 'Streaming') presenceOpts.activities[0].url = 'https://www.twitch.tv/discord';
-        client.user.setPresence(presenceOpts);
     }, intervalMs);
 
     log.info(`Activity rotation started (${activityData.activities.length} activities, ${activityData.rotateInterval || 30}s interval)`);
@@ -450,7 +463,7 @@ async function handleBotPanelButton(interaction, client) {
     }
 
     const customId = interaction.customId;
-    const { buildBotPanel, buildActivityModal, buildImageModal, buildUsernameModal, buildNicknameModal } = require('./commands/owner/botpanel');
+    const { buildBotPanel, buildImageModal, buildUsernameModal, buildNicknameModal } = require('./commands/owner/botpanel');
 
     // Status changes
     if (customId.startsWith('botpanel_status_')) {
@@ -541,7 +554,15 @@ async function handleBotPanelButton(interaction, client) {
 
     // Activity clear
     if (customId === 'botpanel_activity_clear') {
-        await client.user.setPresence({ activities: [] });
+        // Stop rotation so the clear actually persists
+        const { getActivities, saveActivities } = require('./commands/owner/botpanel');
+        const activityData = getActivities();
+        if (activityData.rotating) {
+            activityData.rotating = false;
+            saveActivities(activityData);
+            stopActivityRotation();
+        }
+        await client.user.setPresence({ activities: [], status: activityData.savedStatus || 'online' });
         const panel = buildBotPanel(client);
         await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
         return true;
@@ -653,9 +674,17 @@ async function handleBotPanelButton(interaction, client) {
 
     // Custom Status clear
     if (customId === 'botpanel_custom_clear') {
+        // Stop custom rotation so the clear persists
+        const { getActivities, saveActivities } = require('./commands/owner/botpanel');
+        const activityData = getActivities();
+        if (activityData.customRotating) {
+            activityData.customRotating = false;
+            saveActivities(activityData);
+            stopCustomStatusRotation();
+        }
         const currentActivities = client.user.presence?.activities || [];
         if (currentActivities.length > 0 && currentActivities[0].type === 4) {
-            await client.user.setPresence({ activities: [] });
+            await client.user.setPresence({ activities: [], status: activityData.savedStatus || 'online' });
         }
         const panel = buildBotPanel(client);
         await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
@@ -713,17 +742,6 @@ async function handleBotPanelButton(interaction, client) {
         const panel = buildCustomStatusManagerPanel(client, page);
         await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
         return true;
-    }
-
-    // Legacy activity modals (keep for compatibility)
-    if (customId.startsWith('botpanel_activity_')) {
-        const activityType = customId.replace('botpanel_activity_', '');
-
-        if (['playing', 'watching', 'listening', 'competing'].includes(activityType)) {
-            const modal = buildActivityModal(activityType);
-            await interaction.showModal(modal);
-            return true;
-        }
     }
 
     // Image modals (avatar/banner)
@@ -786,22 +804,33 @@ async function handleBotPanelButton(interaction, client) {
         try {
             await interaction.reply({ content: '<a:Loading:1485248248720658472> Resetting bot configuration to default stage...', flags: MessageFlags.Ephemeral });
 
-            // Reset Avatar and Banner
+            // Stop all rotations
+            stopActivityRotation();
+            stopCustomStatusRotation();
+
+            // Clear saved activity data
+            const { saveActivities } = require('./commands/owner/botpanel');
+            saveActivities({
+                activities: [], customStatuses: [], savedStatus: 'online',
+                current: null, rotating: false, customRotating: false,
+                rotateInterval: 30, customRotateInterval: 30, rotationSettings: {}
+            });
+
+            // Reset Avatar
             await client.user.setAvatar(null).catch(() => { });
-            await client.rest.patch(Routes.user(), { body: { banner: null } }).catch(() => { });
 
-            // Reset Status and Activity
-            await client.user.setPresence({ status: 'dnd', activities: [] });
-
-            // Reset Username (Warning: limited by Discord rate limits)
-            // await client.user.setUsername('DefaultName').catch(() => {}); 
+            // Reset Status and Activity to default
+            await client.user.setPresence({
+                status: PresenceUpdateStatus.Online,
+                activities: [{ name: 'xNico </>', type: ActivityType.Watching }]
+            });
 
             await interaction.followUp({ content: '<:Checkedbox:1473038547165384804> Bot has been reset to default stage!', flags: MessageFlags.Ephemeral });
 
             const panel = buildBotPanel(client);
-            await interaction.message.edit({ components: [panel] });
+            await interaction.message.edit({ components: [panel], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         } catch (error) {
-            await interaction.followUp({ content: `<:Cancel:1473037949187657818> Failed to reset bot: ${error.message}`, flags: MessageFlags.Ephemeral });
+            await interaction.followUp({ content: `<:Cancel:1473037949187657818> Failed to reset bot: ${error.message}`, flags: MessageFlags.Ephemeral }).catch(() => { });
         }
         return true;
     }
@@ -956,6 +985,7 @@ async function handleBotPanelModal(interaction, client) {
 }
 
 // Intent configuration
+DefaultWebSocketManagerOptions.identifyProperties.browser = 'Discord VR';
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -973,7 +1003,14 @@ const client = new Client({
         GatewayIntentBits.GuildMessageReactions
     ],
     partials: [Partials.User, Partials.Channel, Partials.Message, Partials.Reaction, Partials.GuildMember],
-    allowedMentions: { parse: [], repliedUser: false }
+    allowedMentions: { parse: [], repliedUser: false },
+    presence: {
+        status: PresenceUpdateStatus.Online,
+        activities: [{
+            name: '-help | /help',
+            type: ActivityType.Watching
+        }]
+    }
 });
 
 client.on('error', error => log.error('Client error: ' + error.message));
@@ -1314,7 +1351,7 @@ client.on(Events.ClientReady, async () => {
             });
         } else {
             client.user.setPresence({
-                activities: [{ name: '-help | /help', type: ActivityType.Listening }],
+                activities: [{ name: 'xNico </>', type: ActivityType.Watching }],
                 status: savedStatus
             });
         }
@@ -1325,8 +1362,8 @@ client.on(Events.ClientReady, async () => {
         }
     } catch (e) {
         client.user.setPresence({
-            activities: [{ name: '-help | /help', type: ActivityType.Listening }],
-            status: 'idle'
+            activities: [{ name: 'xNico </>', type: ActivityType.Watching }],
+            status: 'online'
         });
     }
 

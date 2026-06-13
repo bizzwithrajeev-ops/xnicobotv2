@@ -73,8 +73,6 @@ function buildMangaContainer(manga) {
         container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`[View on AniList](${manga.siteUrl})`));
     }
-
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
     return container;
 }
 

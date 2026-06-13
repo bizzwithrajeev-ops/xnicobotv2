@@ -53,7 +53,6 @@ module.exports = {
         content += `**Question:** ${question}\n\n`;
         content += `### 🔮 Answer\n`;
         content += `> ${response.text}\n\n`;
-        content += `-# xNico </>`;
 
         const container = new ContainerBuilder()
             .setAccentColor(typeColors[response.type])
@@ -79,7 +78,6 @@ module.exports = {
         content += `**Question:** ${question}\n\n`;
         content += `### 🔮 Answer\n`;
         content += `> ${response.text}\n\n`;
-        content += `-# xNico </>`;
 
         const container = new ContainerBuilder()
             .setAccentColor(typeColors[response.type])

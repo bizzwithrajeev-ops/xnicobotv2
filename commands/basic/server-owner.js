@@ -22,7 +22,6 @@ async function buildOwnerContainer(guild) {
         .setAccentColor(owner.displayColor || COLORS.WARNING)
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 }
 
 module.exports = {

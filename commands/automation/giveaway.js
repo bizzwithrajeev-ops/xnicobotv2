@@ -123,7 +123,6 @@ function buildSetupPanel(guildSettings, guild) {
     const totalCount = Object.keys(guildGiveaways).length;
     content += `> 🎁 **Active Giveaways:** ${activeCount}\n`;
     content += `> 📈 **Total Giveaways:** ${totalCount}\n\n`;
-    content += `-# xNico </>`;
 
     const container = new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))

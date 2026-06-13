@@ -160,8 +160,7 @@ async function handleBugReportSubmit(interaction, client) {
                     (errorId ? `<:Infotriangle:1473038460456800459> **Error ID:** \`${errorId}\`\n` : '')
                 )
             )
-            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# xNico </>'));
+            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 
         await owner.send({ components: [reportContainer], flags: MessageFlags.IsComponentsV2 });
 

@@ -9,8 +9,7 @@ function box(title, body, color = COLORS.INFO) {
             .setAccentColor(color)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title}`))
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`))],
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))],
         flags: MessageFlags.IsComponentsV2
     };
 }

@@ -155,7 +155,6 @@ async function buildServerInfo(guild) {
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# xNico </>`));
 
     // Action row — links to icon / banner / splash if available
     const row = new ActionRowBuilder();
