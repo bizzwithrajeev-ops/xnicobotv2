@@ -482,13 +482,19 @@ module.exports = {
             // ── Edit Message → spawn shared message builder ───────────
             if (interaction.isButton() && action === 'msgedit') {
                 const cfg = birthdayManager.getGuildConfig(guildId);
+                // Use cfg.messageType as the authoritative mode — it reflects the
+                // style the admin just selected, even if messageData.mode is stale
+                // (e.g. after switching style without having saved via the builder).
+                const resolvedType = cfg.messageType || 'embed';
                 const seed = cfg.messageData && Object.keys(cfg.messageData).length
                     ? cfg.messageData
-                    : birthdayManager.cloneTemplate(cfg.messageType || 'embed');
+                    : birthdayManager.cloneTemplate(resolvedType);
                 const sessionData = {
                     ...messageBuilder.getDefaultMessageData(),
                     ...seed,
-                    mode: cfg.messageType || seed.mode || 'embed',
+                    // Always force the mode to match cfg.messageType so the builder
+                    // opens in the correct tab regardless of what messageData.mode says.
+                    mode: resolvedType,
                     context: 'Birthday Wish'
                 };
                 messageBuilder.setSession(interaction.user.id, 'birthday', guildId, '', sessionData);
@@ -504,35 +510,39 @@ module.exports = {
             if (interaction.isButton() && action === 'preview') {
                 const cfg = birthdayManager.getGuildConfig(guildId);
                 const data = cfg.messageData || birthdayManager.cloneTemplate(cfg.messageType || 'embed');
-                const mode = data.mode || cfg.messageType || 'embed';
-                const member = interaction.member;
+                // Authoritative mode: cfg.messageType wins over a potentially-stale
+                // data.mode so preview always matches the selected style.
+                const mode = cfg.messageType || data.mode || 'embed';
+                const user = interaction.user;
+                const guild = interaction.guild;
+                const channel = interaction.channel;
 
                 if (mode === 'components') {
                     const container = messageBuilder.buildComponentsV2Message(
-                        data, member.user, interaction.guild, interaction.channel
+                        data, user, guild, channel
                     );
                     await interaction.reply({
                         components: [container],
                         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                     });
                 } else if (mode === 'embed') {
-                    const embed = messageBuilder.buildPreviewEmbed(
-                        data, member.user, interaction.guild, interaction.channel
+                    const embed = messageBuilder.buildPreviewEmbed(data, user, guild, channel);
+                    const rawContent = messageBuilder.replacePlaceholders(
+                        data.content || '', user, guild, channel
                     );
-                    const content = messageBuilder.replacePlaceholders(
-                        data.content || '', member.user, interaction.guild, interaction.channel
-                    );
+                    const content = rawContent.trim() || undefined;
                     await interaction.reply({
-                        content: content || undefined,
+                        content,
                         embeds: [embed],
                         flags: MessageFlags.Ephemeral,
                         allowedMentions: { parse: [] }
                     });
                 } else {
-                    const content = messageBuilder.replacePlaceholders(
-                        data.content || '*No content yet — use Edit Message.*',
-                        member.user, interaction.guild, interaction.channel
+                    // simple mode
+                    const rawContent = messageBuilder.replacePlaceholders(
+                        data.content || '', user, guild, channel
                     );
+                    const content = rawContent.trim() || '*No content yet — use Edit Message.*';
                     await interaction.reply({
                         content,
                         flags: MessageFlags.Ephemeral,
@@ -564,23 +574,41 @@ module.exports = {
                         `<:Cancel:1473037949187657818> I don't have **View Channel + Send Messages** in ${channel}.`);
                     return true;
                 }
+
+                // Defer so the 3-second window doesn't expire while the message is built/sent.
+                await interaction.deferUpdate();
+
                 try {
+                    // Fetch a fresh GuildMember so avatar URL / roles cache is populated.
+                    const member = await interaction.guild.members.fetch(interaction.user.id)
+                        .catch(() => interaction.member);
                     await birthdayManager.sendBirthdayMessage(
                         interaction.client,
                         interaction.guild,
                         channel,
-                        interaction.member,
+                        member,
                         { month: new Date().getUTCMonth() + 1, day: new Date().getUTCDate(), year: null },
                         cfg
                     );
-                    await refreshPanel(interaction,
-                        `<:Checkedbox:1473038547165384804> Test wish sent to ${channel}.`);
+                    const okPanel = buildSetupPanel(interaction.guild, {
+                        notice: `<:Checkedbox:1473038547165384804> Test wish sent to ${channel}.`
+                    });
+                    await interaction.editReply({
+                        components: [okPanel],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                    }).catch(() => {});
                 } catch (e) {
-                    await refreshPanel(interaction,
-                        `<:Cancel:1473037949187657818> Test send failed: ${e.message || e}`);
+                    const errPanel = buildSetupPanel(interaction.guild, {
+                        notice: `<:Cancel:1473037949187657818> Test send failed: ${e.message || e}`
+                    });
+                    await interaction.editReply({
+                        components: [errPanel],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                    }).catch(() => {});
                 }
                 return true;
             }
+
 
             // ── Send public Set-Birthday panel ────────────────────────
             if (interaction.isButton() && action === 'panel') {
@@ -727,7 +755,8 @@ module.exports = {
 
 async function handleMessageBuilderRouting(interaction) {
     const guildId = interaction.guild.id;
-    if (!interaction.isButton() && !interaction.isModalSubmit()) return false;
+    // Accept buttons, modals, AND string select menus (the builder uses selects for mode/style).
+    if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isStringSelectMenu()) return false;
 
     const onSave = async (i, data) => {
         const cfg = birthdayManager.getGuildConfig(guildId);

@@ -127,7 +127,11 @@ function _injectCv2Footer(components, accentColor, footerText) {
     for (const c of components) {
         if (!c || typeof c !== 'object') continue;
         if (c?.data?.type !== 17) continue; // 17 = container
-        if (c.data.accent_color === undefined && Number.isFinite(accentColor)) {
+        if (accentColor === null) {
+            // 'Colorless' mode — remove any accent color
+            delete c.data.accent_color;
+        } else if (Number.isFinite(accentColor)) {
+            // Always force the guild's chosen color
             c.data.accent_color = accentColor;
         }
         if (c[sentinel]) continue; // already patched
@@ -822,7 +826,7 @@ async function handleBotPanelButton(interaction, client) {
             // Reset Status and Activity to default
             await client.user.setPresence({
                 status: PresenceUpdateStatus.Online,
-                activities: [{ name: 'xNico </>', type: ActivityType.Watching }]
+                activities: [{ name: '-help | /help', type: ActivityType.Listening }]
             });
 
             await interaction.followUp({ content: '<:Checkedbox:1473038547165384804> Bot has been reset to default stage!', flags: MessageFlags.Ephemeral });
@@ -887,8 +891,9 @@ async function handleBotPanelModal(interaction, client) {
 
         await client.user.setPresence(presenceOptions);
 
+        // Modal submits cannot use interaction.update() — must use reply()
         const panel = buildActivityManagerPanel(client, Math.floor((activityData.activities.length - 1) / 3));
-        await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return true;
     }
 
@@ -909,8 +914,9 @@ async function handleBotPanelModal(interaction, client) {
             activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: resolvedText }]
         });
 
+        // Modal submits cannot use interaction.update() — must use reply()
         const panel = buildCustomStatusManagerPanel(client, Math.floor((activityData.customStatuses.length - 1) / 3));
-        await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return true;
     }
 
@@ -930,8 +936,9 @@ async function handleBotPanelModal(interaction, client) {
             activities: [{ name: text, type: typeMap[activityType] }]
         });
 
+        // Modal submits cannot use interaction.update() — must use reply()
         const panel = buildBotPanel(client);
-        await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         return true;
     }
 
@@ -1008,7 +1015,7 @@ const client = new Client({
         status: PresenceUpdateStatus.Online,
         activities: [{
             name: '-help | /help',
-            type: ActivityType.Watching
+            type: ActivityType.Listening
         }]
     }
 });
@@ -1351,7 +1358,7 @@ client.on(Events.ClientReady, async () => {
             });
         } else {
             client.user.setPresence({
-                activities: [{ name: 'xNico </>', type: ActivityType.Watching }],
+                activities: [{ name: '-help | /help', type: ActivityType.Listening }],
                 status: savedStatus
             });
         }
@@ -1362,7 +1369,7 @@ client.on(Events.ClientReady, async () => {
         }
     } catch (e) {
         client.user.setPresence({
-            activities: [{ name: 'xNico </>', type: ActivityType.Watching }],
+            activities: [{ name: '-help | /help', type: ActivityType.Listening }],
             status: 'online'
         });
     }
@@ -6058,6 +6065,19 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 return;
             }
+            // Birthday message-builder string-selects (mode/style selectors inside builder panel)
+            if (interaction.customId.startsWith('bdaymsg_')) {
+                const bdaySetupCmd = client.commands.get('birthday-setup');
+                if (bdaySetupCmd?.handleInteraction) {
+                    try {
+                        const handled = await bdaySetupCmd.handleInteraction(interaction);
+                        if (handled) return;
+                    } catch (error) {
+                        log.error(`Birthday Builder Select: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
 
             // Ticket categories picker — finalize panel scoping after a
             // category was added with `/ticket-categories add` (no panel-id).
@@ -7981,9 +8001,17 @@ client.on('interactionCreate', async (interaction) => {
             if (opts.embeds && Array.isArray(opts.embeds)) {
                 for (const e of opts.embeds) {
                     const d = e?.data ?? e;
-                    if (d && d.color === undefined && _gColor != null) d.color = _gColor;
-                    if (d && !d.footer && _gCfg.footerText) {
-                        d.footer = { text: _gCfg.footerText };
+                    if (!d) continue;
+                    // Always force guild color (colorless = remove, else override)
+                    if (_gColor === null) {
+                        delete d.color;
+                    } else if (Number.isFinite(_gColor)) {
+                        d.color = _gColor;
+                    }
+                    // Always inject footer (custom or default)
+                    if (!d.footer) {
+                        const _ft = _gCfg.footerText || 'xNico </>';
+                        d.footer = { text: _ft };
                         if (_gCfg.footerIcon) d.footer.icon_url = _gCfg.footerIcon;
                     }
                 }
@@ -11628,45 +11656,60 @@ client.on('messageDelete', async (message) => {
         snipeCommand.saveDeletedMessage(message);
     }
 
-    // ═══════ Counting Game Anti-Cheat: Delete Detection ═══════
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  COUNTING GAME — DELETE ANTI-CHEAT
+    //
+    //  If the most-recent valid count is deleted, the game does NOT reset.
+    //  The bot re-posts that number officially so the chain stays intact,
+    //  then warns the channel. The cheater is kept as lastUserId so they
+    //  can't immediately count the next number after cheating.
+    // ═══════════════════════════════════════════════════════════════════
     if (message.guild && message.author && !message.author.bot) {
         try {
             const { db } = require('./utils/database');
             const countingData = await db.get(`counting_${message.guild.id}`);
 
-            if (countingData && message.channel.id === countingData.channelId) {
-                // Check if the deleted message was a valid count
-                if (countingData.lastMessageId === message.id) {
-                    const deletedNumber = countingData.currentCount;
-                    const deleterTag = message.author.tag;
-                    const deleterId = message.author.id;
+            if (countingData && message.channel.id === countingData.channelId
+                && countingData.lastMessageId === message.id) {
 
-                    // Decrease count by 1 since that number was deleted
-                    countingData.currentCount = Math.max(0, deletedNumber - 1);
-                    countingData.lastUserId = null;
-                    countingData.lastMessageId = null;
-                    countingData.fails++;
-                    await db.set(`counting_${message.guild.id}`, countingData);
+                const deletedNumber = countingData.currentCount;
+                const deleterId     = message.author.id;
+                const deleterTag    = message.author.tag || message.author.username;
 
-                    // Send warning message
-                    const container = new ContainerBuilder()
-                        .setAccentColor(0xFEE75C)
-                        .addTextDisplayComponents(
-                            new TextDisplayBuilder().setContent(
-                                `# ⚠️ Number Deleted - Anti-Cheat Alert\n\n` +
-                                `<@${deleterId}> (**${deleterTag}**) deleted their count: **${deletedNumber}**\n\n` +
-                                `**This is considered cheating!**\n\n` +
-                                `**Current Count:** ${countingData.currentCount}\n` +
-                                `**Next Number:** ${countingData.currentCount + 1}\n\n` +
-                                `Continue counting from **${countingData.currentCount + 1}**`
-                            )
-                        );
+                // ── Re-post the deleted number so the chain is unbroken ──
+                const repostedMsg = await message.channel.send(
+                    `**${deletedNumber}** ✅ *(restored after deletion)*`
+                ).catch(() => null);
 
-                    await message.channel.send({
-                        components: [container],
-                        flags: MessageFlags.IsComponentsV2
-                    }).catch(() => { });
+                if (repostedMsg) {
+                    await repostedMsg.react('<:Checkedbox:1473038547165384804>').catch(() => {});
                 }
+
+                // ── Update state: count stays the same, track new message ──
+                countingData.lastMessageId    = repostedMsg?.id ?? null;
+                // Keep lastUserId as the cheater so they can't immediately
+                // count the next number too.
+                countingData.lastUserId       = deleterId;
+                countingData.anticheatWarnings = (countingData.anticheatWarnings || 0) + 1;
+                await db.set(`counting_${message.guild.id}`, countingData);
+
+                // ── Warn the channel ──
+                const warnContainer = new ContainerBuilder()
+                    .setAccentColor(0xFEE75C)
+                    .addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(
+                            `## ⚠️ Anti-Cheat: Number Deleted\n` +
+                            `<@${deleterId}> (\`${deleterTag}\`) deleted their count **${deletedNumber}**.\n\n` +
+                            `The number has been **restored** — the game continues from **${deletedNumber + 1}**.\n` +
+                            `-# <@${deleterId}> cannot count the next number.`
+                        )
+                    );
+
+                await message.channel.send({
+                    components: [warnContainer],
+                    flags: MessageFlags.IsComponentsV2
+                }).catch(() => {});
             }
         } catch (e) {
             // Silently handle errors
@@ -11677,10 +11720,7 @@ client.on('messageDelete', async (message) => {
 client.on('messageUpdate', async (oldMessage, newMessage) => {
     await logMessageUpdate(oldMessage, newMessage);
 
-    // Pin / Unpin detection — Discord exposes the change as a `pinned` flag flip
-    // on messageUpdate. The dedicated `channelPinsUpdate` event only tells us
-    // *which channel* changed, not *which message*, so this is the only path
-    // that gives a useful log line with author + content + executor.
+    // Pin / Unpin detection
     try {
         if (oldMessage && newMessage && oldMessage.pinned !== newMessage.pinned) {
             const { logMessagePinChange } = require('./utils/logger');
@@ -11689,6 +11729,76 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
     } catch (e) {
         log.debug('logMessagePinChange: ' + e.message);
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  COUNTING GAME — EDIT ANTI-CHEAT
+    //
+    //  If someone edits their valid counting message to a different number
+    //  (or any non-number text), the bot deletes the tampered message,
+    //  re-posts the correct number, and warns the channel. Count stays intact.
+    // ═══════════════════════════════════════════════════════════════════
+    if (newMessage.guild && newMessage.author && !newMessage.author.bot
+        && oldMessage.content !== newMessage.content) {
+        try {
+            const { db } = require('./utils/database');
+            const countingData = await db.get(`counting_${newMessage.guild.id}`);
+
+            if (countingData && newMessage.channel.id === countingData.channelId
+                && countingData.lastMessageId === newMessage.id) {
+
+                const correctNumber  = countingData.currentCount;
+                const newContent     = newMessage.content?.trim();
+                const editedToNum    = parseInt(newContent);
+                const isStillCorrect = !isNaN(editedToNum)
+                    && newContent === editedToNum.toString()
+                    && editedToNum === correctNumber;
+
+                if (!isStillCorrect) {
+                    const editorId  = newMessage.author.id;
+                    const editorTag = newMessage.author.tag || newMessage.author.username;
+
+                    // Delete the tampered message
+                    await newMessage.delete().catch(() => {});
+
+                    // Re-post the correct number officially
+                    const repostedMsg = await newMessage.channel.send(
+                        `**${correctNumber}** ✅ *(restored after edit)*`
+                    ).catch(() => null);
+
+                    if (repostedMsg) {
+                        await repostedMsg.react('<:Checkedbox:1473038547165384804>').catch(() => {});
+                    }
+
+                    // Update state — count unchanged, track new message
+                    countingData.lastMessageId     = repostedMsg?.id ?? null;
+                    countingData.lastUserId        = editorId;  // cheater can't count next
+                    countingData.anticheatWarnings = (countingData.anticheatWarnings || 0) + 1;
+                    await db.set(`counting_${newMessage.guild.id}`, countingData);
+
+                    // Warn the channel
+                    const warnContainer = new ContainerBuilder()
+                        .setAccentColor(0xFEE75C)
+                        .addTextDisplayComponents(
+                            new TextDisplayBuilder().setContent(
+                                `## ⚠️ Anti-Cheat: Number Edited\n` +
+                                `<@${editorId}> (\`${editorTag}\`) edited their count **${correctNumber}**.\n\n` +
+                                `The number has been **restored** — the game continues from **${correctNumber + 1}**.\n` +
+                                `-# <@${editorId}> cannot count the next number.`
+                            )
+                        );
+
+                    await newMessage.channel.send({
+                        components: [warnContainer],
+                        flags: MessageFlags.IsComponentsV2
+                    }).catch(() => {});
+                }
+            }
+        } catch (e) {
+            // Silently handle errors
+        }
+    }
+
+
 
     const editsnipeCommand = client.commands.get('editsnipe');
     if (editsnipeCommand && editsnipeCommand.saveEditedMessage) {

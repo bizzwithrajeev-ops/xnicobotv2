@@ -188,18 +188,30 @@ function listBirthdaysForMonthDay(guildId, month, day) {
 // ── Date validation ─────────────────────────────────────────────────────
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
+/** Returns true if the given year is a leap year. */
+function isLeapYear(y) {
+    return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+}
+
 function validateDate(month, day, year) {
     const m = Number(month);
     const d = Number(day);
-    if (!Number.isInteger(m) || m < 1 || m > 12) return 'Month must be between 1 and 12.';
-    if (!Number.isInteger(d) || d < 1 || d > DAYS_IN_MONTH[m - 1]) {
-        return `Day must be between 1 and ${DAYS_IN_MONTH[m - 1]} for ${monthName(m)}.`;
+    // Guard NaN values (Number('') === 0, Number(undefined) === NaN)
+    if (isNaN(m) || !Number.isInteger(m) || m < 1 || m > 12)
+        return 'Month must be between 1 and 12.';
+    const maxDay = DAYS_IN_MONTH[m - 1];
+    if (isNaN(d) || !Number.isInteger(d) || d < 1 || d > maxDay) {
+        return `Day must be between 1 and ${maxDay} for ${monthName(m)}.`;
     }
     if (year !== null && year !== undefined && year !== '') {
         const y = Number(year);
         const nowY = new Date().getUTCFullYear();
-        if (!Number.isInteger(y) || y < 1900 || y > nowY) {
+        if (isNaN(y) || !Number.isInteger(y) || y < 1900 || y > nowY) {
             return `Year must be between 1900 and ${nowY}.`;
+        }
+        // Extra check: Feb 29 is only valid in leap years when a year is supplied
+        if (m === 2 && d === 29 && !isLeapYear(y)) {
+            return `${y} is not a leap year — February only has 28 days that year.`;
         }
     }
     return null;
@@ -211,12 +223,13 @@ function monthName(m) {
 
 function parseBirthdayInput(raw) {
     if (!raw) return { error: 'Date is required.' };
-    const cleaned = String(raw).trim().replace(/[/.\s]+/g, '-');
+    // Normalise separators: dots, slashes, commas and whitespace all → dash
+    const cleaned = String(raw).trim().replace(/[/.,\s]+/g, '-');
     const parts = cleaned.split('-').filter(Boolean);
     if (parts.length < 2) return { error: 'Use format `DD-MM` or `DD-MM-YYYY` (e.g. `14-08-2003`).' };
     let day, month, year = null;
-    // Detect ISO order YYYY-MM-DD
-    if (parts[0].length === 4 && parts[2]) {
+    // Detect ISO order YYYY-MM-DD — requires exactly 3 parts and first part is 4 digits
+    if (parts.length >= 3 && parts[0].length === 4) {
         year = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10);
         day = parseInt(parts[2], 10);
@@ -256,10 +269,24 @@ function calculateAge(entry, now = new Date()) {
 function getNextBirthday(entry, now = new Date()) {
     if (!entry) return null;
     const yearNow = now.getUTCFullYear();
-    let next = new Date(Date.UTC(yearNow, entry.month - 1, entry.day, 0, 0, 0));
     // Treat "today" as upcoming until end of UTC day so the card doesn't say
     // "365 days" while we're literally celebrating the user.
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+    // Special handling for Feb 29 birthdays: in non-leap years JavaScript
+    // overflows Date.UTC(y, 1, 29) → March 1 of the same year, which is wrong.
+    // Scan forward from this year until we find the next leap year.
+    if (entry.month === 2 && entry.day === 29) {
+        for (let y = yearNow; y <= yearNow + 5; y++) {
+            if (!isLeapYear(y)) continue;
+            const candidate = new Date(Date.UTC(y, 1, 29, 0, 0, 0));
+            if (candidate.getTime() >= today.getTime()) return candidate;
+        }
+        // Fallback (should never be reached within 5 years)
+        return new Date(Date.UTC(yearNow + 4, 1, 29, 0, 0, 0));
+    }
+
+    let next = new Date(Date.UTC(yearNow, entry.month - 1, entry.day, 0, 0, 0));
     if (next.getTime() < today.getTime()) {
         next = new Date(Date.UTC(yearNow + 1, entry.month - 1, entry.day, 0, 0, 0));
     }
@@ -313,11 +340,15 @@ async function runTick(client) {
         const channel = guild.channels.cache.get(cfg.channelId)
             || await guild.channels.fetch(cfg.channelId).catch(() => null);
         if (!channel || !channel.isTextBased?.()) {
-            // mark to avoid retry storms; users should reconfigure.
-            cfg.lastTickDay = dayKey;
-            mutated = true;
+            // Channel is gone / invalid — log but do NOT mark lastTickDay so
+            // birthdays are retried once the admin fixes the channel.
+            log.warning(`[Birthday] Guild ${guildId}: configured channel ${cfg.channelId} is missing or not text-based. Skipping tick — re-set the channel to resolve.`);
             continue;
         }
+
+        // Only process guilds that haven't already been fully handled today
+        // (guards against rapid restarts replaying the same wishes).
+        if (cfg.lastTickDay === dayKey) continue;
 
         const todayBdays = Object.entries(cfg.users || {}).filter(
             ([, e]) => e.month === utcMonth && e.day === utcDay && e.lastSentYear !== utcYear
@@ -346,6 +377,7 @@ async function runTick(client) {
             }
         }
 
+        // Mark this guild's tick day only after successfully processing
         cfg.lastTickDay = dayKey;
         mutated = true;
     }
@@ -380,7 +412,8 @@ async function sendBirthdayMessage(client, guild, channel, member, entry, cfg) {
     };
 
     const expanded = JSON.parse(JSON.stringify(data));
-    for (const k of ['content', 'title', 'description', 'footer', 'author']) {
+    // Apply birthday-specific extras ({age}, {birthday}) to all text fields
+    for (const k of ['content', 'title', 'description', 'footer', 'footerIcon', 'author', 'authorIcon']) {
         if (expanded[k]) expanded[k] = applyExtras(expanded[k]);
     }
     if (Array.isArray(expanded.fields)) {
@@ -454,6 +487,7 @@ module.exports = {
     monthName,
     calculateAge,
     getNextBirthday,
+    isLeapYear,
     todayKey,
     startScheduler,
     stopScheduler,

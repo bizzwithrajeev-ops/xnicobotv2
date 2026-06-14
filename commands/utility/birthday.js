@@ -118,7 +118,6 @@ function buildUpcomingCard(guild, list) {
 
 async function getUpcoming(guild, limit = 10) {
     const cfg = birthdayManager.getGuildConfig(guild.id);
-    const now = new Date();
     const rows = [];
     for (const [userId, entry] of Object.entries(cfg.users || {})) {
         const days = daysUntil(entry);
@@ -147,10 +146,12 @@ async function setBirthdayFromInput(interaction, raw) {
     const days = daysUntil(entry);
     const dayLine = days === 0
         ? '🎉 That\'s **today** — happy birthday!'
-        : `📅 Your next birthday is in \`${days}\` day${days === 1 ? '' : 's'}.`;
+        : days !== null
+            ? `📅 Your next birthday is in \`${days}\` day${days === 1 ? '' : 's'}.`
+            : '';
     return interaction.reply({
         content:
-            `<:Checkedbox:1473038547165384804> Birthday saved as **${birthdayManager.formatBirthday(entry)}**.\n${dayLine}`,
+            `<:Checkedbox:1473038547165384804> Birthday saved as **${birthdayManager.formatBirthday(entry)}**.${dayLine ? '\n' + dayLine : ''}`,
         flags: MessageFlags.Ephemeral
     });
 }
@@ -256,9 +257,11 @@ module.exports = {
             const days = daysUntil(entry);
             const dayLine = days === 0
                 ? '🎉 That\'s **today** — happy birthday!'
-                : `📅 Your next birthday is in \`${days}\` day${days === 1 ? '' : 's'}.`;
+                : days !== null
+                    ? `📅 Your next birthday is in \`${days}\` day${days === 1 ? '' : 's'}.`
+                    : '';
             return message.reply(
-                `<:Checkedbox:1473038547165384804> Birthday saved as **${birthdayManager.formatBirthday(entry)}**.\n${dayLine}`
+                `<:Checkedbox:1473038547165384804> Birthday saved as **${birthdayManager.formatBirthday(entry)}**.${dayLine ? '\n' + dayLine : ''}`
             );
         }
         if (sub === 'remove' || sub === 'delete') {
@@ -272,8 +275,9 @@ module.exports = {
             const card = buildUpcomingCard(message.guild, list);
             return message.reply({ components: [card], flags: MessageFlags.IsComponentsV2 });
         }
-        // default → view
-        const target = message.mentions.users.first() || message.author;
+        // 'view' subcommand or bare command with optional @mention → view
+        const target = (sub === 'view' ? (message.mentions.users.first() || message.author) : null)
+            || message.mentions.users.first() || message.author;
         const member = await message.guild.members.fetch(target.id).catch(() => null);
         if (!member) {
             return message.reply('<:Cancel:1473037949187657818> Could not find that member.');

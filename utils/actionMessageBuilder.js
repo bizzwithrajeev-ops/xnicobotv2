@@ -781,7 +781,14 @@ async function handleModalSubmit(interaction, prefix, type, id1, id2) {
 
     messageBuilderSessions.set(sessionKey, data);
     const container = buildMessageBuilderPanel(data, prefix, data.context);
-    await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+    // Modal submit interactions do NOT support interaction.update() — only component
+    // interactions (buttons/selects) support that method. Using update() on a modal
+    // submit throws "Unknown interaction" or crashes with INTERACTION_ALREADY_REPLIED.
+    // We must use reply() here to send the refreshed builder panel.
+    await interaction.reply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+    });
     return true;
 }
 

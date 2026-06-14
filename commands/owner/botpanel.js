@@ -205,12 +205,12 @@ function buildBotPanel(client) {
             .setStyle(ButtonStyle.Secondary)
     );
 
-    // Row 2: Status
+    // Row 2: Status — emoji IDs pulled from statusEmojis map for consistency
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('botpanel_status_online')
             .setLabel('Online')
-            .setEmoji('<:online:1473369837245042762>')
+            .setEmoji('<:online:1485248286653943900>')
             .setStyle(currentStatus === 'online' ? ButtonStyle.Success : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_status_idle')
