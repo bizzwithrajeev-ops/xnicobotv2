@@ -46,7 +46,7 @@ module.exports = {
         let channel;
         try {
             channel = await message.guild.channels.create({
-                name: '・Nico﹒',
+                name: 'nico-controller',
                 type: ChannelType.GuildText,
                 topic: '<:Music:1473039311057190972> Music Panel — type a song name, URL, or playlist (YouTube · Spotify · SoundCloud · Apple Music). Messages auto-delete.',
                 permissionOverwrites: [
@@ -73,7 +73,7 @@ module.exports = {
             });
 
             const idlePanel = buildIdlePanel(message.guild.id);
-            const panelMsg  = await channel.send({ components: [idlePanel], flags: CV2 });
+            const panelMsg = await channel.send({ components: [idlePanel], flags: CV2 });
 
             config[message.guild.id] = {
                 channelId: channel.id,
@@ -92,7 +92,7 @@ module.exports = {
             ));
         } catch (err) {
             log.error?.(`[musicpanel] Failed to create panel: ${err.message}`);
-            try { await channel?.delete().catch(() => {}); } catch {}
+            try { await channel?.delete().catch(() => { }); } catch { }
             return replyMusic(message, musicError(
                 'Panel Creation Failed',
                 'Could not create the music panel.',

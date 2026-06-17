@@ -10,8 +10,38 @@ const {
 const LYRICS_TIMEOUT_MS = 10_000;
 
 /**
- * Best-effort lyrics fetcher: split the title into "artist - song" first, fall
- * back to a single-string lookup. Lyrics.ovh has no API key requirement.
+ * Clean up a track title for better lyrics search results.
+ * Removes parenthetical metadata, pipe-separated suffixes,
+ * featuring credits, and video-type labels.
+ */
+function cleanTrackTitle(title) {
+    return (title || '')
+        .replace(/\([^)]*\)|\[[^\]]*\]/g, '')
+        .replace(/\|.*$/g, '')
+        .replace(/ft\..*$/gi, '')
+        .replace(/feat\..*$/gi, '')
+        .replace(/official\s*(video|audio|music\s*video|lyric\s*video|visualizer)/gi, '')
+        .trim();
+}
+
+/**
+ * Clean up an artist/author name for better search results.
+ */
+function cleanArtistName(author) {
+    return (author || '')
+        .replace(/VEVO$/i, '')
+        .replace(/ - Topic$/i, '')
+        .replace(/Official$/i, '')
+        .replace(/Music$/i, '')
+        .trim();
+}
+
+/**
+ * Best-effort lyrics fetcher using multiple sources.
+ *
+ * Priority:
+ *   1. LRCLIB (lrclib.net) — modern, reliable, free, no API key
+ *   2. lyrics.ovh — legacy fallback (often unreliable)
  *
  * Returns: { title, artist, lyrics } | null
  */
@@ -19,24 +49,73 @@ async function fetchLyrics(query) {
     const cleaned = query.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
     const parts = cleaned.split(/\s*-\s*/);
 
-    const tryUrl = async (url) => {
-        try {
-            const r = await axios.get(url, { timeout: LYRICS_TIMEOUT_MS, validateStatus: s => s < 500 });
-            if (r.status === 200 && r.data?.lyrics) return r.data.lyrics;
-        } catch {}
-        return null;
-    };
+    let artist = '';
+    let title = cleaned;
 
     if (parts.length >= 2) {
-        const artist = parts[0].trim();
-        const title  = parts.slice(1).join(' - ').trim();
-        const lyrics = await tryUrl(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
-        if (lyrics) return { artist, title, lyrics };
+        artist = parts[0].trim();
+        title = parts.slice(1).join(' - ').trim();
     }
 
-    // One last attempt: assume "Song" only and try the cleaned name as both.
-    const lyrics = await tryUrl(`https://api.lyrics.ovh/v1/${encodeURIComponent(cleaned)}/${encodeURIComponent(cleaned)}`);
-    if (lyrics) return { artist: 'Unknown', title: cleaned, lyrics };
+    // ── Strategy 1: LRCLIB search (best source) ──
+    try {
+        const searchQuery = artist ? `${artist} ${title}` : title;
+        const lrcRes = await axios.get('https://lrclib.net/api/search', {
+            params: { q: searchQuery },
+            timeout: LYRICS_TIMEOUT_MS,
+            headers: { 'User-Agent': 'xNico/2.0.0 (https://thenico.vercel.app)' },
+            validateStatus: s => s < 500,
+        });
+
+        if (lrcRes.status === 200 && Array.isArray(lrcRes.data) && lrcRes.data.length > 0) {
+            // Prefer a result that has plainLyrics
+            const match = lrcRes.data.find(r => r.plainLyrics) || lrcRes.data[0];
+            if (match.plainLyrics) {
+                return {
+                    artist: match.artistName || artist || 'Unknown',
+                    title: match.trackName || title,
+                    lyrics: match.plainLyrics,
+                };
+            }
+        }
+    } catch {}
+
+    // ── Strategy 2: LRCLIB direct get (if we have artist + title) ──
+    if (artist && title) {
+        try {
+            const directRes = await axios.get('https://lrclib.net/api/get', {
+                params: {
+                    track_name: title,
+                    artist_name: artist,
+                },
+                timeout: LYRICS_TIMEOUT_MS,
+                headers: { 'User-Agent': 'xNico/2.0.0 (https://thenico.vercel.app)' },
+                validateStatus: s => s < 500,
+            });
+
+            if (directRes.status === 200 && directRes.data?.plainLyrics) {
+                return {
+                    artist: directRes.data.artistName || artist,
+                    title: directRes.data.trackName || title,
+                    lyrics: directRes.data.plainLyrics,
+                };
+            }
+        } catch {}
+    }
+
+    // ── Strategy 3: lyrics.ovh legacy fallback ──
+    if (artist && title) {
+        try {
+            const ovhRes = await axios.get(
+                `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`,
+                { timeout: LYRICS_TIMEOUT_MS, validateStatus: s => s < 500 }
+            );
+            if (ovhRes.status === 200 && ovhRes.data?.lyrics) {
+                return { artist, title, lyrics: ovhRes.data.lyrics };
+            }
+        } catch {}
+    }
+
     return null;
 }
 
@@ -68,7 +147,10 @@ async function run(target, lavalinkManager, songQuery) {
             ), { ephemeral: isSlash });
         }
         const t = player.queue.current.info;
-        query = t.author ? `${t.author} - ${t.title}` : t.title;
+        // Use cleaned title/author for better search results
+        const cleanedAuthor = cleanArtistName(t.author);
+        const cleanedTitle = cleanTrackTitle(t.title);
+        query = cleanedAuthor ? `${cleanedAuthor} - ${cleanedTitle}` : cleanedTitle;
     }
 
     if (isSlash) {
@@ -87,8 +169,8 @@ async function run(target, lavalinkManager, songQuery) {
     const chunks = chunkLyrics(found.lyrics, 1500);
     const head = `**${found.title}**\n-# by ${found.artist}\n\n${chunks[0]}`;
     const footer = chunks.length > 1
-        ? `Showing first part of ${chunks.length}. Source: lyrics.ovh`
-        : 'Source: lyrics.ovh';
+        ? `Showing first part of ${chunks.length}. Source: lrclib.net`
+        : 'Source: lrclib.net';
 
     const first = buildMusicContainer({
         title: 'Lyrics',

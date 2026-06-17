@@ -100,7 +100,17 @@ async function searchWithFallback(player, query, requester, sourceKey = 'auto') 
     // a failed URL load means the URL itself is dead, not that the
     // search platform missed.
     if (!isUrl && src.fallback && (res.loadType === 'empty' || res.loadType === 'error' || !res.tracks?.length)) {
-        res = await doSearch(`${src.fallback}:${query}`).catch(() => res);
+        try {
+            const fallbackRes = await doSearch(`${src.fallback}:${query}`);
+            // Only use the fallback result if it actually found something.
+            // If the fallback also returned an error or empty, keep the
+            // original result so the caller gets the right error message.
+            if (fallbackRes.loadType !== 'error' && fallbackRes.tracks?.length) {
+                res = fallbackRes;
+            }
+        } catch {
+            // Fallback search timed out or threw — keep original result
+        }
     }
     return { res, isUrl, source: sourceKey };
 }

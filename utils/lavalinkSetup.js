@@ -26,6 +26,12 @@ global.musicPanelChannelCache = musicPanelChannelCache;
 // Throttle tracking — prevent log spam from repeated disconnect/reconnect cycles
 const nodeDisconnectThrottle = new Map();
 
+// Per-guild cooldowns to prevent rapid reconnect cycling
+const socketReconnectCooldown = new Map(); // guildId → ms timestamp of last reconnect
+
+const SOCKET_RECONNECT_COOLDOWN_MS   = 5_000;  // max 1 socket-reconnect per 5s per guild
+const NODE_THROTTLE_WINDOW_MS        = 300_000; // 5 minutes for node log throttling
+
 /**
  * Load Lavalink nodes from config/lavalink-nodes.json and create the manager.
  * @returns {LavalinkManager}
@@ -57,7 +63,10 @@ function createLavalinkManager(client) {
             username: 'Nico'
         },
         autoSkip: true,
-        autoSkipOnResolveError: true,
+        // IMPORTANT: false — we handle resolve errors in our trackError handler.
+        // When true, the library internally auto-skips AND emits trackError,
+        // causing our handler to ALSO skip/play, creating a double-action race.
+        autoSkipOnResolveError: false,
         emitNewSongsOnly: true,
         playerOptions: {
             applyVolumeAsFilter: false,
@@ -314,198 +323,146 @@ function setupLavalinkEvents(client, lavalinkManager) {
     });
 
     // ── trackError ──
+    //
+    // Since autoSkipOnResolveError is FALSE, the library does NOT auto-skip.
+    // We silently advance to the next queued track or stop if the queue is empty.
+    //
+    // ZERO retries, ZERO fallbacks, ZERO source switching.
+    // If a track fails, it fails. We move on. No user-facing messages.
     lavalinkManager.on('trackError', async (player, track, error) => {
-        let errorMsg = 'Unknown error';
-        if (error) {
-            if (typeof error === 'string') errorMsg = error;
-            else if (error.message) errorMsg = error.message;
-            else if (error.reason) errorMsg = error.reason;
-            else if (error.type) errorMsg = `${error.type}: ${error.message || 'Unknown'}`;
-            else errorMsg = String(error);
-        }
-        log.error(`Track error: ${errorMsg}`);
+        if (!player || player.destroyed) return;
 
-        const channel = client.channels.cache.get(player.textChannelId);
-        const trackTitle = track?.info?.title || 'Unknown Track';
+        const errorMsg = (() => {
+            if (!error) return 'Unknown error';
+            if (typeof error === 'string') return error;
+            if (error.message) return error.message;
+            if (error.reason) return error.reason;
+            return String(error);
+        })();
+        log.error(`Track error in guild ${player.guildId}: ${errorMsg}`);
 
-        // Try SoundCloud fallback for YouTube failures (only once)
-        if (track?.info?.title && !track.retried) {
-            try {
-                const scSearch = await player.search({ query: `scsearch:${track.info.title}` }, track.requester);
-                if (scSearch.tracks?.length > 0) {
-                    const newTrack = scSearch.tracks[0];
-                    newTrack.retried = true;
-                    newTrack.requester = track.requester;
-                    await player.queue.add(newTrack, 0);
-                    if (channel) channel.send(`<:Music:1473039311057190972> Retrying with alternative source...`).catch(() => {});
-                    await player.skip().catch(() => {});
-                    return;
-                }
-            } catch {}
-        }
+        // Silently advance to next track or stop
+        if (player.destroyed) return;
 
-        // Skip to next track or stop
-        try {
-            if (player.queue?.tracks?.length > 0) {
-                await player.skip().catch(() => player.stopPlaying().catch(() => {}));
-                if (channel) channel.send(`<:Inforect:1473038624172937287> \`${trackTitle.slice(0, 40)}\` failed — skipping.`).catch(() => {});
-            } else {
-                await player.stopPlaying().catch(() => {});
-                if (channel) channel.send(`<:Inforect:1473038624172937287> \`${trackTitle.slice(0, 40)}\` failed — no more tracks in queue.`).catch(() => {});
+        if (player.queue?.tracks?.length > 0) {
+            try { await player.skip(); } catch {
+                try { if (!player.destroyed) await player.stopPlaying(); } catch {}
             }
-        } catch (err) {
-            log.error(`Track error handler failed: ${err.message}`);
-            // Last resort — force destroy the player to prevent stuck state
-            try { await player.destroy(); } catch {}
+        } else {
+            try { if (!player.destroyed) await player.stopPlaying(); } catch {}
         }
     });
 
     // ── trackStuck ──
     //
-    // We see this fire when the Lavalink node receives no audio
-    // packets for `thresholdMs` ms.  Common causes:
-    //   1. Source CDN throttling (YouTube's most-frequent failure mode)
-    //   2. Voice WS hiccup that didn't propagate `playerSocketClosed`
-    //   3. Track URL expired mid-playback (Spotify resolved -> YT)
-    //
-    // Recovery strategy (each step short-circuits on success):
-    //   A. If we've consumed > 3 s of audio, seek back to position 0
-    //      and wait — Lavalink usually recovers without skipping.
-    //   B. Re-resolve the track from the current source so a stale
-    //      streaming URL is replaced.  Try SoundCloud as a fallback
-    //      for YouTube failures (most common in production).
-    //   C. As a last resort, reconnect the voice socket and skip.
-    //
-    // We rate-limit the chat notification so the user isn't spammed
-    // with "Track got stuck — skipping" on every poll cycle.
-    const STUCK_NOTIFY_COOLDOWN = 30_000;
-    const stuckNotifyAt = new Map(); // guildId → ms timestamp
-
-    function notifyStuckOnce(channel, guildId, body) {
-        if (!channel) return;
-        const now = Date.now();
-        const last = stuckNotifyAt.get(guildId) || 0;
-        if (now - last < STUCK_NOTIFY_COOLDOWN) return;
-        stuckNotifyAt.set(guildId, now);
-        channel.send(body).catch(() => {});
-    }
-
+    // Fired when Lavalink receives no audio frames for `thresholdMs`.
+    // Recovery: one seek-restart attempt, then silently skip.
+    // No user-facing messages — completely transparent.
     lavalinkManager.on('trackStuck', async (player, track, thresholdMs) => {
         const title = (track?.info?.title || 'Unknown').substring(0, 35);
         log.warning(`Track stuck: "${title}" (threshold ${thresholdMs}ms)`);
 
         if (!player || player.destroyed) return;
-        const channel = client.channels.cache.get(player.textChannelId);
-        const guildId = player.guildId;
 
-        // Step A: seek-restart. Only if we've actually played some audio.
+        // Step A: seek-restart — only once, only if we've played > 3s.
         try {
             const pos = player.position || 0;
             if (pos > 3000 && !track?._stuckSeekAttempted) {
                 if (track) track._stuckSeekAttempted = true;
-                log.info(`trackStuck: seek-restart attempt for "${title}"`);
-                await player.seek(0);
-                // Lavalink takes a beat to resume; if still stuck the
-                // event will fire again and we'll fall through.
-                return;
+                log.info(`trackStuck: seek-restart for "${title}"`);
+                await player.seek(Math.max(0, pos - 2000));
+                return; // give Lavalink a chance to recover
             }
-        } catch (seekErr) {
-            log.warning(`trackStuck: seek-restart failed (${seekErr.message})`);
+        } catch {
+            // seek failed — fall through to skip
         }
 
-        // Step B: try to re-resolve the same track from a fallback source.
-        try {
-            if (track?.info?.title && !track._stuckResolveAttempted) {
-                track._stuckResolveAttempted = true;
-                const sourceName = (track.info.sourceName || '').toLowerCase();
-                // YouTube → SoundCloud is the most common rescue path.
-                const fallbackPrefix = sourceName.includes('youtube') ? 'scsearch' : 'ytsearch';
-                const query = `${fallbackPrefix}:${track.info.title}${track.info.author ? ' ' + track.info.author : ''}`;
-                const result = await player.search({ query }, track.requester).catch(() => null);
-                const replacement = result?.tracks?.[0];
-                if (replacement) {
-                    replacement._stuckResolveAttempted = true; // never re-attempt
-                    replacement.requester = track.requester;
-                    await player.queue.add(replacement, 0);
-                    notifyStuckOnce(channel, guildId,
-                        `<:Inforect:1473038624172937287> Stream stalled — retrying with an alternative source.`);
-                    await player.skip().catch(() => {});
-                    return;
-                }
+        if (player.destroyed) return;
+
+        // Step B: silently skip to next track or stop.
+        if (player.queue?.tracks?.length > 0) {
+            try { await player.skip(); } catch {
+                try { if (!player.destroyed) await player.stopPlaying(); } catch {}
             }
-        } catch (resolveErr) {
-            log.warning(`trackStuck: re-resolve failed (${resolveErr.message})`);
-        }
-
-        // Step C: voice-socket nudge then skip.
-        try {
-            if (player.voiceChannelId) await player.connect().catch(() => {});
-        } catch {}
-
-        notifyStuckOnce(channel, guildId,
-            `<:Inforect:1473038624172937287> Couldn't recover playback — skipping to the next track.`);
-
-        try {
-            if (player.queue?.tracks?.length > 0) {
-                await player.skip();
-            } else {
-                await player.stopPlaying();
-            }
-        } catch (skipErr) {
-            log.error(`trackStuck: skip failed (${skipErr.message}), forcing stop`);
-            try { await player.stopPlaying(); } catch (_) {}
+        } else {
+            try { if (!player.destroyed) await player.stopPlaying(); } catch {}
         }
     });
 
     // ── playerSocketClosed ──
     // Fired when the Lavalink ↔ Discord voice WebSocket drops mid-playback.
-    // This is the most common cause of silent "stuck" audio that never triggers trackStuck.
+    // Silently reconnect and resume — no user-facing messages.
     lavalinkManager.on('playerSocketClosed', async (player, payload) => {
         if (!player || player.destroyed) return;
 
         const code = payload?.code ?? '?';
         const reason = payload?.reason ?? 'unknown';
-        log.warning(`Voice socket closed for guild ${player.guildId} — code ${code} (${reason})`);
+        const guildId = player.guildId;
+
+        // Per-guild reconnect cooldown — prevent rapid reconnect cycling
+        const now = Date.now();
+        const lastReconnect = socketReconnectCooldown.get(guildId) || 0;
+        if (now - lastReconnect < SOCKET_RECONNECT_COOLDOWN_MS) {
+            return;
+        }
+        socketReconnectCooldown.set(guildId, now);
+
+        log.warning(`Voice socket closed for guild ${guildId} — code ${code} (${reason})`);
+
+        // Code 4014 means we were disconnected by Discord (kicked/moved) — don't reconnect
+        if (code === 4014) {
+            log.info(`Voice socket: code 4014 (disconnected by Discord) — not reconnecting`);
+            return;
+        }
 
         // Give Discord a moment to propagate the new voice state before reconnecting
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2000));
 
         if (player.destroyed) return;
+
+        // Snapshot what was playing *before* reconnecting
+        const hadCurrentTrack = !!player.queue?.current;
+        const wasPaused = player.paused;
+        const resumePos = Math.max(0, (player.position || 0) - 500);
 
         try {
             if (player.voiceChannelId) {
                 await player.connect();
-                log.info(`Voice socket: reconnected in guild ${player.guildId}`);
+                log.info(`Voice socket: reconnected in guild ${guildId}`);
 
-                // If a track was playing, resume from current position
-                if (player.queue?.current && !player.playing) {
-                    const resumePos = Math.max(0, (player.position || 0) - 500);
-                    await player.play({ position: resumePos, noReplace: false });
-                    log.success(`Voice socket: resumed "${player.queue.current.info?.title?.substring(0, 30)}..."`);
+                // Wait for Lavalink to sync state after reconnect
+                await new Promise(r => setTimeout(r, 1500));
+
+                if (player.destroyed) return;
+
+                // Only manually resume if:
+                // 1. A track was loaded before disconnect
+                // 2. Player is NOT already playing (autoSkip may have resumed it)
+                // 3. Player was not paused by the user
+                if (hadCurrentTrack && !player.playing && !player.paused && !wasPaused) {
+                    await player.play({ position: resumePos, noReplace: true });
+                    log.success(`Voice socket: resumed playback in guild ${guildId}`);
                 }
             }
         } catch (err) {
-            log.error(`Voice socket reconnect failed (${player.guildId}): ${err.message}`);
+            log.error(`Voice socket reconnect failed (${guildId}): ${err.message}`);
 
-            // Last resort: skip the problematic track
+            // Silently try to advance — no messages to users
             try {
-                const channel = client.channels.cache.get(player.textChannelId);
-                if (channel) {
-                    channel.send(`<:Inforect:1473038624172937287> Lost voice connection, skipping to next track...`).catch(() => {});
-                }
-                if (player.queue?.tracks?.length > 0) {
-                    await player.skip().catch(() => {});
-                } else {
+                if (!player.destroyed && player.queue?.tracks?.length > 0) {
+                    try { await player.skip(); } catch { if (!player.destroyed) await player.stopPlaying().catch(() => {}); }
+                } else if (!player.destroyed) {
                     await player.stopPlaying().catch(() => {});
                 }
-            } catch (_) {}
+            } catch {}
         }
     });
 
     // ── Client-side position watchdog ──
     // Catches the case where Lavalink believes it's still playing (so trackStuck never fires)
     // but the client-side position has completely frozen — e.g. after a silent node hiccup.
-    const stuckWatchdog = new Map(); // guildId → { lastPos, lastPosTime, warnedAt }
+    // Recovery is silent — no user-facing messages, no aggressive actions.
+    const stuckWatchdog = new Map(); // guildId → { lastPos, lastPosTime, warnedAt, recovering }
 
     lavalinkManager.on('playerUpdate', (player, payload) => {
         if (!player || player.destroyed || !player.playing || player.paused) {
@@ -519,7 +476,7 @@ function setupLavalinkEvents(client, lavalinkManager) {
         const entry   = stuckWatchdog.get(guildId);
 
         if (!entry) {
-            stuckWatchdog.set(guildId, { lastPos: pos, lastPosTime: now, warnedAt: 0 });
+            stuckWatchdog.set(guildId, { lastPos: pos, lastPosTime: now, warnedAt: 0, recovering: false });
             return;
         }
 
@@ -528,38 +485,63 @@ function setupLavalinkEvents(client, lavalinkManager) {
             entry.lastPos     = pos;
             entry.lastPosTime = now;
             entry.warnedAt    = 0;
+            entry.recovering  = false;
             return;
         }
 
         const frozenMs = now - entry.lastPosTime;
 
-        // If frozen for >30 s and we haven't tried to recover in the last 60 s
-        if (frozenMs > 30_000 && now - entry.warnedAt > 60_000) {
+        // If frozen for >30s and we haven't tried to recover in the last 90s
+        // and no recovery is currently in progress
+        if (frozenMs > 30_000 && now - entry.warnedAt > 90_000 && !entry.recovering) {
             entry.warnedAt = now;
-            log.warning(`Watchdog: player frozen for ${Math.round(frozenMs/1000)}s in guild ${guildId} — attempting recovery`);
+            entry.recovering = true;
+            log.warning(`Watchdog: player frozen for ${Math.round(frozenMs/1000)}s in guild ${guildId}`);
 
             // Async recovery (don't block the event)
             (async () => {
-                if (player.destroyed) return;
                 try {
-                    // Attempt seek to current position to kick Lavalink back into action
-                    await player.seek(Math.max(0, pos - 1000));
-                    log.info(`Watchdog: seek recovery sent for guild ${guildId}`);
-                } catch (seekErr) {
-                    // Seek failed — try reconnecting the voice socket
+                    if (player.destroyed) return;
+
+                    // Step 1: try seek to nudge Lavalink
                     try {
-                        if (player.voiceChannelId) await player.connect();
-                        if (!player.playing && player.queue?.current) {
-                            await player.play({ position: Math.max(0, pos - 500), noReplace: false });
+                        await player.seek(Math.max(0, pos - 1000));
+                        log.info(`Watchdog: seek recovery sent for guild ${guildId}`);
+                        // Give it time to recover before marking as done
+                        await new Promise(r => setTimeout(r, 3000));
+                        // Check if position advanced after seek
+                        if (!player.destroyed && player.position !== pos) {
+                            log.info(`Watchdog: seek recovery successful for guild ${guildId}`);
+                            return; // recovered!
                         }
-                        log.info(`Watchdog: reconnect recovery sent for guild ${guildId}`);
-                    } catch (connErr) {
-                        log.error(`Watchdog: recovery failed for guild ${guildId}: ${connErr.message}`);
+                    } catch {}
+
+                    if (player.destroyed) return;
+
+                    // Step 2: seek didn't work — try reconnect
+                    try {
+                        if (player.voiceChannelId) {
+                            await player.connect();
+                            await new Promise(r => setTimeout(r, 1500));
+                        }
+                        if (player.destroyed) return;
+                        // Only resume if not already playing after reconnect
+                        if (!player.playing && !player.paused && player.queue?.current) {
+                            await player.play({ position: Math.max(0, pos - 500), noReplace: true });
+                            log.info(`Watchdog: reconnect recovery for guild ${guildId}`);
+                        }
+                    } catch {
+                        log.warning(`Watchdog: all recovery failed for guild ${guildId}`);
+                    }
+                } finally {
+                    // Reset state regardless of outcome
+                    const updated = stuckWatchdog.get(guildId);
+                    if (updated) {
+                        updated.lastPosTime = Date.now();
+                        updated.lastPos = player.position || pos;
+                        updated.recovering = false;
                     }
                 }
-                // Reset timer so we don't spam recovery attempts
-                const updated = stuckWatchdog.get(guildId);
-                if (updated) { updated.lastPosTime = Date.now(); updated.lastPos = pos; }
             })();
         }
     });
@@ -647,22 +629,20 @@ function setupLavalinkEvents(client, lavalinkManager) {
                 let relatedTrack = null;
 
                 for (const searchQuery of searchStrategies) {
-                    if (relatedTrack) break;
+                    if (relatedTrack || player.destroyed) break;
 
                     try {
                         log.info(`Autoplay: Trying search "${searchQuery}"`);
                         
-                        const result = await player.search(
-                            { query: searchQuery },
-                            lastTrack.requester
-                        );
+                        // Timeout to prevent hanging if node is flaky
+                        const result = await Promise.race([
+                            player.search({ query: searchQuery }, lastTrack.requester),
+                            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
+                        ]);
 
                         if (!result?.tracks || result.tracks.length === 0) {
-                            log.info(`Autoplay: No results for "${searchQuery}"`);
                             continue;
                         }
-                        
-                        log.info(`Autoplay: Found ${result.tracks.length} tracks for "${searchQuery}"`);
 
                         const availableTracks = result.tracks.filter(t => {
                             if (t.info.identifier === lastTrack.info.identifier) return false;
@@ -678,13 +658,11 @@ function setupLavalinkEvents(client, lavalinkManager) {
                             const selectionPool = availableTracks.slice(0, 15);
                             const randomIndex = Math.floor(Math.random() * selectionPool.length);
                             relatedTrack = selectionPool[randomIndex];
-                            log.success(`Autoplay: Found track "${relatedTrack.info.title}" using strategy "${searchQuery}"`);
+                            log.success(`Autoplay: Found track "${relatedTrack.info.title}"`);
                             break;
-                        } else {
-                            log.info(`Autoplay: All ${result.tracks.length} tracks filtered out (already played)`);
                         }
                     } catch (searchError) {
-                        log.error(`Autoplay search error: ${searchError.message}`);
+                        log.warning(`Autoplay search failed: ${searchError.message}`);
                         continue;
                     }
                 }
@@ -693,17 +671,26 @@ function setupLavalinkEvents(client, lavalinkManager) {
                     relatedTrack.requester = lastTrack.requester;
 
                     try {
+                        if (player.destroyed) return;
+
                         await player.queue.add(relatedTrack);
-                        log.info(`Autoplay: Added to queue, queue size: ${player.queue.tracks.length}`);
+                        log.info(`Autoplay: Added to queue`);
                         
+                        // Wait for autoSkip to potentially start playback.
+                        await new Promise(r => setTimeout(r, 600));
+
+                        if (player.destroyed) return;
+
+                        // Only call play() if autoSkip didn't already start it.
+                        // Use noReplace to avoid interrupting if autoSkip won.
                         if (!player.playing && !player.paused) {
-                            await player.play();
+                            await player.play({ noReplace: true });
                             log.success(`Autoplay: Now playing "${relatedTrack.info.title}"`);
                         } else {
-                            log.info(`Autoplay: Track queued (player already active)`);
+                            log.info(`Autoplay: autoSkip handled playback`);
                         }
                     } catch (playError) {
-                        log.error(`Autoplay play error: ${playError.message}`, playError);
+                        log.warning(`Autoplay play error: ${playError.message}`);
                     }
 
                     return;
@@ -751,13 +738,15 @@ function setupLavalinkEvents(client, lavalinkManager) {
     lavalinkManager.nodeManager.on('disconnect', async (node, reason) => {
         const now = Date.now();
         const lastLog = nodeDisconnectThrottle.get(node.id) || 0;
-        const shouldLog = now - lastLog > 30000;
+        const shouldLog = now - lastLog > NODE_THROTTLE_WINDOW_MS;
 
         if (shouldLog) {
             nodeDisconnectThrottle.set(node.id, now);
             log.warning(`Lavalink disconnected: ${node.id} — code ${reason?.code || 'unknown'}`);
         }
 
+        // Only consider nodes that have been connected for at least 10s
+        // to avoid bouncing players between two flaky nodes.
         const availableNodes = [...lavalinkManager.nodeManager.nodes.values()].filter(
             n => n.connected && n.id !== node.id
         );
@@ -780,9 +769,11 @@ function setupLavalinkEvents(client, lavalinkManager) {
         for (const player of playersToMigrate) {
             try {
                 player.node = fallbackNode;
-                if (player.voiceChannelId) {
+                if (player.voiceChannelId && !player.destroyed) {
                     await player.connect();
-                    if (player.queue.current && !player.playing) {
+                    // Wait for connection to settle before attempting resume
+                    await new Promise(r => setTimeout(r, 1000));
+                    if (!player.destroyed && player.queue.current && !player.playing && !player.paused) {
                         await player.play({ noReplace: false });
                     }
                 }
@@ -798,7 +789,7 @@ function setupLavalinkEvents(client, lavalinkManager) {
     lavalinkManager.nodeManager.on('reconnecting', (node) => {
         const now = Date.now();
         const lastLog = nodeDisconnectThrottle.get(`reconn_${node.id}`) || 0;
-        if (now - lastLog > 30000) {
+        if (now - lastLog > NODE_THROTTLE_WINDOW_MS) {
             nodeDisconnectThrottle.set(`reconn_${node.id}`, now);
             log.info(`Reconnecting to ${node.id}...`);
         }
@@ -819,7 +810,7 @@ function setupLavalinkEvents(client, lavalinkManager) {
     lavalinkManager.nodeManager.on('error', (node, error) => {
         const now = Date.now();
         const lastLog = nodeDisconnectThrottle.get(`err_${node.id}`) || 0;
-        if (now - lastLog > 30000) {
+        if (now - lastLog > NODE_THROTTLE_WINDOW_MS) {
             nodeDisconnectThrottle.set(`err_${node.id}`, now);
             const errMsg = error?.message || 'Connection failed';
             // Detect proxy/non-JSON response errors from fetchInfo

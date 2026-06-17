@@ -53,12 +53,26 @@ async function run(target, lavalinkManager, query) {
     const isUrl = /^https?:\/\//i.test(query);
     const searchQuery = isUrl ? query : `ytsearch:${query}`;
 
+    const doSearch = (q) => Promise.race([
+        player.search({ query: q }, requester),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Search timeout')), SEARCH_TIMEOUT_MS)),
+    ]);
+
     let res;
     try {
-        res = await Promise.race([
-            player.search({ query: searchQuery }, requester),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Search timeout')), SEARCH_TIMEOUT_MS)),
-        ]);
+        res = await doSearch(searchQuery);
+
+        // SoundCloud fallback for non-URL searches (matches play.js behavior)
+        if (!isUrl && (res.loadType === 'empty' || res.loadType === 'error' || !res.tracks?.length)) {
+            try {
+                const fallbackRes = await doSearch(`scsearch:${query}`);
+                if (fallbackRes.loadType !== 'error' && fallbackRes.tracks?.length) {
+                    res = fallbackRes;
+                }
+            } catch {
+                // Fallback timed out — keep original result
+            }
+        }
     } catch (err) {
         const msg = err.message === 'Search timeout'
             ? 'Search timed out. The music server may be slow.'
