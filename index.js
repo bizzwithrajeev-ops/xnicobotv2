@@ -1800,6 +1800,11 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (customId === 'botpanel_rotation_delay_modal') {
+            if (!isOwner(interaction.user.id)) {
+                await interaction.reply({ content: '<:Cancel:1473037949187657818> Only the bot owner can use this!', flags: MessageFlags.Ephemeral });
+                return;
+            }
+
             const delayText = interaction.fields.getTextInputValue('delay_text');
             const delay = parseInt(delayText);
 
@@ -1817,8 +1822,9 @@ client.on('interactionCreate', async (interaction) => {
                 startActivityRotation(client);
             }
 
+            // Modal submits cannot use interaction.update() — must use reply()
             const panel = buildRotationSettingsPanel(client);
-            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             return;
         }
 
@@ -1971,6 +1977,10 @@ client.on('interactionCreate', async (interaction) => {
                 if (handled) return;
             } catch (error) {
                 log.error(`Bot Panel Modal: ${error.message}`, error);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred while processing the bot panel action.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                }
+                return;
             }
         }
 
@@ -2787,6 +2797,10 @@ client.on('interactionCreate', async (interaction) => {
                     if (handled) return;
                 } catch (error) {
                     log.error(`Bot Panel Error: ${error.message}`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred while processing the bot panel action.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                    }
+                    return;
                 }
             }
             if (interaction.customId.startsWith('mymusic_')) {
@@ -5436,11 +5450,14 @@ client.on('interactionCreate', async (interaction) => {
                                 return await interaction.reply({ content: '<:Cancel:1473037949187657818> Nothing is playing! Join a voice channel and type a song name.', flags: MessageFlags.Ephemeral }).catch(() => { });
                             }
 
-                            const queueCommand = interaction.client.commands.get('queue');
-                            if (queueCommand) {
-                                return await queueCommand.execute(interaction, lavalinkManager);
+                            try {
+                                const { buildQueueContainer } = require('./utils/musicPanel');
+                                const container = buildQueueContainer(player, 0);
+                                return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }).catch(() => { });
+                            } catch (err) {
+                                log.error(`Panel queue error: ${err.message}`, err);
+                                return await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to load queue.', flags: MessageFlags.Ephemeral }).catch(() => { });
                             }
-                            return;
                         }
 
                         if (customId === 'panel_filters') {
@@ -5681,13 +5698,120 @@ client.on('interactionCreate', async (interaction) => {
                             }
 
                             const track = player.queue.current;
-                            const container = new ContainerBuilder()
-                                .addTextDisplayComponents(
-                                    new TextDisplayBuilder()
-                                        .setContent(`# <:Edit:1473037903625191580> Lyrics\n\n**${track.info.title}**\nby ${track.info.author}\n\n-# Use \`/lyrics\` for full lyrics search functionality\n-# Tip: Search lyrics online for best results`)
-                                );
 
-                            return await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                            try {
+                                await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => { });
+
+                                // Use the lyrics command's fetchLyrics function
+                                const lyricsCommand = interaction.client.commands.get('lyrics');
+                                if (!lyricsCommand) {
+                                    return await interaction.editReply({ content: '<:Cancel:1473037949187657818> Lyrics command not available.' }).catch(() => { });
+                                }
+
+                                // Build the query from track info
+                                const query = track.info.author
+                                    ? `${track.info.author} - ${track.info.title}`
+                                    : track.info.title;
+
+                                // Call the lyrics command's run function by simulating a slash interaction
+                                // Instead, we'll directly fetch lyrics using the same approach
+                                const axios = require('axios');
+
+                                // Clean up the query for better results
+                                const cleanTitle = (track.info.title || '')
+                                    .replace(/\([^)]*\)|\[[^\]]*\]/g, '')
+                                    .replace(/\|.*$/g, '')
+                                    .replace(/ft\..*$/gi, '')
+                                    .replace(/feat\..*$/gi, '')
+                                    .replace(/official\s*(video|audio|music\s*video|lyric\s*video|visualizer)/gi, '')
+                                    .trim();
+                                const cleanAuthor = (track.info.author || '')
+                                    .replace(/VEVO$/i, '')
+                                    .replace(/ - Topic$/i, '')
+                                    .replace(/Official$/i, '')
+                                    .trim();
+
+                                let lyrics = null;
+
+                                // Try LRCLIB first (modern, reliable)
+                                try {
+                                    const searchQuery = cleanAuthor ? `${cleanAuthor} ${cleanTitle}` : cleanTitle;
+                                    const lrcRes = await axios.get(`https://lrclib.net/api/search`, {
+                                        params: { q: searchQuery },
+                                        timeout: 8000,
+                                        headers: { 'User-Agent': 'xNico/2.0.0 (https://thenico.vercel.app)' },
+                                        validateStatus: s => s < 500,
+                                    });
+                                    if (lrcRes.status === 200 && Array.isArray(lrcRes.data) && lrcRes.data.length > 0) {
+                                        // Find the best match — prefer one with plainLyrics
+                                        const match = lrcRes.data.find(r => r.plainLyrics) || lrcRes.data[0];
+                                        if (match.plainLyrics) {
+                                            lyrics = {
+                                                title: match.trackName || cleanTitle,
+                                                artist: match.artistName || cleanAuthor || 'Unknown',
+                                                text: match.plainLyrics,
+                                            };
+                                        }
+                                    }
+                                } catch {}
+
+                                // Fallback: lyrics.ovh (legacy, may work for some tracks)
+                                if (!lyrics && cleanAuthor) {
+                                    try {
+                                        const ovhRes = await axios.get(
+                                            `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanAuthor)}/${encodeURIComponent(cleanTitle)}`,
+                                            { timeout: 6000, validateStatus: s => s < 500 }
+                                        );
+                                        if (ovhRes.status === 200 && ovhRes.data?.lyrics?.trim()) {
+                                            lyrics = {
+                                                title: cleanTitle,
+                                                artist: cleanAuthor,
+                                                text: ovhRes.data.lyrics,
+                                            };
+                                        }
+                                    } catch {}
+                                }
+
+                                if (!lyrics) {
+                                    const errContainer = new ContainerBuilder()
+                                        .setAccentColor(0xED4245)
+                                        .addTextDisplayComponents(
+                                            new TextDisplayBuilder()
+                                                .setContent(
+                                                    `# <:Cancel:1473037949187657818> Lyrics Not Found\n\n` +
+                                                    `Couldn't find lyrics for **${track.info.title}**.\n\n` +
+                                                    `-# Try \`/lyrics Artist - Song Title\` for a custom search`
+                                                )
+                                        );
+                                    return await interaction.editReply({ components: [errContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+                                }
+
+                                // Truncate lyrics to fit Discord's limits
+                                let lyricsText = lyrics.text;
+                                if (lyricsText.length > 1800) {
+                                    lyricsText = lyricsText.substring(0, 1800).trimEnd() + '\n\n*... truncated*';
+                                }
+
+                                const lyricsContainer = new ContainerBuilder()
+                                    .setAccentColor(0xCAD7E6)
+                                    .addTextDisplayComponents(
+                                        new TextDisplayBuilder()
+                                            .setContent(
+                                                `# <:Edit:1473037903625191580> Lyrics\n\n` +
+                                                `**${lyrics.title}**\n-# by ${lyrics.artist}\n\n` +
+                                                `${lyricsText}\n\n` +
+                                                `-# Source: lrclib.net`
+                                            )
+                                    );
+
+                                return await interaction.editReply({ components: [lyricsContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
+                            } catch (err) {
+                                log.error(`Panel lyrics error: ${err.message}`, err);
+                                if (interaction.deferred) {
+                                    return await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to fetch lyrics.' }).catch(() => { });
+                                }
+                                return await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch lyrics.', flags: MessageFlags.Ephemeral }).catch(() => { });
+                            }
                         }
 
                         if (customId === 'panel_seek_back') {
