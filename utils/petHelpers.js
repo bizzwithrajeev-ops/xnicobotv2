@@ -45,37 +45,37 @@ const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic
 
 const WEAPONS = {
   /* ── Common ── starter drops, weak but cheap ── */
-  sword:        { name: '🗡️ Sword',         baseAtk: 10, rarity: 'common',    price: 4000,  description: 'Reliable blade — balanced ATK for new pets' },
-  bow:          { name: '🏹 Bow',           baseAtk: 8,  rarity: 'common',    price: 3500,  description: 'Light bow — modest ATK, low cost' },
-  staff:        { name: '🔮 Staff',         baseAtk: 6,  rarity: 'common',    price: 3000,  description: 'Apprentice staff — entry-tier mage weapon' },
-  dagger:       { name: '🔪 Dagger',        baseAtk: 12, rarity: 'common',    price: 4500,  description: 'Quick blade — slightly higher ATK than a sword' },
+  sword: { name: '🗡️ Sword', baseAtk: 10, rarity: 'common', price: 4000, description: 'Reliable blade — balanced ATK for new pets' },
+  bow: { name: '🏹 Bow', baseAtk: 8, rarity: 'common', price: 3500, description: 'Light bow — modest ATK, low cost' },
+  staff: { name: '🔮 Staff', baseAtk: 6, rarity: 'common', price: 3000, description: 'Apprentice staff — entry-tier mage weapon' },
+  dagger: { name: '🔪 Dagger', baseAtk: 12, rarity: 'common', price: 4500, description: 'Quick blade — slightly higher ATK than a sword' },
 
   /* ── Uncommon ── solid mid-tier ── */
-  warhammer:    { name: '🔨 Warhammer',     baseAtk: 18, rarity: 'uncommon',  price: 9000,  description: 'Heavy hammer — strong ATK for slower pets' },
-  crossbow:     { name: '🎯 Crossbow',      baseAtk: 16, rarity: 'uncommon',  price: 8500,  description: 'Mechanical bow — solid ranged ATK' },
-  trident:      { name: '🔱 Trident',       baseAtk: 20, rarity: 'uncommon',  price: 11000, description: 'Three-pronged spear — best uncommon ATK' },
-  cursed_orb:   { name: '🔮 Cursed Orb',    baseAtk: 17, rarity: 'uncommon',  price: 9500,  description: 'Dark orb — reliable magical ATK' },
+  warhammer: { name: '🔨 Warhammer', baseAtk: 18, rarity: 'uncommon', price: 9000, description: 'Heavy hammer — strong ATK for slower pets' },
+  crossbow: { name: '🎯 Crossbow', baseAtk: 16, rarity: 'uncommon', price: 8500, description: 'Mechanical bow — solid ranged ATK' },
+  trident: { name: '🔱 Trident', baseAtk: 20, rarity: 'uncommon', price: 11000, description: 'Three-pronged spear — best uncommon ATK' },
+  cursed_orb: { name: '🔮 Cursed Orb', baseAtk: 17, rarity: 'uncommon', price: 9500, description: 'Dark orb — reliable magical ATK' },
 
   /* ── Rare ── mid-game upgrade ── */
-  katana:       { name: '🗡️ Katana',         baseAtk: 26, rarity: 'rare',      price: 22000, description: 'Master-forged katana — sharp and fast' },
-  battleaxe:    { name: '🪓 Battleaxe',      baseAtk: 30, rarity: 'rare',      price: 26000, description: 'Two-handed axe — top rare ATK' },
-  longbow:      { name: '🏹 Elven Longbow', baseAtk: 24, rarity: 'rare',      price: 21000, description: 'Elven craftsmanship — pierces armor' },
-  arcane_staff: { name: '✨ Arcane Staff',  baseAtk: 22, rarity: 'rare',      price: 20000, description: 'Crystal-tipped staff — channels true arcane power' },
+  katana: { name: '🗡️ Katana', baseAtk: 26, rarity: 'rare', price: 22000, description: 'Master-forged katana — sharp and fast' },
+  battleaxe: { name: '🪓 Battleaxe', baseAtk: 30, rarity: 'rare', price: 26000, description: 'Two-handed axe — top rare ATK' },
+  longbow: { name: '🏹 Elven Longbow', baseAtk: 24, rarity: 'rare', price: 21000, description: 'Elven craftsmanship — pierces armor' },
+  arcane_staff: { name: '<:Star:1473038501766369300> Arcane Staff', baseAtk: 22, rarity: 'rare', price: 20000, description: 'Crystal-tipped staff — channels true arcane power' },
 
   /* ── Epic ── late-game weapons ── */
-  shadow_blade: { name: '🌑 Shadowblade',   baseAtk: 38, rarity: 'epic',      price: 60000, description: 'Forged in shadow — devastating epic ATK' },
-  flame_lance:  { name: '🔥 Flame Lance',   baseAtk: 36, rarity: 'epic',      price: 58000, description: 'Burns the enemy on every hit (flavor)' },
-  frost_axe:    { name: '❄️ Frost Axe',      baseAtk: 40, rarity: 'epic',      price: 65000, description: 'Glacial edge — strongest epic ATK' },
-  thunder_bow:  { name: '⚡ Thunder Bow',    baseAtk: 35, rarity: 'epic',      price: 56000, description: 'Crackles with lightning — fast epic ATK' },
+  shadow_blade: { name: '🌑 Shadowblade', baseAtk: 38, rarity: 'epic', price: 60000, description: 'Forged in shadow — devastating epic ATK' },
+  flame_lance: { name: '🔥 Flame Lance', baseAtk: 36, rarity: 'epic', price: 58000, description: 'Burns the enemy on every hit (flavor)' },
+  frost_axe: { name: '❄️ Frost Axe', baseAtk: 40, rarity: 'epic', price: 65000, description: 'Glacial edge — strongest epic ATK' },
+  thunder_bow: { name: '⚡ Thunder Bow', baseAtk: 35, rarity: 'epic', price: 56000, description: 'Crackles with lightning — fast epic ATK' },
 
   /* ── Legendary ── premium ── */
-  excalibur:    { name: '⚔️ Excalibur',      baseAtk: 55, rarity: 'legendary', price: 150000, description: 'The legendary sword — colossal ATK' },
-  dragon_fang:  { name: '🐉 Dragon Fang',   baseAtk: 60, rarity: 'legendary', price: 165000, description: 'Forged from dragon teeth — apex ATK' },
-  celestial_bow:{ name: '🌟 Celestial Bow', baseAtk: 50, rarity: 'legendary', price: 140000, description: 'Bow of the heavens — pierces any defense' },
+  excalibur: { name: '⚔️ Excalibur', baseAtk: 55, rarity: 'legendary', price: 150000, description: 'The legendary sword — colossal ATK' },
+  dragon_fang: { name: '🐉 Dragon Fang', baseAtk: 60, rarity: 'legendary', price: 165000, description: 'Forged from dragon teeth — apex ATK' },
+  celestial_bow: { name: '🌟 Celestial Bow', baseAtk: 50, rarity: 'legendary', price: 140000, description: 'Bow of the heavens — pierces any defense' },
 
   /* ── Mythic ── only obtainable from premium boxes ── */
-  void_reaper:  { name: '🕳️ Void Reaper',   baseAtk: 80, rarity: 'mythic',    price: 0,      description: 'Cuts through reality — drop-only mythic weapon' },
-  starforge:    { name: '✨ Starforge',     baseAtk: 85, rarity: 'mythic',    price: 0,      description: 'Forged from a dying star — drop-only mythic' },
+  void_reaper: { name: '🕳️ Void Reaper', baseAtk: 80, rarity: 'mythic', price: 0, description: 'Cuts through reality — drop-only mythic weapon' },
+  starforge: { name: '<:Star:1473038501766369300> Starforge', baseAtk: 85, rarity: 'mythic', price: 0, description: 'Forged from a dying star — drop-only mythic' },
 };
 
 /**
@@ -124,35 +124,35 @@ function weaponsByRarity() {
 
 const SKILL_DEFS = {
   /* ── Starter / cheap ── */
-  slash:         { name: '⚔️ Slash',         emoji: '⚔️',                                 type: 'dmg',        mult: 1.0, starter: true,  unlockTier: 1, price: 0,     description: 'Basic balanced strike — every pet starts knowing this' },
-  bone_throw:    { name: '🦴 Bone Throw',    emoji: '🦴',                                 type: 'dmg',        mult: 1.1,                  unlockTier: 1, price: 1500,  description: 'Hurls a bone for slightly above-baseline damage' },
-  absorb:        { name: '💚 Absorb',        emoji: '💚',                                 type: 'heal',       amount: 0.15,               unlockTier: 1, price: 2500,  description: 'Heal for 15% of your max HP' },
+  slash: { name: '⚔️ Slash', emoji: '⚔️', type: 'dmg', mult: 1.0, starter: true, unlockTier: 1, price: 0, description: 'Basic balanced strike — every pet starts knowing this' },
+  bone_throw: { name: '🦴 Bone Throw', emoji: '🦴', type: 'dmg', mult: 1.1, unlockTier: 1, price: 1500, description: 'Hurls a bone for slightly above-baseline damage' },
+  absorb: { name: '💚 Absorb', emoji: '💚', type: 'heal', amount: 0.15, unlockTier: 1, price: 2500, description: 'Heal for 15% of your max HP' },
 
   /* ── Common combat ── */
-  slam:          { name: '💥 Slam',          emoji: '💥',                                 type: 'dmg',        mult: 1.3,                  unlockTier: 2, price: 4000,  description: 'Heavy hit — 1.3x ATK damage' },
-  howl:          { name: '<:Star:1473038501766369300> Howl', emoji: '<:Star:1473038501766369300>', type: 'buff', stat: 'atk', amount: 0.20, unlockTier: 2, price: 5000,  description: 'Buff your own ATK by +20%' },
-  fortify:       { name: '<:Shield:1473038669831995494> Fortify', emoji: '<:Shield:1473038669831995494>', type: 'buff', stat: 'def', amount: 0.30, unlockTier: 2, price: 5000,  description: 'Reinforce your defense by +30%' },
+  slam: { name: '💥 Slam', emoji: '💥', type: 'dmg', mult: 1.3, unlockTier: 2, price: 4000, description: 'Heavy hit — 1.3x ATK damage' },
+  howl: { name: '<:Star:1473038501766369300> Howl', emoji: '<:Star:1473038501766369300>', type: 'buff', stat: 'atk', amount: 0.20, unlockTier: 2, price: 5000, description: 'Buff your own ATK by +20%' },
+  fortify: { name: '<:Shield:1473038669831995494> Fortify', emoji: '<:Shield:1473038669831995494>', type: 'buff', stat: 'def', amount: 0.30, unlockTier: 2, price: 5000, description: 'Reinforce your defense by +30%' },
 
   /* ── Mid tier ── */
-  fireball:      { name: '<:Fire:1473038604812161218> Fireball', emoji: '<:Fire:1473038604812161218>', type: 'dmg', mult: 1.5, unlockTier: 4, price: 9000,  description: 'Magic explosion — 1.5x ATK damage' },
-  drain:         { name: '🩸 Life Drain',    emoji: '🩸',                                 type: 'drain',      mult: 0.8,                  unlockTier: 4, price: 10000, description: 'Damage and heal yourself for 40% of damage dealt' },
-  riposte:       { name: '🛡️ Riposte',        emoji: '🛡️',                                 type: 'multi',      multAtk: 1.2,  defBuff: 0.10, unlockTier: 4, price: 11000, description: 'Hit for 1.2x ATK and gain +10% DEF' },
-  regenerate:    { name: '🌿 Regenerate',    emoji: '🌿',                                 type: 'heal',       amount: 0.25,               unlockTier: 5, price: 12000, description: 'Heal 25% of your max HP — best heal at this tier' },
+  fireball: { name: '<:Fire:1473038604812161218> Fireball', emoji: '<:Fire:1473038604812161218>', type: 'dmg', mult: 1.5, unlockTier: 4, price: 9000, description: 'Magic explosion — 1.5x ATK damage' },
+  drain: { name: '🩸 Life Drain', emoji: '🩸', type: 'drain', mult: 0.8, unlockTier: 4, price: 10000, description: 'Damage and heal yourself for 40% of damage dealt' },
+  riposte: { name: '🛡️ Riposte', emoji: '🛡️', type: 'multi', multAtk: 1.2, defBuff: 0.10, unlockTier: 4, price: 11000, description: 'Hit for 1.2x ATK and gain +10% DEF' },
+  regenerate: { name: '🌿 Regenerate', emoji: '🌿', type: 'heal', amount: 0.25, unlockTier: 5, price: 12000, description: 'Heal 25% of your max HP — best heal at this tier' },
 
   /* ── High tier ── */
-  double_strike: { name: '⚔️ Double Strike',  emoji: '⚔️',                                 type: 'dmg',        mult: 0.7, hits: 2,         unlockTier: 6, price: 18000, description: 'Strike twice — each hit deals 0.7x ATK' },
-  shield_wall:   { name: '🛡️ Shield Wall',    emoji: '🛡️',                                 type: 'shield',     amount: 0.40,               unlockTier: 6, price: 20000, description: 'Absorb 40% of the next incoming hit' },
-  dark_strike:   { name: '🌑 Dark Strike',   emoji: '🌑',                                 type: 'dmg',        mult: 1.7,                  unlockTier: 7, price: 28000, description: 'Shadow-imbued blow — 1.7x ATK damage' },
-  frost_breath:  { name: '❄️ Frost Breath',   emoji: '❄️',                                 type: 'dmg_debuff', mult: 1.2, debuff: 'spd', debuffAmt: 0.20, unlockTier: 7, price: 30000, description: 'Damage and slow the enemy by -20% SPD' },
-  poison_fang:   { name: '☠️ Poison Fang',    emoji: '☠️',                                 type: 'dot',        mult: 0.6, dotMult: 0.10, dotTurns: 3, unlockTier: 8, price: 35000, description: 'Bite for 0.6x ATK and inflict poison for 3 rounds' },
+  double_strike: { name: '⚔️ Double Strike', emoji: '⚔️', type: 'dmg', mult: 0.7, hits: 2, unlockTier: 6, price: 18000, description: 'Strike twice — each hit deals 0.7x ATK' },
+  shield_wall: { name: '🛡️ Shield Wall', emoji: '🛡️', type: 'shield', amount: 0.40, unlockTier: 6, price: 20000, description: 'Absorb 40% of the next incoming hit' },
+  dark_strike: { name: '🌑 Dark Strike', emoji: '🌑', type: 'dmg', mult: 1.7, unlockTier: 7, price: 28000, description: 'Shadow-imbued blow — 1.7x ATK damage' },
+  frost_breath: { name: '❄️ Frost Breath', emoji: '❄️', type: 'dmg_debuff', mult: 1.2, debuff: 'spd', debuffAmt: 0.20, unlockTier: 7, price: 30000, description: 'Damage and slow the enemy by -20% SPD' },
+  poison_fang: { name: '☠️ Poison Fang', emoji: '☠️', type: 'dot', mult: 0.6, dotMult: 0.10, dotTurns: 3, unlockTier: 8, price: 35000, description: 'Bite for 0.6x ATK and inflict poison for 3 rounds' },
 
   /* ── Apex player skills (Legendary cost) ── */
-  meteor_strike: { name: '☄️ Meteor Strike',  emoji: '☄️',                                 type: 'dmg',        mult: 2.2,                  unlockTier: 10, price: 65000, description: 'Calls a meteor — 2.2x ATK damage' },
-  divine_heal:   { name: '✨ Divine Heal',   emoji: '✨',                                 type: 'heal',       amount: 0.45,               unlockTier: 10, price: 60000, description: 'Heal 45% of your max HP — apex healing' },
+  meteor_strike: { name: '☄️ Meteor Strike', emoji: '☄️', type: 'dmg', mult: 2.2, unlockTier: 10, price: 65000, description: 'Calls a meteor — 2.2x ATK damage' },
+  divine_heal: { name: '<:Star:1473038501766369300> Divine Heal', emoji: '<:Star:1473038501766369300>', type: 'heal', amount: 0.45, unlockTier: 10, price: 60000, description: 'Heal 45% of your max HP — apex healing' },
 
   /* ── Enemy-only skills (NPC AI uses them, players cannot learn) ── */
-  inferno:       { name: '🌋 Inferno',       emoji: '🌋',                                 type: 'dmg',        mult: 2.0, enemyOnly: true,  unlockTier: 99, price: 0, description: 'NPC-only fiery attack' },
-  void_collapse: { name: '🕳️ Void Collapse',  emoji: '🕳️',                                 type: 'dmg',        mult: 2.5, enemyOnly: true,  unlockTier: 99, price: 0, description: 'NPC-only reality-warping strike' },
+  inferno: { name: '🌋 Inferno', emoji: '🌋', type: 'dmg', mult: 2.0, enemyOnly: true, unlockTier: 99, price: 0, description: 'NPC-only fiery attack' },
+  void_collapse: { name: '🕳️ Void Collapse', emoji: '🕳️', type: 'dmg', mult: 2.5, enemyOnly: true, unlockTier: 99, price: 0, description: 'NPC-only reality-warping strike' },
 };
 
 /**
@@ -237,14 +237,14 @@ function migrate(data) {
         const old = pet.id;
         pet.id = nextId(pet.rarity || 'common', pet.name || 'pet', u.animals);
         if (u.activeBattlePet === old) u.activeBattlePet = pet.id;
-        pet.baseHp  ??= pet.hp  || 20;
+        pet.baseHp ??= pet.hp || 20;
         pet.baseAtk ??= pet.atk || 5;
-        pet.maxHp   ??= pet.baseHp;
-        pet.hp      ??= pet.maxHp;
-        pet.atk     ??= pet.baseAtk;
-        pet.level   ??= 1;
-        pet.exp     ??= 0;
-        pet.weapon  ??= null;
+        pet.maxHp ??= pet.baseHp;
+        pet.hp ??= pet.maxHp;
+        pet.atk ??= pet.baseAtk;
+        pet.level ??= 1;
+        pet.exp ??= 0;
+        pet.weapon ??= null;
         changed = true;
       }
       // Skills bookkeeping. `skills` = currently equipped (≤ 3 used in

@@ -13,30 +13,46 @@ const { renderPercentCard } = require('../../utils/percentCard');
 const { hashPercent, pickTier } = require('../../utils/percentCommandFactory');
 
 const tiers = [
-    { max: 5,
-      text:   'Microscope required 🔬',
-      detail: 'Submitted to the lab for closer inspection. Lab politely declined.' },
-    { max: 15,
-      text:   'A modest specimen 🐛',
-      detail: 'Compact, efficient, fits in any glove compartment. Travel-friendly!' },
-    { max: 30,
-      text:   'Pocket-sized confidence 🍃',
-      detail: 'Knows their value isn\'t measured in inches. Wears it well.' },
-    { max: 45,
-      text:   'Solid average 🍌',
-      detail: 'The Goldilocks zone — not too small, not too much, just statistically calm.' },
-    { max: 60,
-      text:   'Above the curve 📈',
-      detail: 'Survey results suggest this score is mildly above the average bell curve.' },
-    { max: 75,
-      text:   'Anaconda territory 🐍',
-      detail: 'Sir, this is a Wendy\'s. Sir. SIR. Please put it away — children are present.' },
-    { max: 90,
-      text:   'Legendary unit 🐉',
-      detail: 'Geologists have asked permission to study the formation. Approval pending.' },
-    { max: 100,
-      text:   'Mythic-tier appendage ✨',
-      detail: 'Listed as a national landmark. Tour buses stop here twice a day.' },
+    {
+        max: 5,
+        text: 'Microscope required 🔬',
+        detail: 'Submitted to the lab for closer inspection. Lab politely declined.'
+    },
+    {
+        max: 15,
+        text: 'A modest specimen 🐛',
+        detail: 'Compact, efficient, fits in any glove compartment. Travel-friendly!'
+    },
+    {
+        max: 30,
+        text: 'Pocket-sized confidence 🍃',
+        detail: 'Knows their value isn\'t measured in inches. Wears it well.'
+    },
+    {
+        max: 45,
+        text: 'Solid average 🍌',
+        detail: 'The Goldilocks zone — not too small, not too much, just statistically calm.'
+    },
+    {
+        max: 60,
+        text: 'Above the curve 📈',
+        detail: 'Survey results suggest this score is mildly above the average bell curve.'
+    },
+    {
+        max: 75,
+        text: 'Anaconda territory 🐍',
+        detail: 'Sir, this is a Wendy\'s. Sir. SIR. Please put it away — children are present.'
+    },
+    {
+        max: 90,
+        text: 'Legendary unit 🐉',
+        detail: 'Geologists have asked permission to study the formation. Approval pending.'
+    },
+    {
+        max: 100,
+        text: 'Mythic-tier appendage <:Star:1473038501766369300>',
+        detail: 'Listed as a national landmark. Tour buses stop here twice a day.'
+    },
 ];
 
 function userInches(userId) {
@@ -59,7 +75,7 @@ async function buildAndSend(targetUser, displayName) {
         barMax: 15,
         unit: '"',
         verdict: tier.text || '',
-        detail:  tier.detail || '',
+        detail: tier.detail || '',
     });
 
     const attachment = new AttachmentBuilder(buffer, { name: 'pp.png' });
@@ -90,7 +106,7 @@ module.exports = {
     aliases: ['ppsize', 'dick'],
 
     async execute(interaction) {
-        await interaction.deferReply().catch(() => {});
+        await interaction.deferReply().catch(() => { });
         const target = interaction.options.getUser('user') || interaction.user;
         const member = interaction.guild?.members.cache.get(target.id);
         const displayName = member?.displayName || target.username;
@@ -99,7 +115,7 @@ module.exports = {
             await interaction.editReply({ components: [container], files: [attachment], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
             console.error('[pp] render error:', err);
-            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate the image.' }).catch(() => {});
+            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate the image.' }).catch(() => { });
         }
     },
 
@@ -112,7 +128,7 @@ module.exports = {
             await message.reply({ components: [container], files: [attachment], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
             console.error('[pp] render error:', err);
-            await message.reply('<:Cancel:1473037949187657818> Failed to generate the image.').catch(() => {});
+            await message.reply('<:Cancel:1473037949187657818> Failed to generate the image.').catch(() => { });
         }
     }
 };

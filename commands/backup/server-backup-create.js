@@ -63,7 +63,7 @@ function buildPanel(opts, uid, sid) {
     ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`sbkc:all:${sid}`).setEmoji('<:Checkedbox:1473038547165384804>').setLabel('Select All').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`sbkc:none:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Deselect All').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId(`sbkc:confirm:${sid}`).setLabel('<:Box:1473039115581915256> Create Backup').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`sbkc:confirm:${sid}`).setLabel('Create Backup').setEmoji('<:Box:1473039115581915256>').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`sbkc:cancel:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Cancel').setStyle(ButtonStyle.Danger)
     ));
 

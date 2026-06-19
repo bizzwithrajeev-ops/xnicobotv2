@@ -16,7 +16,7 @@
  *      fallback in DEFAULT_FALLBACK.
  */
 
-const DEFAULT_FALLBACK = '✨';
+const DEFAULT_FALLBACK = '<:Star:1473038501766369300>';
 
 // Lazy-loaded emoji-regex (matches Unicode emoji codepoints/sequences).
 // Used to filter out characters that *look* like a glyph but aren't a
@@ -124,7 +124,7 @@ const BAD_EMOJI_FALLBACKS = {
     '1426523323646345309': '📌',   // pin
     '1426523275206332426': '✉️',   // mail
     '1454871326144725066': '🎨',   // war/palette
-    '1455551935716393080': '✨',   // shine
+    '1455551935716393080': '<:Star:1473038501766369300>',   // shine
     '1455550639584186439': '<:Checkedbox:1473038547165384804>',   // verify
     '1388078753481101353': '🔗',   // glazewhite_link
     '1388078703724204142': '💎',   // 2_boost_blue

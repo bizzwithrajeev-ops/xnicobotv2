@@ -23,7 +23,7 @@ const { hashPercent, pickTier } = require('../../utils/percentCommandFactory');
 const { colorForPercent } = require('../../utils/percentCard');
 const { drawTextWithEmoji } = require('../../utils/emojiCanvasHelper');
 
-try { registerAllFonts(); } catch (_) {}
+try { registerAllFonts(); } catch (_) { }
 
 const W = 1100;
 const H = 460;
@@ -117,53 +117,69 @@ async function drawAvatarRing(ctx, url, cx, cy, r, accent) {
 }
 
 const tiers = [
-    { max: 5,
-      text:   'Tragically incompatible 🪦',
-      detail: 'Even the algorithm filed a sad face. The vibes refused to match.' },
-    { max: 15,
-      text:   'Not happening 😬',
-      detail: 'Plot twist: you\'d both be happier swiping past each other.' },
-    { max: 30,
-      text:   'Maybe in another life 🤷',
-      detail: 'Nice in theory, awkward in practice. Friends-of-friends material.' },
-    { max: 45,
-      text:   'Could go either way 🪙',
-      detail: 'There\'s potential — start with coffee and see what brews.' },
-    { max: 60,
-      text:   'Could work out 😌',
-      detail: 'Dinner sounds promising. The first three texts are going to be cute.' },
-    { max: 75,
-      text:   'Pretty solid match 😍',
-      detail: 'The kind of duo that texts each other memes within an hour of meeting.' },
-    { max: 90,
-      text:   'Power-couple energy 💞',
-      detail: 'Friends already screen-shotting your interactions. Save the date energy.' },
-    { max: 100,
-      text:   'Soulmates confirmed 💍✨',
-      detail: 'Locals are placing bets on the wedding date. Three of them are already in.' },
+    {
+        max: 5,
+        text: 'Tragically incompatible 🪦',
+        detail: 'Even the algorithm filed a sad face. The vibes refused to match.'
+    },
+    {
+        max: 15,
+        text: 'Not happening 😬',
+        detail: 'Plot twist: you\'d both be happier swiping past each other.'
+    },
+    {
+        max: 30,
+        text: 'Maybe in another life 🤷',
+        detail: 'Nice in theory, awkward in practice. Friends-of-friends material.'
+    },
+    {
+        max: 45,
+        text: 'Could go either way 🪙',
+        detail: 'There\'s potential — start with coffee and see what brews.'
+    },
+    {
+        max: 60,
+        text: 'Could work out 😌',
+        detail: 'Dinner sounds promising. The first three texts are going to be cute.'
+    },
+    {
+        max: 75,
+        text: 'Pretty solid match 😍',
+        detail: 'The kind of duo that texts each other memes within an hour of meeting.'
+    },
+    {
+        max: 90,
+        text: 'Power-couple energy 💞',
+        detail: 'Friends already screen-shotting your interactions. Save the date energy.'
+    },
+    {
+        max: 100,
+        text: 'Soulmates confirmed 💍<:Star:1473038501766369300>',
+        detail: 'Locals are placing bets on the wedding date. Three of them are already in.'
+    },
 ];
 
 async function renderShipCard(user1, user2, name1, name2, percent) {
     const accent = colorForPercent(percent);
     const display = getFontHelpers('Outfit');
-    const ui      = getFontHelpers('Inter');
+    const ui = getFontHelpers('Inter');
 
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 
     /* ── Background ── */
     const base = ctx.createLinearGradient(0, 0, W, H);
-    base.addColorStop(0,   '#0f0a22');
+    base.addColorStop(0, '#0f0a22');
     base.addColorStop(0.5, '#0b0820');
-    base.addColorStop(1,   '#070514');
+    base.addColorStop(1, '#070514');
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, W, H);
 
     // Centred accent halo (heart glow)
     const heartGlow = ctx.createRadialGradient(W / 2, H / 2 - 30, 30, W / 2, H / 2 - 30, 360);
-    heartGlow.addColorStop(0,    accent.rgba(0.55));
+    heartGlow.addColorStop(0, accent.rgba(0.55));
     heartGlow.addColorStop(0.35, accent.rgba(0.18));
-    heartGlow.addColorStop(1,    'rgba(0,0,0,0)');
+    heartGlow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = heartGlow;
     ctx.fillRect(0, 0, W, H);
 
@@ -181,10 +197,10 @@ async function renderShipCard(user1, user2, name1, name2, percent) {
 
     // Top sweep
     const sweep = ctx.createLinearGradient(0, 0, W, 0);
-    sweep.addColorStop(0,    'rgba(0,0,0,0)');
+    sweep.addColorStop(0, 'rgba(0,0,0,0)');
     sweep.addColorStop(0.22, accent.rgba(0.30));
     sweep.addColorStop(0.65, accent.rgba(0.10));
-    sweep.addColorStop(1,    'rgba(0,0,0,0)');
+    sweep.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = sweep;
     ctx.fillRect(0, 0, W, 3);
 
@@ -361,7 +377,7 @@ module.exports = {
         .addUserOption(o => o.setName('user2').setDescription('Second user (defaults to you)')),
 
     async execute(interaction) {
-        await interaction.deferReply().catch(() => {});
+        await interaction.deferReply().catch(() => { });
         const u1 = interaction.options.getUser('user1');
         const u2 = interaction.options.getUser('user2') || interaction.user;
         const m1 = interaction.guild?.members.cache.get(u1.id);
@@ -375,7 +391,7 @@ module.exports = {
             await interaction.editReply({ components: [container], files: [attachment], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
             console.error('[ship] render error:', err);
-            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate the ship card.' }).catch(() => {});
+            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate the ship card.' }).catch(() => { });
         }
     },
 
@@ -403,7 +419,7 @@ module.exports = {
             await message.reply({ components: [container], files: [attachment], flags: MessageFlags.IsComponentsV2 });
         } catch (err) {
             console.error('[ship] render error:', err);
-            await message.reply('<:Cancel:1473037949187657818> Failed to generate the ship card.').catch(() => {});
+            await message.reply('<:Cancel:1473037949187657818> Failed to generate the ship card.').catch(() => { });
         }
     },
 };

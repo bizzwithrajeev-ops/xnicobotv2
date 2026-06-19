@@ -71,11 +71,11 @@ async function findPanelMessage(interaction) {
             : ((flags ?? 0) & 64) === 64;
         if (!isEphemeral) return interaction.message;
     }
-    
+
     // For modals or ephemeral pickers: search sessions for the real panel
     // owned by this user in this guild.
     if (!global.welcomerSessions) return null;
-    
+
     for (const [messageId, session] of global.welcomerSessions.entries()) {
         if (session.userId === interaction.user.id && session.guildId === interaction.guild.id) {
             try {
@@ -84,7 +84,7 @@ async function findPanelMessage(interaction) {
                     const msg = await channel.messages.fetch(messageId).catch(() => null);
                     if (msg) return msg;
                 }
-            } catch (e) {}
+            } catch (e) { }
             // Session exists but message is gone — clean up
             global.welcomerSessions.delete(messageId);
         }
@@ -198,15 +198,15 @@ function buildMainPanel(guildConfig, guildId) {
     const channelText = guildConfig.channelId ? `<#${guildConfig.channelId}>` : '*Not set*';
     const modeText = isComponents ? '**Components V2**' : '**Embed**';
     const modeEmoji = isComponents ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
-    
+
     let content = `# <:Userplus:1473038912212435086> Welcomer Setup\n\n`;
     content += `**Status:** ${statusEmoji} ${guildConfig.enabled ? 'Enabled' : 'Disabled'}\n`;
     content += `**Channel:** ${channelText}\n`;
     content += `**Mode:** ${modeEmoji} ${modeText}\n\n`;
-    
+
     const btnCount = (guildConfig.buttons?.length || 0) + (guildConfig.actionButtons?.length || 0);
     const imgPos = guildConfig.imagePosition || 'bottom';
-    
+
     if (isComponents) {
         content += `### Components V2 Features:\n`;
         content += `- **Media Gallery:** ${guildConfig.image ? '<:Checkedbox:1473038547165384804> Set' : '<:Cancel:1473037949187657818> Not set'}\n`;
@@ -225,7 +225,7 @@ function buildMainPanel(guildConfig, guildId) {
         content += `- **Thumbnail:** ${guildConfig.thumbnail ? '<:Checkedbox:1473038547165384804> Set' : '<:Cancel:1473037949187657818> Not set'}\n`;
         content += `- **Footer:** ${guildConfig.footer ? '<:Checkedbox:1473038547165384804> Set' : '<:Cancel:1473037949187657818> Not set'}\n\n`;
     }
-    
+
     content += `### Extra Features:\n`;
     content += `- **Ping User:** ${guildConfig.pingUser ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
     content += `- **DM Welcome:** ${guildConfig.dmWelcome?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n`;
@@ -233,9 +233,9 @@ function buildMainPanel(guildConfig, guildId) {
         content += `  - DM Message: \`${guildConfig.dmWelcome.content.substring(0, 100)}${guildConfig.dmWelcome.content.length > 100 ? '...' : ''}\`\n`;
     }
     content += `- **Auto-Delete:** ${guildConfig.autoDelete > 0 ? '<:Checkedbox:1473038547165384804> ' + guildConfig.autoDelete + 's' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
-    
+
     content += `### Message Preview:\n\`\`\`\n${(guildConfig.content || guildConfig.message || 'Welcome {user} to {server}!').substring(0, 200)}${(guildConfig.content || guildConfig.message || '').length > 200 ? '...' : ''}\n\`\`\``;
-    
+
     return content;
 }
 
@@ -312,7 +312,7 @@ function createSetupRow1(guildConfig) {
 function createSetupRow2(guildConfig) {
     const mode = guildConfig.mode || 'components';
     const isComponents = mode === 'components';
-    
+
     if (isComponents) {
         return new ActionRowBuilder()
             .addComponents(
@@ -366,7 +366,7 @@ function createSetupRow2(guildConfig) {
 
 function buildCanvasPanel(canvasConfig) {
     const statusEmoji = canvasConfig?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
-    
+
     let content = `# <:Picture:1473039568398843957> Welcome Canvas Setup\n\n`;
     content += `**Status:** ${statusEmoji} ${canvasConfig?.enabled ? 'Enabled' : 'Disabled'}\n\n`;
     content += `### <:Palette:1473039029476917461> Current Settings\n`;
@@ -384,7 +384,7 @@ function buildCanvasPanel(canvasConfig) {
     content += `• Username display\n`;
     content += `• Custom message or member count\n`;
     content += `• Server name footer`;
-    
+
     return content;
 }
 
@@ -453,33 +453,33 @@ function createCanvasControlRow(canvasConfig) {
 
 function buildCanvasContainer(canvasConfig) {
     const colorValue = canvasConfig?.accentColor ? parseInt(canvasConfig.accentColor.replace('#', ''), 16) : 0xCAD7E6;
-    
+
     const container = new ContainerBuilder()
         .setAccentColor(isNaN(colorValue) ? 0xCAD7E6 : colorValue);
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(safeContent(buildCanvasPanel(canvasConfig)))
     );
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('### <:Settings:1473037894703779851> Customization')
     );
     container.addActionRowComponents(createCanvasSetupRow1(canvasConfig));
     container.addActionRowComponents(createCanvasSetupRow2(canvasConfig));
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('### <:Lightningalt:1473038679906844824> Controls')
     );
     container.addActionRowComponents(createCanvasControlRow(canvasConfig));
-    
+
     return container;
 }
 
@@ -490,13 +490,13 @@ function buildLeavePanel(leaveConfig) {
     const channelText = leaveConfig?.channelId ? `<#${leaveConfig.channelId}>` : '*Not set*';
     const modeText = isComponents ? '**Components V2**' : '**Embed**';
     const modeEmoji = isComponents ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
-    
+
     let content = `# <:Userplus:1473038912212435086> Leave Message Setup\n\n`;
     content += `**Status:** ${statusEmoji} ${leaveConfig?.enabled ? 'Enabled' : 'Disabled'}\n`;
     content += `**Channel:** ${channelText}\n`;
     content += `**Mode:** ${modeEmoji} ${modeText}\n`;
     content += `**Canvas Card:** ${leaveConfig?.canvas?.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled'}\n\n`;
-    
+
     if (isComponents) {
         const btnCount = (leaveConfig?.buttons?.length || 0) + (leaveConfig?.actionButtons?.length || 0);
         const imgPos = leaveConfig?.imagePosition || 'bottom';
@@ -516,15 +516,15 @@ function buildLeavePanel(leaveConfig) {
         content += `- **Thumbnail:** ${leaveConfig?.thumbnail ? '<:Checkedbox:1473038547165384804> Set' : '<:Cancel:1473037949187657818> Not set'}\n`;
         content += `- **Footer:** ${leaveConfig?.footer || '*Not set*'}\n\n`;
     }
-    
+
     content += `### Message Preview:\n\`\`\`\n${(leaveConfig?.content || 'Goodbye {username}!').substring(0, 200)}${(leaveConfig?.content || '').length > 200 ? '...' : ''}\n\`\`\``;
-    
+
     return content;
 }
 
 function buildLeaveCanvasPanel(canvasConfig) {
     const statusEmoji = canvasConfig?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
-    
+
     let content = `# <:Palette:1473039029476917461> Leave Canvas Card Setup\n\n`;
     content += `**Status:** ${statusEmoji} ${canvasConfig?.enabled ? 'Enabled' : 'Disabled'}\n\n`;
     content += `### Current Settings:\n`;
@@ -534,7 +534,7 @@ function buildLeaveCanvasPanel(canvasConfig) {
     content += `- **Background Image:** ${canvasConfig?.backgroundImage ? '<:Checkedbox:1473038547165384804> Set' : '<:Cancel:1473037949187657818> Not set'}\n`;
     content += `- **Custom Message:** ${canvasConfig?.customMessage || '*Not set*'}\n\n`;
     content += `-# Canvas cards generate a beautiful image with the user's avatar when they leave.`;
-    
+
     return content;
 }
 
@@ -604,35 +604,35 @@ function createLeaveCanvasControlRow(canvasConfig) {
 function buildLeaveCanvasContainer(canvasConfig) {
     const container = new ContainerBuilder()
         .setAccentColor(0xED4245);
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(safeContent(buildLeaveCanvasPanel(canvasConfig)))
     );
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('### Color Settings')
     );
     container.addActionRowComponents(createLeaveCanvasSettingsRow());
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('### Options')
     );
     container.addActionRowComponents(createLeaveCanvasExtraRow());
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addActionRowComponents(createLeaveCanvasControlRow(canvasConfig));
-    
+
     return container;
 }
 
@@ -739,61 +739,61 @@ function buildLeaveContainer(leaveConfig) {
     if (!leaveConfig?.colorless) {
         container.setAccentColor(0xED4245);
     }
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(safeContent(buildLeavePanel(leaveConfig)))
     );
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('### 🛠️ Configuration')
     );
     container.addActionRowComponents(createLeaveModeRow(leaveConfig?.mode));
     container.addActionRowComponents(createLeaveSetupRow(leaveConfig));
     container.addActionRowComponents(createLeaveExtraRow(leaveConfig));
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addActionRowComponents(createLeaveControlRow(leaveConfig));
-    
+
     return container;
 }
 
 function buildWelcomerContainer(guildConfig, guildId) {
     const mode = guildConfig.mode || 'components';
     const isComponents = mode === 'components';
-    
+
     const colorValue = guildConfig.color ? parseInt(guildConfig.color.replace('#', ''), 16) : 0xCAD7E6;
-    
+
     const container = new ContainerBuilder();
     if (!guildConfig.colorless) {
         container.setAccentColor(isNaN(colorValue) ? 0xCAD7E6 : colorValue);
     }
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(safeContent(buildMainPanel(guildConfig, guildId)))
     );
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('### 🛠️ Configuration')
     );
     container.addActionRowComponents(createModeRow(mode));
     container.addActionRowComponents(createSetupRow1(guildConfig));
     container.addActionRowComponents(createSetupRow2(guildConfig));
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     // Extra features row
     const imgPos = guildConfig.imagePosition || 'bottom';
     const extraRow = new ActionRowBuilder()
@@ -825,9 +825,9 @@ function buildWelcomerContainer(guildConfig, guildId) {
                 .setStyle(imgPos === 'bottom' ? ButtonStyle.Secondary : ButtonStyle.Primary)
                 .setEmoji(imgPos === 'top' ? '⬆️' : imgPos === 'side' ? '↔️' : '⬇️')
         );
-    
+
     container.addActionRowComponents(extraRow);
-    
+
     const extraRow2 = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
@@ -836,9 +836,9 @@ function buildWelcomerContainer(guildConfig, guildId) {
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('<:Lightningalt:1473038679906844824>')
         );
-    
+
     container.addActionRowComponents(extraRow2);
-    
+
     const controlRow = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
@@ -867,9 +867,9 @@ function buildWelcomerContainer(guildConfig, guildId) {
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('<:Document:1473039496995143731>')
         );
-    
+
     container.addActionRowComponents(controlRow);
-    
+
     return container;
 }
 
@@ -882,17 +882,17 @@ function buildTemplateManagementPanel(userId) {
     const builtInCount = builtInEntries.length;
     const builtInComponentsCount = builtInEntries.filter(t => t.template?.mode === 'components').length;
     const builtInEmbedCount = builtInEntries.filter(t => t.template?.mode === 'embed').length;
-    
+
     let content = `# <:Document:1473039496995143731> Welcomer Templates\n\n`;
     content += `You have **${templateCount}** saved template(s).\n`;
     content += `Built-in templates: **${builtInCount}** (**${builtInComponentsCount}** Components V2 + **${builtInEmbedCount}** Embed).\n\n`;
-    content += `### ✨ Built-in Starter Templates\n`;
+    content += `### <:Star:1473038501766369300> Built-in Starter Templates\n`;
     for (const item of builtInEntries) {
         const modeIcon = item.template?.mode === 'components' ? '<:Fire:1473038604812161218>' : '<:Invoice:1473039492217835550>';
         content += `• **${item.name}** ${modeIcon}\n`;
     }
     content += `\n`;
-    
+
     if (templateCount > 0) {
         content += `### <:Clipboard:1473039573037617162> Your Templates:\n`;
         for (const [name, template] of Object.entries(userTemplates)) {
@@ -909,7 +909,7 @@ function buildTemplateManagementPanel(userId) {
         content += `Templates allow you to save your current welcomer configuration and quickly apply it later.\n\n`;
         content += `Click **Save Current** below to save your first template!`;
     }
-    
+
     return content;
 }
 
@@ -919,17 +919,17 @@ function createTemplateSelectMenu(userId) {
     const builtInTemplates = getBuiltInWelcomerTemplates();
     const builtInEntries = Object.entries(builtInTemplates);
     const entries = Object.entries(userTemplates);
-    
+
     if (entries.length === 0 && builtInEntries.length === 0) {
         return null;
     }
-    
+
     const select = new StringSelectMenuBuilder()
         .setCustomId('welcomer_template_select')
         .setPlaceholder('Select a template to load...')
         .setMaxValues(1)
         .setMinValues(1);
-    
+
     builtInEntries.slice(0, 25).forEach(([key, payload]) => {
         const template = payload.template || {};
         const mode = template.mode === 'components' ? 'Built-in • Components V2' : 'Built-in • Embed';
@@ -952,7 +952,7 @@ function createTemplateSelectMenu(userId) {
                 .setDescription(`${mode}${canvas}`.substring(0, 100))
         );
     });
-    
+
     return new ActionRowBuilder().addComponents(select);
 }
 
@@ -992,7 +992,7 @@ function buildLeaveTemplateManagementPanel() {
 
     let content = `# <:Document:1473039496995143731> Leave Templates\n\n`;
     content += `Built-in templates: **${entries.length}** (**${componentsCount}** Components V2 + **${embedCount}** Embed).\n\n`;
-    content += `### ✨ Built-in Leave Templates\n`;
+    content += `### <:Star:1473038501766369300> Built-in Leave Templates\n`;
     for (const item of entries) {
         const modeIcon = item.template?.mode === 'components' ? '<:Fire:1473038604812161218>' : '<:Invoice:1473039492217835550>';
         const canvasIcon = item.template?.canvas?.enabled ? ' 🖼️' : '';
@@ -1045,7 +1045,7 @@ function createLeaveTemplateControlRow() {
 function replacePlaceholders(text, member, guild, memberCount, { skipSeparators = false } = {}) {
     if (!text) return '';
     if (!member || !guild) return text;
-    
+
     try {
         const placeholders = {
             '{user}': member.toString(),
@@ -1081,7 +1081,7 @@ function replacePlaceholders(text, member, guild, memberCount, { skipSeparators 
             '{rolecount}': (member.roles?.cache?.size || 0).toString(),
             '{highestrole}': member.roles?.highest?.name || 'None'
         };
-    
+
         // Only add text-based separator fallbacks for embed mode (not V2 containers)
         if (!skipSeparators) {
             placeholders['{separator}'] = '\n' + '─'.repeat(20) + '\n';
@@ -1089,7 +1089,7 @@ function replacePlaceholders(text, member, guild, memberCount, { skipSeparators 
             placeholders['{separator:medium}'] = '\n' + '─'.repeat(20) + '\n';
             placeholders['{separator:large}'] = '\n' + '─'.repeat(30) + '\n';
         }
-    
+
         let result = text;
         for (const [key, value] of Object.entries(placeholders)) {
             result = result.split(key).join(String(value));
@@ -1105,7 +1105,7 @@ async function createPreviewEmbed(guildConfig, member, guild, memberCount) {
     const embed = new EmbedBuilder()
         .setColor(guildConfig.color || '#bcf1e4')
         .setDescription(replacePlaceholders(guildConfig.description || guildConfig.content || guildConfig.message || '', member, guild, memberCount));
-    
+
     if (guildConfig.title) embed.setTitle(replacePlaceholders(guildConfig.title, member, guild, memberCount));
     if (guildConfig.image) {
         const url = replacePlaceholders(guildConfig.image, member, guild, memberCount);
@@ -1117,29 +1117,29 @@ async function createPreviewEmbed(guildConfig, member, guild, memberCount) {
     }
     if (guildConfig.footer) embed.setFooter({ text: replacePlaceholders(guildConfig.footer, member, guild, memberCount) });
     if (guildConfig.author) embed.setAuthor({ name: replacePlaceholders(guildConfig.author, member, guild, memberCount) });
-    
+
     return embed;
 }
 
 async function createPreviewContainer(guildConfig, member, guild, memberCount, guildId) {
     const colorValue = guildConfig.color ? parseInt(guildConfig.color.replace('#', ''), 16) : 0xCAD7E6;
     const imagePosition = guildConfig.imagePosition || 'bottom';
-    
+
     const container = new ContainerBuilder();
     if (!guildConfig.colorless) {
         container.setAccentColor(isNaN(colorValue) ? 0xCAD7E6 : colorValue);
     }
-    
+
     // Process content with skipSeparators so {separator} tags remain in the text
     const rawContent = replacePlaceholders(guildConfig.content || guildConfig.message || 'Welcome!', member, guild, memberCount, { skipSeparators: true }) || 'Welcome!';
-    
+
     // Thumbnail URL
     let thumbnailUrl = null;
     if (guildConfig.thumbnail) {
         const url = replacePlaceholders(guildConfig.thumbnail, member, guild, memberCount);
         if (url.startsWith('http')) thumbnailUrl = url;
     }
-    
+
     // Prepare image URL for gallery or side placement
     let processedImageUrl = null;
     if (!guildConfig.canvas?.enabled && (guildConfig.image || guildConfig.mediaUrl)) {
@@ -1147,18 +1147,18 @@ async function createPreviewContainer(guildConfig, member, guild, memberCount, g
         const url = replacePlaceholders(imgSrc, member, guild, memberCount);
         if (url.startsWith('http')) processedImageUrl = url;
     }
-    
+
     // Build image gallery component (not used for 'side' mode)
     let imageGallery = null;
     if (processedImageUrl && imagePosition !== 'side') {
         imageGallery = new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(processedImageUrl));
     }
-    
+
     // For 'side' mode, image is shown as thumbnail accessory alongside text (overrides separate thumbnail)
     const sideImageUrl = (imagePosition === 'side' && processedImageUrl) ? processedImageUrl : null;
     // Normal thumbnail (only if not in 'side' mode or no main image)
     const effectiveThumbUrl = sideImageUrl || thumbnailUrl;
-    
+
     // Button position helper — defined early so it can be called before or after content
     const wBtnPos = guildConfig.buttonPosition || 'bottom';
     function renderWelcomeButtons() {
@@ -1209,7 +1209,7 @@ async function createPreviewContainer(guildConfig, member, guild, memberCount, g
             .replace(/\{separator:large\}/gi, '---SEPARATOR:LARGE---')
             .replace(/\{separator\}/gi, '---SEPARATOR:SMALL---');
         const parts = markedContent.split(/---SEPARATOR:(SMALL|MEDIUM|LARGE)---/);
-        
+
         let isFirstTextPart = true;
         for (let i = 0; i < parts.length; i++) {
             if (previewComponentCount >= maxPreviewContentComponents) break;
@@ -1239,29 +1239,29 @@ async function createPreviewContainer(guildConfig, member, guild, memberCount, g
             previewComponentCount++;
         }
     }
-    
+
     // Add image at bottom if imagePosition is 'bottom' (default)
     if (imagePosition === 'bottom' && imageGallery) {
         container.addMediaGalleryComponents(imageGallery);
     }
-    
+
     // Canvas note (can't generate in ephemeral preview — no file attachments)
     if (guildConfig.canvas?.enabled) {
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent('-# \ud83c\udfa8 *Canvas card will be generated in the actual welcome message*')
         );
     }
-    
+
     if (guildConfig.footer) {
         container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(safeContent(`-# ${replacePlaceholders(guildConfig.footer, member, guild, memberCount)}`)));
     }
-    
+
     // Buttons at bottom (default)
     if (wBtnPos !== 'top') {
         renderWelcomeButtons();
     }
-    
+
     return container;
 }
 
@@ -1271,21 +1271,21 @@ module.exports = {
         .setName('welcomer')
         .setDescription('Configure welcome messages and autoroles')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-    
+
     async execute(interaction) {
         if (!interaction.guild) return;
-        
+
         const config = loadConfig();
         const guildConfig = { ...getDefaultConfig(), ...config[interaction.guild.id] };
-        
+
         const container = buildWelcomerContainer(guildConfig, interaction.guild.id);
-        
-        const reply = await interaction.reply({ 
-            components: [container], 
+
+        const reply = await interaction.reply({
+            components: [container],
             flags: MessageFlags.IsComponentsV2,
             fetchReply: true
         });
-        
+
         // Track session for user-only access
         if (!global.welcomerSessions) global.welcomerSessions = new Map();
         const now = Date.now();
@@ -1295,7 +1295,7 @@ module.exports = {
             channelId: interaction.channel.id,
             createdAt: now
         });
-        
+
         // Register panel expiration session
         registerSession(reply.id, {
             channelId: interaction.channel.id,
@@ -1303,7 +1303,7 @@ module.exports = {
             type: 'config',
             userId: interaction.user.id,
         });
-        
+
         // Auto-expire after 10 minutes
         setTimeout(() => {
             if (global.welcomerSessions && global.welcomerSessions.has(reply.id)) {
@@ -1311,22 +1311,22 @@ module.exports = {
             }
         }, 600000);
     },
-    
+
     async executePrefix(message) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
             return message.reply('<:Cancel:1473037949187657818> You need Manage Guild permission!');
         }
-        
+
         const config = loadConfig();
         const guildConfig = { ...getDefaultConfig(), ...config[message.guild.id] };
-        
+
         const container = buildWelcomerContainer(guildConfig, message.guild.id);
-        
-        const reply = await message.reply({ 
-            components: [container], 
-            flags: MessageFlags.IsComponentsV2 
+
+        const reply = await message.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2
         });
-        
+
         // Track session for user-only access
         if (!global.welcomerSessions) global.welcomerSessions = new Map();
         const now = Date.now();
@@ -1336,7 +1336,7 @@ module.exports = {
             channelId: message.channel.id,
             createdAt: now
         });
-        
+
         // Auto-expire after 10 minutes
         setTimeout(() => {
             if (global.welcomerSessions && global.welcomerSessions.has(reply.id)) {
@@ -1344,13 +1344,13 @@ module.exports = {
             }
         }, 600000);
     },
-    
+
     async handleInteraction(interaction) {
         if (!interaction.guild || !interaction.member) return false;
-        
+
         const customId = interaction.customId;
         if (!customId.startsWith('welcomer_') && !customId.startsWith('leave_') && !customId.startsWith('canvas_')) return false;
-        
+
         try {
             return await this._handleInteractionInner(interaction, customId);
         } catch (error) {
@@ -1369,12 +1369,12 @@ module.exports = {
             return true; // Return true to prevent fallback handler from running
         }
     },
-    
+
     async _handleInteractionInner(interaction, customId) {
-        
+
         // Check if config session has expired
         if (await checkAndExpire(interaction, 'config')) return true;
-        
+
         // Check session ownership (skip if interaction has no source message, e.g., modal submits)
         const sourceMessageId = interaction.message?.id;
         if (!global.welcomerSessions) global.welcomerSessions = new Map();
@@ -1392,10 +1392,10 @@ module.exports = {
             };
             global.welcomerSessions.set(sourceMessageId, newSession);
         }
-        
+
         // Re-fetch session after potential auto-create
         const activeSession = sourceMessageId ? global.welcomerSessions.get(sourceMessageId) : null;
-        
+
         if (activeSession && activeSession.userId !== interaction.user.id) {
             await interaction.reply({
                 content: '<:Cancel:1473037949187657818> This setup panel belongs to someone else. Use `/welcomer` to open your own.',
@@ -1409,19 +1409,19 @@ module.exports = {
             activeSession.createdAt = Date.now();
             global.welcomerSessions.set(sourceMessageId, activeSession);
         }
-        
+
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-            await interaction.reply({ 
-                content: '<:Cancel:1473037949187657818> You need Manage Guild permission!', 
-                flags: MessageFlags.Ephemeral 
+            await interaction.reply({
+                content: '<:Cancel:1473037949187657818> You need Manage Guild permission!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         const config = loadConfig();
         const guildId = interaction.guild.id;
         let guildConfig = { ...getDefaultConfig(), ...config[guildId] };
-        
+
         if (customId === 'welcomer_mode_components') {
             guildConfig.mode = 'components';
             config[guildId] = guildConfig;
@@ -1430,7 +1430,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_mode_embed') {
             guildConfig.mode = 'embed';
             config[guildId] = guildConfig;
@@ -1439,7 +1439,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_set_channel') {
             const currentCh = guildConfig.channelId ? `<#${guildConfig.channelId}>` : '`None`';
             const row = new ActionRowBuilder().addComponents(
@@ -1458,12 +1458,12 @@ module.exports = {
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             return true;
         }
-        
+
         if (customId === 'welcomer_set_message') {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_message_unified')
                 .setTitle('Configure Welcome Message');
-            
+
             const contentInput = new TextInputBuilder()
                 .setCustomId('content')
                 .setLabel('Welcome Message')
@@ -1472,7 +1472,7 @@ module.exports = {
                 .setValue(typeof guildConfig.content === 'string' ? guildConfig.content : (typeof guildConfig.message === 'string' ? guildConfig.message : ''))
                 .setMaxLength(2000)
                 .setRequired(true);
-            
+
             const titleInput = new TextInputBuilder()
                 .setCustomId('title')
                 .setLabel('Title (for embed mode)')
@@ -1480,7 +1480,7 @@ module.exports = {
                 .setPlaceholder('Welcome to the server!')
                 .setValue(typeof guildConfig.title === 'string' ? guildConfig.title : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(contentInput),
                 new ActionRowBuilder().addComponents(titleInput)
@@ -1488,12 +1488,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'welcomer_set_styling') {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_styling_unified')
                 .setTitle('Configure Styling');
-            
+
             const colorInput = new TextInputBuilder()
                 .setCustomId('color')
                 .setLabel('Accent Color (hex)')
@@ -1501,7 +1501,7 @@ module.exports = {
                 .setPlaceholder('#bcf1e4')
                 .setValue(typeof guildConfig.color === 'string' ? guildConfig.color : '#bcf1e4')
                 .setRequired(false);
-            
+
             const footerInput = new TextInputBuilder()
                 .setCustomId('footer')
                 .setLabel('Footer Text')
@@ -1509,7 +1509,7 @@ module.exports = {
                 .setPlaceholder('Thanks for joining!')
                 .setValue(typeof guildConfig.footer === 'string' ? guildConfig.footer : '')
                 .setRequired(false);
-            
+
             const authorInput = new TextInputBuilder()
                 .setCustomId('author')
                 .setLabel('Author Text (embed mode)')
@@ -1517,7 +1517,7 @@ module.exports = {
                 .setPlaceholder('{username} just joined!')
                 .setValue(typeof guildConfig.author === 'string' ? guildConfig.author : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(colorInput),
                 new ActionRowBuilder().addComponents(footerInput),
@@ -1526,12 +1526,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'welcomer_set_media') {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_media_unified')
                 .setTitle('Configure Media');
-            
+
             const imageInput = new TextInputBuilder()
                 .setCustomId('image')
                 .setLabel('Image URL (large image/gallery)')
@@ -1539,7 +1539,7 @@ module.exports = {
                 .setPlaceholder('https://example.com/welcome-banner.png')
                 .setValue(typeof guildConfig.image === 'string' ? guildConfig.image : '')
                 .setRequired(false);
-            
+
             const thumbnailInput = new TextInputBuilder()
                 .setCustomId('thumbnail')
                 .setLabel('Thumbnail URL (small image)')
@@ -1547,7 +1547,7 @@ module.exports = {
                 .setPlaceholder('https://example.com/server-icon.png')
                 .setValue(typeof guildConfig.thumbnail === 'string' ? guildConfig.thumbnail : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(imageInput),
                 new ActionRowBuilder().addComponents(thumbnailInput)
@@ -1555,14 +1555,14 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'welcomer_set_buttons') {
             const currentButtons = guildConfig.buttons || [];
             const currentActionBtns = guildConfig.actionButtons || [];
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_buttons')
                 .setTitle('Configure Welcome Buttons');
-            
+
             const buttonsInput = new TextInputBuilder()
                 .setCustomId('buttons')
                 .setLabel('Link Buttons (Label | Emoji | URL)')
@@ -1571,7 +1571,7 @@ module.exports = {
                 .setValue(currentButtons.map(b => b.emoji ? `${b.label} | ${b.emoji} | ${b.url}` : `${b.label} | ${b.url}`).join('\n'))
                 .setMaxLength(1000)
                 .setRequired(false);
-            
+
             const actionInput = new TextInputBuilder()
                 .setCustomId('action_buttons')
                 .setLabel('Action Buttons (button-maker IDs, comma sep)')
@@ -1589,7 +1589,7 @@ module.exports = {
                 .setValue(guildConfig.buttonPosition || 'bottom')
                 .setMaxLength(6)
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(buttonsInput),
                 new ActionRowBuilder().addComponents(actionInput),
@@ -1598,7 +1598,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'welcomer_image_position') {
             const current = guildConfig.imagePosition || 'bottom';
             guildConfig.imagePosition = current === 'bottom' ? 'top' : current === 'top' ? 'side' : 'bottom';
@@ -1608,12 +1608,12 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_embed_author') {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_embed_author')
                 .setTitle('Set Author (Embed Mode)');
-            
+
             const authorInput = new TextInputBuilder()
                 .setCustomId('author')
                 .setLabel('Author Text')
@@ -1621,17 +1621,17 @@ module.exports = {
                 .setPlaceholder('{username} just joined!')
                 .setValue(typeof guildConfig.author === 'string' ? guildConfig.author : '')
                 .setRequired(false);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(authorInput));
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'welcomer_embed_footer') {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_embed_footer')
                 .setTitle('Set Footer (Embed Mode)');
-            
+
             const footerInput = new TextInputBuilder()
                 .setCustomId('footer')
                 .setLabel('Footer Text')
@@ -1639,7 +1639,7 @@ module.exports = {
                 .setPlaceholder('Thanks for joining!')
                 .setValue(typeof guildConfig.footer === 'string' ? guildConfig.footer : '')
                 .setRequired(false);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(footerInput));
             await interaction.showModal(modal);
             return true;
@@ -1682,7 +1682,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('canvas_bgcolor_modal')
                 .setTitle('Set Canvas Background Color');
-            
+
             const colorInput = new TextInputBuilder()
                 .setCustomId('bgcolor_hex')
                 .setLabel('Hex Color Code')
@@ -1692,7 +1692,7 @@ module.exports = {
                 .setRequired(true)
                 .setMinLength(4)
                 .setMaxLength(7);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(colorInput));
             await interaction.showModal(modal);
             return true;
@@ -1702,7 +1702,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('canvas_accent_modal')
                 .setTitle('Set Canvas Accent Color');
-            
+
             const colorInput = new TextInputBuilder()
                 .setCustomId('accent_hex')
                 .setLabel('Hex Color Code')
@@ -1712,7 +1712,7 @@ module.exports = {
                 .setRequired(true)
                 .setMinLength(4)
                 .setMaxLength(7);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(colorInput));
             await interaction.showModal(modal);
             return true;
@@ -1722,7 +1722,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('canvas_textcolor_modal')
                 .setTitle('Set Canvas Text Color');
-            
+
             const colorInput = new TextInputBuilder()
                 .setCustomId('textcolor_hex')
                 .setLabel('Hex Color Code')
@@ -1732,7 +1732,7 @@ module.exports = {
                 .setRequired(true)
                 .setMinLength(4)
                 .setMaxLength(7);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(colorInput));
             await interaction.showModal(modal);
             return true;
@@ -1742,7 +1742,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('canvas_background_modal')
                 .setTitle('Set Canvas Background Image');
-            
+
             const urlInput = new TextInputBuilder()
                 .setCustomId('background_url')
                 .setLabel('Background Image URL (leave empty to reset)')
@@ -1750,7 +1750,7 @@ module.exports = {
                 .setPlaceholder('https://i.imgur.com/example.png')
                 .setValue(guildConfig.canvas?.backgroundImage || '')
                 .setRequired(false);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(urlInput));
             await interaction.showModal(modal);
             return true;
@@ -1760,7 +1760,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('canvas_message_modal')
                 .setTitle('Set Canvas Custom Message');
-            
+
             const msgInput = new TextInputBuilder()
                 .setCustomId('custom_message')
                 .setLabel('Custom message (use {membercount} for count)')
@@ -1769,7 +1769,7 @@ module.exports = {
                 .setValue(guildConfig.canvas?.customMessage || '')
                 .setRequired(false)
                 .setMaxLength(100);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
             await interaction.showModal(modal);
             return true;
@@ -1780,18 +1780,18 @@ module.exports = {
             try {
                 const WelcomeCard = require('../../utils/welcomeCard');
                 const card = new WelcomeCard();
-                
+
                 if (guildConfig.canvas?.backgroundColor) card.setBackground(guildConfig.canvas.backgroundColor);
                 if (guildConfig.canvas?.accentColor) card.setAccentColor(guildConfig.canvas.accentColor);
                 if (guildConfig.canvas?.textColor) card.setTextColor(guildConfig.canvas.textColor);
                 if (guildConfig.canvas?.backgroundImage) card.setBackgroundImage(guildConfig.canvas.backgroundImage);
-                
+
                 const customMsg = guildConfig.canvas?.customMessage?.replace('{membercount}', interaction.guild.memberCount.toLocaleString()) || null;
                 const buffer = await card.generate(interaction.user, interaction.guild, interaction.guild.memberCount, customMsg);
-                
-                                const attachment = new AttachmentBuilder(buffer, { name: 'welcome-preview.png' });
-                
-                await interaction.editReply({ 
+
+                const attachment = new AttachmentBuilder(buffer, { name: 'welcome-preview.png' });
+
+                await interaction.editReply({
                     content: '<:Eye:1473038435056095242> **Canvas Preview** - This is how your welcome card will look!',
                     files: [attachment]
                 });
@@ -1801,41 +1801,41 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'welcomer_colorless') {
             guildConfig.colorless = !guildConfig.colorless;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_show_variables') {
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(buildVariablesPanel()));
-            
-            await interaction.reply({ 
-                components: [container], 
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral 
+
+            await interaction.reply({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_leave_setup') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             const container = buildLeaveContainer(guildConfig.leave);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_back') {
             const container = buildWelcomerContainer(guildConfig, guildId);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_mode_components') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.mode = 'components';
@@ -1845,7 +1845,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_mode_embed') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.mode = 'embed';
@@ -1855,7 +1855,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_toggle') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.enabled = !guildConfig.leave.enabled;
@@ -1865,7 +1865,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_canvas_setup') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             if (!guildConfig.leave.canvas) guildConfig.leave.canvas = { enabled: false };
@@ -1951,7 +1951,7 @@ module.exports = {
             // Update the *original* leave panel — the select menu lives on an
             // ephemeral picker, so interaction.update won't refresh the real one.
             const updatedLeavePanel = buildLeaveContainer(guildConfig.leave);
-            try { await updatePanelMessage(interaction, updatedLeavePanel); } catch (e) {}
+            try { await updatePanelMessage(interaction, updatedLeavePanel); } catch (e) { }
 
             // Replace the ephemeral picker with a success confirmation.
             const successContainer = new ContainerBuilder()
@@ -1966,13 +1966,13 @@ module.exports = {
             await interaction.update({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_canvas_back') {
             const container = buildLeaveContainer(guildConfig.leave);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_canvas_toggle') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             if (!guildConfig.leave.canvas) guildConfig.leave.canvas = { enabled: false };
@@ -1983,7 +1983,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_canvas_reset') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.canvas = { enabled: guildConfig.leave.canvas?.enabled || false };
@@ -1993,7 +1993,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_canvas_set_bgcolor') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_canvas_bgcolor_modal')
@@ -2009,7 +2009,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_canvas_set_accent') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_canvas_accent_modal')
@@ -2025,7 +2025,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_canvas_set_text') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_canvas_text_modal')
@@ -2041,7 +2041,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_canvas_set_background') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_canvas_bgimage_modal')
@@ -2057,7 +2057,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_canvas_set_message') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_canvas_message_modal')
@@ -2074,12 +2074,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_canvas_preview') {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             try {
                 const LeaveCard = require('../../utils/leaveCard');
-                                const card = new LeaveCard();
+                const card = new LeaveCard();
                 const canvasConfig = guildConfig.leave?.canvas || {};
                 if (canvasConfig.backgroundColor) card.setBackground(canvasConfig.backgroundColor);
                 if (canvasConfig.accentColor) card.setAccentColor(canvasConfig.accentColor);
@@ -2095,7 +2095,7 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'leave_set_channel') {
             const currentCh = guildConfig.leave?.channelId ? `<#${guildConfig.leave.channelId}>` : '`None`';
             const row = new ActionRowBuilder().addComponents(
@@ -2114,12 +2114,12 @@ module.exports = {
             await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             return true;
         }
-        
+
         if (customId === 'leave_set_message') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_modal_message')
                 .setTitle('Set Leave Message');
-            
+
             const contentInput = new TextInputBuilder()
                 .setCustomId('content')
                 .setLabel('Leave Message')
@@ -2128,7 +2128,7 @@ module.exports = {
                 .setValue(typeof guildConfig.leave?.content === 'string' ? guildConfig.leave.content : '')
                 .setMaxLength(4000)
                 .setRequired(true);
-            
+
             const titleInput = new TextInputBuilder()
                 .setCustomId('title')
                 .setLabel('Title (for embed mode)')
@@ -2136,7 +2136,7 @@ module.exports = {
                 .setPlaceholder('Member Left')
                 .setValue(typeof guildConfig.leave?.title === 'string' ? guildConfig.leave.title : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(contentInput),
                 new ActionRowBuilder().addComponents(titleInput)
@@ -2144,12 +2144,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_set_media') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_modal_media')
                 .setTitle('Configure Leave Media');
-            
+
             const imageInput = new TextInputBuilder()
                 .setCustomId('image')
                 .setLabel('Image URL (large image/gallery)')
@@ -2157,7 +2157,7 @@ module.exports = {
                 .setPlaceholder('https://example.com/goodbye-banner.png')
                 .setValue(typeof guildConfig.leave?.image === 'string' ? guildConfig.leave.image : '')
                 .setRequired(false);
-            
+
             const thumbnailInput = new TextInputBuilder()
                 .setCustomId('thumbnail')
                 .setLabel('Thumbnail URL (small image)')
@@ -2165,7 +2165,7 @@ module.exports = {
                 .setPlaceholder('https://example.com/server-icon.png')
                 .setValue(typeof guildConfig.leave?.thumbnail === 'string' ? guildConfig.leave.thumbnail : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(imageInput),
                 new ActionRowBuilder().addComponents(thumbnailInput)
@@ -2173,12 +2173,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_set_styling') {
             const modal = new ModalBuilder()
                 .setCustomId('leave_modal_styling')
                 .setTitle('Configure Leave Styling');
-            
+
             const colorInput = new TextInputBuilder()
                 .setCustomId('color')
                 .setLabel('Accent Color (hex)')
@@ -2186,7 +2186,7 @@ module.exports = {
                 .setPlaceholder('#ED4245')
                 .setValue(typeof guildConfig.leave?.color === 'string' ? guildConfig.leave.color : '#ED4245')
                 .setRequired(false);
-            
+
             const footerInput = new TextInputBuilder()
                 .setCustomId('footer')
                 .setLabel('Footer Text')
@@ -2194,7 +2194,7 @@ module.exports = {
                 .setPlaceholder('We will miss you!')
                 .setValue(typeof guildConfig.leave?.footer === 'string' ? guildConfig.leave.footer : '')
                 .setRequired(false);
-            
+
             const authorInput = new TextInputBuilder()
                 .setCustomId('author')
                 .setLabel('Author Text (embed mode)')
@@ -2202,7 +2202,7 @@ module.exports = {
                 .setPlaceholder('{username} has left!')
                 .setValue(typeof guildConfig.leave?.author === 'string' ? guildConfig.leave.author : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(colorInput),
                 new ActionRowBuilder().addComponents(footerInput),
@@ -2211,18 +2211,18 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_colorless') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.colorless = !guildConfig.leave.colorless;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildLeaveContainer(guildConfig.leave);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_image_position') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             const current = guildConfig.leave.imagePosition || 'bottom';
@@ -2233,7 +2233,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'leave_set_buttons') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             const currentButtons = guildConfig.leave.buttons || [];
@@ -2241,7 +2241,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('leave_modal_buttons')
                 .setTitle('Configure Leave Buttons');
-            
+
             const buttonsInput = new TextInputBuilder()
                 .setCustomId('buttons')
                 .setLabel('Link Buttons (Label | Emoji | URL)')
@@ -2250,7 +2250,7 @@ module.exports = {
                 .setValue(currentButtons.map(b => b.emoji ? `${b.label} | ${b.emoji} | ${b.url}` : `${b.label} | ${b.url}`).join('\n'))
                 .setMaxLength(1000)
                 .setRequired(false);
-            
+
             const actionInput = new TextInputBuilder()
                 .setCustomId('action_buttons')
                 .setLabel('Action Buttons (button-maker IDs, comma sep)')
@@ -2268,7 +2268,7 @@ module.exports = {
                 .setValue(guildConfig.leave.buttonPosition || 'bottom')
                 .setMaxLength(6)
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(buttonsInput),
                 new ActionRowBuilder().addComponents(actionInput),
@@ -2277,7 +2277,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'leave_modal_buttons') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             const rawButtons = interaction.fields.getTextInputValue('buttons') || '';
@@ -2296,51 +2296,51 @@ module.exports = {
                 })
                 .filter(b => b && b.label && b.url && (b.url.startsWith('http://') || b.url.startsWith('https://')))
                 .slice(0, 5);
-            
+
             const rawAction = interaction.fields.getTextInputValue('action_buttons') || '';
             const actionButtons = rawAction.split(',').map(s => s.trim()).filter(Boolean).slice(0, 25);
 
             const rawLeaveBtnPos = (interaction.fields.getTextInputValue('button_position') || '').trim().toLowerCase();
-            
+
             guildConfig.leave.buttons = buttons;
             guildConfig.leave.actionButtons = actionButtons;
             guildConfig.leave.buttonPosition = rawLeaveBtnPos === 'top' ? 'top' : 'bottom';
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const total = buttons.length + actionButtons.length;
             const container = buildLeaveContainer(guildConfig.leave);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: `<:Checkedbox:1473038547165384804> ${total > 0 ? total + ' leave button' + (total > 1 ? 's' : '') + ' configured!' : 'Leave buttons cleared!'}`, 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: `<:Checkedbox:1473038547165384804> ${total > 0 ? total + ' leave button' + (total > 1 ? 's' : '') + ' configured!' : 'Leave buttons cleared!'}`,
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'leave_preview') {
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             const mode = guildConfig.leave.mode || 'components';
             if (mode === 'components') {
                 const container = await createPreviewContainer(guildConfig.leave, interaction.member, interaction.guild, interaction.guild.memberCount, interaction.guild.id);
-                await interaction.reply({ 
-                    components: [container], 
-                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral 
+                await interaction.reply({
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                 });
             } else {
                 const embed = await createPreviewEmbed(guildConfig.leave, interaction.member, interaction.guild, interaction.guild.memberCount);
-                await interaction.reply({ 
-                    content: '<:Eye:1473038435056095242> **Preview (Embed) - Leave Message**', 
-                    embeds: [embed], 
-                    flags: MessageFlags.Ephemeral 
+                await interaction.reply({
+                    content: '<:Eye:1473038435056095242> **Preview (Embed) - Leave Message**',
+                    embeds: [embed],
+                    flags: MessageFlags.Ephemeral
                 });
             }
             return true;
         }
-        
+
         if (customId === 'welcomer_ping_user') {
             guildConfig.pingUser = !guildConfig.pingUser;
             config[guildId] = guildConfig;
@@ -2352,7 +2352,7 @@ module.exports = {
 
         if (customId === 'welcomer_dm_welcome') {
             if (!guildConfig.dmWelcome) guildConfig.dmWelcome = { enabled: false, content: 'Welcome to **{server}**! We are glad to have you here.' };
-            
+
             if (guildConfig.dmWelcome.enabled) {
                 // Toggle off
                 guildConfig.dmWelcome.enabled = false;
@@ -2365,7 +2365,7 @@ module.exports = {
                 const modal = new ModalBuilder()
                     .setCustomId('welcomer_modal_dm_welcome')
                     .setTitle('DM Welcome Message');
-                
+
                 const contentInput = new TextInputBuilder()
                     .setCustomId('dm_content')
                     .setLabel('DM Message Content')
@@ -2374,7 +2374,7 @@ module.exports = {
                     .setValue(guildConfig.dmWelcome.content || '')
                     .setMaxLength(2000)
                     .setRequired(true);
-                
+
                 modal.addComponents(new ActionRowBuilder().addComponents(contentInput));
                 await interaction.showModal(modal);
             }
@@ -2383,11 +2383,11 @@ module.exports = {
 
         if (customId === 'welcomer_dm_edit') {
             if (!guildConfig.dmWelcome) guildConfig.dmWelcome = { enabled: true, content: 'Welcome to **{server}**! We are glad to have you here.' };
-            
+
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_dm_welcome')
                 .setTitle('Edit DM Welcome Message');
-            
+
             const contentInput = new TextInputBuilder()
                 .setCustomId('dm_content')
                 .setLabel('DM Message Content')
@@ -2396,7 +2396,7 @@ module.exports = {
                 .setValue(guildConfig.dmWelcome.content || '')
                 .setMaxLength(2000)
                 .setRequired(true);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(contentInput));
             await interaction.showModal(modal);
             return true;
@@ -2406,7 +2406,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_modal_auto_delete')
                 .setTitle('Auto-Delete Welcome Message');
-            
+
             const durationInput = new TextInputBuilder()
                 .setCustomId('duration')
                 .setLabel('Delete after (seconds) — 0 to disable')
@@ -2415,7 +2415,7 @@ module.exports = {
                 .setValue(String(guildConfig.autoDelete || 0))
                 .setMaxLength(5)
                 .setRequired(true);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(durationInput));
             await interaction.showModal(modal);
             return true;
@@ -2432,19 +2432,19 @@ module.exports = {
                     await interaction.editReply({ content: '<:Cancel:1473037949187657818> No welcome channel set! Set a channel first.' });
                     return true;
                 }
-                
+
                 const mode = guildConfig.mode || 'components';
                 const rawContent = guildConfig.content || 'Welcome {user} to **{server}**!';
                 const processedContent = replacePlaceholders(rawContent, interaction.member, interaction.guild, interaction.guild.memberCount);
                 const colorStr = typeof guildConfig.color === 'string' ? guildConfig.color : '#bcf1e4';
                 const colorValue = parseInt(colorStr.replace('#', ''), 16);
-                
+
                 if (mode === 'embed') {
                     const embed = new EmbedBuilder()
                         .setColor(isNaN(colorValue) ? 0xCAD7E6 : colorValue)
                         .setDescription(processedContent)
                         .setTimestamp();
-                    
+
                     if (guildConfig.title) embed.setTitle(replacePlaceholders(guildConfig.title, interaction.member, interaction.guild, interaction.guild.memberCount));
                     if (guildConfig.image) {
                         const imageUrl = replacePlaceholders(guildConfig.image, interaction.member, interaction.guild, interaction.guild.memberCount);
@@ -2456,9 +2456,9 @@ module.exports = {
                     }
                     if (guildConfig.footer) embed.setFooter({ text: replacePlaceholders(guildConfig.footer, interaction.member, interaction.guild, interaction.guild.memberCount) });
                     if (guildConfig.author) embed.setAuthor({ name: replacePlaceholders(guildConfig.author, interaction.member, interaction.guild, interaction.guild.memberCount), iconURL: interaction.user.displayAvatarURL({ size: 64 }) });
-                    
+
                     const sent = await channel.send({ content: guildConfig.pingUser ? `<@${interaction.user.id}>` : undefined, embeds: [embed] });
-                    if (guildConfig.autoDelete > 0) setTimeout(() => sent.delete().catch(() => {}), guildConfig.autoDelete * 1000);
+                    if (guildConfig.autoDelete > 0) setTimeout(() => sent.delete().catch(() => { }), guildConfig.autoDelete * 1000);
                 } else {
                     const container = await createPreviewContainer(guildConfig, interaction.member, interaction.guild, interaction.guild.memberCount, interaction.guild.id);
                     let pingMsg = null;
@@ -2466,10 +2466,10 @@ module.exports = {
                         pingMsg = await channel.send({ content: `<@${interaction.user.id}>` });
                     }
                     const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-                    if (guildConfig.autoDelete > 0 && pingMsg) setTimeout(() => pingMsg.delete().catch(() => {}), guildConfig.autoDelete * 1000);
-                    if (guildConfig.autoDelete > 0) setTimeout(() => sent.delete().catch(() => {}), guildConfig.autoDelete * 1000);
+                    if (guildConfig.autoDelete > 0 && pingMsg) setTimeout(() => pingMsg.delete().catch(() => { }), guildConfig.autoDelete * 1000);
+                    if (guildConfig.autoDelete > 0) setTimeout(() => sent.delete().catch(() => { }), guildConfig.autoDelete * 1000);
                 }
-                
+
                 await interaction.editReply({ content: `<:Checkedbox:1473038547165384804> Test welcome sent to <#${guildConfig.channelId}>!` });
             } catch (error) {
                 console.error('Test welcome error:', error);
@@ -2486,22 +2486,22 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_preview') {
             try {
                 const mode = guildConfig.mode || 'components';
                 if (mode === 'components') {
                     const container = await createPreviewContainer(guildConfig, interaction.member, interaction.guild, interaction.guild.memberCount, interaction.guild.id);
-                    await interaction.reply({ 
-                        components: [container], 
-                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral 
+                    await interaction.reply({
+                        components: [container],
+                        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                     });
                 } else {
                     const embed = await createPreviewEmbed(guildConfig, interaction.member, interaction.guild, interaction.guild.memberCount);
-                    await interaction.reply({ 
-                        content: '<:Eye:1473038435056095242> **Preview (Embed)**', 
-                        embeds: [embed], 
-                        flags: MessageFlags.Ephemeral 
+                    await interaction.reply({
+                        content: '<:Eye:1473038435056095242> **Preview (Embed)**',
+                        embeds: [embed],
+                        flags: MessageFlags.Ephemeral
                     });
                 }
             } catch (error) {
@@ -2509,20 +2509,20 @@ module.exports = {
                 await interaction.reply({
                     content: `<:Cancel:1473037949187657818> Preview failed: ${error.message || 'Unknown error'}. Check your welcomer configuration.`,
                     flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                }).catch(() => { });
             }
             return true;
         }
-        
+
         if (customId === 'welcomer_templates') {
             const userId = interaction.user.id;
             const panelContent = buildTemplateManagementPanel(userId);
             const selectMenu = createTemplateSelectMenu(userId);
             const managementRow = createTemplateManagementRow();
-            
+
             const tplContainer = new ContainerBuilder()
                 ;
-            
+
             tplContainer.addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(panelContent)
             );
@@ -2531,26 +2531,26 @@ module.exports = {
             );
             if (selectMenu) tplContainer.addActionRowComponents(selectMenu);
             tplContainer.addActionRowComponents(managementRow);
-            
+
             await interaction.reply({
                 components: [tplContainer],
                 flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_template_back') {
             const closedContainer = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Checkedbox:1473038547165384804> Template menu closed.'));
             await interaction.update({ components: [closedContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_template_save') {
             const modal = new ModalBuilder()
                 .setCustomId('welcomer_template_save_modal')
                 .setTitle('Save Welcomer Template');
-            
+
             const nameInput = new TextInputBuilder()
                 .setCustomId('template_name')
                 .setLabel('Template Name')
@@ -2558,18 +2558,18 @@ module.exports = {
                 .setPlaceholder('My Awesome Template')
                 .setMaxLength(100)
                 .setRequired(true);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'welcomer_template_delete') {
             const userId = interaction.user.id;
             const templates = loadTemplates();
             const userTemplates = templates[userId] || {};
             const templateNames = Object.keys(userTemplates);
-            
+
             if (templateNames.length === 0) {
                 const noTplContainer = new ContainerBuilder()
                     .setAccentColor(0xED4245)
@@ -2577,13 +2577,13 @@ module.exports = {
                 await interaction.update({ components: [noTplContainer], flags: MessageFlags.IsComponentsV2 });
                 return true;
             }
-            
+
             const select = new StringSelectMenuBuilder()
                 .setCustomId('welcomer_template_delete_select')
                 .setPlaceholder('Select template(s) to delete...')
                 .setMaxValues(Math.min(templateNames.length, 25))
                 .setMinValues(1);
-            
+
             templateNames.slice(0, 25).forEach(name => {
                 select.addOptions(
                     new StringSelectMenuOptionBuilder()
@@ -2591,7 +2591,7 @@ module.exports = {
                         .setValue(name)
                 );
             });
-            
+
             const delContainer = new ContainerBuilder()
                 .setAccentColor(0xED4245);
             delContainer.addTextDisplayComponents(
@@ -2607,11 +2607,11 @@ module.exports = {
                         .setEmoji('⬅️')
                 )
             );
-            
+
             await interaction.update({ components: [delContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_template_select') {
             const selectedValue = interaction.values[0];
             const userId = interaction.user.id;
@@ -2639,7 +2639,7 @@ module.exports = {
                     templateSource = 'built-in';
                 }
             }
-            
+
             if (!template) {
                 const errContainer = new ContainerBuilder()
                     .setAccentColor(0xED4245)
@@ -2647,13 +2647,13 @@ module.exports = {
                 await interaction.update({ components: [errContainer], flags: MessageFlags.IsComponentsV2 });
                 return true;
             }
-            
+
             // Apply template field by field — same logic as message-builder modals
             const guildId = interaction.guild.id;
             const config = loadConfig();
             const currentConfig = config[guildId] || getDefaultConfig();
             const mergedConfig = { ...getDefaultConfig(), ...currentConfig };
-            
+
             // Overwrite style/content fields from template (NOT server-specific)
             const styleFields = ['mode', 'content', 'message', 'title', 'description', 'color', 'colorless', 'image', 'mediaUrl', 'thumbnail', 'footer', 'author'];
             for (const field of styleFields) {
@@ -2661,18 +2661,18 @@ module.exports = {
                     mergedConfig[field] = template[field];
                 }
             }
-            
+
             // Deep merge canvas from template
             if (template.canvas) {
                 mergedConfig.canvas = { ...(getDefaultConfig().canvas), ...template.canvas };
             }
-            
+
             // Deep merge leave — preserve server-specific leave.enabled & leave.channelId
             if (template.leave) {
                 const keepLeaveEnabled = mergedConfig.leave?.enabled || false;
                 const keepLeaveChannelId = mergedConfig.leave?.channelId || null;
                 if (!mergedConfig.leave) mergedConfig.leave = { ...getDefaultConfig().leave };
-                
+
                 const leaveStyleFields = ['mode', 'content', 'title', 'description', 'color', 'colorless', 'image', 'thumbnail', 'footer', 'author'];
                 for (const field of leaveStyleFields) {
                     if (template.leave[field] !== undefined) {
@@ -2685,18 +2685,18 @@ module.exports = {
                 mergedConfig.leave.enabled = keepLeaveEnabled;
                 mergedConfig.leave.channelId = keepLeaveChannelId;
             }
-            
+
             // Always preserve server-specific top-level fields
             mergedConfig.enabled = currentConfig.enabled || false;
             mergedConfig.channelId = currentConfig.channelId || null;
-            
+
             config[guildId] = mergedConfig;
             saveConfig(config);
 
             // Update the *original* welcomer panel (this select lives on an ephemeral
             // message — interaction.update would only refresh the ephemeral one).
             const updatedPanel = buildWelcomerContainer(mergedConfig, guildId);
-            try { await updatePanelMessage(interaction, updatedPanel); } catch (e) {}
+            try { await updatePanelMessage(interaction, updatedPanel); } catch (e) { }
 
             // Replace the ephemeral template-picker with a success confirmation so
             // the user gets clear feedback that the template was loaded.
@@ -2713,19 +2713,19 @@ module.exports = {
             await interaction.update({ components: [successContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_template_delete_select') {
             const templateNames = interaction.values;
             const userId = interaction.user.id;
             const templates = loadTemplates();
-            
+
             if (!templates[userId]) {
                 const errContainer = new ContainerBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Cancel:1473037949187657818> No templates found!'));
                 await interaction.update({ components: [errContainer], flags: MessageFlags.IsComponentsV2 });
                 return true;
             }
-            
+
             let deleted = 0;
             for (const name of templateNames) {
                 if (templates[userId][name]) {
@@ -2733,9 +2733,9 @@ module.exports = {
                     deleted++;
                 }
             }
-            
+
             saveTemplatesFile(templates);
-            
+
             const doneContainer = new ContainerBuilder()
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(`<:Checkedbox:1473038547165384804> Deleted **${deleted}** template(s) successfully!`)
@@ -2743,7 +2743,7 @@ module.exports = {
             await interaction.update({ components: [doneContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'welcomer_select_channel_unified') {
             const channelId = interaction.values[0];
             const channel = interaction.guild.channels.cache.get(channelId);
@@ -2762,7 +2762,7 @@ module.exports = {
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
+            } catch (e) { }
 
             await interaction.reply({
                 content: `<:Checkedbox:1473038547165384804> Welcome channel set to <#${channelId}>!`,
@@ -2770,10 +2770,10 @@ module.exports = {
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_template_save_modal') {
             const templateName = interaction.fields.getTextInputValue('template_name').trim();
-            
+
             if (!templateName || templateName.length === 0) {
                 await interaction.reply({
                     content: '<:Cancel:1473037949187657818> Please provide a valid template name!',
@@ -2781,15 +2781,15 @@ module.exports = {
                 });
                 return true;
             }
-            
+
             const userId = interaction.user.id;
             const guildId = interaction.guild.id;
             const config = loadConfig();
             const guildConfig = config[guildId] || getDefaultConfig();
-            
+
             const templates = loadTemplates();
             if (!templates[userId]) templates[userId] = {};
-            
+
             // Save ALL builder fields (same as what the message-builder modals set)
             // Exclude server-specific: enabled, channelId, leave.enabled, leave.channelId
             const templateData = {
@@ -2820,85 +2820,85 @@ module.exports = {
                     canvas: guildConfig.leave.canvas ? { ...guildConfig.leave.canvas } : null
                 } : null
             };
-            
+
             templates[userId][templateName] = templateData;
             saveTemplatesFile(templates);
-            
+
             await interaction.reply({
                 content: `<:Checkedbox:1473038547165384804> Template **${templateName}** saved successfully!`,
                 flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_message_unified') {
             const content = interaction.fields.getTextInputValue('content');
             const title = interaction.fields.getTextInputValue('title') || null;
-            
+
             guildConfig.content = content;
             guildConfig.message = content;
             guildConfig.title = title;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Welcome message configured!', 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Welcome message configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_styling_unified') {
             const rawColor = interaction.fields.getTextInputValue('color') || '#bcf1e4';
             const color = normalizeHexColor(rawColor, '#bcf1e4');
             const footer = interaction.fields.getTextInputValue('footer') || null;
             const author = interaction.fields.getTextInputValue('author') || null;
-            
+
             guildConfig.color = color;
             guildConfig.footer = footer;
             guildConfig.author = author;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Styling configured!', 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Styling configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_media_unified') {
             const image = interaction.fields.getTextInputValue('image') || null;
             const thumbnail = interaction.fields.getTextInputValue('thumbnail') || null;
-            
+
             guildConfig.image = image;
             guildConfig.mediaUrl = image;
             guildConfig.thumbnail = thumbnail;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Media configured!', 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Media configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_buttons') {
             const rawButtons = interaction.fields.getTextInputValue('buttons') || '';
             const buttons = rawButtons.split('\n')
@@ -2916,94 +2916,94 @@ module.exports = {
                 })
                 .filter(b => b && b.label && b.url && (b.url.startsWith('http://') || b.url.startsWith('https://')))
                 .slice(0, 5);
-            
+
             const rawAction = interaction.fields.getTextInputValue('action_buttons') || '';
             const actionButtons = rawAction.split(',').map(s => s.trim()).filter(Boolean).slice(0, 25);
 
             const rawPos = (interaction.fields.getTextInputValue('button_position') || '').trim().toLowerCase();
             const buttonPosition = rawPos === 'top' ? 'top' : 'bottom';
-            
+
             guildConfig.buttons = buttons;
             guildConfig.actionButtons = actionButtons;
             guildConfig.buttonPosition = buttonPosition;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const total = buttons.length + actionButtons.length;
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: `<:Checkedbox:1473038547165384804> ${total > 0 ? total + ' button' + (total > 1 ? 's' : '') + ' configured!' : 'Buttons cleared!'}`, 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: `<:Checkedbox:1473038547165384804> ${total > 0 ? total + ' button' + (total > 1 ? 's' : '') + ' configured!' : 'Buttons cleared!'}`,
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_embed_author') {
             const author = interaction.fields.getTextInputValue('author') || null;
-            
+
             guildConfig.author = author;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Author text configured!', 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Author text configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_embed_footer') {
             const footer = interaction.fields.getTextInputValue('footer') || null;
-            
+
             guildConfig.footer = footer;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
             try {
                 await updatePanelMessage(interaction, container);
-            } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Footer text configured!', 
-                flags: MessageFlags.Ephemeral 
+            } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Footer text configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'leave_modal_channel') {
             let channelId = interaction.fields.getTextInputValue('channel_id').trim();
             channelId = channelId.replace(/<#|>/g, '');
-            
+
             const channel = interaction.guild.channels.cache.get(channelId);
             if (!channel) {
-                await interaction.reply({ 
-                    content: '<:Cancel:1473037949187657818> Invalid channel! Please provide a valid channel ID.', 
-                    flags: MessageFlags.Ephemeral 
+                await interaction.reply({
+                    content: '<:Cancel:1473037949187657818> Invalid channel! Please provide a valid channel ID.',
+                    flags: MessageFlags.Ephemeral
                 });
                 return true;
             }
-            
+
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.channelId = channelId;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildLeaveContainer(guildConfig.leave);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
-            
-            await interaction.reply({ 
-                content: `<:Checkedbox:1473038547165384804> Leave channel set to <#${channelId}>!`, 
-                flags: MessageFlags.Ephemeral 
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
+
+            await interaction.reply({
+                content: `<:Checkedbox:1473038547165384804> Leave channel set to <#${channelId}>!`,
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
@@ -3025,7 +3025,7 @@ module.exports = {
             saveConfig(config);
 
             const container = buildLeaveContainer(guildConfig.leave);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
 
             await interaction.reply({
                 content: `<:Checkedbox:1473038547165384804> Leave channel set to <#${channelId}>!`,
@@ -3033,70 +3033,70 @@ module.exports = {
             });
             return true;
         }
-        
+
         if (customId === 'leave_modal_message') {
             const content = interaction.fields.getTextInputValue('content');
             const title = interaction.fields.getTextInputValue('title') || null;
-            
+
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.content = content;
             guildConfig.leave.title = title || null;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildLeaveContainer(guildConfig.leave);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Leave message configured!', 
-                flags: MessageFlags.Ephemeral 
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Leave message configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'leave_modal_media') {
             const image = interaction.fields.getTextInputValue('image') || null;
             const thumbnail = interaction.fields.getTextInputValue('thumbnail') || null;
-            
+
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.image = image;
             guildConfig.leave.thumbnail = thumbnail;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildLeaveContainer(guildConfig.leave);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Leave media configured!', 
-                flags: MessageFlags.Ephemeral 
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Leave media configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'leave_modal_styling') {
             const rawColor = interaction.fields.getTextInputValue('color') || '#ED4245';
             const color = normalizeHexColor(rawColor, '#ED4245');
             const footer = interaction.fields.getTextInputValue('footer') || null;
             const author = interaction.fields.getTextInputValue('author') || null;
-            
+
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
             guildConfig.leave.color = color;
             guildConfig.leave.footer = footer;
             guildConfig.leave.author = author;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildLeaveContainer(guildConfig.leave);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> Leave styling configured!', 
-                flags: MessageFlags.Ephemeral 
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> Leave styling configured!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_autorole_humans' || customId === 'welcomer_autorole_bots') {
             const isBots = customId.includes('bots');
             let autoroleConfig = {};
@@ -3153,7 +3153,7 @@ module.exports = {
             });
             return true;
         }
-        
+
         // ===== Canvas Modal Submissions =====
         if (customId === 'canvas_bgcolor_modal') {
             const color = interaction.fields.getTextInputValue('bgcolor_hex').trim();
@@ -3166,10 +3166,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Canvas background color set to \`${guildConfig.canvas.backgroundColor}\`!`, flags: MessageFlags.Ephemeral });
-            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) {}
+            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'canvas_accent_modal') {
             const color = interaction.fields.getTextInputValue('accent_hex').trim();
             if (!/^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color)) {
@@ -3181,10 +3181,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Canvas accent color set to \`${guildConfig.canvas.accentColor}\`!`, flags: MessageFlags.Ephemeral });
-            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) {}
+            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'canvas_textcolor_modal') {
             const color = interaction.fields.getTextInputValue('textcolor_hex').trim();
             if (!/^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color)) {
@@ -3196,10 +3196,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Canvas text color set to \`${guildConfig.canvas.textColor}\`!`, flags: MessageFlags.Ephemeral });
-            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) {}
+            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'canvas_background_modal') {
             const url = (interaction.fields.getTextInputValue('background_url') || '').trim();
             if (!guildConfig.canvas) guildConfig.canvas = { enabled: false };
@@ -3211,10 +3211,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: url ? `<:Checkedbox:1473038547165384804> Canvas background image set!` : '<:Checkedbox:1473038547165384804> Canvas background image removed!', flags: MessageFlags.Ephemeral });
-            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) {}
+            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'canvas_message_modal') {
             const msg = (interaction.fields.getTextInputValue('custom_message') || '').trim();
             if (!guildConfig.canvas) guildConfig.canvas = { enabled: false };
@@ -3222,10 +3222,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: msg ? `<:Checkedbox:1473038547165384804> Canvas custom message set to: \`${msg}\`!` : '<:Checkedbox:1473038547165384804> Canvas custom message cleared!', flags: MessageFlags.Ephemeral });
-            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) {}
+            try { const container = buildCanvasContainer(guildConfig.canvas); await updatePanelMessage(interaction, container, MessageFlags.IsComponentsV2); } catch (e) { }
             return true;
         }
-        
+
         // ===== Leave Canvas Modal Submissions =====
         if (customId === 'leave_canvas_bgcolor_modal') {
             const color = (interaction.fields.getTextInputValue('color') || '').trim();
@@ -3239,10 +3239,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Leave canvas background color updated!`, flags: MessageFlags.Ephemeral });
-            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) {}
+            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'leave_canvas_accent_modal') {
             const color = (interaction.fields.getTextInputValue('color') || '').trim();
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
@@ -3255,10 +3255,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Leave canvas accent color updated!`, flags: MessageFlags.Ephemeral });
-            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) {}
+            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'leave_canvas_text_modal') {
             const color = (interaction.fields.getTextInputValue('color') || '').trim();
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
@@ -3271,10 +3271,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: `<:Checkedbox:1473038547165384804> Leave canvas text color updated!`, flags: MessageFlags.Ephemeral });
-            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) {}
+            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'leave_canvas_bgimage_modal') {
             const url = (interaction.fields.getTextInputValue('url') || '').trim();
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
@@ -3287,10 +3287,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: url ? '<:Checkedbox:1473038547165384804> Leave canvas background image set!' : '<:Checkedbox:1473038547165384804> Leave canvas background image removed!', flags: MessageFlags.Ephemeral });
-            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) {}
+            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) { }
             return true;
         }
-        
+
         if (customId === 'leave_canvas_message_modal') {
             const msg = (interaction.fields.getTextInputValue('message') || '').trim();
             if (!guildConfig.leave) guildConfig.leave = getDefaultConfig().leave;
@@ -3299,10 +3299,10 @@ module.exports = {
             config[guildId] = guildConfig;
             saveConfig(config);
             await interaction.reply({ content: msg ? `<:Checkedbox:1473038547165384804> Leave canvas custom message set!` : '<:Checkedbox:1473038547165384804> Leave canvas custom message cleared!', flags: MessageFlags.Ephemeral });
-            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) {}
+            try { const container = buildLeaveCanvasContainer(guildConfig.leave.canvas); await updatePanelMessage(interaction, container); } catch (e) { }
             return true;
         }
-        
+
         // ===== Extra Features Modal Submissions =====
         if (customId === 'welcomer_modal_dm_welcome') {
             const dmContent = (interaction.fields.getTextInputValue('dm_content') || '').trim();
@@ -3311,48 +3311,48 @@ module.exports = {
             guildConfig.dmWelcome.content = dmContent || 'Welcome to **{server}**! We are glad to have you here.';
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
-            
-            await interaction.reply({ 
-                content: '<:Checkedbox:1473038547165384804> DM Welcome enabled! New members will receive a DM.', 
-                flags: MessageFlags.Ephemeral 
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
+
+            await interaction.reply({
+                content: '<:Checkedbox:1473038547165384804> DM Welcome enabled! New members will receive a DM.',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'welcomer_modal_auto_delete') {
             const raw = (interaction.fields.getTextInputValue('duration') || '0').trim();
             const seconds = parseInt(raw, 10);
-            
+
             if (isNaN(seconds) || seconds < 0 || seconds > 3600) {
-                await interaction.reply({ 
-                    content: '<:Cancel:1473037949187657818> Invalid duration! Enter a number between 0-3600 seconds.', 
-                    flags: MessageFlags.Ephemeral 
+                await interaction.reply({
+                    content: '<:Cancel:1473037949187657818> Invalid duration! Enter a number between 0-3600 seconds.',
+                    flags: MessageFlags.Ephemeral
                 });
                 return true;
             }
-            
+
             guildConfig.autoDelete = seconds;
             config[guildId] = guildConfig;
             saveConfig(config);
-            
+
             const container = buildWelcomerContainer(guildConfig, guildId);
-            try { await updatePanelMessage(interaction, container); } catch (e) {}
-            
-            await interaction.reply({ 
-                content: seconds > 0 
+            try { await updatePanelMessage(interaction, container); } catch (e) { }
+
+            await interaction.reply({
+                content: seconds > 0
                     ? `<:Checkedbox:1473038547165384804> Welcome messages will auto-delete after **${seconds}** seconds.`
-                    : '<:Checkedbox:1473038547165384804> Auto-delete disabled.', 
-                flags: MessageFlags.Ephemeral 
+                    : '<:Checkedbox:1473038547165384804> Auto-delete disabled.',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         // No handler matched — acknowledge to prevent "This interaction failed"
         if (interaction.isButton() || interaction.isStringSelectMenu()) {
-            try { await interaction.deferUpdate(); } catch {}
+            try { await interaction.deferUpdate(); } catch { }
         }
         return false;
     },
@@ -3361,7 +3361,7 @@ module.exports = {
         // Reuse the same handler logic for modal submissions
         return this.handleInteraction(interaction);
     },
-    
+
     loadConfig,
     saveConfig,
     getDefaultConfig,

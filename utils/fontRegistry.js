@@ -37,7 +37,7 @@ const FONT_FAMILIES = {
     'Poppins': {
         name: 'Poppins',
         description: 'Geometric & friendly',
-        emoji: '✨',
+        emoji: '<:Star:1473038501766369300>',
         category: 'Sans-Serif',
         files: {
             regular: 'Poppins-Regular.ttf',
@@ -158,6 +158,90 @@ const FONT_FAMILIES = {
             medium: 'Orbitron',
             semibold: 'Orbitron',
             bold: 'Orbitron'
+        }
+    },
+    'American Captain': {
+        name: 'American Captain',
+        description: 'Bold & sporty',
+        emoji: '⚡',
+        category: 'Display',
+        files: {
+            regular: 'American Captain.ttf'
+        },
+        registered: {
+            regular: 'American Captain'
+        }
+    },
+    'Cheri': {
+        name: 'Cheri',
+        description: 'Cute & rounded',
+        emoji: '💖',
+        category: 'Display',
+        files: {
+            regular: 'Cheri.ttf'
+        },
+        registered: {
+            regular: 'Cheri'
+        }
+    },
+    'Heyam': {
+        name: 'Heyam',
+        description: 'Elegant & stylish',
+        emoji: '💖',
+        category: 'Display',
+        files: {
+            regular: 'Heyam.ttf'
+        },
+        registered: {
+            regular: 'Heyam'
+        }
+    },
+    'Mitshuka': {
+        name: 'Mitshuka',
+        description: 'Cute & rounded',
+        emoji: '💖',
+        category: 'Display',
+        files: {
+            regular: 'Mitshuka.otf'
+        },
+        registered: {
+            regular: 'Mitshuka.otf'
+        }
+    },
+    'Road Rage': {
+        name: 'Road Rage',
+        description: 'Bold & sporty',
+        emoji: '⚡',
+        category: 'Display',
+        files: {
+            regular: 'Road_Rage.otf'
+        },
+        registered: {
+            regular: 'Road_Rage.otf'
+        }
+    },
+    'Shivaraj': {
+        name: 'Shivaraj',
+        description: 'Bold & sporty',
+        emoji: '⚡',
+        category: 'Display',
+        files: {
+            regular: 'Shivaraj.ttf'
+        },
+        registered: {
+            regular: 'Shivaraj.ttf'
+        }
+    },
+    'waltographUI': {
+        name: 'waltographUI',
+        description: 'Bold & sporty',
+        emoji: '⚡',
+        category: 'Display',
+        files: {
+            regular: 'waltographUI.ttf'
+        },
+        registered: {
+            regular: 'waltographUI.ttf'
         }
     },
     'Rajdhani': {
@@ -392,7 +476,7 @@ function registerAllFonts() {
     for (const { file, name } of notoFonts) {
         try {
             GlobalFonts.registerFromPath(path.join(FONTS_DIR, file), name);
-        } catch (_) {}
+        } catch (_) { }
     }
 
     loadCustomFontsFromCache();
@@ -417,10 +501,10 @@ function getFontHelpers(familyKey) {
         if (regName) {
             return {
                 familyName: displayName,
-                getFont:        (size) => `400 ${size}px ${regName}, ${fallback}`,
-                getMediumFont:  (size) => `500 ${size}px ${regName}, ${fallback}`,
-                getSemiBoldFont:(size) => `600 ${size}px ${regName}, ${fallback}`,
-                getBoldFont:    (size) => `700 ${size}px ${regName}, ${fallback}`
+                getFont: (size) => `400 ${size}px ${regName}, ${fallback}`,
+                getMediumFont: (size) => `500 ${size}px ${regName}, ${fallback}`,
+                getSemiBoldFont: (size) => `600 ${size}px ${regName}, ${fallback}`,
+                getBoldFont: (size) => `700 ${size}px ${regName}, ${fallback}`
             };
         }
     }
@@ -428,10 +512,10 @@ function getFontHelpers(familyKey) {
     const family = FONT_FAMILIES[familyKey] || FONT_FAMILIES['Inter'];
     return {
         familyName: family.name,
-        getFont:        (size) => `400 ${size}px ${family.registered.regular}, ${fallback}`,
-        getMediumFont:  (size) => `500 ${size}px ${family.registered.medium}, ${fallback}`,
-        getSemiBoldFont:(size) => `600 ${size}px ${family.registered.semibold}, ${fallback}`,
-        getBoldFont:    (size) => `700 ${size}px ${family.registered.bold}, ${fallback}`
+        getFont: (size) => `400 ${size}px ${family.registered.regular}, ${fallback}`,
+        getMediumFont: (size) => `500 ${size}px ${family.registered.medium}, ${fallback}`,
+        getSemiBoldFont: (size) => `600 ${size}px ${family.registered.semibold}, ${fallback}`,
+        getBoldFont: (size) => `700 ${size}px ${family.registered.bold}, ${fallback}`
     };
 }
 

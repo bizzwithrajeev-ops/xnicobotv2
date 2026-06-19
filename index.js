@@ -1978,7 +1978,7 @@ client.on('interactionCreate', async (interaction) => {
             } catch (error) {
                 log.error(`Bot Panel Modal: ${error.message}`, error);
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred while processing the bot panel action.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                    await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred while processing the bot panel action.', flags: MessageFlags.Ephemeral }).catch(() => { });
                 }
                 return;
             }
@@ -2798,7 +2798,7 @@ client.on('interactionCreate', async (interaction) => {
                 } catch (error) {
                     log.error(`Bot Panel Error: ${error.message}`, error);
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred while processing the bot panel action.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                        await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred while processing the bot panel action.', flags: MessageFlags.Ephemeral }).catch(() => { });
                     }
                     return;
                 }
@@ -4186,11 +4186,11 @@ client.on('interactionCreate', async (interaction) => {
                         ))
                         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                            `### Quick Start Guide\n` +
-                            `• Type \`/help\` or \`-help\` to see all available commands\n` +
-                            `• Check out \`/profile\` to view your user profile\n` +
-                            `• Try music commands with \`/play <song>\`\n` +
-                            `• Explore economy features with \`/daily\` and \`/balance\`\n\n` +
+                            `### <:Bookmark:1473039494604132423> Quick Start Guide\n` +
+                            `<:Caretright:1473038207221502106> Type \`/help\` or \`-help\` to see all available commands\n` +
+                            `<:Caretright:1473038207221502106> Check out \`/profile\` to view your user profile\n` +
+                            `<:Caretright:1473038207221502106> Try music commands with \`/play <song>\`\n` +
+                            `<:Caretright:1473038207221502106> Explore economy features with \`/daily\` and \`/balance\`\n\n` +
                             (dmSent
                                 ? `<:Checkedbox:1473038547165384804> A detailed welcome message has been sent to your DMs.`
                                 : (alreadyAccepted
@@ -4265,7 +4265,7 @@ client.on('interactionCreate', async (interaction) => {
                         ))
                         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                            `-# Have questions? Join our support server: https://discord.gg/Zs35X7Umak`
+                            `-# Have questions? Join our support server: <:xnico:1486755083390550036> [xNico Support](https://discord.gg/Zs35X7Umak)`
                         ));
 
                     await interaction.editReply({
@@ -5753,7 +5753,7 @@ client.on('interactionCreate', async (interaction) => {
                                             };
                                         }
                                     }
-                                } catch {}
+                                } catch { }
 
                                 // Fallback: lyrics.ovh (legacy, may work for some tracks)
                                 if (!lyrics && cleanAuthor) {
@@ -5769,7 +5769,7 @@ client.on('interactionCreate', async (interaction) => {
                                                 text: ovhRes.data.lyrics,
                                             };
                                         }
-                                    } catch {}
+                                    } catch { }
                                 }
 
                                 if (!lyrics) {
@@ -11798,8 +11798,8 @@ client.on('messageDelete', async (message) => {
                 && countingData.lastMessageId === message.id) {
 
                 const deletedNumber = countingData.currentCount;
-                const deleterId     = message.author.id;
-                const deleterTag    = message.author.tag || message.author.username;
+                const deleterId = message.author.id;
+                const deleterTag = message.author.tag || message.author.username;
 
                 // ── Re-post the deleted number so the chain is unbroken ──
                 const repostedMsg = await message.channel.send(
@@ -11807,14 +11807,14 @@ client.on('messageDelete', async (message) => {
                 ).catch(() => null);
 
                 if (repostedMsg) {
-                    await repostedMsg.react('<:Checkedbox:1473038547165384804>').catch(() => {});
+                    await repostedMsg.react('<:Checkedbox:1473038547165384804>').catch(() => { });
                 }
 
                 // ── Update state: count stays the same, track new message ──
-                countingData.lastMessageId    = repostedMsg?.id ?? null;
+                countingData.lastMessageId = repostedMsg?.id ?? null;
                 // Keep lastUserId as the cheater so they can't immediately
                 // count the next number too.
-                countingData.lastUserId       = deleterId;
+                countingData.lastUserId = deleterId;
                 countingData.anticheatWarnings = (countingData.anticheatWarnings || 0) + 1;
                 await db.set(`counting_${message.guild.id}`, countingData);
 
@@ -11833,7 +11833,7 @@ client.on('messageDelete', async (message) => {
                 await message.channel.send({
                     components: [warnContainer],
                     flags: MessageFlags.IsComponentsV2
-                }).catch(() => {});
+                }).catch(() => { });
             }
         } catch (e) {
             // Silently handle errors
@@ -11870,19 +11870,19 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
             if (countingData && newMessage.channel.id === countingData.channelId
                 && countingData.lastMessageId === newMessage.id) {
 
-                const correctNumber  = countingData.currentCount;
-                const newContent     = newMessage.content?.trim();
-                const editedToNum    = parseInt(newContent);
+                const correctNumber = countingData.currentCount;
+                const newContent = newMessage.content?.trim();
+                const editedToNum = parseInt(newContent);
                 const isStillCorrect = !isNaN(editedToNum)
                     && newContent === editedToNum.toString()
                     && editedToNum === correctNumber;
 
                 if (!isStillCorrect) {
-                    const editorId  = newMessage.author.id;
+                    const editorId = newMessage.author.id;
                     const editorTag = newMessage.author.tag || newMessage.author.username;
 
                     // Delete the tampered message
-                    await newMessage.delete().catch(() => {});
+                    await newMessage.delete().catch(() => { });
 
                     // Re-post the correct number officially
                     const repostedMsg = await newMessage.channel.send(
@@ -11890,12 +11890,12 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
                     ).catch(() => null);
 
                     if (repostedMsg) {
-                        await repostedMsg.react('<:Checkedbox:1473038547165384804>').catch(() => {});
+                        await repostedMsg.react('<:Checkedbox:1473038547165384804>').catch(() => { });
                     }
 
                     // Update state — count unchanged, track new message
-                    countingData.lastMessageId     = repostedMsg?.id ?? null;
-                    countingData.lastUserId        = editorId;  // cheater can't count next
+                    countingData.lastMessageId = repostedMsg?.id ?? null;
+                    countingData.lastUserId = editorId;  // cheater can't count next
                     countingData.anticheatWarnings = (countingData.anticheatWarnings || 0) + 1;
                     await db.set(`counting_${newMessage.guild.id}`, countingData);
 
@@ -11914,7 +11914,7 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
                     await newMessage.channel.send({
                         components: [warnContainer],
                         flags: MessageFlags.IsComponentsV2
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
             }
         } catch (e) {

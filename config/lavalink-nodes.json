@@ -35,6 +35,24 @@
       "secure": false,
       "retryAmount": 15,
       "retryDelay": 10000
+    },
+    {
+      "id": "nexcloudv1",
+      "host": "f1.nexcloud.in",
+      "port": 2002,
+      "authorization": "nexcloud",
+      "secure": false,
+      "retryAmount": 15,
+      "retryDelay": 10000
+    },
+    {
+      "id": "nexcloudv2",
+      "host": "f1.nexcloud.in",
+      "port": 2003,
+      "authorization": "nexcloud",
+      "secure": false,
+      "retryAmount": 15,
+      "retryDelay": 10000
     }
   ]
 }

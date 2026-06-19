@@ -65,7 +65,7 @@ module.exports = {
             ));
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`bkcr:confirm:${sid}`).setLabel('<:Box:1473039115581915256> Create Backup').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`bkcr:confirm:${sid}`).setLabel('Create Backup').setEmoji('<:Box:1473039115581915256>').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`bkcr:cancel:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
         );
         ctr.addActionRowComponents(row);

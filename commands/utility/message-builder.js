@@ -160,7 +160,7 @@ function normalizeImages(data) {
 
 function replacePlaceholders(text, user, guild, channel) {
     if (!text || typeof text !== 'string') return text || '';
-    
+
     const replacements = {
         '{user}': user ? `<@${user.id}>` : '',
         '{username}': user?.username || '',
@@ -180,12 +180,12 @@ function replacePlaceholders(text, user, guild, channel) {
         '{time}': new Date().toLocaleTimeString(),
         '{timestamp}': `<t:${Math.floor(Date.now() / 1000)}:F>`
     };
-    
+
     let result = text;
     for (const [placeholder, value] of Object.entries(replacements)) {
         result = result.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'gi'), value);
     }
-    
+
     return result;
 }
 
@@ -194,7 +194,7 @@ function buildMainPanel(data) {
     const isComponents = mode === 'components';
     const modeEmoji = isComponents ? '<:Fire:1473038604812161218>' : '<:Document:1473039496995143731>';
     const modeText = isComponents ? 'Components V2' : 'Embed';
-    
+
     let header = `# <:Editalt:1473038138577256670> Message Builder\n**Mode:** ${modeEmoji} **${modeText}** \u2022 **Color:** ${data.color || '#bcf1e4'}`;
     if (data.editingMessageId) {
         header += `\n-# <:Editalt:1473038138577256670> Editing message \`${data.editingMessageId}\``;
@@ -224,7 +224,7 @@ function createModeRow(currentMode) {
 function createSetupRow(data) {
     const mode = data.mode || 'components';
     const isComponents = mode === 'components';
-    
+
     if (isComponents) {
         return new ActionRowBuilder()
             .addComponents(
@@ -453,7 +453,7 @@ function buildPreviewSection(container, data, ctx = null) {
                 const part = parts[i];
                 if (part === 'SMALL' || part === 'MEDIUM' || part === 'LARGE') {
                     const spacing = part === 'LARGE' ? SeparatorSpacingSize.Large :
-                                   part === 'MEDIUM' ? SeparatorSpacingSize.Medium : SeparatorSpacingSize.Small;
+                        part === 'MEDIUM' ? SeparatorSpacingSize.Medium : SeparatorSpacingSize.Small;
                     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(spacing).setDivider(true));
                 } else if (part.trim()) {
                     if (isFirst && effectiveThumb) {
@@ -561,10 +561,10 @@ function buildPreviewSection(container, data, ctx = null) {
 
 function buildContainer(data, ctx = null) {
     const colorValue = data.color ? parseInt(data.color.replace('#', ''), 16) : 0xCAD7E6;
-    
+
     const container = new ContainerBuilder()
         .setAccentColor(isNaN(colorValue) ? 0xCAD7E6 : colorValue);
-    
+
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(buildMainPanel(data))
     );
@@ -574,17 +574,17 @@ function buildContainer(data, ctx = null) {
     );
 
     buildPreviewSection(container, data, ctx);
-    
+
     container.addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
     );
-    
+
     container.addActionRowComponents(createModeRow(data.mode));
     container.addActionRowComponents(createSetupRow(data));
     container.addActionRowComponents(createExtraRow(data));
     container.addActionRowComponents(createActionRow(data));
     container.addActionRowComponents(createTemplateRow());
-    
+
     return container;
 }
 
@@ -593,40 +593,40 @@ function createPreviewEmbed(data, user, guild, channel) {
     const embed = new EmbedBuilder()
         .setColor(isNaN(colorValue) ? 0xCAD7E6 : colorValue)
         .setTimestamp();
-    
+
     if (data.title) {
         embed.setTitle(replacePlaceholders(data.title, user, guild, channel));
     }
-    
+
     if (data.description) {
         embed.setDescription(replacePlaceholders(data.description, user, guild, channel));
     }
-    
+
     const embedImage = data.images?.length ? data.images[0] : (data.image || '');
     if (embedImage) {
         const processedImage = replacePlaceholders(embedImage, user, guild, channel);
         if (processedImage) embed.setImage(processedImage);
     }
-    
+
     if (data.thumbnail) {
         const processedThumb = replacePlaceholders(data.thumbnail, user, guild, channel);
         if (processedThumb) embed.setThumbnail(processedThumb);
     }
-    
+
     if (data.footer) {
         const footerOpts = { text: replacePlaceholders(data.footer, user, guild, channel) };
         if (data.footerIcon) footerOpts.iconURL = replacePlaceholders(data.footerIcon, user, guild, channel);
         embed.setFooter(footerOpts);
     }
-    
+
     if (data.author) {
         const authorOpts = { name: replacePlaceholders(data.author, user, guild, channel) };
-        authorOpts.iconURL = data.authorIcon 
-            ? replacePlaceholders(data.authorIcon, user, guild, channel) 
+        authorOpts.iconURL = data.authorIcon
+            ? replacePlaceholders(data.authorIcon, user, guild, channel)
             : user.displayAvatarURL({ size: 64 });
         embed.setAuthor(authorOpts);
     }
-    
+
     if (data.fields?.length) {
         for (const field of data.fields.slice(0, 25)) {
             embed.addFields({
@@ -636,7 +636,7 @@ function createPreviewEmbed(data, user, guild, channel) {
             });
         }
     }
-    
+
     return embed;
 }
 
@@ -652,21 +652,21 @@ function createPreviewContainer(data, user, guild, channel) {
     const colorValue = data.color ? parseInt(data.color.replace('#', ''), 16) : 0xCAD7E6;
     const content = data.content || 'No content set';
     let processedContent = replacePlaceholders(content, user, guild, channel);
-    
+
     const container = new ContainerBuilder();
-    
+
     // Only set accent color if not colorless mode
     if (!data.colorless && !isNaN(colorValue)) {
         container.setAccentColor(colorValue);
     }
-    
+
     const processedThumb = data.thumbnail ? replacePlaceholders(data.thumbnail, user, guild, channel) : null;
     const imageList = (data.images?.length ? data.images : (data.image ? [data.image] : []))
         .map(url => replacePlaceholders(url, user, guild, channel))
         .filter(Boolean);
-    
+
     const imgPos = data.imagePosition || 'bottom';
-    
+
     // Build image gallery component if images exist (not used for 'side' mode)
     let imageGallery = null;
     if (imageList.length > 0 && imgPos !== 'side') {
@@ -675,11 +675,11 @@ function createPreviewContainer(data, user, guild, channel) {
             imageGallery.addItems(new MediaGalleryItemBuilder().setURL(url));
         }
     }
-    
+
     // For 'side' mode, first image becomes the thumbnail accessory
     const sideImageUrl = (imgPos === 'side' && imageList.length > 0) ? imageList[0] : null;
     const effectiveThumb = sideImageUrl || processedThumb;
-    
+
     const btnPos = data.buttonPosition || 'bottom';
 
     // Helper: render all configured buttons into the container
@@ -715,16 +715,16 @@ function createPreviewContainer(data, user, guild, channel) {
     }
 
     const hasSeparators = /\{separator(:(small|medium|large))?\}/gi.test(content);
-    
+
     if (hasSeparators) {
         const parts = processSeparators(processedContent).split(/---SEPARATOR:(SMALL|MEDIUM|LARGE)---/);
         let isFirst = true;
-        
+
         for (let i = 0; i < parts.length; i++) {
             const part = parts[i];
             if (part === 'SMALL' || part === 'MEDIUM' || part === 'LARGE') {
-                const spacing = part === 'LARGE' ? SeparatorSpacingSize.Large : 
-                               part === 'MEDIUM' ? SeparatorSpacingSize.Medium : SeparatorSpacingSize.Small;
+                const spacing = part === 'LARGE' ? SeparatorSpacingSize.Large :
+                    part === 'MEDIUM' ? SeparatorSpacingSize.Medium : SeparatorSpacingSize.Small;
                 container.addSeparatorComponents(
                     new SeparatorBuilder().setSpacing(spacing).setDivider(true)
                 );
@@ -750,12 +750,12 @@ function createPreviewContainer(data, user, guild, channel) {
             container.addTextDisplayComponents(new TextDisplayBuilder().setContent(processedContent));
         }
     }
-    
+
     // Add image gallery at bottom if position is 'bottom' (default)
     if (imageGallery && imgPos === 'bottom') {
         container.addMediaGalleryComponents(imageGallery);
     }
-    
+
     // Fields
     if (data.fields?.length > 0) {
         container.addSeparatorComponents(
@@ -778,12 +778,12 @@ function createPreviewContainer(data, user, guild, channel) {
             new TextDisplayBuilder().setContent(`-# ${replacePlaceholders(data.footer, user, guild, channel)}`)
         );
     }
-    
+
     // Buttons at bottom (default)
     if (btnPos !== 'top') {
         renderButtons();
     }
-    
+
     return container;
 }
 
@@ -796,7 +796,7 @@ function buildTemplatePickerContainer(userTemplates) {
     let listText = `# <:Folderopen:1473039552783323348> Load Template\nPick a template to apply to the builder.\n\n`;
 
     if (builtInEntries.length > 0) {
-        listText += `### ✨ Built-in Starters\n`;
+        listText += `### <:Star:1473038501766369300> Built-in Starters\n`;
         builtInEntries.forEach(([, payload]) => {
             const t = payload.template || {};
             const modeIcon = (t.mode || 'components') === 'components'
@@ -881,30 +881,30 @@ module.exports = {
         .setName('message-builder')
         .setDescription('Create custom messages with Embed or Components V2 mode')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
-    
+
     async execute(interaction) {
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         const data = { ...getDefaultData() };
         builderData.set(key, data);
-        
+
         const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
         const container = buildContainer(data, ctx);
-        
-        const reply = await interaction.reply({ 
-            components: [container], 
+
+        const reply = await interaction.reply({
+            components: [container],
             flags: MessageFlags.IsComponentsV2,
             fetchReply: true
         });
-        
+
         const messageId = reply.id;
-        
+
         builderSessions.set(messageId, {
             userId: interaction.user.id,
             channelId: interaction.channel.id,
             guildId: interaction.guild.id,
             createdAt: Date.now()
         });
-        
+
         // Register panel expiration session
         const { registerSession } = require('../../utils/panelExpiration');
         registerSession(messageId, {
@@ -913,54 +913,54 @@ module.exports = {
             type: 'builder',
             userId: interaction.user.id,
         });
-        
+
         setTimeout(() => {
             if (builderSessions.has(messageId)) {
                 builderSessions.delete(messageId);
             }
         }, 600000);
     },
-    
+
     async executePrefix(message) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
             return message.reply('<:Cancel:1473037949187657818> You need Manage Messages permission!');
         }
-        
+
         const key = `${message.guild.id}-${message.author.id}`;
         const data = { ...getDefaultData() };
         builderData.set(key, data);
-        
+
         const ctx = { user: message.author, guild: message.guild, channel: message.channel };
         const container = buildContainer(data, ctx);
-        
-        const reply = await message.reply({ 
-            components: [container], 
-            flags: MessageFlags.IsComponentsV2 
+
+        const reply = await message.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2
         });
-        
+
         builderSessions.set(reply.id, {
             userId: message.author.id,
             channelId: message.channel.id,
             guildId: message.guild.id,
             createdAt: Date.now()
         });
-        
+
         setTimeout(() => {
             if (builderSessions.has(reply.id)) {
                 builderSessions.delete(reply.id);
             }
         }, 600000);
     },
-    
+
     async handleInteraction(interaction) {
         if (!interaction.guild || !interaction.member) return false;
-        
+
         const customId = interaction.customId;
         if (!customId.startsWith('msgbuilder_')) return false;
-        
+
         // Check if builder session has expired
         if (await checkAndExpire(interaction, 'builder')) return true;
-        
+
         const session = interaction.message ? builderSessions.get(interaction.message.id) : null;
         if (session && session.userId !== interaction.user.id) {
             await interaction.reply({
@@ -969,19 +969,19 @@ module.exports = {
             });
             return true;
         }
-        
+
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-            await interaction.reply({ 
-                content: '<:Cancel:1473037949187657818> You need Manage Messages permission!', 
-                flags: MessageFlags.Ephemeral 
+            await interaction.reply({
+                content: '<:Cancel:1473037949187657818> You need Manage Messages permission!',
+                flags: MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         let data = builderData.get(key) || { ...getDefaultData() };
         const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
-        
+
         if (customId === 'msgbuilder_mode_components') {
             data.mode = 'components';
             builderData.set(key, data);
@@ -989,7 +989,7 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_mode_embed') {
             data.mode = 'embed';
             builderData.set(key, data);
@@ -997,12 +997,12 @@ module.exports = {
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_set_content') {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_content')
                 .setTitle('Set Content');
-            
+
             const contentInput = new TextInputBuilder()
                 .setCustomId('content')
                 .setLabel('Message Content')
@@ -1011,7 +1011,7 @@ module.exports = {
                 .setValue(typeof data.content === 'string' ? data.content : '')
                 .setMaxLength(4000)
                 .setRequired(true);
-            
+
             const footerInput = new TextInputBuilder()
                 .setCustomId('footer')
                 .setLabel('Footer Text (optional)')
@@ -1019,7 +1019,7 @@ module.exports = {
                 .setPlaceholder('Powered by {server}')
                 .setValue(typeof data.footer === 'string' ? data.footer : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(contentInput),
                 new ActionRowBuilder().addComponents(footerInput)
@@ -1027,12 +1027,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_set_basic') {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_basic')
                 .setTitle('Set Title & Description');
-            
+
             const titleInput = new TextInputBuilder()
                 .setCustomId('title')
                 .setLabel('Embed Title')
@@ -1040,7 +1040,7 @@ module.exports = {
                 .setPlaceholder('Welcome!')
                 .setValue(typeof data.title === 'string' ? data.title : '')
                 .setRequired(false);
-            
+
             const descInput = new TextInputBuilder()
                 .setCustomId('description')
                 .setLabel('Embed Description')
@@ -1049,7 +1049,7 @@ module.exports = {
                 .setValue(typeof data.description === 'string' ? data.description : '')
                 .setMaxLength(4000)
                 .setRequired(false);
-            
+
             const authorInput = new TextInputBuilder()
                 .setCustomId('author')
                 .setLabel('Author Text (optional)')
@@ -1057,7 +1057,7 @@ module.exports = {
                 .setPlaceholder('{username}')
                 .setValue(typeof data.author === 'string' ? data.author : '')
                 .setRequired(false);
-            
+
             const authorIconInput = new TextInputBuilder()
                 .setCustomId('author_icon')
                 .setLabel('Author Icon URL (optional)')
@@ -1065,7 +1065,7 @@ module.exports = {
                 .setPlaceholder('{useravatar}')
                 .setValue(typeof data.authorIcon === 'string' ? data.authorIcon : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(titleInput),
                 new ActionRowBuilder().addComponents(descInput),
@@ -1075,14 +1075,14 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_set_media') {
             normalizeImages(data);
             const isComponents = (data.mode || 'components') === 'components';
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_media')
                 .setTitle('Set Media');
-            
+
             const imageInput = new TextInputBuilder()
                 .setCustomId('image')
                 .setLabel(isComponents ? 'Image URLs (one per line, max 10)' : 'Image URL')
@@ -1090,7 +1090,7 @@ module.exports = {
                 .setPlaceholder(isComponents ? 'https://example.com/image1.png\nhttps://example.com/image2.png\nhttps://example.com/image3.png' : 'https://example.com/image.png')
                 .setValue(data.images?.length ? data.images.join('\n') : (typeof data.image === 'string' ? data.image : ''))
                 .setRequired(false);
-            
+
             const thumbInput = new TextInputBuilder()
                 .setCustomId('thumbnail')
                 .setLabel('Thumbnail URL')
@@ -1098,7 +1098,7 @@ module.exports = {
                 .setPlaceholder('https://example.com/thumb.png')
                 .setValue(typeof data.thumbnail === 'string' ? data.thumbnail : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(imageInput),
                 new ActionRowBuilder().addComponents(thumbInput)
@@ -1106,12 +1106,12 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_set_styling') {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_styling')
                 .setTitle('Set Styling');
-            
+
             const colorInput = new TextInputBuilder()
                 .setCustomId('color')
                 .setLabel('Color (hex)')
@@ -1119,7 +1119,7 @@ module.exports = {
                 .setPlaceholder('#bcf1e4')
                 .setValue(typeof data.color === 'string' ? data.color : '#bcf1e4')
                 .setRequired(false);
-            
+
             const footerInput = new TextInputBuilder()
                 .setCustomId('footer')
                 .setLabel('Footer Text')
@@ -1127,7 +1127,7 @@ module.exports = {
                 .setPlaceholder('Thanks for reading!')
                 .setValue(typeof data.footer === 'string' ? data.footer : '')
                 .setRequired(false);
-            
+
             const footerIconInput = new TextInputBuilder()
                 .setCustomId('footer_icon')
                 .setLabel('Footer Icon URL (optional)')
@@ -1135,7 +1135,7 @@ module.exports = {
                 .setPlaceholder('{servericon}')
                 .setValue(typeof data.footerIcon === 'string' ? data.footerIcon : '')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(colorInput),
                 new ActionRowBuilder().addComponents(footerInput),
@@ -1144,11 +1144,11 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_colorless') {
             data.colorless = !data.colorless;
             builderData.set(key, data);
-            
+
             const container = buildContainer(data, ctx);
             try {
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1160,12 +1160,12 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_image_position') {
             const current = data.imagePosition || 'bottom';
             data.imagePosition = current === 'bottom' ? 'top' : current === 'top' ? 'side' : 'bottom';
             builderData.set(key, data);
-            
+
             const container = buildContainer(data, ctx);
             try {
                 await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -1178,14 +1178,14 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_set_buttons') {
             const currentButtons = data.buttons || [];
             const currentActionBtns = data.actionButtons || [];
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_buttons')
                 .setTitle('Configure Buttons');
-            
+
             const buttonsInput = new TextInputBuilder()
                 .setCustomId('buttons')
                 .setLabel('Link Buttons (Label | Emoji | URL)')
@@ -1194,7 +1194,7 @@ module.exports = {
                 .setValue(currentButtons.map(b => b.emoji ? `${b.label} | ${b.emoji} | ${b.url}` : `${b.label} | ${b.url}`).join('\n'))
                 .setMaxLength(1000)
                 .setRequired(false);
-            
+
             const actionInput = new TextInputBuilder()
                 .setCustomId('action_buttons')
                 .setLabel('Action Buttons (button-maker IDs, comma sep)')
@@ -1212,7 +1212,7 @@ module.exports = {
                 .setValue(data.buttonPosition || 'bottom')
                 .setMaxLength(6)
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(buttonsInput),
                 new ActionRowBuilder().addComponents(actionInput),
@@ -1221,7 +1221,7 @@ module.exports = {
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_show_variables') {
             const varsContent = `# <:Clipboard:1473039573037617162> Available Variables\n\n` +
                 `### <:User:1473038971398520977> User\n\`{user}\` \`{username}\` \`{displayname}\` \`{userid}\` \`{useravatar}\`\n\n` +
@@ -1231,29 +1231,29 @@ module.exports = {
                 `### <:Alarm:1473039068546732214> Time\n\`{date}\` \`{time}\` \`{timestamp}\`\n\n` +
                 `### <:Plus:1473038174627434628> Separators (Components V2)\n\`{separator}\` \`{separator:small}\` \`{separator:medium}\` \`{separator:large}\`\n\n` +
                 `### <:Picture:1473039568398843957> URL Variables\nUse \`{useravatar}\` or \`{servericon}\` in Thumbnail/Image fields!`;
-            
+
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(varsContent));
-            
-            await interaction.reply({ 
-                components: [container], 
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral 
+
+            await interaction.reply({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
             });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_preview') {
             const mode = data.mode || 'components';
-            
+
             if (mode === 'components') {
                 if (!data.content) {
                     await interaction.reply({ content: '<:Cancel:1473037949187657818> Set content first!', flags: MessageFlags.Ephemeral });
                     return true;
                 }
                 const container = createPreviewContainer(data, interaction.user, interaction.guild, interaction.channel);
-                await interaction.reply({ 
-                    components: [container], 
-                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral 
+                await interaction.reply({
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                 });
             } else {
                 if (!data.title && !data.description) {
@@ -1261,18 +1261,18 @@ module.exports = {
                     return true;
                 }
                 const embed = createPreviewEmbed(data, interaction.user, interaction.guild, interaction.channel);
-                await interaction.reply({ 
+                await interaction.reply({
                     content: '**Preview (Embed):**',
-                    embeds: [embed], 
-                    flags: MessageFlags.Ephemeral 
+                    embeds: [embed],
+                    flags: MessageFlags.Ephemeral
                 });
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_send_here') {
             const mode = data.mode || 'components';
-            
+
             try {
                 if (mode === 'components') {
                     if (!data.content) {
@@ -1295,36 +1295,36 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_send_channel') {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_send_channel')
                 .setTitle('Send to Channel');
-            
+
             const channelInput = new TextInputBuilder()
                 .setCustomId('channel_id')
                 .setLabel('Channel ID')
                 .setStyle(TextInputStyle.Short)
                 .setPlaceholder('123456789012345678')
                 .setRequired(true);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(channelInput));
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_reset') {
             builderData.set(key, { ...getDefaultData() });
             const container = buildContainer(getDefaultData(), ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_save_template') {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_save_template')
                 .setTitle('Save Template');
-            
+
             const nameInput = new TextInputBuilder()
                 .setCustomId('template_name')
                 .setLabel('Template Name')
@@ -1332,12 +1332,12 @@ module.exports = {
                 .setPlaceholder('My Welcome Message')
                 .setMaxLength(50)
                 .setRequired(true);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
             await interaction.showModal(modal);
             return true;
         }
-        
+
         if (customId === 'msgbuilder_load_template') {
             const templates = loadTemplates();
             const userId = interaction.user.id;
@@ -1349,19 +1349,19 @@ module.exports = {
             await interaction.update({ components: [pickerContainer], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_template_picker_back') {
             const container = buildContainer(builderData.get(key) || { ...getDefaultData() }, ctx);
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_delete_template') {
             const templates = loadTemplates();
             const userId = interaction.user.id;
             const userTemplates = templates[userId] || {};
             const templateNames = Object.keys(userTemplates);
-            
+
             if (templateNames.length === 0) {
                 await interaction.reply({
                     content: '<:Cancel:1473037949187657818> You have no saved templates to delete.',
@@ -1369,8 +1369,8 @@ module.exports = {
                 });
                 return true;
             }
-            
-                        const selectMenu = new StringSelectMenuBuilder()
+
+            const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('msgbuilder_select_delete_template')
                 .setPlaceholder('Select a template to delete')
                 .addOptions(templateNames.slice(0, 25).map(name => ({
@@ -1378,9 +1378,9 @@ module.exports = {
                     value: name,
                     emoji: '<:Trash:1473038090074591293>'
                 })));
-            
+
             const row = new ActionRowBuilder().addComponents(selectMenu);
-            
+
             await interaction.reply({
                 content: '<:Trash:1473038090074591293> **Select a template to delete:**',
                 components: [row],
@@ -1397,7 +1397,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_add_field')
                 .setTitle('Add Field');
-            
+
             const nameInput = new TextInputBuilder()
                 .setCustomId('field_name')
                 .setLabel('Field Name')
@@ -1405,7 +1405,7 @@ module.exports = {
                 .setPlaceholder('Field Title')
                 .setMaxLength(256)
                 .setRequired(true);
-            
+
             const valueInput = new TextInputBuilder()
                 .setCustomId('field_value')
                 .setLabel('Field Value')
@@ -1413,7 +1413,7 @@ module.exports = {
                 .setPlaceholder('Field content here...')
                 .setMaxLength(1024)
                 .setRequired(true);
-            
+
             const inlineInput = new TextInputBuilder()
                 .setCustomId('field_inline')
                 .setLabel('Inline? (yes/no)')
@@ -1421,7 +1421,7 @@ module.exports = {
                 .setPlaceholder('yes or no')
                 .setValue('no')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(nameInput),
                 new ActionRowBuilder().addComponents(valueInput),
@@ -1443,9 +1443,9 @@ module.exports = {
             const exportData = { ...data };
             delete exportData._internal;
             const json = JSON.stringify(exportData, null, 2);
-            
+
             if (json.length > 1900) {
-                                const attachment = new AttachmentBuilder(Buffer.from(json, 'utf-8'), { name: 'message-builder.json' });
+                const attachment = new AttachmentBuilder(Buffer.from(json, 'utf-8'), { name: 'message-builder.json' });
                 await interaction.reply({ content: '<:Upload:1473730858308469020> **Exported builder data:**', files: [attachment], flags: MessageFlags.Ephemeral });
             } else {
                 await interaction.reply({ content: `<:Upload:1473730858308469020> **Exported builder data:**\n\`\`\`json\n${json}\n\`\`\``, flags: MessageFlags.Ephemeral });
@@ -1457,7 +1457,7 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_import_json')
                 .setTitle('Import JSON');
-            
+
             const jsonInput = new TextInputBuilder()
                 .setCustomId('json_data')
                 .setLabel('Paste JSON Data')
@@ -1465,7 +1465,7 @@ module.exports = {
                 .setPlaceholder('{"mode":"components","content":"Hello!","color":"#bcf1e4",...}')
                 .setMaxLength(4000)
                 .setRequired(true);
-            
+
             modal.addComponents(new ActionRowBuilder().addComponents(jsonInput));
             await interaction.showModal(modal);
             return true;
@@ -1475,21 +1475,21 @@ module.exports = {
             const modal = new ModalBuilder()
                 .setCustomId('msgbuilder_modal_edit_message')
                 .setTitle('Load Message for Editing');
-            
+
             const messageIdInput = new TextInputBuilder()
                 .setCustomId('message_id')
                 .setLabel('Message ID')
                 .setStyle(TextInputStyle.Short)
                 .setPlaceholder('Right-click a bot message → Copy Message ID')
                 .setRequired(true);
-            
+
             const channelIdInput = new TextInputBuilder()
                 .setCustomId('channel_id')
                 .setLabel('Channel ID (Optional)')
                 .setStyle(TextInputStyle.Short)
                 .setPlaceholder('Leave empty for current channel')
                 .setRequired(false);
-            
+
             modal.addComponents(
                 new ActionRowBuilder().addComponents(messageIdInput),
                 new ActionRowBuilder().addComponents(channelIdInput)
@@ -1537,20 +1537,20 @@ module.exports = {
             }
             return true;
         }
-        
+
         return false;
     },
-    
+
     async handleSelectMenu(interaction) {
         if (!interaction.guild) return false;
-        
+
         const customId = interaction.customId;
         if (!customId.startsWith('msgbuilder_select_')) return false;
-        
+
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         const userId = interaction.user.id;
         const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
-        
+
         if (customId === 'msgbuilder_select_load_template') {
             const selectedValue = interaction.values[0] || '';
             const templates = loadTemplates();
@@ -1590,7 +1590,7 @@ module.exports = {
                     await interaction.followUp({
                         content: '<:Cancel:1473037949187657818> That template could not be found.',
                         flags: MessageFlags.Ephemeral
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
                 return true;
             }
@@ -1611,10 +1611,10 @@ module.exports = {
             await interaction.followUp({
                 content: `<:Checkedbox:1473038547165384804> Loaded **${templateLabel}** (${sourceLabel}).`,
                 flags: MessageFlags.Ephemeral
-            }).catch(() => {});
+            }).catch(() => { });
             return true;
         }
-        
+
         if (customId === 'msgbuilder_select_delete_template') {
             const templateName = interaction.values[0];
             const templates = loadTemplates();
@@ -1627,32 +1627,32 @@ module.exports = {
             } else {
                 resultMsg = '<:Cancel:1473037949187657818> Template not found!';
             }
-            await interaction.editReply({ content: resultMsg, components: [] }).catch(() => {});
+            await interaction.editReply({ content: resultMsg, components: [] }).catch(() => { });
             return true;
         }
-        
+
         return false;
     },
-    
+
     async handleModalSubmit(interaction) {
         if (!interaction.guild) return false;
-        
+
         const customId = interaction.customId;
         if (!customId.startsWith('msgbuilder_modal_')) return false;
-        
+
         const key = `${interaction.guild.id}-${interaction.user.id}`;
         let data = builderData.get(key) || { ...getDefaultData() };
         const ctx = { user: interaction.user, guild: interaction.guild, channel: interaction.channel };
-        
+
         if (customId === 'msgbuilder_modal_content') {
             data.content = interaction.fields.getTextInputValue('content') || '';
             data.footer = interaction.fields.getTextInputValue('footer') || '';
             builderData.set(key, data);
-            
+
             const container = buildContainer(data, ctx);
-            try { 
+            try {
                 if (interaction.message) {
-                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
+                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: '<:Checkedbox:1473038547165384804> Content updated!', flags: MessageFlags.Ephemeral });
@@ -1666,18 +1666,18 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_modal_basic') {
             data.title = interaction.fields.getTextInputValue('title') || '';
             data.description = interaction.fields.getTextInputValue('description') || '';
             data.author = interaction.fields.getTextInputValue('author') || '';
             data.authorIcon = interaction.fields.getTextInputValue('author_icon') || '';
             builderData.set(key, data);
-            
+
             const container = buildContainer(data, ctx);
-            try { 
+            try {
                 if (interaction.message) {
-                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
+                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: '<:Checkedbox:1473038547165384804> Title & Description updated!', flags: MessageFlags.Ephemeral });
@@ -1712,16 +1712,16 @@ module.exports = {
 
             data.thumbnail = interaction.fields.getTextInputValue('thumbnail') || '';
             builderData.set(key, data);
-            
+
             const imgCount = data.images?.length || 0;
             const confirmText = isComponents && imgCount > 0
                 ? `<:Checkedbox:1473038547165384804> Media updated! **${imgCount}** image${imgCount > 1 ? 's' : ''} in gallery.`
                 : '<:Checkedbox:1473038547165384804> Media updated!';
 
             const container = buildContainer(data, ctx);
-            try { 
+            try {
                 if (interaction.message) {
-                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
+                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: confirmText, flags: MessageFlags.Ephemeral });
@@ -1744,11 +1744,11 @@ module.exports = {
             data.footer = interaction.fields.getTextInputValue('footer') || '';
             data.footerIcon = interaction.fields.getTextInputValue('footer_icon') || '';
             builderData.set(key, data);
-            
+
             const container = buildContainer(data, ctx);
-            try { 
+            try {
                 if (interaction.message) {
-                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 }); 
+                    await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
                 }
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: '<:Checkedbox:1473038547165384804> Styling updated!', flags: MessageFlags.Ephemeral });
@@ -1762,7 +1762,7 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_modal_buttons') {
             const rawButtons = interaction.fields.getTextInputValue('buttons') || '';
             const buttons = rawButtons.split('\n')
@@ -1780,18 +1780,18 @@ module.exports = {
                 })
                 .filter(b => b && b.label && b.url && (b.url.startsWith('http://') || b.url.startsWith('https://')))
                 .slice(0, 5);
-            
+
             const rawAction = interaction.fields.getTextInputValue('action_buttons') || '';
             const actionButtons = rawAction.split(',').map(s => s.trim()).filter(Boolean).slice(0, 25);
 
             const rawPos = (interaction.fields.getTextInputValue('button_position') || '').trim().toLowerCase();
             const buttonPosition = rawPos === 'top' ? 'top' : 'bottom';
-            
+
             data.buttons = buttons;
             data.actionButtons = actionButtons;
             data.buttonPosition = buttonPosition;
             builderData.set(key, data);
-            
+
             const total = buttons.length + actionButtons.length;
             const container = buildContainer(data, ctx);
             try {
@@ -1811,19 +1811,19 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_modal_send_channel') {
             let channelId = interaction.fields.getTextInputValue('channel_id').trim();
             channelId = channelId.replace(/<#|>/g, '');
-            
+
             const channel = interaction.guild.channels.cache.get(channelId);
             if (!channel) {
                 await interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid channel ID!', flags: MessageFlags.Ephemeral });
                 return true;
             }
-            
+
             const mode = data.mode || 'components';
-            
+
             try {
                 if (mode === 'components') {
                     if (!data.content) {
@@ -1846,11 +1846,11 @@ module.exports = {
             }
             return true;
         }
-        
+
         if (customId === 'msgbuilder_modal_edit_message') {
             const messageId = interaction.fields.getTextInputValue('message_id').trim();
             const channelId = interaction.fields.getTextInputValue('channel_id').trim() || interaction.channelId;
-            
+
             const channel = interaction.guild.channels.cache.get(channelId);
             if (!channel) {
                 await interaction.reply({ content: '<:Cancel:1473037949187657818> Invalid channel ID!', flags: MessageFlags.Ephemeral });
@@ -1872,9 +1872,9 @@ module.exports = {
                 const existingData = getDefaultData();
                 existingData.editingMessageId = messageId;
                 existingData.editingChannelId = channelId;
-                
+
                 const hasV2Container = message.components?.some(c => c.type === 17 || c.data?.type === 17);
-                
+
                 if (hasV2Container) {
                     existingData.mode = 'components';
                     const textParts = [];
@@ -2017,21 +2017,21 @@ module.exports = {
             const fieldValue = interaction.fields.getTextInputValue('field_value') || '';
             const inlineStr = (interaction.fields.getTextInputValue('field_inline') || 'no').toLowerCase().trim();
             const inline = inlineStr === 'yes' || inlineStr === 'true' || inlineStr === 'y';
-            
+
             if (!fieldName || !fieldValue) {
                 await interaction.reply({ content: '<:Cancel:1473037949187657818> Field name and value are required!', flags: MessageFlags.Ephemeral });
                 return true;
             }
-            
+
             if (!data.fields) data.fields = [];
             if (data.fields.length >= 25) {
                 await interaction.reply({ content: '<:Cancel:1473037949187657818> Maximum 25 fields reached!', flags: MessageFlags.Ephemeral });
                 return true;
             }
-            
+
             data.fields.push({ name: fieldName, value: fieldValue, inline });
             builderData.set(key, data);
-            
+
             const container = buildContainer(data, ctx);
             try {
                 if (interaction.message) {
@@ -2052,13 +2052,13 @@ module.exports = {
 
         if (customId === 'msgbuilder_modal_import_json') {
             const jsonStr = interaction.fields.getTextInputValue('json_data') || '';
-            
+
             try {
                 const imported = JSON.parse(jsonStr);
-                
+
                 const allowedKeys = ['mode', 'content', 'title', 'description', 'color', 'image', 'images', 'thumbnail', 'footer', 'footerIcon', 'author', 'authorIcon', 'fields', 'colorless'];
                 const sanitized = { ...getDefaultData() };
-                
+
                 for (const k of allowedKeys) {
                     if (imported[k] !== undefined) {
                         if (k === 'fields' && Array.isArray(imported[k])) {
@@ -2080,10 +2080,10 @@ module.exports = {
                         }
                     }
                 }
-                
+
                 builderData.set(key, sanitized);
                 const container = buildContainer(sanitized, ctx);
-                
+
                 try {
                     if (interaction.message) {
                         await interaction.message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -2103,9 +2103,9 @@ module.exports = {
             }
             return true;
         }
-        
+
         return false;
-    },    
+    },
     builderData,
     builderSessions
 };

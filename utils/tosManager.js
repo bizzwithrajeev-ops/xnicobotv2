@@ -178,26 +178,26 @@ function buildTosPanel(user) {
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### Your Responsibilities\n` +
-                `• Comply with Discord's Terms of Service and Community Guidelines\n` +
-                `• Use bot features responsibly and ethically\n` +
-                `• Avoid abuse, exploitation, or misuse of commands\n` +
-                `• Respect other users and server rules\n\n` +
-                `### Data Collection & Privacy\n` +
-                `• We collect user IDs and server settings for bot functionality\n` +
-                `• Your data is protected and never sold to third parties\n` +
-                `• We respect your privacy and follow GDPR guidelines\n` +
-                `• You can request data deletion at any time\n\n` +
-                `### Service Commitment\n` +
-                `• We provide reliable service to the best of our ability\n` +
-                `• Regular updates and improvements to enhance your experience\n` +
-                `• Premium features available with separate activation\n` +
-                `• Support available through our community server`
+                `### <:Bookcheck:1473039580218523822> Your Responsibilities\n` +
+                `<:Caretright:1473038207221502106> Comply with Discord's Terms of Service and Community Guidelines\n` +
+                `<:Caretright:1473038207221502106> Use bot features responsibly a nd ethically\n` +
+                `<:Caretright:1473038207221502106> Avoid abuse, exploitation, or misuse of commands\n` +
+                `<:Caretright:1473038207221502106> Respect other users and server rules\n\n` +
+                `### <:Bookcheck:1473039580218523822> Data Collection & Privacy\n` +
+                `<:Caretright:1473038207221502106> We collect user IDs and server settings for bot functionality\n` +
+                `<:Caretright:1473038207221502106> Your data is protected and never sold to third parties\n` +
+                `<:Caretright:1473038207221502106> We respect your privacy and follow Discord's policies\n` +
+                `<:Caretright:1473038207221502106> You can request data deletion at any time\n\n` +
+                `### <:Bookcheck:1473039580218523822> Service Commitment\n` +
+                `<:Caretright:1473038207221502106> We provide reliable service to the best of our ability\n` +
+                `<:Caretright:1473038207221502106> Regular updates and improvements to enhance your experience\n` +
+                `<:Caretright:1473038207221502106> Premium features available with separate activation\n` +
+                `<:Caretright:1473038207221502106> Support available through our community server`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `**By clicking "Accept & Continue", you confirm that you have read and agree to these terms.**\n\n` +
-                `-# Full terms available at: https://thenico.vercel.app/terms`
+                `-# <:xnico:1486755083390550036> **Full terms available at**: [xNico TOS](https://thenico.vercel.app/terms)`
             ))
             .addActionRowComponents(buttonRow);
 
@@ -226,17 +226,17 @@ async function sendAcceptanceDM(user) {
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### Getting Started\n` +
-                `• Use \`/help\` or \`-help\` to view all commands\n` +
-                `• Check \`/profile\` to see your user profile\n` +
-                `• Try \`/play <song>\` to enjoy music features\n` +
-                `• Explore economy with \`/economy\` or \`/daily\`\n\n` +
-                `### Need Assistance?\n` +
-                `Join our support server for help, updates, and community discussions.`
+                `### <:trust:1479780674532671673> Getting Started\n` +
+                `<:Caretright:1473038207221502106> Use \`/help\` or \`-help\` to view all commands\n` +
+                `<:Caretright:1473038207221502106> Check \`/profile\` to see your user profile\n` +
+                `<:Caretright:1473038207221502106> Try \`/play <song>\` to enjoy music features\n` +
+                `<:Caretright:1473038207221502106> Explore economy with \`/economy\` or \`/daily\`\n\n` +
+                `### <:stage:1485248337262411926> Need Assistance?\n` +
+                `<:Caretright:1473038207221502106> Join our support server for help, updates, and community discussions.`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `-# Support Server: https://discord.gg/Zs35X7Umak`
+                `-# Support Server: <:xnico:1486755083390550036> [xNico Support](https://discord.gg/Zs35X7Umak)`
             ));
 
         await user.send({
@@ -269,16 +269,16 @@ async function sendDeclineDM(user) {
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### What This Means\n` +
-                `• You cannot use bot commands until you accept the terms\n` +
-                `• No data will be collected or stored about you\n` +
-                `• You can change your decision at any time\n\n` +
-                `### Ready to Accept?\n` +
+                `### <:trust:1479780674532671673> What This Means\n` +
+                `<:Caretright:1473038207221502106> You cannot use bot commands until you accept the terms\n` +
+                `<:Caretright:1473038207221502106> No data will be collected or stored about you\n` +
+                `<:Caretright:1473038207221502106> You can change your decision at any time\n\n` +
+                `### <:trust:1479780674532671673> Ready to Accept?\n` +
                 `Simply try using any bot command again, and you'll see the Terms of Service prompt where you can click "Accept & Continue".`
             ))
             .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `-# Questions? Join our support server: https://discord.gg/Zs35X7Umak`
+                `-# Support Server: <:xnico:1486755083390550036> [xNico Support](https://discord.gg/Zs35X7Umak)`
             ));
 
         await user.send({

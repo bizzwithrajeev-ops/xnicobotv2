@@ -1,10 +1,10 @@
-const { 
-    ContainerBuilder, 
-    TextDisplayBuilder, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    MessageFlags, 
+const {
+    ContainerBuilder,
+    TextDisplayBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags,
     MediaGalleryBuilder,
     SeparatorBuilder,
     SeparatorSpacingSize,
@@ -113,7 +113,7 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
         try {
             const config247 = jsonStore.read('musicpanel-247');
             is247Enabled = config247[player.guildId]?.enabled || false;
-        } catch (e) {}
+        } catch (e) { }
     }
 
     const autoplayEnabled = autoplayStatus?.get(player.guildId) || false;
@@ -126,9 +126,9 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 
     // Status line
     const statusParts = [];
-    if (player.paused)              statusParts.push(`${EMOJIS.pause} Paused`);
-    if (loopMode === 'track')       statusParts.push(`${EMOJIS.loop} Track Loop`);
-    else if (loopMode === 'queue')  statusParts.push(`<:Shuffle:1473039298751107213> Queue Loop`);
+    if (player.paused) statusParts.push(`${EMOJIS.pause} Paused`);
+    if (loopMode === 'track') statusParts.push(`${EMOJIS.loop} Track Loop`);
+    else if (loopMode === 'queue') statusParts.push(`<:Shuffle:1473039298751107213> Queue Loop`);
     if (autoplayEnabled) statusParts.push('<:Lightningalt:1473038679906844824> Autoplay');
     if (is247Enabled) statusParts.push('<:Star:1473038501766369300> 24/7');
 
@@ -142,14 +142,14 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
             container.addMediaGalleryComponents(
                 new MediaGalleryBuilder().addItems(item => item.setURL(artworkUrl))
             );
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // Now Playing header + track info
     let content = `# ${EMOJIS.music} Now Playing\n\n`;
     content += `### ${platform.icon} ${title}\n`;
     content += `-# by **${author}**\n\n`;
-    
+
     if (isLiveStream) {
         content += `${EMOJIS.live} **LIVE STREAM**\n`;
     } else {
@@ -159,11 +159,11 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
     }
 
     content += `\n${EMOJIS.volume} **${player.volume}%** · ${EMOJIS.queue} **${player.queue.tracks.length}** in queue`;
-    
+
     if (statusParts.length > 0) {
         content += `\n-# ${statusParts.join(' · ')}`;
     }
-    
+
     content += `\n-# Requested by <@${track.requester?.id || 'Unknown'}>`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
@@ -191,8 +191,8 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
     // --- Control Buttons (3 rows instead of 5) ---
     // Distinct loop icon per mode so users can tell what's active.
     const loopEmoji = loopMode === 'track' ? '<:Refresh:1473037911581528165>' :
-                      loopMode === 'queue' ? '<:Shuffle:1473039298751107213>' :
-                                              EMOJIS.forward;
+        loopMode === 'queue' ? '<:Shuffle:1473039298751107213>' :
+            EMOJIS.forward;
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('panel_previous').setEmoji(EMOJIS.previous).setStyle(ButtonStyle.Secondary),
@@ -225,7 +225,7 @@ function buildNowPlayingContainer(player, autoplayStatus, options = {}) {
 function buildIdlePanel(guildId = null) {
     const container = new ContainerBuilder();
     container.setAccentColor(MUSIC_THEME.primary);
-    
+
     // Check 24/7 status
     let is247Enabled = false;
     if (guildId) {
@@ -233,18 +233,18 @@ function buildIdlePanel(guildId = null) {
             try {
                 const config247 = jsonStore.read('musicpanel-247');
                 is247Enabled = config247[guildId]?.enabled || false;
-            } catch (e) {}
+            } catch (e) { }
         }
     }
-    
+
     // Banner
-    const bannerUrl = 'https://cdn.discordapp.com/attachments/1457289768462188677/1488055206095622264/file_0000000083f0720b940043354c0573ba.png?ex=69cb62e7&is=69ca1167&hm=ead718bd04272e57a4c4854ac015ff237e6e296789eea6b8c3675dd77542803a&';
+    const bannerUrl = 'https://cdn.discordapp.com/attachments/1457289768462188677/1517460672818974750/file_0000000099d8720696beb125a10eb38c.png?ex=6a365ce1&is=6a350b61&hm=153b72d872e3e0d3eef56560dde3e44969eb9ce605b3f856b5a89ede15730721';
     try {
         container.addMediaGalleryComponents(
             new MediaGalleryBuilder().addItems(item => item.setURL(bannerUrl))
         );
-    } catch (e) {}
-    
+    } catch (e) { }
+
     // Header
     let headerContent = `# ${EMOJIS.music} Music Player\n\n`;
     headerContent += `**Standby** — no track is playing right now.\n`;
@@ -308,7 +308,7 @@ function buildQueueContainer(player, page = 0) {
     const current = player.queue.current;
 
     let content = `# ${EMOJIS.queue} Queue\n\n`;
-    
+
     if (current) {
         const platform = getPlatformInfo(current.info.sourceName);
         content += `**Now Playing**\n`;
@@ -382,7 +382,7 @@ function buildTrackAddedContainer(track, position, queueLength) {
             container.addMediaGalleryComponents(
                 new MediaGalleryBuilder().addItems(item => item.setURL(artworkUrl))
             );
-        } catch (e) {}
+        } catch (e) { }
     }
 
     let content = `# ${EMOJIS.verify} Added to Queue\n\n`;
@@ -403,7 +403,7 @@ function buildPlaylistAddedContainer(playlistName, trackCount, totalDuration, th
             container.addMediaGalleryComponents(
                 new MediaGalleryBuilder().addItems(item => item.setURL(thumbnail))
             );
-        } catch (e) {}
+        } catch (e) { }
     }
 
     let content = `# ${EMOJIS.verify} Playlist Added\n\n`;
@@ -418,12 +418,12 @@ function buildPlaylistAddedContainer(playlistName, trackCount, totalDuration, th
 
 function buildFiltersContainer(player) {
     const container = new ContainerBuilder();
-    
+
     const currentFilters = player.filterManager?.filters || {};
-    
+
     let content = `# ${EMOJIS.filters} Audio Filters\n\n`;
     content += `-# Select filters to enhance your listening experience\n\n`;
-    
+
     const filterList = [
         { id: 'bassboost', name: 'Bass Boost', emoji: '<:Volumeup:1473039290136002844>', desc: 'Enhance low frequencies' },
         { id: 'nightcore', name: 'Nightcore', emoji: '<:Lightningalt:1473038679906844824>', desc: 'Speed up with higher pitch' },
@@ -432,7 +432,7 @@ function buildFiltersContainer(player) {
         { id: 'karaoke', name: 'Karaoke', emoji: EMOJIS.microphone, desc: 'Remove vocals' },
         { id: 'tremolo', name: 'Tremolo', emoji: EMOJIS.musicNote, desc: 'Oscillating volume' }
     ];
-    
+
     content += filterList.map(f => {
         const active = currentFilters[f.id] ? '`ON`' : '`OFF`';
         return `${f.emoji} **${f.name}** ${active}\n-# ${f.desc}`;
@@ -584,12 +584,12 @@ function releasePanelLock(guildId) {
 }
 
 async function updateMusicPanel(client, player, autoplayStatus, forceGuildId = null) {
-    
+
     const guildId = forceGuildId || player?.guildId;
     if (!guildId) return;
 
     if (!jsonStore.has('musicpanel')) return;
-    
+
     let panelConfig;
     try {
         panelConfig = jsonStore.read('musicpanel');
@@ -625,7 +625,7 @@ async function updateMusicPanel(client, player, autoplayStatus, forceGuildId = n
         }
 
         const currentPlayer = player || client.lavalinkManager?.getPlayer(guildId);
-        
+
         let container;
         if (currentPlayer && currentPlayer.queue.current) {
             container = buildNowPlayingContainer(currentPlayer, autoplayStatus);
@@ -634,10 +634,10 @@ async function updateMusicPanel(client, player, autoplayStatus, forceGuildId = n
         }
 
         if (container) {
-            await message.edit({ 
-                components: [container], 
-                flags: require('discord.js').MessageFlags.IsComponentsV2 
-            }).catch(() => {});
+            await message.edit({
+                components: [container],
+                flags: require('discord.js').MessageFlags.IsComponentsV2
+            }).catch(() => { });
         }
     } catch (error) {
         log.error('Music panel update error:', error);

@@ -12,7 +12,7 @@ const {
     CATEGORY_ALIASES,
 } = require('../../utils/helpCategories');
 
-const BANNER_URL = process.env.HELP_BANNER_URL || 'https://cdn.discordapp.com/attachments/1457289768462188677/1488055206095622264/file_0000000083f0720b940043354c0573ba.png?ex=69cb62e7&is=69ca1167&hm=ead718bd04272e57a4c4854ac015ff237e6e296789eea6b8c3675dd77542803a&';
+const BANNER_URL = process.env.HELP_BANNER_URL || 'https://cdn.discordapp.com/attachments/1457289768462188677/1517460672818974750/file_0000000099d8720696beb125a10eb38c.png?ex=6a365ce1&is=6a350b61&hm=153b72d872e3e0d3eef56560dde3e44969eb9ce605b3f856b5a89ede15730721';
 const SUPPORT_URL = process.env.SUPPORT_SERVER || 'https://discord.gg/Zs35X7Umak';
 const INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
 const VOTE_URL = process.env.VOTE_LINK || 'https://top.gg/bot/1409926557430190100/vote';
@@ -68,33 +68,20 @@ function buildHomeContent(client, user) {
 
     const lines = [
         `## <:xnico:1486755083390550036>  xNico — Help Center`,
-        `-# All-in-one Discord toolkit · Music · Moderation · Economy · Levels · Tickets · AI`,
+        `-# A Smarter Way to Manage Your Discord Community.`,
         ``,
         `<:Bookopen:1473038576391557130> **Getting Started**`,
-        `> Pick a category from the dropdown below to view its commands.`,
-        `> Both **slash** (\`/command\`) and **prefix** (\`${prefix}command\`) work everywhere.`,
-        `> Hit **Search** to jump straight to any command by name.`,
-        ``,
-        `<:Inforect:1473038624172937287> **Quick Stats**`,
-        `> <:Bullhorn:1473038903157199093> **${total}** commands  ·  <:Folder:1473039340425973972> **${guilds.toLocaleString()}** servers`,
-        ``,
-        `<:Lightning:1473038797540298792> **Highlights**`,
-        `> <:Music:1473039311057190972> Lavalink music · <:Shield:1473038669831995494> Anti-Nuke / Anti-Raid · <:Money:1473377877239140529> Custom currency`,
-        `> <:Refresh:1473037911581528165> AutoMeme · Ticket panels · J2C voice · <:Gamepad:1473039216429498409> Games · <:Crown:1506010837368963142> Premium tiers`,
-        ``,
+        `<:Caretright:1473038207221502106> Pick a category from the dropdown below to view its commands.`,
+        `<:Caretright:1473038207221502106> Both **slash** (\`/help\`) and **prefix** (\`${prefix}help\`) work everywhere.`,
+        `<:Caretright:1473038207221502106> Hit **Search** to jump straight to any command by name.`,
         `<:Settings:1473037894703779851> **Need help?**`,
-        `> Tap the **More options** menu for support, invite, vote, and search.`,
+        `<:Caretright:1473038207221502106> Tap the **More options** menu for support, invite, vote, and search.`,
         ``,
-        `-# Requested by ${user}`
     ];
 
     return lines.join('\n');
 }
 
-/* ─────────────────────────────────────────────────────────────
-   CATEGORY PAGE — Fluorine-style command list with descriptions
-   Each command on its own line: `.command` · Description
-   ───────────────────────────────────────────────────────────── */
 
 function buildCategoryPages(category, client) {
     const meta = CATEGORY_META[category];
@@ -246,7 +233,7 @@ function buildHelpContainer(content, user, client, isHome = false, showOwner = f
             container.addMediaGalleryComponents(
                 new MediaGalleryBuilder().addItems(item => item.setURL(BANNER_URL))
             );
-        } catch {}
+        } catch { }
     }
 
     // Category dropdown
@@ -263,27 +250,27 @@ function buildHelpContainer(content, user, client, isHome = false, showOwner = f
             .setCustomId('help_more_options')
             .setPlaceholder('More options')
             .addOptions([
-                { label: 'All Commands',   description: 'View every command in one list',  value: 'all_commands', emoji: { id: '1486755083390550036' } },
-                { label: 'Search',         description: 'Search for a specific command',   value: 'search',       emoji: { id: '1473038053219106847' } },
-                { label: 'Website',        description: 'Visit the xNico website',         value: 'website',      emoji: { id: '1473039138868433192' } },
-                { label: 'Invite Bot',     description: 'Add xNico to your server',        value: 'invite',       emoji: { id: '1473038903157199093' } },
-                { label: 'Support Server', description: 'Join our support community',      value: 'support',      emoji: { id: '1473038624172937287' } },
-                { label: 'Vote',           description: 'Vote for xNico on top.gg',        value: 'vote',         emoji: { id: '1473039150927319192' } },
+                { label: 'All Commands', description: 'View every command in one list', value: 'all_commands', emoji: { id: '1486755083390550036' } },
+                { label: 'Search', description: 'Search for a specific command', value: 'search', emoji: { id: '1473038053219106847' } },
+                { label: 'Website', description: 'Visit the xNico website', value: 'website', emoji: { id: '1473039138868433192' } },
+                { label: 'Invite Bot', description: 'Add xNico to your server', value: 'invite', emoji: { id: '1473038903157199093' } },
+                { label: 'Support Server', description: 'Join our support community', value: 'support', emoji: { id: '1473038624172937287' } },
+                { label: 'Vote', description: 'Vote for xNico on top.gg', value: 'vote', emoji: { id: '1473039150927319192' } },
             ]);
         container.addActionRowComponents(new ActionRowBuilder().addComponents(moreOptions));
     } else {
         // Pagination (if multi-page)
         if (pageInfo && pageInfo.totalPages > 1) {
             container.addActionRowComponents(new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('help_prev').setLabel('◀ Prev').setStyle(ButtonStyle.Secondary).setDisabled(pageInfo.page === 0),
+                new ButtonBuilder().setCustomId('help_prev').setLabel('Previous').setEmoji('<:Caretleft:1473038193057333409>').setStyle(ButtonStyle.Secondary).setDisabled(pageInfo.page === 0),
                 new ButtonBuilder().setCustomId('help_page_indicator').setLabel(`${pageInfo.page + 1} / ${pageInfo.totalPages}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
-                new ButtonBuilder().setCustomId('help_next').setLabel('Next ▶').setStyle(ButtonStyle.Secondary).setDisabled(pageInfo.page >= pageInfo.totalPages - 1),
+                new ButtonBuilder().setCustomId('help_next').setLabel('Next').setEmoji('<:Caretright:1473038207221502106>').setStyle(ButtonStyle.Secondary).setDisabled(pageInfo.page >= pageInfo.totalPages - 1),
             ));
         }
 
         // Category page action buttons
         container.addActionRowComponents(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('help_home').setLabel('Back').setEmoji('↩️').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('help_home').setLabel('Back').setEmoji('↩').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('help_search').setLabel('Search').setEmoji('<:Search:1473038053219106847>').setStyle(ButtonStyle.Primary),
         ));
     }
@@ -357,7 +344,7 @@ async function autoExpireHelpMessage(messageId) {
                 await editRef.edit({ components: [expiredContainer], flags: MessageFlags.IsComponentsV2 });
             }
         }
-    } catch {}
+    } catch { }
     global.helpMenuSessions?.delete(messageId);
     global.helpMenuTimeouts?.delete(messageId);
 }
@@ -398,35 +385,35 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
         .setDescription('Display bot commands and features')
-        
+
         .addStringOption(option =>
             option.setName('category')
                 .setDescription('Jump to a specific category')
                 .setRequired(false)
                 .addChoices(
-                    { name: 'Music',           value: 'music' },
-                    { name: 'Voice',           value: 'voice' },
-                    { name: 'Moderation',      value: 'moderation' },
-                    { name: 'Security',        value: 'security' },
-                    { name: 'Messages',        value: 'msgmod' },
-                    { name: 'Server Mgmt',     value: 'server' },
-                    { name: 'Settings',        value: 'settings' },
-                    { name: 'Trust System',    value: 'trust' },
-                    { name: 'Automation',      value: 'automation' },
-                    { name: 'Components',      value: 'components' },
-                    { name: 'Invites',         value: 'invites' },
-                    { name: 'Members & Info',  value: 'info' },
-                    { name: 'Basic & Misc',    value: 'basic' },
-                    { name: 'Stats',           value: 'stats' },
-                    { name: 'Images',          value: 'image' },
+                    { name: 'Music', value: 'music' },
+                    { name: 'Voice', value: 'voice' },
+                    { name: 'Moderation', value: 'moderation' },
+                    { name: 'Security', value: 'security' },
+                    { name: 'Messages', value: 'msgmod' },
+                    { name: 'Server Mgmt', value: 'server' },
+                    { name: 'Settings', value: 'settings' },
+                    { name: 'Trust System', value: 'trust' },
+                    { name: 'Automation', value: 'automation' },
+                    { name: 'Components', value: 'components' },
+                    { name: 'Invites', value: 'invites' },
+                    { name: 'Members & Info', value: 'info' },
+                    { name: 'Basic & Misc', value: 'basic' },
+                    { name: 'Stats', value: 'stats' },
+                    { name: 'Images', value: 'image' },
                     { name: 'Text & Encoding', value: 'encoding' },
-                    { name: 'Fun',             value: 'fun' },
-                    { name: 'Action',          value: 'action' },
-                    { name: 'Economy',         value: 'economy' },
-                    { name: 'Social',          value: 'social' },
-                    { name: 'Leveling',        value: 'leveling' },
-                    { name: 'Backup & DB',     value: 'backup' },
-                    { name: 'Webhook',         value: 'webhook' },
+                    { name: 'Fun', value: 'fun' },
+                    { name: 'Action', value: 'action' },
+                    { name: 'Economy', value: 'economy' },
+                    { name: 'Social', value: 'social' },
+                    { name: 'Leveling', value: 'leveling' },
+                    { name: 'Backup & DB', value: 'backup' },
+                    { name: 'Webhook', value: 'webhook' },
                 )),
 
     prefix: 'help',
@@ -491,7 +478,7 @@ module.exports = {
             trackHelpSession(reply.id, message.author.id, message.channelId || message.author.id, showOwner, effectiveCategory, 0, reply);
         } catch (error) {
             console.error('[Help Prefix Error]', error.message);
-            await message.reply('<:Cancel:1473037949187657818> Failed to load help menu. Please try `/help` instead.').catch(() => {});
+            await message.reply('<:Cancel:1473037949187657818> Failed to load help menu. Please try `/help` instead.').catch(() => { });
         }
     },
 
@@ -520,7 +507,7 @@ module.exports = {
                     flags: MessageFlags.Ephemeral,
                 });
             } else {
-                await interaction.update({ components: [buildExpiredContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                await interaction.update({ components: [buildExpiredContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
             }
             if (session) {
                 global.helpMenuSessions.delete(interaction.message.id);
@@ -598,7 +585,7 @@ module.exports = {
 
             // No session (cleaned up by timeout) or session expired → show expired
             if (!session || isSessionExpired(session)) {
-                await interaction.update({ components: [buildExpiredContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                await interaction.update({ components: [buildExpiredContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
                 if (session) {
                     global.helpMenuSessions.delete(interaction.message.id);
                     const tid = global.helpMenuTimeouts?.get(interaction.message.id);
@@ -633,7 +620,7 @@ module.exports = {
                 await interaction.reply({
                     content: '<:Cancel:1473037949187657818> Something went wrong. Use `/help` to open a new menu.',
                     flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                }).catch(() => { });
             }
         }
     },
@@ -654,7 +641,7 @@ module.exports = {
 
             // No session or expired → show expired
             if (!session || isSessionExpired(session)) {
-                await interaction.update({ components: [buildExpiredContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+                await interaction.update({ components: [buildExpiredContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
                 if (session) {
                     global.helpMenuSessions.delete(interaction.message.id);
                     const tid = global.helpMenuTimeouts?.get(interaction.message.id);
@@ -691,9 +678,9 @@ module.exports = {
             // Link options — reply with clickable button
             const linkMap = {
                 website: { label: 'Visit Website', url: WEBSITE_URL },
-                invite:  { label: 'Invite xNico',  url: INVITE_URL },
-                support: { label: 'Join Support',  url: SUPPORT_URL },
-                vote:    { label: 'Vote for xNico', url: VOTE_URL },
+                invite: { label: 'Invite xNico', url: INVITE_URL },
+                support: { label: 'Join Support', url: SUPPORT_URL },
+                vote: { label: 'Vote for xNico', url: VOTE_URL },
             };
 
             if (linkMap[selected]) {
@@ -725,7 +712,7 @@ module.exports = {
                 await interaction.reply({
                     content: '<:Cancel:1473037949187657818> Something went wrong. Use `/help` to open a new menu.',
                     flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                }).catch(() => { });
             }
         }
     },
