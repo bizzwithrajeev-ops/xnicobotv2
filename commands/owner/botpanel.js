@@ -131,13 +131,21 @@ function buildBotPanel(client) {
     const presence = client.user.presence;
     const currentStatus = presence?.status || 'online';
     const currentActivity = presence?.activities?.[0];
-    
+
+    // Unicode status dots — these render on ANY bot token (custom emojis from
+    // a single emoji server fail when the bot runs on a different token).
     const statusEmojis = {
-        online: '<:online:1485248286653943900>',
-        idle: '<:idle:1485248283768262676>',
-        dnd: '<:dnd:1485248263857639424>',
-        invisible: '<:offline:1485248289690616041>'
+        online: '🟢',
+        idle: '🌙',
+        dnd: '⛔',
+        invisible: '⚫',
+        offline: '⚫',
+        streaming: '🟣'
     };
+
+    // Discord has no literal "streaming" status string — the purple indicator
+    // appears when the bot has a Streaming activity (type 1).
+    const isStreaming = (presence?.activities || []).some(a => a.type === ActivityType.Streaming);
 
     const activityTypes = {
         0: 'Playing',
@@ -151,7 +159,9 @@ function buildBotPanel(client) {
     let headerContent = `# <:Settings:1473037894703779851> Bot Management Panel\n\n`;
     headerContent += `### Current Configuration\n`;
     headerContent += `> **Username:** ${client.user.username}\n`;
-    headerContent += `> **Status:** ${statusEmojis[currentStatus]} ${currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}\n`;
+    const statusLabel = isStreaming ? 'Streaming' : (currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1));
+    const statusDot = isStreaming ? statusEmojis.streaming : (statusEmojis[currentStatus] || '🟢');
+    headerContent += `> **Status:** ${statusDot} ${statusLabel}\n`;
     
     if (currentActivity) {
         if (currentActivity.type === 4) {
@@ -186,47 +196,52 @@ function buildBotPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_avatar')
             .setLabel('Avatar')
-            .setEmoji('<:Picture:1473039568398843957>')
+            .setEmoji('🖼️')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('botpanel_banner')
             .setLabel('Banner')
-            .setEmoji('<:Palette:1473039029476917461>')
+            .setEmoji('🎨')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('botpanel_username')
             .setLabel('Username')
-            .setEmoji('<:Editalt:1473038138577256670>')
+            .setEmoji('✏️')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('botpanel_nickname')
             .setLabel('Nickname')
-            .setEmoji('<:Edit:1473037903625191580>')
+            .setEmoji('📝')
             .setStyle(ButtonStyle.Secondary)
     );
 
-    // Row 2: Status — emoji IDs pulled from statusEmojis map for consistency
+    // Row 2: Presence Status (unicode emojis — render on any bot token)
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('botpanel_status_online')
             .setLabel('Online')
-            .setEmoji('<:online:1485248286653943900>')
-            .setStyle(currentStatus === 'online' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            .setEmoji('🟢')
+            .setStyle(currentStatus === 'online' && !isStreaming ? ButtonStyle.Success : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_status_idle')
             .setLabel('Idle')
-            .setEmoji('<:idle:1485248283768262676>')
+            .setEmoji('🌙')
             .setStyle(currentStatus === 'idle' ? ButtonStyle.Success : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_status_dnd')
             .setLabel('DND')
-            .setEmoji('<:dnd:1485248263857639424>')
+            .setEmoji('⛔')
             .setStyle(currentStatus === 'dnd' ? ButtonStyle.Success : ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_status_invisible')
             .setLabel('Invisible')
-            .setEmoji('<:offline:1485248289690616041>')
-            .setStyle(currentStatus === 'invisible' ? ButtonStyle.Success : ButtonStyle.Secondary)
+            .setEmoji('⚫')
+            .setStyle(currentStatus === 'invisible' ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('botpanel_status_streaming')
+            .setLabel('Streaming')
+            .setEmoji('🟣')
+            .setStyle(isStreaming ? ButtonStyle.Success : ButtonStyle.Secondary)
     );
 
     // Row 3: Activity Manager
@@ -234,17 +249,17 @@ function buildBotPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_activity_manager')
             .setLabel('Manage Activities')
-            .setEmoji('<:Document:1473039496995143731>')
+            .setEmoji('📋')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('botpanel_activity_rotate')
             .setLabel(activityData.rotating ? 'Stop Activity' : 'Start Activity')
-            .setEmoji(activityData.rotating ? '<:Cancel:1473037949187657818>' : '<:History:1473037847568318605>')
+            .setEmoji(activityData.rotating ? '❌' : '🔄')
             .setStyle(activityData.rotating ? ButtonStyle.Danger : ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId('botpanel_activity_clear')
             .setLabel('Clear Activity')
-            .setEmoji('<:Trash:1473038090074591293>')
+            .setEmoji('🗑️')
             .setStyle(ButtonStyle.Danger)
     );
 
@@ -258,12 +273,12 @@ function buildBotPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_custom_rotate')
             .setLabel(activityData.customRotating ? 'Stop Custom' : 'Start Custom')
-            .setEmoji(activityData.customRotating ? '<:Cancel:1473037949187657818>' : '<:History:1473037847568318605>')
+            .setEmoji(activityData.customRotating ? '❌' : '🔄')
             .setStyle(activityData.customRotating ? ButtonStyle.Danger : ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId('botpanel_custom_clear')
             .setLabel('Clear Custom')
-            .setEmoji('<:Trash:1473038090074591293>')
+            .setEmoji('🗑️')
             .setStyle(ButtonStyle.Danger)
     );
 
@@ -272,17 +287,17 @@ function buildBotPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_refresh')
             .setLabel('Refresh')
-            .setEmoji('<:History:1473037847568318605>')
+            .setEmoji('🔄')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_variables')
             .setLabel('Variables')
-            .setEmoji('<:Document:1473039496995143731>')
+            .setEmoji('📋')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('botpanel_stats')
             .setLabel('Stats')
-            .setEmoji('<:Invoice:1473039492217835550>')
+            .setEmoji('📊')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('botpanel_reset')
@@ -292,7 +307,7 @@ function buildBotPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_close')
             .setLabel('Close')
-            .setEmoji('<:Cancel:1473037949187657818>')
+            .setEmoji('❌')
             .setStyle(ButtonStyle.Danger)
     );
 
@@ -399,7 +414,7 @@ function buildActivityManagerPanel(client, page = 0) {
         'Playing': '🎮',
         'Watching': '👀',
         'Listening': '🎧',
-        'Competing': '<:Award:1473038391632203887>',
+        'Competing': '🏆',
         'Streaming': '📺',
         'Custom': '💬'
     };
@@ -453,7 +468,7 @@ function buildActivityManagerPanel(client, page = 0) {
                 new ButtonBuilder()
                     .setCustomId(`activity_remove_${globalIdx}`)
                     .setLabel('Remove')
-                    .setEmoji('<:Trash:1473038090074591293>')
+                    .setEmoji('🗑️')
                     .setStyle(ButtonStyle.Danger)
             );
             activityRows.push(row);
@@ -492,7 +507,7 @@ function buildActivityManagerPanel(client, page = 0) {
         new ButtonBuilder()
             .setCustomId('activity_add_competing')
             .setLabel('Competing')
-            .setEmoji('<:Award:1473038391632203887>')
+            .setEmoji('🏆')
             .setStyle(ButtonStyle.Primary)
     );
 
@@ -502,7 +517,7 @@ function buildActivityManagerPanel(client, page = 0) {
     const navRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`activity_page_${currentPage - 1}`)
-            .setEmoji('<:Caretleft:1473038193057333409>')
+            .setEmoji('◀️')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage === 0),
         new ButtonBuilder()
@@ -513,11 +528,11 @@ function buildActivityManagerPanel(client, page = 0) {
         new ButtonBuilder()
             .setCustomId('botpanel_rotation_settings')
             .setLabel('Rotation Settings')
-            .setEmoji('<:Settings:1473037894703779851>')
+            .setEmoji('⚙️')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId(`activity_page_${currentPage + 1}`)
-            .setEmoji('<:Caretright:1473038207221502106>')
+            .setEmoji('▶️')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1)
     );
@@ -557,12 +572,12 @@ function buildRotationSettingsPanel(client) {
         new ButtonBuilder()
             .setCustomId('botpanel_rotation_delay')
             .setLabel('Set Delay')
-            .setEmoji('<:Timer:1473039056710406204>')
+            .setEmoji('⏱️')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('botpanel_rotation_toggle_all')
             .setLabel('Toggle All')
-            .setEmoji('<:History:1473037847568318605>')
+            .setEmoji('🔄')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('activity_back')
@@ -671,7 +686,7 @@ function buildCustomStatusManagerPanel(client, page = 0) {
                 new ButtonBuilder()
                     .setCustomId(`custom_remove_${globalIdx}`)
                     .setLabel('Remove')
-                    .setEmoji('<:Trash:1473038090074591293>')
+                    .setEmoji('🗑️')
                     .setStyle(ButtonStyle.Danger)
             );
             container.addActionRowComponents(row);
@@ -693,7 +708,7 @@ function buildCustomStatusManagerPanel(client, page = 0) {
     const navRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`custom_page_${currentPage - 1}`)
-            .setEmoji('<:Caretleft:1473038193057333409>')
+            .setEmoji('◀️')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage === 0),
         new ButtonBuilder()
@@ -703,7 +718,7 @@ function buildCustomStatusManagerPanel(client, page = 0) {
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(`custom_page_${currentPage + 1}`)
-            .setEmoji('<:Caretright:1473038207221502106>')
+            .setEmoji('▶️')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1)
     );

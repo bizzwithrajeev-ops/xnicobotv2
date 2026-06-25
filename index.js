@@ -469,29 +469,51 @@ async function handleBotPanelButton(interaction, client) {
     const customId = interaction.customId;
     const { buildBotPanel, buildImageModal, buildUsernameModal, buildNicknameModal } = require('./commands/owner/botpanel');
 
-    // Status changes
+    // Status changes (online / idle / dnd / invisible / streaming)
     if (customId.startsWith('botpanel_status_')) {
         const status = customId.replace('botpanel_status_', '');
-        const statusMap = { online: 'online', idle: 'idle', dnd: 'dnd', invisible: 'invisible' };
+        const { getActivities, saveActivities } = require('./commands/owner/botpanel');
+        const activityData = getActivities();
 
+        if (status === 'streaming') {
+            // Discord only shows the purple "streaming" indicator when the bot
+            // has a Streaming activity (type 1) with a valid Twitch/YouTube URL —
+            // there is no literal "streaming" status string.
+            const currentActivities = client.user.presence?.activities || [];
+            const existing = currentActivities.find(a => a.type !== ActivityType.Custom && a.type !== ActivityType.Streaming);
+            const name = existing?.name || client.user.username;
+            activityData.savedStatus = 'online';
+            saveActivities(activityData);
+            await client.user.setPresence({
+                status: 'online',
+                activities: [{ name, type: ActivityType.Streaming, url: 'https://www.twitch.tv/discord' }]
+            });
+            const panel = buildBotPanel(client);
+            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+            return true;
+        }
+
+        const statusMap = { online: 'online', idle: 'idle', dnd: 'dnd', invisible: 'invisible' };
         if (statusMap[status]) {
-            // Save status persistently
-            const { getActivities, saveActivities } = require('./commands/owner/botpanel');
-            const activityData = getActivities();
             activityData.savedStatus = statusMap[status];
             saveActivities(activityData);
 
-            // Preserve current activity when changing status
+            // Preserve current activity but drop any Streaming activity so the
+            // purple indicator clears when switching to a normal status.
             const currentActivities = client.user.presence?.activities || [];
+            const keep = currentActivities.filter(a => a.type !== ActivityType.Streaming);
             const presenceOpts = { status: statusMap[status] };
-            if (currentActivities.length > 0) {
-                presenceOpts.activities = currentActivities.map(a => ({
+            if (keep.length > 0) {
+                presenceOpts.activities = keep.map(a => ({
                     name: a.name, type: a.type, state: a.state, url: a.url
                 }));
             }
             await client.user.setPresence(presenceOpts);
             const panel = buildBotPanel(client);
             await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        } else {
+            // Unknown status — acknowledge so the interaction doesn't fail
+            await interaction.deferUpdate().catch(() => {});
         }
         return true;
     }
