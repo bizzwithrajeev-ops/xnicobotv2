@@ -466,6 +466,10 @@ module.exports = {
 
         const msg = buildSetupMessage(setup, interaction.guild);
         await interaction.reply({ ...msg, flags: msg.flags | MessageFlags.Ephemeral });
+        // Keep a reference to the root panel interaction so helper selectors
+        // (channel / remove-role) can refresh THIS panel instead of spawning
+        // duplicate orphaned panels. Token stays valid for 15m (> 10m expiry).
+        setup.rootInteraction = interaction;
     },
 
     async handleSetupInteraction(interaction) {
@@ -779,8 +783,18 @@ module.exports = {
             const channelId = interaction.values[0];
             setup.channelId = channelId;
 
-            const msg = buildSetupMessage(setup, interaction.guild);
-            return interaction.update({ ...msg, flags: msg.flags | MessageFlags.Ephemeral }).catch(() => {});
+            // Turn the helper message into a confirmation (not a full panel)
+            await interaction.update({
+                components: [successContainer(`### <:Checkedbox:1473038547165384804> Channel Set\nThe panel will be sent to <#${channelId}>.\n-# Return to the setup panel above to continue.`)],
+                flags: MessageFlags.IsComponentsV2
+            }).catch(() => {});
+
+            // Refresh the original setup panel so it reflects the new channel
+            if (setup.rootInteraction) {
+                const msg = buildSetupMessage(setup, interaction.guild);
+                await setup.rootInteraction.editReply({ components: msg.components }).catch(() => {});
+            }
+            return;
         }
 
         if (interaction.customId === 'rrsetup_select_removerole') {
@@ -789,9 +803,21 @@ module.exports = {
                 const removed = setup.roles.splice(idx, 1)[0];
                 const role = interaction.guild.roles.cache.get(removed.roleId);
 
-                const msg = buildSetupMessage(setup, interaction.guild);
-                return interaction.update({ ...msg, flags: msg.flags | MessageFlags.Ephemeral }).catch(() => {});
+                // Confirm in the helper message
+                await interaction.update({
+                    components: [successContainer(`### <:Checkedbox:1473038547165384804> Role Removed\n**${role ? role.name : 'Role'}** was removed from the panel.\n-# Return to the setup panel above to continue.`)],
+                    flags: MessageFlags.IsComponentsV2
+                }).catch(() => {});
+
+                // Refresh the original setup panel
+                if (setup.rootInteraction) {
+                    const msg = buildSetupMessage(setup, interaction.guild);
+                    await setup.rootInteraction.editReply({ components: msg.components }).catch(() => {});
+                }
+                return;
             }
+            // Index out of range — acknowledge to avoid "interaction failed"
+            return interaction.deferUpdate().catch(() => {});
         }
     },
 
