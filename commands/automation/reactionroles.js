@@ -246,7 +246,7 @@ function buildPanelPreview(setup, guild) {
             const role = guild.roles.cache.get(r.roleId);
             const btn = new ButtonBuilder()
                 .setCustomId(`rr_role_${r.roleId}`)
-                .setLabel(role ? role.name : 'Unknown Role')
+                .setLabel((role ? role.name : 'Unknown Role').substring(0, 80))
                 .setStyle(ButtonStyle.Secondary);
             const customMatch = r.emoji.match(/^<(a)?:(\w+):(\d+)>$/);
             if (customMatch) {
@@ -788,9 +788,11 @@ module.exports = {
             }).catch(() => {});
 
             // Refresh the original setup panel so it reflects the new channel
+            const msg = buildSetupMessage(setup, interaction.guild);
             if (setup.rootInteraction) {
-                const msg = buildSetupMessage(setup, interaction.guild);
                 await setup.rootInteraction.editReply({ components: msg.components }).catch(() => {});
+            } else if (setup.rootMessage) {
+                await setup.rootMessage.edit({ components: msg.components }).catch(() => {});
             }
             return;
         }
@@ -808,9 +810,11 @@ module.exports = {
                 }).catch(() => {});
 
                 // Refresh the original setup panel
+                const msg = buildSetupMessage(setup, interaction.guild);
                 if (setup.rootInteraction) {
-                    const msg = buildSetupMessage(setup, interaction.guild);
                     await setup.rootInteraction.editReply({ components: msg.components }).catch(() => {});
+                } else if (setup.rootMessage) {
+                    await setup.rootMessage.edit({ components: msg.components }).catch(() => {});
                 }
                 return;
             }
@@ -1095,15 +1099,21 @@ module.exports = {
         }
 
         let desc = '## <:Userplus:1473038912212435086> Reaction Role Panels\n\n';
+        const footer = `\n-# ${Object.keys(guildPanels).length} panel(s) total`;
+        let truncated = false;
         for (const [msgId, panel] of Object.entries(guildPanels)) {
             const title = panel.title || (panel.attachedTo ? 'Attached Reactions' : 'Untitled');
             const rolePreview = panel.roles.slice(0, 5).map(r => r.emoji).join(' ');
             const extra = panel.roles.length > 5 ? ` +${panel.roles.length - 5} more` : '';
-            desc += `**${title}** — <#${panel.channelId}>\n`;
-            desc += `\`${msgId}\` • ${panel.roles.length}/20 roles${panel.attachedTo ? ' • attached' : ''}${panel.mode === 'button' ? ' • 🔘 buttons' : ''}\n`;
-            if (rolePreview) desc += `-# ${rolePreview}${extra}\n`;
-            desc += '\n';
+            let entry = `**${title}** — <#${panel.channelId}>\n`;
+            entry += `\`${msgId}\` • ${panel.roles.length}/20 roles${panel.attachedTo ? ' • attached' : ''}${panel.mode === 'button' ? ' • 🔘 buttons' : ''}\n`;
+            if (rolePreview) entry += `-# ${rolePreview}${extra}\n`;
+            entry += '\n';
+            // Keep within Discord's 4000-char text limit (leave room for footer)
+            if (desc.length + entry.length + footer.length > 3900) { truncated = true; break; }
+            desc += entry;
         }
+        if (truncated) desc += '-# …more panels not shown (list is full)\n';
         desc += `-# ${Object.keys(guildPanels).length} panel(s) total`;
 
         await interaction.reply({ components: [successContainer(desc)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
@@ -1193,7 +1203,7 @@ module.exports = {
                 const role = channel.guild.roles.cache.get(r.roleId);
                 const btn = new ButtonBuilder()
                     .setCustomId(`rr_role_${r.roleId}`)
-                    .setLabel(role ? role.name : 'Unknown Role')
+                    .setLabel((role ? role.name : 'Unknown Role').substring(0, 80))
                     .setStyle(ButtonStyle.Secondary);
                 const customMatch = r.emoji.match(/^<(a)?:(\w+):(\d+)>$/);
                 if (customMatch) {
@@ -1253,7 +1263,37 @@ module.exports = {
 
         try {
             if (sub === 'setup') {
-                return message.reply({ components: [successContainer('### <:Lightbulbalt:1473038470787240009> Interactive Setup\nUse the slash command for the interactive setup wizard:\n`/reactionroles setup`\n\n-# The wizard uses buttons and modals which require slash commands')], flags: MessageFlags.IsComponentsV2 });
+                const key = this.getSetupKey(message.author.id, message.guild.id);
+                if (activeSetups.has(key)) activeSetups.delete(key);
+
+                const setup = {
+                    guildId: message.guild.id,
+                    channelId: message.channel.id,
+                    title: null,
+                    description: null,
+                    customMessage: null,
+                    color: DEFAULT_COLOR,
+                    image: null,
+                    mode: 'reaction',
+                    roles: [],
+                    userId: message.author.id,
+                    messageId: null,
+                    createdAt: Date.now()
+                };
+                activeSetups.set(key, setup);
+
+                setTimeout(() => {
+                    if (activeSetups.has(key) && activeSetups.get(key).createdAt === setup.createdAt) {
+                        activeSetups.delete(key);
+                    }
+                }, 10 * 60 * 1000);
+
+                const wiz = buildSetupMessage(setup, message.guild);
+                const sent = await message.reply({ ...wiz });
+                // Store the panel message so helper selectors can refresh it
+                // (prefix has no interaction token like the slash version).
+                setup.rootMessage = sent;
+                return;
             }
 
             if (sub === 'create') {
@@ -1437,9 +1477,11 @@ module.exports = {
                 for (const [msgId, panel] of Object.entries(guildPanels)) {
                     const title = panel.title || (panel.attachedTo ? 'Attached' : 'Untitled');
                     const emojis = panel.roles.slice(0, 5).map(r => r.emoji).join(' ');
-                    desc += `**${title}** — <#${panel.channelId}>\n\`${msgId}\` • ${panel.roles.length} roles${panel.attachedTo ? ' • attached' : ''}\n`;
-                    if (emojis) desc += `-# ${emojis}\n`;
-                    desc += '\n';
+                    let entry = `**${title}** — <#${panel.channelId}>\n\`${msgId}\` • ${panel.roles.length} roles${panel.attachedTo ? ' • attached' : ''}\n`;
+                    if (emojis) entry += `-# ${emojis}\n`;
+                    entry += '\n';
+                    if (desc.length + entry.length > 3900) { desc += '-# …more panels not shown\n'; break; }
+                    desc += entry;
                 }
                 message.reply({ components: [successContainer(desc.trim())], flags: MessageFlags.IsComponentsV2 });
             }

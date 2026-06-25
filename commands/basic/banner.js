@@ -2,7 +2,6 @@ const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilde
 const { buildErrorResponse } = require('../../utils/responseBuilder');
 
 async function buildUserBannerResponse(client, user) {
-    // Force-fetch user to get banner data
     const fetched = await client.users.fetch(user.id, { force: true });
     const bannerURL = fetched.bannerURL({ size: 4096 });
 
@@ -31,8 +30,7 @@ async function buildUserBannerResponse(client, user) {
             new MediaGalleryBuilder().addItems(
                 new MediaGalleryItemBuilder().setURL(bannerURL)
             )
-        )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
+        );
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -60,8 +58,7 @@ async function buildServerBannerResponse(guild) {
             new MediaGalleryBuilder().addItems(
                 new MediaGalleryItemBuilder().setURL(bannerURL)
             )
-        )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
+        );
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -96,7 +93,7 @@ module.exports = {
         const showServer = interaction.options.getBoolean('server');
         const targetUser = interaction.options.getUser('user');
 
-        if (showServer || (!targetUser && interaction.options.getBoolean('server') !== null && showServer)) {
+        if (showServer) {
             const guild = await interaction.guild.fetch();
             const result = await buildServerBannerResponse(guild);
             if (result.error) {
