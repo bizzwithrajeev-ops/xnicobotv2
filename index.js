@@ -493,6 +493,41 @@ async function handleBotPanelButton(interaction, client) {
             return true;
         }
 
+        if (status === 'none') {
+            // "Nothing" — clear the activity so nothing shows, keep current status.
+            // Stop any rotation so it can't re-apply an activity afterwards.
+            if (activityData.rotating || activityData.customRotating) {
+                activityData.rotating = false;
+                activityData.customRotating = false;
+                saveActivities(activityData);
+                stopActivityRotation();
+                stopCustomStatusRotation();
+            }
+            await client.user.setPresence({ status: activityData.savedStatus || 'online', activities: [] });
+            const panel = buildBotPanel(client);
+            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+            return true;
+        }
+
+        if (status === 'vr') {
+            // The VR platform indicator is set at login via the gateway identify
+            // (browser = 'Discord VR') and is already active bot-wide. This preset
+            // puts the bot online with a clean (no-activity) presence on VR.
+            if (activityData.rotating || activityData.customRotating) {
+                activityData.rotating = false;
+                activityData.customRotating = false;
+                saveActivities(activityData);
+                stopActivityRotation();
+                stopCustomStatusRotation();
+            }
+            activityData.savedStatus = 'online';
+            saveActivities(activityData);
+            await client.user.setPresence({ status: 'online', activities: [] });
+            const panel = buildBotPanel(client);
+            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+            return true;
+        }
+
         const statusMap = { online: 'online', idle: 'idle', dnd: 'dnd', invisible: 'invisible' };
         if (statusMap[status]) {
             activityData.savedStatus = statusMap[status];
@@ -633,12 +668,26 @@ async function handleBotPanelButton(interaction, client) {
 
     // Activity remove
     if (customId.startsWith('activity_remove_')) {
-        const { getActivities, saveActivities, buildActivityManagerPanel } = require('./commands/owner/botpanel');
+        const { getActivities, saveActivities, buildActivityManagerPanel, resolveVariables } = require('./commands/owner/botpanel');
         const idx = parseInt(customId.replace('activity_remove_', ''));
         const activityData = getActivities();
 
-        if (activityData.activities[idx]) {
+        const removed = activityData.activities[idx];
+        if (removed) {
             activityData.activities.splice(idx, 1);
+
+            // If the removed activity is the one currently shown, clear it live
+            // so it actually disappears instead of lingering on the bot.
+            const cur = client.user.presence?.activities?.[0];
+            if (cur && cur.type !== ActivityType.Custom && resolveVariables(removed.text, client) === cur.name) {
+                await client.user.setPresence({ status: activityData.savedStatus || 'online', activities: [] });
+            }
+
+            // If the list is now empty, stop rotation so nothing re-applies it.
+            if (activityData.activities.length === 0 && activityData.rotating) {
+                activityData.rotating = false;
+                stopActivityRotation();
+            }
             saveActivities(activityData);
         }
 
@@ -739,12 +788,27 @@ async function handleBotPanelButton(interaction, client) {
 
     // Custom Status remove
     if (customId.startsWith('custom_remove_')) {
-        const { getActivities, saveActivities, buildCustomStatusManagerPanel } = require('./commands/owner/botpanel');
+        const { getActivities, saveActivities, buildCustomStatusManagerPanel, resolveVariables } = require('./commands/owner/botpanel');
         const idx = parseInt(customId.replace('custom_remove_', ''));
         const activityData = getActivities();
 
-        if ((activityData.customStatuses || [])[idx]) {
+        const removed = (activityData.customStatuses || [])[idx];
+        if (removed) {
             activityData.customStatuses.splice(idx, 1);
+
+            // If the removed custom status is the one currently displayed, clear
+            // it from the live presence so it doesn't keep showing after delete.
+            const cur = client.user.presence?.activities?.[0];
+            const removedResolved = resolveVariables(removed.text, client);
+            if (cur && cur.type === ActivityType.Custom && (cur.state === removedResolved || cur.name === removedResolved)) {
+                await client.user.setPresence({ status: activityData.savedStatus || 'online', activities: [] });
+            }
+
+            // If the list is now empty, stop custom rotation so nothing re-applies.
+            if ((activityData.customStatuses || []).length === 0 && activityData.customRotating) {
+                activityData.customRotating = false;
+                stopCustomStatusRotation();
+            }
             saveActivities(activityData);
         }
 

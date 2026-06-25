@@ -162,6 +162,10 @@ function buildBotPanel(client) {
     const statusLabel = isStreaming ? 'Streaming' : (currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1));
     const statusDot = isStreaming ? statusEmojis.streaming : (statusEmojis[currentStatus] || '🟢');
     headerContent += `> **Status:** ${statusDot} ${statusLabel}\n`;
+    // Platform comes from the gateway identify `browser` property (set in index.js).
+    let platform = 'Desktop';
+    try { platform = require('discord.js').DefaultWebSocketManagerOptions?.identifyProperties?.browser || 'Desktop'; } catch { /* keep default */ }
+    headerContent += `> **Platform:** ${platform.includes('VR') ? '🥽' : '💻'} ${platform}\n`;
     
     if (currentActivity) {
         if (currentActivity.type === 4) {
@@ -244,6 +248,24 @@ function buildBotPanel(client) {
             .setStyle(isStreaming ? ButtonStyle.Success : ButtonStyle.Secondary)
     );
 
+    // Row 2b: Extra presence options
+    // - "None" clears the activity so nothing is shown (keeps the status).
+    // - "VR" reflects the bot's VR platform (set via the gateway identify
+    //   `browser = 'Discord VR'`) and applies a clean online VR preset.
+    const hasActivity = (presence?.activities || []).length > 0;
+    const row2b = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('botpanel_status_none')
+            .setLabel('None')
+            .setEmoji('🚫')
+            .setStyle(!hasActivity ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('botpanel_status_vr')
+            .setLabel('VR')
+            .setEmoji('🥽')
+            .setStyle(ButtonStyle.Secondary)
+    );
+
     // Row 3: Activity Manager
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -311,7 +333,7 @@ function buildBotPanel(client) {
             .setStyle(ButtonStyle.Danger)
     );
 
-    container.addActionRowComponents(row1, row2, row3, row4, row5);
+    container.addActionRowComponents(row1, row2, row2b, row3, row4, row5);
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Bot Panel • Owner: <@${process.env.OWNER_ID}>`));
