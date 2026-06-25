@@ -891,9 +891,13 @@ async function handleBotPanelModal(interaction, client) {
 
         await client.user.setPresence(presenceOptions);
 
-        // Modal submits cannot use interaction.update() — must use reply()
+        // Update the panel in place (modal was opened from a message button).
         const panel = buildActivityManagerPanel(client, Math.floor((activityData.activities.length - 1) / 3));
-        await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        if (interaction.isFromMessage?.()) {
+            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        } else {
+            await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
         return true;
     }
 
@@ -914,9 +918,13 @@ async function handleBotPanelModal(interaction, client) {
             activities: [{ name: 'Custom Status', type: ActivityType.Custom, state: resolvedText }]
         });
 
-        // Modal submits cannot use interaction.update() — must use reply()
+        // Update the panel in place (modal was opened from a message button).
         const panel = buildCustomStatusManagerPanel(client, Math.floor((activityData.customStatuses.length - 1) / 3));
-        await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        if (interaction.isFromMessage?.()) {
+            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        } else {
+            await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
         return true;
     }
 
@@ -936,9 +944,13 @@ async function handleBotPanelModal(interaction, client) {
             activities: [{ name: text, type: typeMap[activityType] }]
         });
 
-        // Modal submits cannot use interaction.update() — must use reply()
+        // Update the panel in place (modal was opened from a message button).
         const panel = buildBotPanel(client);
-        await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        if (interaction.isFromMessage?.()) {
+            await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+        } else {
+            await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        }
         return true;
     }
 
@@ -979,6 +991,10 @@ async function handleBotPanelModal(interaction, client) {
     // Nickname modal
     if (customId === 'botpanel_nickname_modal') {
         const nickname = interaction.fields.getTextInputValue('nickname_text') || null;
+        if (!interaction.guild) {
+            await interaction.reply({ content: '<:Cancel:1473037949187657818> Nicknames can only be changed inside a server. Run the panel in a server channel.', flags: MessageFlags.Ephemeral });
+            return true;
+        }
         try {
             await interaction.guild.members.me.setNickname(nickname);
             await interaction.reply({ content: nickname ? `<:Checkedbox:1473038547165384804> Nickname changed to **${nickname}**!` : '<:Checkedbox:1473038547165384804> Nickname reset!', flags: MessageFlags.Ephemeral });
@@ -1822,9 +1838,13 @@ client.on('interactionCreate', async (interaction) => {
                 startActivityRotation(client);
             }
 
-            // Modal submits cannot use interaction.update() — must use reply()
+            // Update the panel in place when opened from a message button.
             const panel = buildRotationSettingsPanel(client);
-            await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            if (interaction.isFromMessage?.()) {
+                await interaction.update({ components: [panel], flags: MessageFlags.IsComponentsV2 });
+            } else {
+                await interaction.reply({ components: [panel], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            }
             return;
         }
 
