@@ -8285,6 +8285,18 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // ── Non-actionable interaction token errors ──
+        // 10062 Unknown interaction (command replied too slowly, >3s without defer)
+        // 40060 Interaction already acknowledged
+        // 50027 Invalid Webhook Token (interaction token expired)
+        // These can't be answered and aren't bugs — log quietly and stop, don't
+        // attempt another reply (which would just fail again) or spam the console.
+        const TOKEN_ERROR_CODES = [10062, 40060, 50027];
+        if (TOKEN_ERROR_CODES.includes(error?.code)) {
+            log.debug(`Interaction token expired on /${interaction.commandName} (code ${error.code}) — skipped response`);
+            return;
+        }
+
         log.error(`Command error (${interaction.commandName}): ${error.message}`, error);
 
         // Log error to designated channel

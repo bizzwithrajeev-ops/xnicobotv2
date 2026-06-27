@@ -553,14 +553,42 @@ const CD_DEBOUNCE = 15_000;     // 15 seconds
 
 let _cdLoaded = false;
 
+// custom_data is always backed by the local JSON store so the bot works WITH
+// or WITHOUT PostgreSQL. When a database is configured it is mirrored there too.
+function _pgConfigured() {
+    return !!(process.env.DATABASE_URL || process.env.FALLBACK_DATABASE_URL);
+}
+
 async function _loadCustomDataCache() {
     if (_cdLoaded) return;
+
+    // 1) Load from the local JSON store (always available, primary source)
     try {
-        const pool = getPool();
-        const { rows } = await pool.query('SELECT key, value FROM custom_data');
-        for (const row of rows) _cdCache.set(row.key, row.value);
-        _cdLoaded = true;
-    } catch { /* non-fatal — falls back to per-request queries */ }
+        const stored = jsonStore.read('custom_data');
+        if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+            for (const [k, v] of Object.entries(stored)) _cdCache.set(k, v);
+        }
+    } catch { /* ignore */ }
+
+    // 2) If a database is configured, merge rows from it (non-fatal if it fails)
+    if (_pgConfigured()) {
+        try {
+            const pool = getPool();
+            const { rows } = await pool.query('SELECT key, value FROM custom_data');
+            for (const row of rows) _cdCache.set(row.key, row.value);
+        } catch { /* DB optional — local store already loaded */ }
+    }
+
+    _cdLoaded = true;
+}
+
+function _persistCustomDataToStore(key, value) {
+    try {
+        const all = jsonStore.read('custom_data');
+        const obj = (all && typeof all === 'object' && !Array.isArray(all)) ? all : {};
+        obj[key] = value;
+        jsonStore.write('custom_data', obj);
+    } catch { /* ignore */ }
 }
 
 function _cdScheduleWrite(key) {
@@ -569,15 +597,22 @@ function _cdScheduleWrite(key) {
         _cdTimers.delete(key);
         const value = _cdCache.get(key);
         if (value === undefined) return;
-        try {
-            const pool = getPool();
-            await pool.query(
-                `INSERT INTO custom_data (key, value, updated_at) VALUES ($1, $2::jsonb, NOW())
-                 ON CONFLICT (key) DO UPDATE SET value = $2::jsonb, updated_at = NOW()`,
-                [key, JSON.stringify(value)]
-            );
-            _cdDirty.delete(key);
-        } catch (e) { log.error(`[db.set] Deferred write error for ${key}:`, e); }
+
+        // Always persist locally so data survives without a database.
+        _persistCustomDataToStore(key, value);
+
+        // Mirror to PostgreSQL if one is configured (non-fatal on failure).
+        if (_pgConfigured()) {
+            try {
+                const pool = getPool();
+                await pool.query(
+                    `INSERT INTO custom_data (key, value, updated_at) VALUES ($1, $2::jsonb, NOW())
+                     ON CONFLICT (key) DO UPDATE SET value = $2::jsonb, updated_at = NOW()`,
+                    [key, JSON.stringify(value)]
+                );
+            } catch { /* DB optional */ }
+        }
+        _cdDirty.delete(key);
     }, CD_DEBOUNCE);
     if (t.unref) t.unref();
     _cdTimers.set(key, t);
@@ -588,12 +623,18 @@ const db = {
         try {
             await _loadCustomDataCache();
             if (_cdCache.has(key)) return _cdCache.get(key);
-            // fallback: direct query for keys not in initial load
-            const pool = getPool();
-            const { rows } = await pool.query('SELECT value FROM custom_data WHERE key = $1', [key]);
-            const val = rows.length > 0 ? rows[0].value : null;
-            if (val !== null) _cdCache.set(key, val);
-            return val;
+
+            // Only query the database directly if one is actually configured.
+            if (_pgConfigured()) {
+                try {
+                    const pool = getPool();
+                    const { rows } = await pool.query('SELECT value FROM custom_data WHERE key = $1', [key]);
+                    const val = rows.length > 0 ? rows[0].value : null;
+                    if (val !== null) _cdCache.set(key, val);
+                    return val;
+                } catch { /* DB optional */ }
+            }
+            return null;
         } catch (error) {
             log.error(`[db.get] Error for key ${key}:`, error);
             return null;
@@ -615,9 +656,24 @@ const db = {
             _cdCache.delete(key);
             _cdDirty.delete(key);
             if (_cdTimers.has(key)) { clearTimeout(_cdTimers.get(key)); _cdTimers.delete(key); }
-            const pool = getPool();
-            const { rowCount } = await pool.query('DELETE FROM custom_data WHERE key = $1', [key]);
-            return rowCount > 0;
+
+            // Remove from the local store.
+            try {
+                const all = jsonStore.read('custom_data');
+                if (all && typeof all === 'object' && !Array.isArray(all) && (key in all)) {
+                    delete all[key];
+                    jsonStore.write('custom_data', all);
+                }
+            } catch { /* ignore */ }
+
+            // Remove from the database if configured.
+            if (_pgConfigured()) {
+                try {
+                    const pool = getPool();
+                    await pool.query('DELETE FROM custom_data WHERE key = $1', [key]);
+                } catch { /* DB optional */ }
+            }
+            return true;
         } catch (error) {
             log.error(`[db.delete] Error for key ${key}:`, error);
             return false;
@@ -626,16 +682,7 @@ const db = {
     async list(prefix = '') {
         try {
             await _loadCustomDataCache();
-            if (_cdLoaded) {
-                const keys = [..._cdCache.keys()].filter(k => k.startsWith(prefix));
-                return keys;
-            }
-            const pool = getPool();
-            const { rows } = await pool.query(
-                'SELECT key FROM custom_data WHERE key LIKE $1',
-                [prefix + '%']
-            );
-            return rows.map(r => r.key);
+            return [..._cdCache.keys()].filter(k => k.startsWith(prefix));
         } catch (error) {
             log.error(`[db.list] Error for prefix ${prefix}:`, error);
             return [];
