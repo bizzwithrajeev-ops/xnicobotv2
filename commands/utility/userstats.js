@@ -1,56 +1,98 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SectionBuilder, ThumbnailBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { generateUserStatsCard } = require('../../utils/userStatsCard');
+const { getUserStats } = require('../../utils/activityTracker');
 
-async function buildUserStatsContainer(channel, user, member) {
-    const messages = await channel.messages.fetch({ limit: 100 });
-    const userMsgCount = messages.filter(m => m.author.id === user.id).size;
+/** Build the {files, components} payload for a user's stats card. */
+async function buildPayload(guild, user, member) {
+    const stats = getUserStats(guild.id, user.id);
 
-    const section = new SectionBuilder()
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`# <:Bookopen:1473038576391557130> User Statistics: ${user.username}`)
-        )
-        .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: user.displayAvatarURL({ size: 256 }) } }));
+    const topMsgCh = stats.topMsgChannel ? guild.channels.cache.get(stats.topMsgChannel.id) : null;
+    const topVcCh = stats.topVcChannel ? guild.channels.cache.get(stats.topVcChannel.id) : null;
 
-    return new ContainerBuilder()
-        .setAccentColor(parseInt(member.displayHexColor.replace('#', ''), 16) || 0xCAD7E6)
-        .addSectionComponents(section)
-        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                `**Messages (Last 100):** ${userMsgCount}\n` +
-                `**Roles:** ${member.roles.cache.size}\n` +
-                `**Joined Server:** <t:${Math.floor(member.joinedTimestamp / 1000)}:R>\n` +
-                `**Account Created:** <t:${Math.floor(user.createdTimestamp / 1000)}:R>`
-            )
-        );
+    const buffer = await generateUserStatsCard({
+        username: member?.displayName || user.username,
+        handle: user.username,
+        avatarURL: user.displayAvatarURL({ extension: 'png', size: 256 }),
+        serverName: guild.name,
+        createdTs: user.createdTimestamp,
+        joinedTs: member?.joinedTimestamp || 0,
+        msgRank: stats.msgRank,
+        vcRank: stats.vcRank,
+        msgTotalRanked: stats.msgTotalRanked,
+        vcTotalRanked: stats.vcTotalRanked,
+        msg1d: stats.msg1d, msg7d: stats.msg7d, msg14d: stats.msg14d,
+        vc1d: stats.vc1d, vc7d: stats.vc7d, vc14d: stats.vc14d,
+        topMsgChannelName: topMsgCh ? `#${topMsgCh.name}` : (stats.topMsgChannel ? 'Deleted channel' : null),
+        topMsgChannelValue: stats.topMsgChannel?.value || 0,
+        topVcChannelName: topVcCh ? topVcCh.name : (stats.topVcChannel ? 'Deleted channel' : null),
+        topVcChannelValue: stats.topVcChannel?.value || 0,
+        series: stats.series,
+    });
+
+    const attachment = new AttachmentBuilder(buffer, { name: 'userstats.png' });
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`userstats_refresh_${user.id}`)
+            .setLabel('Refresh')
+            .setEmoji('🔄')
+            .setStyle(ButtonStyle.Secondary)
+    );
+    return { files: [attachment], components: [row] };
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('userstats')
-        .setDescription('View detailed user statistics')
-        .addUserOption(o => o.setName('user').setDescription('User to view stats for')),
+        .setDescription('View a member\'s server activity stats (Statbot-style card)')
+        .addUserOption(o => o.setName('user').setDescription('Member to view stats for')),
+
+    prefix: 'userstats',
+    description: 'View a member\'s server activity stats',
+    usage: 'userstats [@user]',
+    category: 'utility',
+    aliases: ['stats', 'us'],
 
     async execute(interaction) {
+        if (!interaction.guild) {
+            return interaction.reply({ content: '<:Cancel:1473037949187657818> This command can only be used in a server.', flags: MessageFlags.Ephemeral });
+        }
+        await interaction.deferReply();
         const user = interaction.options.getUser('user') || interaction.user;
-        const member = await interaction.guild.members.fetch(user.id);
-
+        const member = await interaction.guild.members.fetch(user.id).catch(() => null);
         try {
-            const container = await buildUserStatsContainer(interaction.channel, user, member);
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const payload = await buildPayload(interaction.guild, user, member);
+            await interaction.editReply(payload);
         } catch (error) {
-            await interaction.reply({ content: '<:Cancel:1473037949187657818> Failed to fetch user statistics!', flags: MessageFlags.Ephemeral });
+            console.error('userstats error:', error);
+            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to render the stats card.' });
         }
     },
 
     async executePrefix(message, args) {
         const user = message.mentions.users.first() || message.author;
-        const member = await message.guild.members.fetch(user.id);
-
+        const member = await message.guild.members.fetch(user.id).catch(() => null);
         try {
-            const container = await buildUserStatsContainer(message.channel, user, member);
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const payload = await buildPayload(message.guild, user, member);
+            await message.reply(payload);
         } catch (error) {
-            await message.reply('<:Cancel:1473037949187657818> Failed to fetch user statistics!');
+            console.error('userstats error:', error);
+            await message.reply('<:Cancel:1473037949187657818> Failed to render the stats card.');
         }
-    }
+    },
+
+    /** Refresh button handler (routed from index.js for `userstats_refresh_*`). */
+    async handleInteraction(interaction) {
+        if (!interaction.isButton() || !interaction.customId.startsWith('userstats_refresh_')) return false;
+        const targetId = interaction.customId.replace('userstats_refresh_', '');
+        try {
+            await interaction.deferUpdate();
+            const user = await interaction.client.users.fetch(targetId).catch(() => interaction.user);
+            const member = await interaction.guild.members.fetch(targetId).catch(() => null);
+            const payload = await buildPayload(interaction.guild, user, member);
+            await interaction.editReply(payload);
+        } catch (error) {
+            console.error('userstats refresh error:', error);
+        }
+        return true;
+    },
 };

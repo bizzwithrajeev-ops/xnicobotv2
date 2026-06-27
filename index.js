@@ -2546,6 +2546,19 @@ client.on('interactionCreate', async (interaction) => {
             // global handler must NOT touch them or it would double-acknowledge.
             if (interaction.customId.startsWith('modconfirm:')) return;
 
+            // ── User stats card refresh ──
+            if (interaction.customId.startsWith('userstats_refresh_')) {
+                const usCmd = client.commands.get('userstats');
+                if (usCmd && usCmd.handleInteraction) {
+                    try {
+                        await usCmd.handleInteraction(interaction);
+                    } catch (error) {
+                        log.error(`Userstats refresh: ${error.message}`, error);
+                    }
+                }
+                return;
+            }
+
             // ── Bug Report button handler ──
             if (interaction.customId.startsWith('bug_report')) {
                 try {
@@ -9551,6 +9564,11 @@ client.on('messageCreate', async (message) => {
             // Ignore message counting errors
         }
 
+        // Daily / per-channel activity tracking for /userstats (Statbot-style)
+        try {
+            require('./utils/activityTracker').recordMessage(guildId, message.author.id, message.channel.id);
+        } catch { /* non-fatal */ }
+
         // Handle sticky messages (with cooldown to prevent rate limits)
         {
             const guildStickyConfig = jsonStore.peekGuild('sticky', guildId);
@@ -12574,6 +12592,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                             }
                         }
                     );
+                    try { require('./utils/activityTracker').recordVoice(guildId, userId, oldState.channelId, duration); } catch {}
                 } finally {
                     voiceJoinTimes.delete(trackingKey);
                 }
@@ -12595,6 +12614,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                             }
                         }
                     );
+                    try { require('./utils/activityTracker').recordVoice(guildId, userId, oldState.channelId, duration); } catch {}
                 } finally {
                     // Reset join time for new channel
                     voiceJoinTimes.set(trackingKey, Date.now());
