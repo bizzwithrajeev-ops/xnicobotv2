@@ -64,7 +64,7 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 2. Voice ──────────────────────────────────────────────
     voice: [
-        { name: 'Text-to-Speech',      emoji: '<:Bullhorn:1473038903157199093>',   cmds: ['speak', 'speak-config', 'join-greet'] },
+        { name: 'Text-to-Speech',      emoji: '<:Bullhorn:1473038903157199093>',   cmds: ['speak', 'speak-config', 'join-greet', 'record'] },
         { name: 'VC Kick & Mute',      emoji: '<:banhammer:1473367388597780592>',  cmds: ['vckick', 'vckickall', 'vcmute', 'vcmuteall', 'vcunmute', 'vcunmuteall', 'vcdeafen', 'vcdeafenall', 'vcundeafen', 'vcundeafenall', 'voiceban', 'voiceunban', 'voicemove', 'voicemoveall', 'vcdisconnectall'] },
         { name: 'VC Lock & Access',    emoji: '<:Shield:1473038669831995494>',     cmds: ['lockall-voice', 'unlockall-voice', 'hideall-voice', 'unhideall-voice'] },
         { name: 'VC Settings',         emoji: '<:Settings:1473037894703779851>',   cmds: ['vclimit', 'vclist', 'vcrename', 'vcbitrate', 'vcstatus', 'vcstatusremove'] },
@@ -104,8 +104,8 @@ const CATEGORY_GROUP_RULES = {
     // ── 7. Server Settings ────────────────────────────────────
     settings: [
         { name: 'Bot Configuration',   emoji: '<:Settings:1473037894703779851>',   cmds: ['setprefix', 'setbotname', 'bot-customize', 'botprofile', 'quicksetup', 'botblock', 'aichat-setup'] },
-        { name: 'Server Configuration', emoji: '<:Caretright:1473038207221502106>', cmds: ['reset-permissions', 'resetserver', 'redeemserverkey', 'servertag', 'guildtag', 'config-backup', 'dm-user', 'application', 'confession-setup'] },
-        { name: 'Emoji & Sticker',     emoji: '<:Gamepad:1473039216429498409>',    cmds: ['deleteemoji', 'renameemoji', 'sticker-delete', 'stealemoji', 'stealsticker', 'extract-emoji', 'remove-duplicates'] },
+        { name: 'Server Configuration', emoji: '<:Caretright:1473038207221502106>', cmds: ['reset-permissions', 'resetserver', 'servertag', 'guildtag', 'config-backup', 'dm-user', 'application', 'confession-setup'] },
+        { name: 'Emoji & Sticker',     emoji: '<:Gamepad:1473039216429498409>',    cmds: ['deleteemoji', 'renameemoji', 'sticker-delete', 'stealemoji', 'stealsticker', 'extract-emoji', 'remove-duplicates', 'globalemoji', 'globalsticker', 'steal'] },
     ],
 
     // ── 8. Trust System ───────────────────────────────────────
@@ -151,7 +151,7 @@ const CATEGORY_GROUP_RULES = {
     basic: [
         { name: 'Bot Core',            emoji: '<:xnico:1486755083390550036>',       cmds: ['help', 'botinfo', 'ping', 'invite', 'uptime', 'vote', 'myvotes', 'support', 'variables'] },
         { name: 'Premium',             emoji: '<:Crown:1506010837368963142>',     cmds: ['premium', 'redeemkey', 'redeemserverkey', 'serverpremium'] },
-        { name: 'Reminders & AFK',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['afk', 'reminder', 'announce', 'timezone'] },
+        { name: 'Reminders & AFK',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['afk', 'reminder', 'timer', 'announce', 'timezone'] },
         { name: 'Lookup & APIs',       emoji: '<:Attach:1473037923979886694>',     cmds: ['github', 'npm', 'define', 'urban', 'urbanrandom', 'wikipedia', 'reddit', 'youtube', 'yt', 'spotify', 'weather', 'color', 'ip', 'stockprice'] },
         { name: 'Media & Tools',       emoji: '<:Pin:1473038806612447500>',        cmds: ['image', 'screenshot', 'qrcode', 'shorten', 'pastebin', 'calculate', 'password', 'uuid', 'download'] },
         { name: 'Misc & Community',    emoji: '<:Fire:1473038604812161218>',       cmds: ['firstmsg', 'pinned-messages', 'snowflake', 'enlarge', 'afklist', 'anime', 'manga', 'crypto', 'covid', 'suggest', 'report', 'apply'] },
@@ -215,6 +215,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Affection',           emoji: '<:Money:1473377877239140529>',      cmds: ['hug', 'kiss', 'cuddle', 'pat', 'pet', 'praise', 'feed', 'handhold', 'peck'] },
         { name: 'Expressions',         emoji: '<:Fire:1473038604812161218>',       cmds: ['wave', 'wink', 'smile', 'blush', 'laugh', 'cry', 'dance', 'celebrate', 'yawn', 'stretch', 'salute'] },
         { name: 'Playful',             emoji: '<:Gamepad:1473039216429498409>',    cmds: ['slap', 'punch', 'bite', 'bonk', 'poke', 'tickle', 'highfive', 'facepalm', 'stare'] },
+        { name: 'More Reactions',      emoji: '<:Star:1473038501766369300>',       cmds: ['angry', 'baka', 'blowkiss', 'bored', 'bully', 'carry', 'confused', 'handshake', 'happy', 'lappillow', 'nod', 'nom', 'pout', 'shocked', 'shoot', 'shrug', 'sleep', 'smug', 'snuggle', 'spin', 'tableflip', 'think', 'thumbsup', 'yeet'] },
     ],
 
     // ── 20. Economy ───────────────────────────────────────────
@@ -266,6 +267,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Badge System',        emoji: '<:Fire:1473038604812161218>',       cmds: ['badge-create', 'badge-edit', 'badge-give', 'badge-remove', 'badge-list'] },
         { name: 'Bot Health & Stats',  emoji: '<:Lightning:1473038797540298792>',  cmds: ['botstats', 'bothealth', 'systemlogs', 'botinvite', 'botpanel'] },
         { name: 'Utilities',           emoji: '<:Envelope:1473038885364695113>',   cmds: ['broadcast', 'clearcache', 'activity', 'botnick', 'vote-notify', 'topgg-sync'] },
+        { name: 'Developer Tools',     emoji: '<:Lightning:1473038797540298792>',  cmds: ['canvas', 'botsay', 'cleanup-webhooks', 'datasnapshot', 'dmstats', 'errortest', 'flushcache', 'listenerinfo', 'nodecheck', 'ownerbadges', 'purge-mass', 'runtimeflags', 'namestyle', 'presence'] },
     ],
 };
 

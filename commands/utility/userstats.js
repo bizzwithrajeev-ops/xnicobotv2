@@ -50,7 +50,7 @@ module.exports = {
     description: 'View a member\'s server activity stats',
     usage: 'userstats [@user]',
     category: 'utility',
-    aliases: ['stats', 'us'],
+    aliases: ['us'],
 
     async execute(interaction) {
         if (!interaction.guild) {
