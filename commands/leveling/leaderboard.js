@@ -263,7 +263,7 @@ function buildPanel({
     const headerLines = [
         `# ${cfg.emoji}  ${cfg.label} Leaderboard`,
         `### ${scopeIcon} ${escapeMarkdown(scopeLabel)}`,
-        `> ${E.spark} \`${cfg.label}\`  ·  ${E.pin} \`${totalCount.toLocaleString()} ranked\`  ·  ${E.history} \`Page ${page + 1}/${totalPages}\``,
+        `-# ${totalCount.toLocaleString()} ranked  ·  Page ${page + 1}/${totalPages}`,
     ];
     const headerText = headerLines.join('\n');
 
@@ -308,7 +308,7 @@ function buildPanel({
 
     if (podium.length > 0 && page === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ${E.crown} Hall of Fame  ·  Top 3`
+            `### ${E.crown} Top 3`
         ));
 
         for (const entry of podium) {
@@ -316,22 +316,12 @@ function buildPanel({
             const accentEmoji =
                 entry.rank === 1 ? E.medal1 :
                 entry.rank === 2 ? E.medal2 : E.medal3;
-            const rankLabel =
-                entry.rank === 1 ? 'Champion' :
-                entry.rank === 2 ? 'Runner-up' : 'Third Place';
             const valueStr = cfg.format(entry.value, guildId);
-
-            // Visual bar shows this entry's value relative to #1.
-            const pct = leaderValue > 0 ? entry.value / leaderValue : 0;
-            const bar = progressBar(pct, 12);
-            const pctText = `${Math.round(pct * 100)}%`;
 
             const youBadge = isYou ? `  ${E.you} *you*` : '';
             const lines = [
-                `### ${accentEmoji}  **${escapeMarkdown(entry.username)}**${youBadge}`,
-                `> ${E.arrow} **${rankLabel}**  ·  Rank \`#${entry.rank}\``,
-                `> ${E.spark} ${valueStr}`,
-                `> \`${bar}\`  \`${pctText}\``,
+                `**${accentEmoji}  ${escapeMarkdown(entry.username)}**${youBadge}`,
+                `> ${valueStr}`,
             ];
 
             if (entry.avatarURL) {
@@ -411,7 +401,7 @@ function buildPanel({
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     );
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# ${E.brand} xNico  ·  ${E.spark} Live rankings  ·  Updates as users earn`
+        `-# ${E.brand} xNico  ·  Live rankings`
     ));
 
     return container;
