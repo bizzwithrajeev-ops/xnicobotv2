@@ -2541,6 +2541,11 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.isButton()) {
             const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleVerificationButtons, handleProfileButtons } = require('./utils/interactionHandlers');
 
+            // ── Moderation confirmation buttons (ban/kick/etc.) ──
+            // Owned by a per-message collector in utils/confirmAction.js — the
+            // global handler must NOT touch them or it would double-acknowledge.
+            if (interaction.customId.startsWith('modconfirm:')) return;
+
             // ── Bug Report button handler ──
             if (interaction.customId.startsWith('bug_report')) {
                 try {

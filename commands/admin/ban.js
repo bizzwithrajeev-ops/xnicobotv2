@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, buildUserNotFound, buildInvalidUsage, buildModerationResponse } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -57,6 +58,14 @@ module.exports = {
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(interaction, false, {
+            title: 'Confirm Ban',
+            description: `Are you sure you want to **ban** <@${user.id}> (\`${user.username}\`)?\n\n**Reason:** ${reason}${deleteDays ? `\n**Delete messages:** ${deleteDays} day(s)` : ''}`,
+            confirmLabel: 'Ban User',
+        });
+        if (!confirmed) return;
+
         try {
             await interaction.guild.members.ban(user, { 
                 reason: `${reason} | Banned by ${interaction.user.username}`,
@@ -70,7 +79,7 @@ module.exports = {
                 reason
             );
             
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Ban Error:', error);
             const container = buildErrorResponse(
@@ -78,7 +87,7 @@ module.exports = {
                 'Failed to ban the user.',
                 `Error: ${error.message}`
             );
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     },
 
@@ -125,6 +134,14 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: 'Confirm Ban',
+            description: `Are you sure you want to **ban** <@${user.id}> (\`${user.username}\`)?\n\n**Reason:** ${reason}`,
+            confirmLabel: 'Ban User',
+        });
+        if (!confirmed) return;
+
         try {
             await message.guild.members.ban(user, { 
                 reason: `${reason} | Banned by ${message.author.username}`
@@ -137,7 +154,7 @@ module.exports = {
                 reason
             );
             
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Ban Error:', error);
             const container = buildErrorResponse(
@@ -145,7 +162,7 @@ module.exports = {
                 'Failed to ban the user.',
                 `Error: ${error.message}`
             );
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     }
 };

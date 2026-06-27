@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied, buildUserNotFound, buildInvalidUsage, buildModerationResponse } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -62,6 +63,14 @@ module.exports = {
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(interaction, false, {
+            title: 'Confirm Kick',
+            description: `Are you sure you want to **kick** <@${user.id}> (\`${user.username}\`)?\n\n**Reason:** ${reason}`,
+            confirmLabel: 'Kick User',
+        });
+        if (!confirmed) return;
+
         try {
             await member.kick(`${reason} | Kicked by ${interaction.user.username}`);
             
@@ -72,7 +81,7 @@ module.exports = {
                 reason
             );
             
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Kick Error:', error);
             const container = buildErrorResponse(
@@ -80,7 +89,7 @@ module.exports = {
                 'Failed to kick the user.',
                 `Error: ${error.message}`
             );
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     },
 
@@ -126,6 +135,14 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: 'Confirm Kick',
+            description: `Are you sure you want to **kick** <@${member.id}> (\`${member.user.username}\`)?\n\n**Reason:** ${reason}`,
+            confirmLabel: 'Kick User',
+        });
+        if (!confirmed) return;
+
         try {
             await member.kick(`${reason} | Kicked by ${message.author.username}`);
             
@@ -136,7 +153,7 @@ module.exports = {
                 reason
             );
             
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Kick Error:', error);
             const container = buildErrorResponse(
@@ -144,7 +161,7 @@ module.exports = {
                 'Failed to kick the user.',
                 `Error: ${error.message}`
             );
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     }
 };
