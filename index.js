@@ -1545,6 +1545,9 @@ client.on(Events.ClientReady, async () => {
             token: process.env.TOKEN,
             clientId: process.env.CLIENT_ID || client.user.id,
             commands,
+            // Set FORCE_SLASH_REGISTER=true in .env to force a clean re-register
+            // on the next boot (useful after a fresh deploy or command changes).
+            force: /^(1|true|yes)$/i.test(process.env.FORCE_SLASH_REGISTER || ''),
         });
         if (result.registered) {
             log.success(`[Slash] Auto-registered (${result.reason}) → ${result.global} global + ${result.guild} guild commands.`);
@@ -11659,6 +11662,22 @@ client.on('inviteDelete', async (invite) => {
 client.on('guildCreate', async (guild) => {
     log.info(`Joined new guild: ${guild.name}`);
     await preloadGuildInvites(guild);
+
+    // Register guild-specific slash commands for the new server so it gets the
+    // full command set immediately (fresh-deploy behaviour) instead of only the
+    // 100 global commands. The overflow commands won't fit globally otherwise.
+    try {
+        const { registerForGuild } = require('./utils/slashRegistrar');
+        const ok = await registerForGuild({
+            token: process.env.TOKEN,
+            clientId: process.env.CLIENT_ID || client.user.id,
+            commands,
+            guildId: guild.id,
+        });
+        if (ok) log.success(`[Slash] Registered guild commands for new guild ${guild.name}`);
+    } catch (err) {
+        log.debug(`[Slash] guildCreate registration failed: ${err.message}`);
+    }
 
     // Auto-create and store a permanent invite for the bot owner
     try {

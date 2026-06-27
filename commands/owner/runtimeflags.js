@@ -43,7 +43,7 @@ module.exports = {
 
         // Lavalink summary
         const nodes = lavalinkManager?.nodeManager?.nodes ? [...lavalinkManager.nodeManager.nodes.values()] : [];
-        const connectedNodes = nodes.filter(n => n.socket?.readyState === 1).length;
+        const connectedNodes = nodes.filter(n => n.connected).length;
         const players = lavalinkManager?.players?.size ?? 0;
 
         const onOff = (v) => v ? '<:Toggleon:1473038585501581312> ON' : '<:Toggleoff:1473038582813032590> OFF';

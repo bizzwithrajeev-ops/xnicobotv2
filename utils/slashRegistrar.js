@@ -300,6 +300,36 @@ async function autoRegister({ client, token, clientId, commands, force = false }
 }
 
 /**
+ * Register the guild-specific slash commands for a SINGLE guild.
+ * Used on `guildCreate` so a newly-joined server immediately gets the full
+ * command set (the overflow commands that don't fit in the 100 global slots),
+ * just like a fresh deploy — instead of waiting for the next full re-register.
+ *
+ * @param {object} args
+ * @param {string} args.token
+ * @param {string} args.clientId
+ * @param {Array<object>} args.commands  Full slash payload list.
+ * @param {string} args.guildId
+ * @returns {Promise<boolean>}
+ */
+async function registerForGuild({ token, clientId, commands, guildId }) {
+    if (!token || !clientId || !guildId) return false;
+    if (!Array.isArray(commands) || commands.length === 0) return false;
+
+    const { guildCmds } = splitCommands(commands);
+    if (guildCmds.length === 0) return false;
+
+    try {
+        const rest = new REST({ version: '10' }).setToken(token);
+        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: guildCmds });
+        return true;
+    } catch (e) {
+        log.debug(`[Slash] Per-guild register failed for ${guildId}: ${e.message}`);
+        return false;
+    }
+}
+
+/**
  * Wipe the registration cache. Forces a re-register on next boot.
  */
 function invalidateCache() {
@@ -308,6 +338,7 @@ function invalidateCache() {
 
 module.exports = {
     autoRegister,
+    registerForGuild,
     invalidateCache,
     GLOBAL_PRIORITY,
 };

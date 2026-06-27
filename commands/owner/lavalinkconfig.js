@@ -154,7 +154,7 @@ module.exports = {
                 return message.reply(`<:Cancel:1473037949187657818> Node \`${id}\` not found in active nodes!`);
             }
 
-            const isConnected = node.socket && node.socket.readyState === 1;
+            const isConnected = node.connected;
             const stats = node.stats || {};
 
             let content = `# 🧪 Node Test: ${id}\n\n` +

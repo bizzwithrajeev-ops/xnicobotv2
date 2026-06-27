@@ -42,17 +42,30 @@ function isConnectionError(err) {
 
 function buildPool(connStr) {
     if (!connStr) return null;
-    const isSSL = connStr.includes('sslmode=');
-    const fixedStr = isSSL
-        ? connStr.replace(/sslmode=(require|prefer|verify-ca)\b/g, 'sslmode=verify-full')
-        : connStr;
+
+    // Managed Postgres providers (Neon, Supabase, Railway, Render, Aiven, RDS…)
+    // require TLS. Detect it from the URL or known hosts.
+    const wantsSSL = /sslmode=|ssl=true/i.test(connStr)
+        || /(neon\.tech|supabase|pooler|render\.com|railway|aivencloud|amazonaws|heroku|cockroachlabs)/i.test(connStr);
+
+    // Strip sslmode / ssl params from the URL so they don't conflict with the
+    // explicit `ssl` object below. Forcing `verify-full` makes node-postgres
+    // verify the cert hostname, which fails on managed databases whose cert
+    // hostname doesn't match — producing connection errors even when the DB
+    // is fully online. We control TLS purely through the ssl object instead.
+    let cleanStr = connStr
+        .replace(/([?&])sslmode=[^&]*/gi, '$1')
+        .replace(/([?&])ssl=[^&]*/gi, '$1')
+        .replace(/\?&/g, '?')
+        .replace(/&&+/g, '&')
+        .replace(/[?&]+$/g, '');
 
     const pool = new Pool({
-        connectionString: fixedStr,
+        connectionString: cleanStr,
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 6000,
-        ssl: isSSL ? { rejectUnauthorized: false } : false,
+        connectionTimeoutMillis: 10000,
+        ssl: wantsSSL ? { rejectUnauthorized: false } : false,
     });
     pool.on('error', () => {}); // suppress unhandled error events
     return pool;

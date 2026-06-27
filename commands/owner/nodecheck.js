@@ -39,7 +39,7 @@ module.exports = {
         for (const node of nodes) {
             const id = node.id || node.options?.id || 'unknown';
             const host = node.options?.host || 'unknown';
-            const isConnected = node.socket?.readyState === 1;
+            const isConnected = node.connected;
             const ping = Number.isFinite(node.ping) ? node.ping : null;
 
             if (isConnected) connectedCount++;
