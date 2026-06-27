@@ -13,28 +13,51 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/styles.css?v=4.0.0">
+    <link rel="stylesheet" href="/starfield.css?v=1.0.0">
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%237c3aed'/%3E%3Cstop offset='100%25' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='16'%3Ex%3C/text%3E%3C/svg%3E">
 </head>
 
 <body>
 
-    <!-- Background FX -->
-    <div class="bg-fx">
-        <div class="bg-grid"></div>
-        <div class="bg-orb bg-orb-1"></div>
-        <div class="bg-orb bg-orb-2"></div>
-        <div class="bg-orb bg-orb-3"></div>
+    <!-- Background FX — animated starfield -->
+    <div class="bg-fx" id="bg-fx" aria-hidden="true">
+        <div class="starlayer" data-count="700" data-size="1"></div>
+        <div class="starlayer" data-count="200" data-size="2"></div>
+        <div class="starlayer" data-count="100" data-size="3"></div>
     </div>
+    <script>
+        (function () {
+            var fx = document.getElementById('bg-fx');
+            if (!fx) return;
+            fx.querySelectorAll('.starlayer').forEach(function (layer) {
+                var count = parseInt(layer.dataset.count, 10) || 200;
+                var size = parseInt(layer.dataset.size, 10) || 1;
+                var shadows = [];
+                for (var i = 0; i < count; i++) {
+                    shadows.push((Math.random() * 2000 | 0) + 'px ' + (Math.random() * 2000 | 0) + 'px #fff');
+                }
+                var shadow = shadows.join(',');
+                var a = document.createElement('div');
+                var b = document.createElement('div');
+                a.className = 'star';
+                b.className = 'star star-dup';
+                a.style.width = b.style.width = size + 'px';
+                a.style.height = b.style.height = size + 'px';
+                a.style.boxShadow = b.style.boxShadow = shadow;
+                layer.appendChild(a);
+                layer.appendChild(b);
+            });
+        })();
+    </script>
 
     <!-- Auth Loading -->
     <div id="auth-loading" class="auth-loading hidden">
-        <div class="auth-loader">
-            <div class="loader-ring"></div>
-            <div class="loader-ring"></div>
-            <div class="loader-ring"></div>
+        <div class="nico-loader">
+            <p class="loader-text">Connecting</p>
+            <span class="load"></span>
         </div>
-        <p class="text-soft" style="margin-top:1.5rem;font-size:.95rem;letter-spacing:.02em">Connecting to Discord…</p>
+        <p class="text-soft" style="margin-top:1.75rem;font-size:.95rem;letter-spacing:.02em">Connecting to Discord…</p>
         <p class="text-mute text-xs" style="margin-top:.5rem">Verifying your session</p>
     </div>
 
@@ -44,6 +67,7 @@
             <div class="auth-logo" id="bot-logo">x</div>
             <h1 class="auth-title">x<span class="grad-text">Nico</span></h1>
             <p class="auth-sub">Premium Discord Bot Infrastructure</p>
+            <p class="auth-tagline">One bot for moderation, music, economy, leveling, automation and more — managed from a clean, real-time dashboard. Every change you make here applies to your server instantly.</p>
             <div class="auth-stats">
                 <div class="auth-stat">
                     <div class="v" id="stat-cmds">535+</div>
@@ -58,6 +82,28 @@
                     <div class="l">Uptime</div>
                 </div>
             </div>
+
+            <div class="auth-features">
+                <div class="auth-feature">
+                    <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <div><div class="ft">Moderation</div><div class="fd">Ban, mute, automod</div></div>
+                </div>
+                <div class="auth-feature">
+                    <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+                    <div><div class="ft">Music</div><div class="fd">High-quality audio</div></div>
+                </div>
+                <div class="auth-feature">
+                    <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                    <div><div class="ft">Economy</div><div class="fd">Games & currency</div></div>
+                </div>
+                <div class="auth-feature">
+                    <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                    <div><div class="ft">Leveling</div><div class="fd">XP, ranks & roles</div></div>
+                </div>
+            </div>
+
+            <div class="auth-divider">Get started</div>
+
             <a href="/api/auth/discord/redirect" class="auth-btn" id="login-btn">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                     <path
