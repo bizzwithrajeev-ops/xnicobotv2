@@ -253,6 +253,11 @@ function buildYouTubePanel(guildConfig) {
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('<:Editalt:1473038138577256670>'),
         new ButtonBuilder()
+            .setCustomId('social_preview_youtube')
+            .setLabel('Preview')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('<:Eye:1473038435056095242>'),
+        new ButtonBuilder()
             .setCustomId('social_test_youtube')
             .setLabel('Send Test')
             .setStyle(ButtonStyle.Secondary)
@@ -360,8 +365,13 @@ function buildPlatformPanel(guildConfig, platform) {
             .setEmoji('<:Editalt:1473038138577256670>')
     ));
 
-    // ── Row 3: Test & Back ──
+    // ── Row 3: Preview, Test & Back ──
     container.addActionRowComponents(new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`social_preview_${platform}`)
+            .setLabel('Preview')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('<:Eye:1473038435056095242>'),
         new ButtonBuilder()
             .setCustomId(`social_test_${platform}`)
             .setLabel('Send Test')
@@ -491,7 +501,7 @@ async function handleInteraction(interaction) {
     }
 
     // ── Generic platform actions (regex-matched) ────────
-    const platformMatch = id.match(/^social_(toggle|add|remove|channel|role|message|test)_(youtube|twitch|instagram|facebook|twitter|tiktok)$/);
+    const platformMatch = id.match(/^social_(toggle|add|remove|channel|role|message|test|preview)_(youtube|twitch|instagram|facebook|twitter|tiktok)$/);
     if (platformMatch) {
         const [, action, platform] = platformMatch;
         const info = PLATFORM_INFO[platform];
@@ -589,6 +599,39 @@ async function handleInteraction(interaction) {
                     .setMaxLength(1000)
             ));
             await interaction.showModal(modal);
+            return true;
+        }
+
+        // ── Preview (ephemeral, no channel required, never pings) ──
+        if (action === 'preview') {
+            const pv = {
+                channel: 'Example Channel', title: 'This is a Preview Notification!', url: 'https://youtube.com',
+                videoId: 'dQw4w9WgXcQ', streamer: 'ExampleStreamer', game: 'Just Chatting',
+                account: 'example_account', page: 'Example Page', viewers: '1,234'
+            };
+            let msg = (pConfig.message || `${info.emoji} New notification from ${info.name}!`);
+            for (const [k, v] of Object.entries(pv)) msg = msg.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+
+            const pingMention = formatPingRole(pConfig.pingRole);
+            const ping = pingMention ? `${pingMention} ` : '';
+            const header = '<:Eye:1473038435056095242> **Preview** — this is how your notification will look (only you can see this):\n\n';
+
+            try {
+                if (isYouTube) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xFF0000)
+                        .setAuthor({ name: 'Example Channel', iconURL: 'https://i.imgur.com/3pGrCPv.png' })
+                        .setTitle('🎬 Preview Video Notification')
+                        .setURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+                        .setImage('https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg')
+                        .setFooter({ text: 'YouTube • Preview' });
+                    await interaction.reply({ content: `${header}${ping}${msg}`, embeds: [embed], flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
+                } else {
+                    await interaction.reply({ content: `${header}${ping}${msg}`, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
+                }
+            } catch (error) {
+                await interaction.reply({ content: `<:Cancel:1473037949187657818> Failed to build preview: ${error.message}`, flags: MessageFlags.Ephemeral });
+            }
             return true;
         }
 

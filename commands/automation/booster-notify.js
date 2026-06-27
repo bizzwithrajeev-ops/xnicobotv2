@@ -66,17 +66,11 @@ function buildBoosterPanel(guildConfig, guild) {
     const dmEnabled = guildConfig.dmThankYou?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const unboostEnabled = guildConfig.unboostMessage?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 
-    let settingsText = '```ansi\n\u001b[1;35m╔══════════════════════════════════╗\n';
-    settingsText += '\u001b[1;35m║     \u001b[1;37mBooster System Settings      \u001b[1;35m║\n';
-    settingsText += '\u001b[1;35m╠══════════════════════════════════╣\n';
-    settingsText += `\u001b[1;35m║ \u001b[1;36mStatus:      ${guildConfig.enabled ? '\u001b[1;32mEnabled' : '\u001b[1;31mDisabled'}            \u001b[1;35m║\n`;
-    settingsText += `\u001b[1;35m║ \u001b[1;36mDM Thanks:   ${guildConfig.dmThankYou?.enabled ? '\u001b[1;32mYes' : '\u001b[1;31mNo'}                \u001b[1;35m║\n`;
-    settingsText += `\u001b[1;35m║ \u001b[1;36mUnboost Msg: ${guildConfig.unboostMessage?.enabled ? '\u001b[1;32mYes' : '\u001b[1;31mNo'}                \u001b[1;35m║\n`;
-    settingsText += `\u001b[1;35m║ \u001b[1;36mBoost Count: \u001b[1;33m${guild.premiumSubscriptionCount || 0} boosts          \u001b[1;35m║\n`;
-    settingsText += `\u001b[1;35m║ \u001b[1;36mBoost Level: \u001b[1;33mTier ${guild.premiumTier}              \u001b[1;35m║\n`;
-    settingsText += '\u001b[1;35m╚══════════════════════════════════╝\n```';
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(settingsText));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`<:Sketch:1473038248493453352> **${guild.premiumSubscriptionCount || 0}** boosts • Boost **Tier ${guild.premiumTier}**`)
+    );
 
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`${statusEmoji} **Status:** ${guildConfig.enabled ? 'Enabled' : 'Disabled'}\n<:Bullhorn:1473038903157199093> **Channel:** ${channelText}\n<:Userplus:1473038912212435086> **Booster Role:** ${boosterRoleText}\n<:Envelope:1473038885364695113> **DM Thanks:** ${dmEnabled}\n💔 **Unboost Notify:** ${unboostEnabled}`)
@@ -168,14 +162,8 @@ function buildEmbedConfigPanel(guildConfig) {
     const useEmbed = embedConfig.embed ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
     const showThumb = embedConfig.embedThumbnail ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
 
-    let settingsText = '```ansi\n\u001b[1;37m Embed Settings\n';
-    settingsText += '────────────────────────\n';
-    settingsText += `\u001b[1;36m Use Embed:    ${embedConfig.embed ? '\u001b[1;32mYes' : '\u001b[1;31mNo'}\n`;
-    settingsText += `\u001b[1;36m Color:        \u001b[1;35m${embedConfig.embedColor || '#FF73FA'}\n`;
-    settingsText += `\u001b[1;36m Thumbnail:    ${embedConfig.embedThumbnail ? '\u001b[1;32mYes' : '\u001b[1;31mNo'}\n`;
-    settingsText += '```';
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(settingsText));
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`${useEmbed} **Use Embed:** ${embedConfig.embed ? 'Yes' : 'No'}\n<:Palette:1473039029476917461> **Color:** \`${embedConfig.embedColor || '#FF73FA'}\`\n<:Picture:1473039568398843957> **Show Thumbnail:** ${showThumb}`)
     );
