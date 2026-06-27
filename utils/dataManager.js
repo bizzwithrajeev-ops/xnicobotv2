@@ -88,20 +88,18 @@ const jsonManager = new JSONDataManager();
 module.exports = {
     isMongoConnected: isDatabaseConnected,
     isDatabaseConnected,
+    // NOTE: Always delegate to database.js. It reads/writes the `users` store
+    // through jsonStore, which transparently falls back to local-file storage
+    // when PostgreSQL isn't connected AND flushes `users` immediately (it's a
+    // CRITICAL_STORE). Routing through the legacy JSONDataManager instead used
+    // an object-keyed shape that database.js (array-shaped) could not read,
+    // so customizations silently vanished on the next read / bot restart.
     getUserData: async (userId) => {
-        if (isDatabaseConnected()) {
-            const { getUserData } = require('./database');
-            return await getUserData(userId);
-        } else {
-            return await jsonManager.getUserData(userId);
-        }
+        const { getUserData } = require('./database');
+        return await getUserData(userId);
     },
     updateUserData: async (userId, updates) => {
-        if (isDatabaseConnected()) {
-            const { updateUserData } = require('./database');
-            return await updateUserData(userId, updates);
-        } else {
-            return await jsonManager.updateUserData(userId, updates);
-        }
+        const { updateUserData } = require('./database');
+        return await updateUserData(userId, updates);
     }
 };

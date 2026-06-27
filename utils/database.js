@@ -272,11 +272,34 @@ async function updateGuildConfig(guildId, updates) {
     }
 }
 
+/**
+ * Convert a legacy object-keyed users store ({ [userId]: row }) into the
+ * array shape this module uses. Each row's user_id is backfilled from its key
+ * so older customizations saved by the previous JSON path are recovered
+ * rather than discarded.
+ */
+function normalizeUsersStore(obj) {
+    if (Array.isArray(obj)) return obj;
+    if (!obj || typeof obj !== 'object') return [];
+    const out = [];
+    for (const [key, row] of Object.entries(obj)) {
+        if (!row || typeof row !== 'object') continue;
+        const r = { ...row };
+        if (!r.user_id) r.user_id = r.userId || key;
+        delete r.userId;
+        out.push(r);
+    }
+    return out;
+}
+
 async function getUserData(userId) {
     try {
         let users = loadStore('users', []);
         if (!Array.isArray(users)) {
-            users = [];
+            // Legacy object-keyed shape. Recover it into the array shape
+            // instead of discarding it so saved customizations survive.
+            users = normalizeUsersStore(users);
+            saveStore('users', users);
         }
         let user = users.find(u => u.user_id === userId);
         
@@ -383,7 +406,10 @@ async function getUserData(userId) {
 
 async function updateUserData(userId, updates) {
     try {
-        const users = loadStore('users', []);
+        let users = loadStore('users', []);
+        if (!Array.isArray(users)) {
+            users = normalizeUsersStore(users);
+        }
         const userIndex = users.findIndex(u => u.user_id === userId);
         
         if (userIndex === -1) {
