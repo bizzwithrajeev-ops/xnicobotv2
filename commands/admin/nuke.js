@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } = require('discord.js');
 const { buildErrorResponse, buildPermissionDenied, buildLoadingResponse } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -29,8 +30,13 @@ module.exports = {
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
-        const loadingContainer = buildLoadingResponse('Nuking Channel', 'Please wait while the channel is being nuked...');
-        await interaction.reply({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(interaction, false, {
+            title: 'Confirm Nuke',
+            description: `Are you sure you want to **nuke** <#${channel.id}>?\n\nThis clones the channel and **deletes the original** — every message is permanently lost. **This cannot be undone.**`,
+            confirmLabel: 'Nuke Channel',
+        });
+        if (!confirmed) return;
 
         try {
             const position = channel.position;
@@ -57,10 +63,15 @@ module.exports = {
 ;
             
             await newChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            // Update the confirmation prompt if it survived (different channel nuked)
+            await button.editReply({
+                components: [buildLoadingResponse('Channel Nuked', `Recreated <#${newChannel.id}> successfully.`)],
+                flags: MessageFlags.IsComponentsV2
+            }).catch(() => {});
         } catch (error) {
             console.error('Nuke Error:', error);
             const container = buildErrorResponse('Nuke Failed', 'Failed to nuke the channel.', `Error: ${error.message}`);
-            await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     },
 
@@ -82,8 +93,13 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const loadingContainer = buildLoadingResponse('Nuking Channel', 'Please wait while the channel is being nuked...');
-        const loadingMsg = await message.reply({ components: [loadingContainer], flags: MessageFlags.IsComponentsV2 });
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: 'Confirm Nuke',
+            description: `Are you sure you want to **nuke** <#${channel.id}>?\n\nThis clones the channel and **deletes the original** — every message is permanently lost. **This cannot be undone.**`,
+            confirmLabel: 'Nuke Channel',
+        });
+        if (!confirmed) return;
 
         try {
             const position = channel.position;
@@ -110,14 +126,14 @@ module.exports = {
 ;
             
             await newChannel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({
+                components: [buildLoadingResponse('Channel Nuked', `Recreated <#${newChannel.id}> successfully.`)],
+                flags: MessageFlags.IsComponentsV2
+            }).catch(() => {});
         } catch (error) {
             console.error('Nuke Error:', error);
             const container = buildErrorResponse('Nuke Failed', 'Failed to nuke the channel.', `Error: ${error.message}`);
-            try {
-                await loadingMsg.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
-            } catch {
-                // Channel was already deleted, can't edit the loading message
-            }
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         }
     }
 };

@@ -1,5 +1,6 @@
 const { PermissionFlagsBits, SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { buildModerationResponse, buildErrorResponse, buildPermissionDenied, buildInvalidUsage } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -53,6 +54,14 @@ module.exports = {
                 return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
 
+            // ── Confirmation prompt ──
+            const { confirmed, button } = await confirmAction(interaction, false, {
+                title: 'Confirm Hackban',
+                description: `Are you sure you want to **ban** the user with ID \`${userId}\`?\n\nThis bans them even if they are not in the server.\n\n**Reason:** ${reason}`,
+                confirmLabel: 'Hackban User',
+            });
+            if (!confirmed) return;
+
             await interaction.guild.members.ban(userId, { reason: `${reason} | Hackbanned by ${interaction.user.username}` });
             
             let user;
@@ -69,14 +78,16 @@ module.exports = {
                 `${reason} (Hackban)`
             );
             
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const container = buildErrorResponse(
                 'Hackban Failed',
                 'Failed to hackban the user.',
                 `Error: ${error.message}`
             );
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            }
         }
     },
     
@@ -126,6 +137,14 @@ module.exports = {
                 return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
             }
 
+            // ── Confirmation prompt ──
+            const { confirmed, button } = await confirmAction(message, true, {
+                title: 'Confirm Hackban',
+                description: `Are you sure you want to **ban** the user with ID \`${userId}\`?\n\nThis bans them even if they are not in the server.\n\n**Reason:** ${reason}`,
+                confirmLabel: 'Hackban User',
+            });
+            if (!confirmed) return;
+
             await message.guild.members.ban(userId, { reason: `${reason} | Hackbanned by ${message.author.username}` });
             
             let user;
@@ -142,7 +161,7 @@ module.exports = {
                 `${reason} (Hackban)`
             );
             
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Hackban Error:', error);
             const container = buildErrorResponse(

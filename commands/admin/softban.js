@@ -1,5 +1,6 @@
 const { PermissionFlagsBits, SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder } = require('discord.js');
 const { buildModerationResponse, buildErrorResponse, buildPermissionDenied, buildUserNotFound, buildInvalidUsage, COLORS } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -56,6 +57,14 @@ module.exports = {
             return interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(interaction, false, {
+            title: 'Confirm Softban',
+            description: `Are you sure you want to **softban** <@${user.id}> (\`${user.username}\`)?\n\nThis bans and instantly unbans them to **delete their last 7 days of messages**.\n\n**Reason:** ${reason}`,
+            confirmLabel: 'Softban User',
+        });
+        if (!confirmed) return;
+
         try {
             await member.ban({ 
                 reason: `${reason} | Softbanned by ${interaction.user.username}`, 
@@ -74,14 +83,14 @@ module.exports = {
                 .setAccentColor(COLORS.WARNING)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
             
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const container = buildErrorResponse(
                 'Softban Failed',
                 'Failed to softban the user.',
                 `Error: ${error.message}`
             );
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     },
     
@@ -121,6 +130,14 @@ module.exports = {
             return message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
 
+        // ── Confirmation prompt ──
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: 'Confirm Softban',
+            description: `Are you sure you want to **softban** <@${member.id}> (\`${member.user.username}\`)?\n\nThis bans and instantly unbans them to **delete their last 7 days of messages**.\n\n**Reason:** ${reason}`,
+            confirmLabel: 'Softban User',
+        });
+        if (!confirmed) return;
+
         try {
             await member.ban({ 
                 reason: `${reason} | Softbanned by ${message.author.username}`, 
@@ -139,7 +156,7 @@ module.exports = {
                 .setAccentColor(COLORS.WARNING)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
             
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Softban Error:', error);
             const container = buildErrorResponse(
@@ -147,7 +164,7 @@ module.exports = {
                 'Failed to softban the user.',
                 `Error: ${error.message}`
             );
-            await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            await button.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
     }
 };
