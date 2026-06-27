@@ -28,8 +28,7 @@ function ok(badge) {
             (badge.imageUrl ? `> Image: ${badge.imageUrl}\n` : '') +
             `\nGrant it with \`/badge-give @user ${badge.badgeId}\`.`
         ))
-        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
+        .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
 }
 
 const VALID_HEX = /^#?[0-9a-fA-F]{6}$/;

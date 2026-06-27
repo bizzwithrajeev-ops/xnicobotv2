@@ -237,7 +237,6 @@ function buildStatusContainer({ targetUser, requesterUser, guild, client }) {
     }
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
 
     return container;
 }
@@ -270,7 +269,7 @@ function buildFeaturesContainer({ hasAccess }) {
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# More premium-only features ship every release Â`
+        `-# More premium-only features ship every release ï¿½`
     ));
 
     return container;
@@ -315,7 +314,7 @@ function buildPricingContainer({ hasAccess }) {
 
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# Questions? Open a ticket in the support server. Â`
+        `-# Questions? Open a ticket in the support server. ï¿½`
     ));
 
     return container;

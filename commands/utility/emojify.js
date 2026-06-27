@@ -55,8 +55,7 @@ module.exports = {
             .setAccentColor(COLORS.INFO)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `# ${PALETTE.PALETTE} Emojify\n\n${result}`
-            ))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
+            ));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     } };

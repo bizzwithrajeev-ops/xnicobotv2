@@ -56,8 +56,7 @@ module.exports = {
                 `# ${PALETTE.SEARCH} Extracted Emojis\n` +
                 `-# Found **${found.length}** unique emoji${found.length === 1 ? '' : 's'}\n\n` +
                 list
-            ))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(``));
+            ));
 
         await message.reply({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
     } };
