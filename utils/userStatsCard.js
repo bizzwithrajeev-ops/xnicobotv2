@@ -14,6 +14,7 @@ const { createCanvas } = require('@napi-rs/canvas');
 const imageCache = require('./imageCache');
 const { registerAllFonts, getFontHelpers } = require('./fontRegistry');
 const { drawRoundedRect, truncateText, formatNumber } = require('./canvasDesign');
+const { drawTextWithEmoji } = require('./emojiCanvasHelper');
 
 try { registerAllFonts(); } catch {}
 
@@ -166,15 +167,15 @@ async function generateUserStatsCard(data) {
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    // Username (bold) + handle (muted)
+    // Username (bold) + handle (muted) — emoji-aware so display-name emojis render
     ctx.font = fh.getBoldFont(24);
     ctx.fillStyle = COL.text;
     const nameX = avX + avSize + 16;
-    ctx.fillText(truncateText(ctx, username, 300), nameX, avY + 26);
-    const nameW = ctx.measureText(truncateText(ctx, username, 300)).width;
+    const nameStr = truncateText(ctx, username, 300);
+    const nameW = await drawTextWithEmoji(ctx, nameStr, nameX, avY + 26, 24);
     ctx.font = fh.getFont(15);
     ctx.fillStyle = COL.muted;
-    ctx.fillText(truncateText(ctx, handle || '', 200), nameX + nameW + 10, avY + 26);
+    await drawTextWithEmoji(ctx, truncateText(ctx, handle || '', 200), nameX + nameW + 10, avY + 26, 15);
     // Server name with badge
     drawRoundedRect(ctx, nameX, avY + 40, 14, 14, 4);
     ctx.fillStyle = COL.accent;

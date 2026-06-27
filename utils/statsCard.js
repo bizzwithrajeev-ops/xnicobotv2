@@ -15,6 +15,7 @@ const {
     DESIGN, hexToRgb, rgba, formatNumber, formatVoiceTime,
     drawRoundedRect, drawText, truncateText, drawNicoBranding,
 } = require('./canvasDesign');
+const { drawTextWithEmoji } = require('./emojiCanvasHelper');
 
 try { registerAllFonts(); } catch {}
 
@@ -131,11 +132,11 @@ async function generateStatsCard({
     );
     ctx.textAlign = 'left';
 
-    // Username (fitted clear of the rank block)
+    // Username (fitted clear of the rank block) — emoji-aware
     const nameMaxW = (W - PAD - rankBlockW - 24) - nameX;
     ctx.font = fh.getBoldFont(26);
     ctx.fillStyle = DESIGN.colors.text;
-    ctx.fillText(truncateText(ctx, username || 'Unknown User', nameMaxW), nameX, avY + 32);
+    await drawTextWithEmoji(ctx, truncateText(ctx, username || 'Unknown User', nameMaxW), nameX, avY + 32, 26);
 
     ctx.font = fh.getFont(13);
     ctx.fillStyle = DESIGN.colors.textMuted;
