@@ -118,6 +118,27 @@ function getLogWebhook(guild, type) {
     return guildLogs.webhooks[type];
 }
 
+/**
+ * Remove a dead/invalid webhook URL from a guild's logging config so the bot
+ * stops retrying it (which otherwise spams the console on every log event).
+ * If no webhooks remain for the guild, it reverts to bot-channel mode.
+ */
+function disableLogWebhook(guildId, type) {
+    try {
+        if (!jsonStore.has('logs')) return;
+        const logs = jsonStore.read('logs');
+        const g = logs[guildId];
+        if (!g || !g.webhooks || !g.webhooks[type]) return;
+
+        delete g.webhooks[type];
+        if (Object.keys(g.webhooks).length === 0) {
+            g.mode = 'bot'; // no webhooks left — fall back to channel logging
+        }
+        jsonStore.write('logs', logs);
+        invalidateCache();
+    } catch { /* non-fatal */ }
+}
+
 /* ═══════════════════════════════════════════════════════
    FILTERS — per-guild ignore lists (users/channels/bots) and
    per-type toggles. Stored under `logs[guildId].filters`.
@@ -337,8 +358,22 @@ async function sendLog(channel, container, guild, logType) {
                         return;
                     }
                 } catch (whErr) {
-                    // Webhook failed – fall back to bot channel message
-                    log.error(`Logger: Webhook send failed for ${logType} in ${guild.id}:`, whErr.message);
+                    // Dead/invalid webhook → remove it from config so we stop
+                    // retrying it on every event (that was the source of console
+                    // spam). Then fall through to the bot-channel message.
+                    const code = whErr?.code;
+                    const msg = whErr?.message || '';
+                    const isDead = code === 10015 // Unknown Webhook
+                        || code === 50027         // Invalid Webhook Token
+                        || /unknown webhook|invalid webhook token|404/i.test(msg);
+
+                    if (isDead) {
+                        disableLogWebhook(guild.id, logType);
+                        _webhookClients.delete(webhookUrl);
+                        log.debug(`Logger: removed dead webhook for ${logType} in ${guild.id}`);
+                    } else {
+                        log.debug(`Logger: webhook send failed for ${logType} in ${guild.id}: ${msg}`);
+                    }
                 }
             }
             // If webhook URL is missing but mode is webhook, fall through to bot send

@@ -45,14 +45,21 @@ function createSelectMenuComponent(menuId, config, guildId) {
         .setMaxValues(menuData.maxValues || 1);
 
     for (const opt of menuData.options) {
+        // Guard against Discord's limits: label/value 1–100 chars, description
+        // 1–100 (or omitted). Empty or over-length strings throw "Invalid
+        // string length", so clamp and only set a description when non-empty.
+        const label = String(opt.label ?? '').slice(0, 100) || 'Option';
+        const value = String(opt.value ?? '').slice(0, 100) || label;
         const option = new StringSelectMenuOptionBuilder()
-            .setLabel(opt.label)
-            .setValue(opt.value)
-            .setDescription(opt.description || '');
-        
+            .setLabel(label)
+            .setValue(value);
+
+        const desc = String(opt.description ?? '').trim().slice(0, 100);
+        if (desc) option.setDescription(desc);
+
         if (opt.emoji) option.setEmoji(opt.emoji);
         if (opt.default) option.setDefault(true);
-        
+
         selectMenu.addOptions(option);
     }
 

@@ -30,9 +30,11 @@ function createSection(text, thumbnailUrl = null) {
 function createMediaGallery(items) {
     const gallery = new MediaGalleryBuilder();
     for (const item of items) {
-        gallery.addItems(
-            new MediaGalleryItemBuilder().setURL(item.url).setDescription(item.description || '')
-        );
+        const galleryItem = new MediaGalleryItemBuilder().setURL(item.url);
+        // Description is optional; an empty string throws "Invalid string length".
+        const desc = String(item.description ?? '').trim().slice(0, 1024);
+        if (desc) galleryItem.setDescription(desc);
+        gallery.addItems(galleryItem);
     }
     return gallery;
 }

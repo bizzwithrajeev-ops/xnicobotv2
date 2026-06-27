@@ -2780,10 +2780,13 @@ function createComponentContainer(data, user, guild, channel) {
             if (url && url.startsWith('http') && (url.match(/\.(jpg|jpeg|png|gif|webp)$/i) || url.includes('cdn.discordapp.com'))) {
                 container.addMediaGalleryComponents(
                     new MediaGalleryBuilder()
-                        .addItems((item) => item
-                            .setURL(url)
-                            .setDescription(data.mediaGallery.description || '')
-                        )
+                        .addItems((item) => {
+                            item.setURL(url);
+                            // Description is optional — empty string would throw.
+                            const desc = String(data.mediaGallery.description ?? '').trim().slice(0, 1024);
+                            if (desc) item.setDescription(desc);
+                            return item;
+                        })
                 );
             }
         } catch (e) {
