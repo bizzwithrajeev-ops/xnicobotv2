@@ -57,7 +57,7 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('fact_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
         );
-        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await interaction.editReply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message, args) {
@@ -66,7 +66,7 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('fact_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
         );
-        await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async handleButton(interaction) {
@@ -77,7 +77,7 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('fact_next').setLabel('Another').setEmoji('<:History:1473037847568318605>').setStyle(ButtonStyle.Primary)
         );
-        await interaction.editReply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await interaction.editReply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         return true;
     }
 };

@@ -247,7 +247,7 @@ module.exports = {
             if (config[guildId].pingRoleId) {
                 testContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<@&${config[guildId].pingRoleId}>`));
             }
-            await channel.send({ components: [testContainer, voteBtn], flags: MessageFlags.IsComponentsV2 });
+            await channel.send({ components: [testContainer.addActionRowComponents(voteBtn)], flags: MessageFlags.IsComponentsV2 });
             await interaction.reply({ content: '<:Checkedbox:1473038547165384804> Test notification sent!', flags: MessageFlags.Ephemeral });
             return true;
         }

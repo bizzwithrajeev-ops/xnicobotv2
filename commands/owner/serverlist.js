@@ -210,6 +210,6 @@ module.exports = {
             return loadingMsg.edit(`<:Cancel:1473037949187657818> Invalid page! Max page: ${totalPages}`);
         }
 
-        await loadingMsg.edit({ content: null, components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await loadingMsg.edit({ content: null, components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     }
 };

@@ -45,7 +45,7 @@ module.exports = {
     async execute(interaction) {
         try {
             const { container, row } = buildSupportResponse(interaction.client);
-            await interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error(`[SUPPORT] Error:`, error);
             const content = '<:Cancel:1473037949187657818> An error occurred while running this command.';
@@ -60,7 +60,7 @@ module.exports = {
     async executePrefix(message) {
         try {
             const { container, row } = buildSupportResponse(message.client);
-            await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error(`[SUPPORT] Error:`, error);
             await message.reply('<:Cancel:1473037949187657818> An error occurred while running this command.').catch(() => {});

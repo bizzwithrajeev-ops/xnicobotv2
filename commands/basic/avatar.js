@@ -112,7 +112,7 @@ module.exports = {
         }
 
         const { container, row } = buildAvatarResponse(user, member, mode);
-        await interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message, args) {
@@ -149,7 +149,7 @@ module.exports = {
         }
         
         const { container, row } = buildAvatarResponse(user, member, mode);
-        await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     },
 
     // Handle button interactions for toggling between global/server avatar
@@ -172,6 +172,6 @@ module.exports = {
         }
 
         const { container, row } = buildAvatarResponse(user, member, mode);
-        await interaction.update({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await interaction.update({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     }
 };
