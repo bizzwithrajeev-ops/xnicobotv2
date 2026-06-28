@@ -7,7 +7,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const { deleteServerBackup, listServerBackups } = require('../../utils/serverBackupManager');
-const { buildExpiredPanel } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 const TIMEOUT = 30_000;
 
@@ -64,41 +64,23 @@ module.exports = {
         try { backups = await listServerBackups(uid); } catch { backups = []; }
         const bk = backups.find(b => b.id === backupId);
 
-        const sid = `${uid}_${Date.now().toString(36)}`;
-        const info = bk ? `**<:Box:1473039115581915256>** \`${bk.id}\`\n**<:Bookopen:1473038576391557130>** ${bk.serverName}\n**<:Clock:1473039102113878056>** <t:${Math.floor(bk.createdAt / 1000)}:f>` : `**<:Box:1473039115581915256>** \`${backupId}\``;
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: 'Confirm Delete',
+            description: `${info}\n\n> This is permanent and cannot be undone.`,
+            confirmLabel: 'Yes, Delete',
+        });
+        if (!confirmed) return;
 
-        const ctr = new ContainerBuilder().setAccentColor(0xED4245)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Infotriangle:1473038460456800459> Confirm Delete\n\n${info}\n\n> This is permanent and cannot be undone.`))
-            .addActionRowComponents(new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`sbkd:confirm:${sid}`).setEmoji('<:Trash:1473038090074591293>').setLabel('Yes, Delete').setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId(`sbkd:cancel:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
-            ));
-
-        const sent = await message.reply({ components: [ctr], flags: MessageFlags.IsComponentsV2 });
-        const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
-
-        collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
-            collector.stop('handled');
-
-            if (i.customId.split(':')[1] === 'confirm') {
-                try {
-                    const result = await deleteServerBackup(uid, backupId);
-                    if (result.success) {
-                        return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` removed.`))], flags: MessageFlags.IsComponentsV2 });
-                    }
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
-                } catch (err) {
-                    console.error('Error deleting server backup:', err);
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
-                }
+        try {
+            const result = await deleteServerBackup(uid, backupId);
+            if (result.success) {
+                await button.editReply({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Server Backup Deleted\n\n**<:Box:1473039115581915256>** \`${result.backupId}\` removed.`))], flags: MessageFlags.IsComponentsV2 });
+            } else {
+                await button.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
             }
-            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No changes were made.'))], flags: MessageFlags.IsComponentsV2 });
-        });
-
-        collector.on('end', (_, reason) => {
-            if (reason === 'handled') return;
-            sent.edit({ components: [buildExpiredPanel('server-backup-delete', 'No changes were made.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        });
+        } catch (err) {
+            console.error('Error deleting server backup:', err);
+            await button.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
+        }
     }
 };

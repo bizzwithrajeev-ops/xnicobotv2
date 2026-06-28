@@ -7,7 +7,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const { deleteBackup, listBackups } = require('../../utils/backupManager');
-const { buildExpiredPanel } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 const TIMEOUT = 30_000;
 
@@ -62,46 +62,26 @@ module.exports = {
             return message.reply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Not Found\n\nNo backup named \`${name}\`.\n\n> Use \`backup-list\` to see available backups.`))], flags: MessageFlags.IsComponentsV2 });
         }
 
-        const uid = message.author.id;
-        const sid = `${uid}_${Date.now().toString(36)}`;
-
-        const ctr = new ContainerBuilder().setAccentColor(0xED4245)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# <:Infotriangle:1473038460456800459> Confirm Deletion\n\n` +
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: 'Confirm Deletion',
+            description:
                 `Permanently delete backup **\`${name}\`**?\n` +
                 `> <:Folderopen:1473039552783323348> ${bk.configCount} configs • <:Bookopen:1473038576391557130> ${new Date(bk.date).toLocaleDateString()}\n\n` +
-                `-# This cannot be undone.`
-            ));
-        ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`bkdl:confirm:${sid}`).setEmoji('<:Trash:1473038090074591293>').setLabel('Yes, Delete').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`bkdl:cancel:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
-        ));
+                `-# This cannot be undone.`,
+            confirmLabel: 'Yes, Delete',
+        });
+        if (!confirmed) return;
 
-        const sent = await message.reply({ components: [ctr], flags: MessageFlags.IsComponentsV2 });
-        const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
-
-        collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
-            collector.stop('handled');
-
-            if (i.customId.split(':')[1] === 'confirm') {
-                try {
-                    const result = deleteBackup(message.guild.id, name);
-                    if (result.success) {
-                        return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Deleted\n\nDeleted **\`${name}\`** successfully.`))], flags: MessageFlags.IsComponentsV2 });
-                    }
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
-                } catch (err) {
-                    console.error('Error deleting backup:', err);
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
-                }
+        try {
+            const result = deleteBackup(message.guild.id, name);
+            if (result.success) {
+                await button.editReply({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Backup Deleted\n\nDeleted **\`${name}\`** successfully.`))], flags: MessageFlags.IsComponentsV2 });
+            } else {
+                await button.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Failed\n\n${result.error}`))], flags: MessageFlags.IsComponentsV2 });
             }
-            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Cancelled. Backup **\`${name}\`** is safe.`))], flags: MessageFlags.IsComponentsV2 });
-        });
-
-        collector.on('end', (_, reason) => {
-            if (reason === 'handled') return;
-            sent.edit({ components: [buildExpiredPanel('backup-delete', 'Backup was not deleted.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        });
+        } catch (err) {
+            console.error('Error deleting backup:', err);
+            await button.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
+        }
     }
 };
