@@ -88,7 +88,7 @@ function buildStatusPanel(guildConfig) {
     let filterStatus = '';
     for (const [key, info] of Object.entries(FILTER_INFO)) {
         const f = filters[key];
-        const on = f?.enabled ? '`🟢`' : '`⚫`';
+        const on = f?.enabled ? '<:Toggleon:1473038585501581312>' : '<:Toggleoff:1473038582813032590>';
         filterStatus += on + ' ' + info.emoji + ' **' + info.label + '**\n';
     }
     return new ContainerBuilder()
@@ -387,7 +387,7 @@ function showConfigurePanel(message, guildConfig, filterName) {
     const filter = guildConfig.filters?.[filterName] || {};
     const info = FILTER_INFO[filterName];
     let t = '# ' + info.emoji + ' ' + info.label + ' Settings\n\n';
-    t += '**Status:** ' + (filter.enabled ? '`🟢 Enabled`' : '`⚫ Disabled`') + '\n\n';
+    t += '**Status:** ' + (filter.enabled ? '<:Toggleon:1473038585501581312> Enabled' : '<:Toggleoff:1473038582813032590> Disabled') + '\n\n';
     switch (filterName) {
         case 'messageSpam': t += '**Max Messages:** ' + (filter.maxMessages||5) + '\n**Time Window:** ' + ((filter.interval||5000)/1000) + 's'; break;
         case 'emojiSpam': t += '**Max Emojis:** ' + (filter.maxEmojis||10); break;
