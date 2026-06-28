@@ -224,7 +224,9 @@ module.exports = {
                     .setPlaceholder('Select a channel for AI chat')
                     .addChannelTypes(0)
             );
-            await interaction.reply({ components: [row], flags: MessageFlags.Ephemeral });
+            await interaction.reply({ components: [new ContainerBuilder()
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Hashtag:1473038936241864865> Select a channel for AI chat:'))
+                .addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
         else if (customId === 'aichat_select_model') {
@@ -241,7 +243,9 @@ module.exports = {
                         { label: 'Gemma 2 9B (Compact)', value: 'gemma2-9b-it' }
                     )
             );
-            await interaction.reply({ components: [row], flags: MessageFlags.Ephemeral });
+            await interaction.reply({ components: [new ContainerBuilder()
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Settings:1473037894703779851> Select the AI model:'))
+                .addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
 
         else if (customId === 'aichat_max_tokens') {
