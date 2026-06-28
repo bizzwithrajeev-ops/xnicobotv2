@@ -70,6 +70,23 @@ async function api(path, opts = {}) {
 }
 
 // ───── token capture from redirect ────────────────────────
+// Friendly, actionable messages for the ?error= codes the server sends
+// back from the OAuth flow (see dashboard/server.js callback/redirect).
+const AUTH_ERROR_MESSAGES = {
+    oauth_not_configured: 'Discord login isn\'t fully set up on the server yet. The CLIENT_ID and DISCORD_CLIENT_SECRET environment variables need to be configured.',
+    token_failed: 'Discord rejected the login. This usually means the client secret is wrong, or this exact callback URL isn\'t added under OAuth2 → Redirects in the Discord Developer Portal.',
+    oauth_failed: 'Something went wrong while talking to Discord. Please try again in a moment.',
+    no_code: 'Login was interrupted before Discord sent an authorization code. Please try again.',
+    access_denied: 'You cancelled the Discord authorization. Click "Login with Discord" to try again.',
+};
+
+function showAuthError(code) {
+    const box = document.getElementById('auth-error');
+    if (!box) return;
+    box.textContent = AUTH_ERROR_MESSAGES[code] || ('Login failed: ' + code);
+    box.classList.remove('hidden');
+}
+
 (function captureToken() {
     const u = new URLSearchParams(location.search);
     if (u.has('token')) {
@@ -82,9 +99,19 @@ async function api(path, opts = {}) {
     }
     if (u.has('error')) {
         const err = u.get('error');
-        setTimeout(() => toast('Login failed: ' + err, 'error'), 500);
+        // Render a persistent, readable banner on the landing page instead
+        // of a toast that vanishes before the user can read it.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => showAuthError(err));
+        } else {
+            showAuthError(err);
+        }
         history.replaceState({}, '', location.pathname + location.hash);
     }
+    // Stamp the current year in the landing footer.
+    const yearEl = () => { const y = document.getElementById('year'); if (y) y.textContent = new Date().getFullYear(); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', yearEl);
+    else yearEl();
 })();
 
 // ───── auth screen helpers ────────────────────────────────
