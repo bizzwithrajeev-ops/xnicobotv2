@@ -46,15 +46,54 @@ if (JWT_SECRET === JWT_SECRET_FALLBACK) {
 }
 const DISCORD_CLIENT_ID = process.env.CLIENT_ID || '';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
-const DISCORD_REDIRECT = process.env.DISCORD_REDIRECT || `http://localhost:${PORT}/api/auth/discord/callback`;
+// Explicit override (use this in production if auto-detection ever guesses
+// wrong behind an unusual proxy). When unset we resolve the redirect URI
+// dynamically from each request — see resolveRedirectUri() below.
+const DISCORD_REDIRECT_ENV = process.env.DISCORD_REDIRECT || '';
+const DISCORD_REDIRECT_FALLBACK = `http://localhost:${PORT}/api/auth/discord/callback`;
 const BOT_TOKEN = process.env.TOKEN || '';
+
+/**
+ * Resolve the OAuth2 redirect URI for THIS request.
+ *
+ * The #1 reason Discord login "stops working" after deploying is a
+ * redirect_uri mismatch: the code hard-codes localhost (or a single
+ * env value) while the app is actually served from a Vercel/preview
+ * domain. Discord then rejects the callback ("Invalid OAuth2 redirect_uri")
+ * or sends the user back to a dead localhost URL.
+ *
+ * Resolution order:
+ *   1. DISCORD_REDIRECT env var, if explicitly set (production override).
+ *   2. The live request's protocol + host (works on any domain, incl.
+ *      Vercel previews) — requires `trust proxy` so x-forwarded-* is honored.
+ *   3. localhost fallback for first-run local dev.
+ *
+ * IMPORTANT: the authorize step and the token-exchange step must send the
+ * EXACT same redirect_uri. Because both derive it from the same request
+ * host, they stay in lock-step automatically. Whatever value this returns
+ * for your domain must also be added to the Discord Developer Portal →
+ * OAuth2 → Redirects list.
+ */
+function resolveRedirectUri(req) {
+    if (DISCORD_REDIRECT_ENV) return DISCORD_REDIRECT_ENV;
+    try {
+        if (req) {
+            const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https')
+                .split(',')[0].trim();
+            const host = req.get('host');
+            if (host) return `${proto}://${host}/api/auth/discord/callback`;
+        }
+    } catch {}
+    return DISCORD_REDIRECT_FALLBACK;
+}
 const FRONTEND_URL = process.env.FRONTEND_URL || '';
 // Comma-separated list of permitted browser origins. If unset we allow
 // any origin (legacy behavior); set DASHBOARD_CORS_ORIGINS in prod.
 const CORS_ORIGINS = (process.env.DASHBOARD_CORS_ORIGINS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
 
-console.log(`[Dashboard] Auth Config: Redirect=${DISCORD_REDIRECT}`);
+console.log(`[Dashboard] Auth Config: Redirect=${DISCORD_REDIRECT_ENV || '(auto-detected per request)'}`);
+console.log(`[Dashboard] Discord OAuth: ${DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET ? 'Configured' : 'INCOMPLETE — set CLIENT_ID + DISCORD_CLIENT_SECRET'}`);
 console.log(`[Dashboard] JWT Secret: ${JWT_SECRET.substring(0, 5)}... (LOADED)`);
 
 app.set('trust proxy', true);
@@ -495,9 +534,12 @@ app.get('/api/stats', (req, res) => {
 
 // ── Discord OAuth2 ───────────────────────────────────────────────────────────
 app.get('/api/auth/discord', (req, res) => {
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+        return res.status(503).json({ error: 'Discord OAuth is not configured on the server.' });
+    }
     const params = new URLSearchParams({
         client_id: DISCORD_CLIENT_ID,
-        redirect_uri: DISCORD_REDIRECT,
+        redirect_uri: resolveRedirectUri(req),
         response_type: 'code',
         scope: 'identify guilds'
     });
@@ -506,9 +548,15 @@ app.get('/api/auth/discord', (req, res) => {
 
 // Direct redirect endpoint — browser navigates here directly
 app.get('/api/auth/discord/redirect', (req, res) => {
+    // Surface a clear, user-facing error instead of bouncing to Discord
+    // with an empty client_id (which yields a cryptic Discord error page).
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+        console.error('[Auth] Redirect blocked: OAuth not configured (CLIENT_ID / DISCORD_CLIENT_SECRET missing).');
+        return res.redirect('/?error=oauth_not_configured');
+    }
     const params = new URLSearchParams({
         client_id: DISCORD_CLIENT_ID,
-        redirect_uri: DISCORD_REDIRECT,
+        redirect_uri: resolveRedirectUri(req),
         response_type: 'code',
         scope: 'identify guilds'
     });
@@ -521,15 +569,28 @@ app.get(['/auth/callback', '/callback'], (req, res) => {
 });
 
 app.get('/api/auth/discord/callback', async (req, res) => {
-    const { code } = req.query;
+    const { code, error: oauthError } = req.query;
     console.log('[Auth] Step 1: Callback received, code:', code ? 'present' : 'MISSING');
+    // Discord can redirect back with ?error=access_denied if the user
+    // clicks "Cancel" on the consent screen — surface that cleanly.
+    if (oauthError) {
+        console.warn('[Auth] Discord returned error on callback:', oauthError);
+        return res.redirect('/?error=' + encodeURIComponent(String(oauthError)));
+    }
     if (!code) return res.redirect('/?error=no_code');
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+        console.error('[Auth] Callback blocked: OAuth not configured (CLIENT_ID / DISCORD_CLIENT_SECRET missing).');
+        return res.redirect('/?error=oauth_not_configured');
+    }
+    // Must EXACTLY match the redirect_uri used in the authorize step.
+    // Both are derived from the same request host, so they line up.
+    const redirectUri = resolveRedirectUri(req);
     try {
         // Step 2: Exchange code for Discord access token
         console.log('[Auth] Step 2: Exchanging code with Discord...');
         console.log('[Auth]   client_id:', DISCORD_CLIENT_ID);
-        console.log('[Auth]   redirect_uri:', DISCORD_REDIRECT);
-        const tokenParams = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: DISCORD_REDIRECT });
+        console.log('[Auth]   redirect_uri:', redirectUri);
+        const tokenParams = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: redirectUri });
         const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -3748,7 +3809,7 @@ app.get('/api/users/me/analytics', authMiddleware, (req, res) => {
 
 // ── Discord OAuth Config ─────────────────────────────────────────────────────
 app.get('/api/discord-config', (req, res) => {
-    res.json({ clientId: DISCORD_CLIENT_ID, redirectUri: DISCORD_REDIRECT, hasOAuth: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET) });
+    res.json({ clientId: DISCORD_CLIENT_ID, redirectUri: resolveRedirectUri(req), hasOAuth: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET) });
 });
 
 // ── Catch-all SPA ────────────────────────────────────────────────────────────
