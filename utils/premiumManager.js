@@ -53,6 +53,8 @@ function generateKey() {
 /* ─────────────────────── Key Management ─────────────────────── */
 
 function createKey(duration = null, type = 'user') {
+    // Server keys are discontinued — every generated key is a user key.
+    type = 'user';
     const now = new Date();
     const keyData = {
         key: generateKey(),
@@ -100,24 +102,12 @@ function redeemKey(userId, keyCode) {
     return { success: true, message: 'Key redeemed successfully!', duration: keyData.duration, expiresAt };
 }
 
-function redeemServerKey(guildId, userId, keyCode) {
-    const keys = loadKeys();
-    const keyData = keys.find(k => k.key === keyCode.toUpperCase());
-
-    if (!keyData) return { success: false, message: 'Invalid key.' };
-    if ((keyData.type || 'user') !== 'server') return { success: false, message: 'This is a **user premium key**. Use `redeemkey` to activate for yourself.' };
-    if (keyData.redeemed) return { success: false, message: 'This key has already been redeemed.' };
-    if (isKeyExpired(keyData)) return { success: false, message: 'This key has expired. Keys must be redeemed within 24 hours of creation.' };
-
-    keyData.redeemed = true;
-    keyData.redeemedBy = userId;
-    keyData.redeemedAt = new Date().toISOString();
-    keyData.guildId = guildId;
-    saveKeys(keys);
-
-    const expiresAt = grantServerPremium(guildId, keyData.duration, keyCode.toUpperCase(), userId);
-
-    return { success: true, message: 'Server premium activated!', duration: keyData.duration, expiresAt };
+function redeemServerKey(_guildId, _userId, _keyCode) {
+    // Server premium is discontinued — only user premium exists now.
+    return {
+        success: false,
+        message: 'Server premium has been discontinued. Premium is now **per-user** — redeem a user key with `redeemkey <key>` to get premium for yourself.'
+    };
 }
 
 function deleteKey(keyCode) {
@@ -296,9 +286,9 @@ function grantServerPremium(guildId, duration, keyCode = 'DIRECT_GRANT', activat
     return expiresAt;
 }
 
-function addServerPremiumDirect(guildId, duration = null, activatedBy = null) {
-    const expiresAt = grantServerPremium(guildId, duration, 'DIRECT_GRANT', activatedBy);
-    return { success: true, message: 'Server premium added!', duration, expiresAt };
+function addServerPremiumDirect(_guildId, _duration = null, _activatedBy = null) {
+    // Server premium is discontinued — premium is per-user only.
+    return { success: false, message: 'Server premium has been discontinued. Use user premium instead (`addpremium` / `genkey`).' };
 }
 
 function removeServerPremium(guildId) {
@@ -312,29 +302,15 @@ function removeServerPremium(guildId) {
     return { success: true, message: 'Server premium removed.' };
 }
 
-function isServerPremium(guildId) {
-    const serverData = loadServerPremium();
-    const entry = serverData.find(s => s.guildId === guildId);
-    if (!entry) return false;
-    if (entry.expiresAt && new Date(entry.expiresAt) < new Date()) return false;
-    return true;
+// ── Server premium: DISCONTINUED ────────────────────────────────────────────
+// Premium is now strictly per-user. These functions are retained as safe
+// stubs so existing call sites never crash, but server premium grants nothing.
+function isServerPremium(_guildId) {
+    return false;
 }
 
-function getServerPremiumStatus(guildId) {
-    const serverData = loadServerPremium();
-    const entry = serverData.find(s => s.guildId === guildId);
-
-    if (!entry) return { isPremium: false };
-
-    const active = entry.expiresAt ? new Date(entry.expiresAt) > new Date() : true;
-
-    return {
-        isPremium: active,
-        activatedAt: entry.activatedAt,
-        expiresAt: entry.expiresAt,
-        keyUsed: entry.keyUsed,
-        activatedBy: entry.activatedBy
-    };
+function getServerPremiumStatus(_guildId) {
+    return { isPremium: false, discontinued: true };
 }
 
 /* ─────────────────────── Queries ─────────────────────── */
@@ -348,11 +324,11 @@ function isPremium(userId) {
 }
 
 function hasPremiumAccess(userId, guildId = null) {
+    // Premium is now PER-USER only. Server premium has been discontinued —
+    // the guildId parameter is kept for call-site compatibility but ignored.
     const { isOwner } = require('./helpers');
     if (isOwner(userId)) return true;
-    if (isPremium(userId)) return true;
-    if (guildId && isServerPremium(guildId)) return true;
-    return false;
+    return isPremium(userId);
 }
 
 function getPremiumStatus(userId) {
