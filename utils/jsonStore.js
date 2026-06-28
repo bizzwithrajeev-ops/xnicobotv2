@@ -536,6 +536,83 @@ class JsonStore extends EventEmitter {
     }
 
     /**
+     * Read-modify-write helper for a single user in the ARRAY-shaped
+     * `users` store. This is the array analogue of updateGuildEntry and
+     * solves the same cross-host race:
+     *
+     *   1. Dashboard cold-start loads the `users` array snapshot.
+     *   2. Bot writes the `users` array constantly (XP, economy, stats),
+     *      so the dashboard's cached copy goes stale within seconds.
+     *   3. Dashboard receives a profile PUT, reads its STALE array,
+     *      changes one user, writes the whole array back — silently
+     *      reverting every bot-side change since step 1 (and its own
+     *      profile edit can be reverted by the bot's next write).
+     *
+     * This was the root cause of "my rank/profile customization doesn't
+     * persist". By re-fetching the freshest `users` row from PG, mutating
+     * only the target record, and writing back, concurrent writers no
+     * longer clobber each other. Falls back to the cached array in local
+     * (single-host) mode where there is no race.
+     *
+     * @param {string}   userId   Discord user id (matched against user_id)
+     * @param {Function} mutator  receives (userRecord, allUsers); mutate in
+     *                            place or return a replacement record
+     * @returns {Promise<object>} the updated user record
+     */
+    async updateUserEntry(userId, mutator) {
+        if (!userId || typeof mutator !== 'function') {
+            throw new Error('updateUserEntry requires (userId, mutator)');
+        }
+        const STORE = 'users';
+
+        let all;
+        if (this._localMode) {
+            const cached = this.cache.get(STORE);
+            all = Array.isArray(cached) ? deepClone(cached) : [];
+        } else {
+            try {
+                const { getPool } = require('./pgPool');
+                const pool = getPool();
+                const { rows } = await pool.query(
+                    'SELECT data FROM json_store WHERE store_name = $1 LIMIT 1',
+                    [STORE]
+                );
+                all = rows.length && Array.isArray(rows[0].data) ? rows[0].data : [];
+            } catch (err) {
+                log.warning(`[JsonStore] updateUserEntry: live PG read failed, falling back to cache (${err.message?.slice(0, 60)})`);
+                const cached = this.cache.get(STORE);
+                all = Array.isArray(cached) ? deepClone(cached) : [];
+            }
+        }
+        if (!Array.isArray(all)) all = [];
+
+        let rec = all.find(u => u && (u.user_id === userId || u.userId === userId));
+        if (!rec) {
+            rec = {
+                user_id: userId,
+                economy: { balance: 0, bank: 0, inventory: [] },
+                social: { reputation: 0 },
+                profile: {},
+                stats: { commandsUsed: 0, botInteractions: 0 },
+                afk: { isAfk: false },
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            all.push(rec);
+        }
+
+        const after = mutator(rec, all);
+        if (after && typeof after === 'object' && after !== rec) {
+            const idx = all.indexOf(rec);
+            if (idx >= 0) all[idx] = after;
+            rec = after;
+        }
+
+        await this.writeImmediate(STORE, all);
+        return rec;
+    }
+
+    /**
      * Emit an 'update' event with a deep-cloned snapshot so listeners
      * cannot mutate the cache. Failures in any listener are isolated.
      */
