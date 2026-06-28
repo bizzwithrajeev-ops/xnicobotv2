@@ -217,7 +217,7 @@ module.exports = {
     async execute(interaction) {
         const user = interaction.options.getUser('user') || interaction.user;
         const { container, buttons } = await buildUserInfo(user, interaction.guild, interaction.client);
-        await interaction.reply({ components: [container, buttons], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [container.addActionRowComponents(buttons)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message, args) {
@@ -228,6 +228,6 @@ module.exports = {
             try { user = await message.client.users.fetch(args[0]); } catch {}
         }
         const { container, buttons } = await buildUserInfo(user, message.guild, message.client);
-        await message.reply({ components: [container, buttons], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container.addActionRowComponents(buttons)], flags: MessageFlags.IsComponentsV2 });
     },
 };

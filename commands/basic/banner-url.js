@@ -45,7 +45,7 @@ module.exports = {
                 return interaction.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
             }
             const { container, row } = buildBannerResponse(fetched, bannerURL);
-            await interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const err = buildErrorResponse('Error', 'Failed to fetch banner.', error.message);
             await interaction.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
@@ -69,7 +69,7 @@ module.exports = {
                 return message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });
             }
             const { container, row } = buildBannerResponse(fetched, bannerURL);
-            await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const err = buildErrorResponse('Error', 'Failed to fetch banner.', error.message);
             await message.reply({ components: [err], flags: MessageFlags.IsComponentsV2 });

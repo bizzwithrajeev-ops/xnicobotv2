@@ -49,7 +49,7 @@ module.exports = {
     async execute(interaction) {
         try {
             const { container, row } = buildVoteResponse(interaction.client);
-            await interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+            await interaction.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Vote command error:', error);
             await interaction.reply({ content: '<:Cancel:1473037949187657818> An error occurred.', flags: MessageFlags.Ephemeral });
@@ -59,7 +59,7 @@ module.exports = {
     async executePrefix(message) {
         try {
             const { container, row } = buildVoteResponse(message.client);
-            await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+            await message.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             console.error('Vote command error:', error);
             await message.reply('<:Cancel:1473037949187657818> An error occurred.');

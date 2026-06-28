@@ -64,7 +64,7 @@ module.exports = {
             const sent = response.resource?.message;
             const roundtrip = sent ? (sent.createdTimestamp - interaction.createdTimestamp) : 0;
             const { container, utilRow } = buildPing(interaction.client, roundtrip);
-            await interaction.editReply({ components: [container, utilRow], flags: MessageFlags.IsComponentsV2 });
+            await interaction.editReply({ components: [container.addActionRowComponents(utilRow)], flags: MessageFlags.IsComponentsV2 });
         } catch (error) {
             const content = '<:Cancel:1473037949187657818> An error occurred.';
             if (interaction.deferred || interaction.replied) await interaction.editReply({ content }).catch(() => {});
@@ -75,7 +75,7 @@ module.exports = {
     async executePrefix(message) {
         try {
             const { container, utilRow } = buildPing(message.client, null);
-            const sent = await message.reply({ components: [container, utilRow], flags: MessageFlags.IsComponentsV2 });
+            const sent = await message.reply({ components: [container.addActionRowComponents(utilRow)], flags: MessageFlags.IsComponentsV2 });
             const roundtrip = sent.createdTimestamp - message.createdTimestamp;
             const updated = buildPing(message.client, roundtrip);
             await sent.edit({ components: [updated.container, updated.utilRow], flags: MessageFlags.IsComponentsV2 }).catch(() => {});

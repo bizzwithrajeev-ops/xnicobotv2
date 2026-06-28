@@ -106,7 +106,7 @@ module.exports = {
             new ButtonBuilder().setCustomId('tod_random').setLabel('Random').setEmoji('<:Gamepad:1473039216429498409>').setStyle(ButtonStyle.Secondary)
         );
 
-        await interaction.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message, args) {
@@ -122,7 +122,7 @@ module.exports = {
             new ButtonBuilder().setCustomId('tod_random').setLabel('Random').setEmoji('<:Gamepad:1473039216429498409>').setStyle(ButtonStyle.Secondary)
         );
 
-        await message.reply({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async handleButton(interaction) {
@@ -139,7 +139,7 @@ module.exports = {
             new ButtonBuilder().setCustomId('tod_random').setLabel('Random').setEmoji('<:Gamepad:1473039216429498409>').setStyle(ButtonStyle.Secondary)
         );
 
-        await interaction.update({ components: [container, row], flags: MessageFlags.IsComponentsV2 });
+        await interaction.update({ components: [container.addActionRowComponents(row)], flags: MessageFlags.IsComponentsV2 });
         return true;
     }
 };

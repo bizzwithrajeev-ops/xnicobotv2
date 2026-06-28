@@ -315,12 +315,12 @@ module.exports = {
 
     async execute(interaction) {
         const { container, linkRow } = buildBotInfo(interaction.client, interaction.guild);
-        await interaction.reply({ components: [container, linkRow], flags: MessageFlags.IsComponentsV2 });
+        await interaction.reply({ components: [container.addActionRowComponents(linkRow)], flags: MessageFlags.IsComponentsV2 });
     },
 
     async executePrefix(message) {
         const { container, linkRow } = buildBotInfo(message.client, message.guild);
-        await message.reply({ components: [container, linkRow], flags: MessageFlags.IsComponentsV2 });
+        await message.reply({ components: [container.addActionRowComponents(linkRow)], flags: MessageFlags.IsComponentsV2 });
     },
 
     buildBotInfo
