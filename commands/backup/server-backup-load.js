@@ -234,7 +234,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
     if (restoreResult?.success) {
         await statusMsg.edit({ components: [buildRestoreSuccessCard(restoreResult)], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
         // Rename the channel to indicate completion
-        await statusChannel.setName('<:Checkedbox:1473038547165384804>restore-complete').catch(() => { });
+        await statusChannel.setName('✅restore-complete').catch(() => { });
         await statusChannel.setTopic(`<:Checkedbox:1473038547165384804> Backup \`${backupId}\` restored successfully • <t:${Math.floor(Date.now() / 1000)}:f>`).catch(() => { });
         return;
     }
@@ -252,7 +252,7 @@ async function runRestoreWithControls(sent, guild, backupId, secureToken, uid) {
 
     const errCard = new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Restore Failed\n\n${restoreResult?.error || 'Unknown restore error.'}`));
     await statusMsg.edit({ components: [errCard], flags: MessageFlags.IsComponentsV2 }).catch(() => { });
-    await statusChannel.setName('<:Cancel:1473037949187657818>restore-failed').catch(() => { });
+    await statusChannel.setName('❌restore-failed').catch(() => { });
 }
 
 module.exports = {
