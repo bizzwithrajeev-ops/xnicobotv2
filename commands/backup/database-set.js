@@ -7,7 +7,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const { db } = require('../../utils/database');
-const { buildExpiredPanel } = require('../../utils/responseBuilder');
+const { confirmAction } = require('../../utils/confirmAction');
 
 const TIMEOUT = 30_000;
 const VALID_TYPES = ['embed', 'welcome', 'leave', 'custom', 'announcement'];
@@ -48,7 +48,6 @@ module.exports = {
 
         const key = `${message.guild.id}_${type}_${name}`;
         const uid = message.author.id;
-        const sid = `${uid}_${Date.now().toString(36)}`;
         const emoji = TYPE_EMOJI[type] || '<:Box:1473039115581915256>';
 
         // Check if exists (overwrite warning)
@@ -58,46 +57,29 @@ module.exports = {
         const preview = typeof parsedData === 'object' ? JSON.stringify(parsedData, null, 2).substring(0, 200) : String(parsedData).substring(0, 200);
         const overwriteNote = existing ? '\n> <:Infotriangle:1473038460456800459> An entry with this name already exists and will be **overwritten**.' : '';
 
-        const ctr = new ContainerBuilder().setAccentColor(existing ? 0xFEE75C : 0xCAD7E6);
-        ctr.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ${emoji} ${existing ? 'Overwrite' : 'Save'} Database Entry\n\n` +
-            `**Type:** \`${type}\`\n**Name:** \`${name}\`\n\n` +
-            `**Data Preview:**\n\`\`\`\n${preview}${preview.length >= 200 ? '…' : ''}\n\`\`\`${overwriteNote}`
-        ));
-        ctr.addActionRowComponents(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`dbs:confirm:${sid}`).setEmoji('<:Save:1473038120030306386>').setLabel(existing ? 'Overwrite' : 'Save').setStyle(existing ? ButtonStyle.Danger : ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`dbs:cancel:${sid}`).setEmoji('<:Cancel:1473037949187657818>').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
-        ));
-
-        const sent = await message.reply({ components: [ctr], flags: MessageFlags.IsComponentsV2 });
-        const collector = sent.createMessageComponentCollector({ time: TIMEOUT });
-
-        collector.on('collect', async (i) => {
-            if (i.user.id !== uid) return i.reply({ content: '<:Cancel:1473037949187657818> Only the command invoker can use this.', flags: MessageFlags.Ephemeral });
-            collector.stop('handled');
-
-            if (i.customId.split(':')[1] === 'confirm') {
-                try {
-                    const now = Date.now();
-                    await db.set(key, {
-                        type, name, data: parsedData,
-                        guildId: message.guild.id,
-                        createdBy: uid,
-                        createdAt: existing?.createdAt || now,
-                        updatedAt: now
-                    });
-                    return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Data Stored\n\n${emoji} **${name}** (\`${type}\`) saved successfully.\n\n> Use \`database-get ${type} ${name}\` to retrieve it.`))], flags: MessageFlags.IsComponentsV2 });
-                } catch (err) {
-                    console.error('Database Set Error:', err);
-                    return i.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
-                }
-            }
-            return i.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Cancelled. No data was stored.'))], flags: MessageFlags.IsComponentsV2 });
+        const { confirmed, button } = await confirmAction(message, true, {
+            title: `${existing ? 'Overwrite' : 'Save'} Database Entry`,
+            description:
+                `${emoji} **Type:** \`${type}\`\n**Name:** \`${name}\`\n\n` +
+                `**Data Preview:**\n\`\`\`\n${preview}${preview.length >= 200 ? '…' : ''}\n\`\`\`${overwriteNote}`,
+            confirmLabel: existing ? 'Overwrite' : 'Save',
+            danger: !!existing,
         });
+        if (!confirmed) return;
 
-        collector.on('end', (_, reason) => {
-            if (reason === 'handled') return;
-            sent.edit({ components: [buildExpiredPanel('database-set', 'No data was stored.')], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
-        });
+        try {
+            const now = Date.now();
+            await db.set(key, {
+                type, name, data: parsedData,
+                guildId: message.guild.id,
+                createdBy: uid,
+                createdAt: existing?.createdAt || now,
+                updatedAt: now
+            });
+            await button.editReply({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Checkedbox:1473038547165384804> Data Stored\n\n${emoji} **${name}** (\`${type}\`) saved successfully.\n\n> Use \`database-get ${type} ${name}\` to retrieve it.`))], flags: MessageFlags.IsComponentsV2 });
+        } catch (err) {
+            console.error('Database Set Error:', err);
+            await button.editReply({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Cancel:1473037949187657818> Error\n\n${err.message}`))], flags: MessageFlags.IsComponentsV2 });
+        }
     }
 };
