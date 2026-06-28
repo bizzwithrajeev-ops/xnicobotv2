@@ -17,6 +17,7 @@ const { buildSuccessResponse, buildErrorResponse, buildPermissionDenied } = requ
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
+const { createFooterText } = require('../../utils/theme');
 
 function loadConfig() {
     if (!jsonStore.has('antiraid')) {
@@ -160,6 +161,7 @@ function buildAntiraidPanel(guildConfig) {
         .addActionRowComponents(settingsButtons);
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(createFooterText()));
 
     return container;
 }

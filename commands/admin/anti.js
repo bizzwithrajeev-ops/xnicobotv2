@@ -17,7 +17,7 @@ const {
 const { loadConfig, saveConfig, getDefaultConfig } = require('../../utils/panels/antinukePanel');
 const { checkAndExpire } = require('../../utils/panelExpiration');
 const { buildErrorResponse } = require('../../utils/responseBuilder');
-const { THEME, formatCheck } = require('../../utils/theme');
+const { THEME, formatCheck, createFooterText } = require('../../utils/theme');
 const { ACTIONS_FOR, isValidActionFor, commonActions, v2InvalidReply } = require('../../utils/securityUI');
 const trust = require('../../utils/trustManager');
 
@@ -116,6 +116,8 @@ function buildAntiPanel(guildConfig, guildName) {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(selectMenu)
         .addActionRowComponents(quickButtons)
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(createFooterText()))
 ;
 
     return container;

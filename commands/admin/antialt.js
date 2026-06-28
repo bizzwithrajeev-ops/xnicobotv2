@@ -3,6 +3,7 @@ const { buildErrorResponse, buildPermissionDenied, COLORS, EMOJIS } = require('.
 const { checkAndExpire } = require('../../utils/panelExpiration');
 
 const jsonStore = require('../../utils/jsonStore');
+const { createFooterText } = require('../../utils/theme');
 
 function loadConfig() {
     if (!jsonStore.has('antialt')) {
@@ -75,6 +76,8 @@ function buildStatusPanel(guildConfig) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(new ActionRowBuilder().addComponents(toggle, setAge, setAction, setLog))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(createFooterText()))
 ;
 }
 

@@ -13,7 +13,7 @@ const { createLavalinkManager, setupLavalinkEvents, initLavalink, autoplayStatus
 const premiumManager = require('./utils/premiumManager');
 const { handleWelcomerButtons, handleAutoresponderButtons, handleAutoreactButtons, handleAutomodButtons, handleAutomodSelectMenus, handleStickyButtons, handleVerificationButtons, handleAntiNukeButtons, handleProfileButtons, handleModalSubmit, replacePlaceholders } = require('./utils/interactionHandlers');
 const { preloadGuildInvites, refreshGuildInvite, handleMemberJoin, handleMemberLeave, isTrackingEnabled } = require('./utils/inviteManager');
-const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate, logAntinukeTrigger, logAntiraidAction, logAntialtDetection, logVanityGuard, logThreatMode, logWhitelistChange, logSecurityConfigChange } = require('./utils/logger');
+const { logMessageDelete, logMessageUpdate, logMessageBulkDelete, logMemberJoin, logMemberLeave, logMemberUpdate, logUserUpdate, logVoiceStateUpdate, logChannelCreate, logChannelDelete, logChannelUpdate, logGuildUpdate, logRoleCreate, logRoleDelete, logRoleUpdate, logBan, logUnban, logMemberKick, logTimeout, logEmojiCreate, logEmojiDelete, logEmojiUpdate, logStickerCreate, logStickerDelete, logThreadCreate, logThreadDelete, logInviteCreate, logInviteDelete, logWebhookUpdate, logAntinukeTrigger, logAntinukeFailure, logAntiraidAction, logAntialtDetection, logVanityGuard, logThreatMode, logWhitelistChange, logSecurityConfigChange } = require('./utils/logger');
 const { handleVoiceStateUpdate: handleJoin2Create, handleJ2CButtons, handleJ2CSelects, handleJ2CModals } = require('./utils/join2createHandler');
 const { updateMusicPanel, buildIdlePanel, buildVoiceStatus, buildWaitingStatus, updateVoiceChannelStatus, EMOJIS: MUSIC_EMOJIS } = require('./utils/musicPanel');
 const log = require('./utils/logger-styled');
@@ -10804,6 +10804,28 @@ async function checkAntiNuke(guild, action, executor, target = null) {
             // the warn fires only when violations cross the limit
             // again from a fresh batch.
             log.warning(`Anti-Nuke: Punishment FAILED for ${executor.username || executor.id} on ${action} — counter retained`);
+
+            // Surface the unenforceable trigger to the guild's security
+            // log channel so admins actually notice (console warnings are
+            // invisible to them). Throttled to once per 5 min per
+            // (guild, executor, action) so a rapid-fire nuker doesn't
+            // flood the channel, and fully guarded so a logging failure
+            // can never break the antinuke flow.
+            try {
+                const FAIL_NOTICE_TTL = 5 * 60 * 1000;
+                const lastNotified = actions._failureNotifiedAt || 0;
+                if (now - lastNotified >= FAIL_NOTICE_TTL) {
+                    actions._failureNotifiedAt = now;
+                    logAntinukeFailure(guild, {
+                        executor,
+                        action,
+                        punishment: actionType,
+                        limit,
+                        timeWindow,
+                        violations: violationCount,
+                    }).catch(() => { });
+                }
+            } catch (_) { /* never let the failure notice break antinuke */ }
         }
     } catch (error) {
         log.error(`Anti-Nuke punishment error (${action}):`, error);
