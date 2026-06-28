@@ -1,18 +1,15 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/xNico_Bot-5865F2?style=for-the-badge&logoColor=white" alt="xNico Bot" />
+# xNico
 
-# xNico Bot
+**An all-in-one Discord bot with a real-time web dashboard.**
 
-**A powerful, feature-rich Discord bot built for scale.**
+[![discord.js](https://img.shields.io/badge/discord.js-v14-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
+[![Node.js](https://img.shields.io/badge/node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-optional-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![License](https://img.shields.io/badge/license-ISC-blue?style=flat-square)](LICENSE)
 
-[![Discord.js](https://img.shields.io/badge/discord.js-v14.25-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
-[![Node.js](https://img.shields.io/badge/node.js-v18+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
-[![Commands](https://img.shields.io/badge/commands-540+-ED4245?style=flat-square)]()
-[![Components](https://img.shields.io/badge/UI-Components_V2-CAD7E6?style=flat-square)]()
-[![License](https://img.shields.io/badge/license-ISC-blue?style=flat-square)]()
-
-[Invite Bot](https://discord.com/api/oauth2/authorize?client_id=BOT_CLIENT_ID&permissions=8&scope=bot%20applications.commands) · [Support Server](https://discord.gg/Zs35X7Umak) · [Vote on Top.gg](https://top.gg/bot)
+[Support Server](https://discord.gg/Zs35X7Umak)
 
 </div>
 
@@ -20,79 +17,98 @@
 
 ## Overview
 
-xNico is an all-in-one Discord bot with **540+ commands** spanning **14 categories** — moderation, music, economy, leveling, giveaways, tickets, image manipulation, social systems, and more. It uses Discord.js v14 Components V2 throughout for a modern, button-driven UI with paginated lists wherever output could overflow.
+xNico is a large, modular Discord bot — **600+ commands across 17 categories** covering moderation, security, music, economy, leveling, automation and social systems — paired with a **browser-based control panel** that configures every module in real time. The bot uses discord.js v14 with Components V2 throughout for a modern, button-driven interface, and persists state in PostgreSQL with a transparent local-file fallback.
 
-**Key highlights:**
+### Highlights
 
-- **Music** — Lavalink-powered playback from YouTube, Spotify, SoundCloud & Apple Music with filters, lyrics, 24/7 mode, autoplay, and saved playlists
-- **Moderation** — Anti-Nuke, Anti-Raid, Anti-Alt, AutoMod, verification, threat-mode, and detailed audit logging
-- **Economy** — Per-guild custom currency, banking, shops, gambling games (wheel, plinko, mines, tower, keno, limbo, crash and more), fishing, hunting, pets, PvP battles
-- **Leveling** — XP tracking with custom rank cards, level roles, multipliers, and leaderboards
-- **Engagement** — Welcomer, tickets, giveaways, starboard, polls, social-notify (YouTube/Twitch/Twitter/etc.), suggestion & feedback boards, AutoMeme scheduled poster
-- **Premium** — User and server premium tiers with key generation, transfer, audit webhooks, and per-guild bot customization (prefix, embed color, branding)
+- **Security** — Anti-Nuke, Anti-Raid, Anti-Alt, AutoMod (native + custom filters), verification, emergency lockdown, and detailed audit logging.
+- **Music** — Lavalink-powered playback (YouTube, Spotify, SoundCloud, Apple Music) with filters, lyrics, autoplay, 24/7 mode and saved playlists.
+- **Economy** — Per-guild custom currency, banking, shops, a suite of gambling games, fishing, hunting, pets and PvP.
+- **Leveling** — XP tracking with customizable rank cards, level roles, multipliers and leaderboards.
+- **Engagement** — Welcomer, tickets, giveaways, starboard, polls, suggestions/feedback, birthdays, social notifications and a scheduled meme poster.
+- **Dashboard** — Configure modules, edit message/welcome embeds, customize rank & profile cards, manage premium, and view analytics from the web.
+
+---
+
+## Web Dashboard
+
+The dashboard (in [`dashboard/`](dashboard/)) is an Express app serving a single-page control panel. Administrators sign in with **Discord OAuth2**, pick a server they manage, and configure modules through dedicated panels.
+
+- **Live sync** — Changes save straight to the shared data store. When the bot and dashboard run in one process the update is applied instantly; across separate hosts they sync through PostgreSQL within a few seconds.
+- **Covers** — AutoMod, Anti-Nuke/Raid, welcomer, leveling, economy, tickets, reaction roles, logging, the message builder, profile/rank card customization, premium key management and more.
+- **Auth** — Hand-rolled JWT sessions over an httpOnly cookie; OAuth redirect URIs are auto-detected per request so the same build works on localhost and any deployed domain.
+
+> **Cross-host requirement:** when the dashboard and bot run on different hosts (e.g. dashboard on a serverless platform, bot on a VM), both **must** point at the **same** `DATABASE_URL`. PostgreSQL is the only shared channel between separate processes. See [Environment Variables](#environment-variables).
 
 ---
 
 ## Command Categories
 
-| Category | Count | Description |
-|:---------|:-----:|:------------|
-| Admin | 102+ | Moderation, AutoMod, Anti-Nuke/Raid, verification, logging |
-| Utility | 95+ | Welcomer, tickets, giveaways, starboard, polls, invite tracking, AFK |
-| Owner | 55+ | Bot management, eval, deploy, broadcasting, maintenance |
-| Fun | 52+ | Games, trivia, Akinator, memes, calculators |
-| Music | 47+ | Full Lavalink player with filters, queue, favorites, panels |
-| Basic | 47+ | Server info, user info, roles, permissions, bot list |
-| Economy | 30+ | Currency, shop, gambling, fishing, pets, battles, custom shop |
-| Voice | 21+ | Join-to-create, voice roles, voice management |
-| Image | 15+ | Blur, greyscale, rotate, border, pixelate, deepfry, sepia |
-| Leveling | 12+ | XP, rank cards, level roles, multipliers |
-| Backup | 12 | Config backups and full server structure backups |
-| DM | 11 | Direct message commands |
-| Social | 7 | Profiles, badges, marriage, reputation |
-| Webhook | 6 | Create, send, edit, delete, manage webhooks |
-| Automation | * | AutoMeme, autoresponder, autoreact, social-notify, ticket panels |
+| Category | Focus |
+|:---|:---|
+| `admin` | Moderation, AutoMod, Anti-Nuke/Raid/Alt, verification, logging, premium panels |
+| `utility` | Tickets, giveaways, starboard, polls, reminders, invite tracking, AFK |
+| `owner` | Bot management, eval, deploy, broadcasting, maintenance |
+| `economy` | Currency, shop, gambling, fishing, pets, battles, custom shop |
+| `fun` / `games` | Trivia, Akinator, hangman, wordle, memes, mini-games |
+| `music` | Full Lavalink player — filters, queue, favorites, panels |
+| `basic` | Server/user/role info, permissions, help |
+| `voice` | Join-to-create, voice roles, VC management |
+| `image` | Blur, greyscale, rotate, pixelate, deepfry, sepia and more |
+| `leveling` | XP, rank cards, level roles, multipliers |
+| `backup` | Config backups and full server-structure backups |
+| `action` | Roleplay/expression commands (hug, pat, …) |
+| `social` | Profiles, badges, marriage, reputation |
+| `automation` | Welcomer, autoresponder, autoreact, social-notify, scheduled posters |
+| `stats` | Server stat channels and activity leaderboards |
+| `webhook` | Create, send, edit, delete and manage webhooks |
 
-> Use `/help` or `-help` for the full interactive command menu — it has a dropdown per category, in-place pagination, and a search modal.
+Run `/help` (or the configured prefix, default `-`) for the interactive menu with per-category dropdowns, in-place pagination and a search modal.
 
 ---
 
-## Premium Features
+## Premium
 
-xNico has both **user-tier** and **server-tier** premium. Either tier unlocks the full feature set within its scope. Owners can mint redeemable keys and gift, transfer, or audit them.
+xNico has **user-tier** and **server-tier** premium; either unlocks the full feature set within its scope. Owners mint redeemable keys.
 
-| Feature | Free | Premium |
-|:--------|:----:|:-------:|
+| Capability | Free | Premium |
+|:---|:---:|:---:|
 | Core music, moderation, economy, leveling | ✓ | ✓ |
-| Bot customization (prefix, color, branding) | — | ✓ |
-| Custom server currency (`/currency`) | — | ✓ |
-| Custom shop (`/customshop`) | — | ✓ |
-| Loans | — | ✓ |
-| Profile customize (rank & profile cards) | — | ✓ |
-| Suggestion & Feedback boards | — | ✓ |
-| Confession system | — | ✓ |
-| AI chat setup, Vanity Guard, Threat Mode (Super) | — | ✓ |
-| Ticket setup with custom panels & welcome messages | — | ✓ |
-| AutoMeme presets | basic | custom subreddits + 30m intervals |
+| Bot customization (prefix, colour, branding) | — | ✓ |
+| Custom server currency & custom shop | — | ✓ |
+| Rank & profile card customization | — | ✓ |
+| Suggestions, feedback & confessions | — | ✓ |
+| AI chat, Vanity Guard, Threat Mode | — | ✓ |
+| Ticket setup with custom panels | — | ✓ |
 | Join-to-Create interfaces | 1 | up to 10 + role gating |
-| Music 24/7 mode | — | ✓ |
-| Download command | — | ✓ |
-| Command cooldown bypass | — | ✓ |
+| Music 24/7 mode & downloads | — | ✓ |
 
-Activate with `/redeemkey <KEY>` (user) or `/redeemserverkey <KEY>` (server). Owners generate keys with `/genkey`.
+Redeem with `/redeemkey <KEY>` (user) or `/redeemserverkey <KEY>` (server); owners generate keys with `/genkey`.
 
 ---
 
 ## Tech Stack
 
 | Component | Technology |
-|:----------|:-----------|
+|:---|:---|
 | Runtime | Node.js 18+ |
-| Library | discord.js 14.25 |
-| Music Engine | Lavalink + lavalink-client |
-| Canvas | @napi-rs/canvas |
-| Storage | PostgreSQL via jsonStore (with file fallback) |
-| Sharding | discord.js ShardingManager |
+| Library | discord.js v14 |
+| Music | Lavalink + lavalink-client |
+| Rendering | `@napi-rs/canvas` |
+| Storage | PostgreSQL (`pg`) with local-file fallback |
+| Dashboard | Express, JWT, Discord OAuth2 |
+| Sharding | discord.js `ShardingManager` |
+
+---
+
+## Architecture & Data
+
+State lives in `utils/jsonStore.js` — an in-memory cache backed by PostgreSQL:
+
+- **Reads** are synchronous from cache. **Writes** update the cache immediately and persist to PostgreSQL. High-value config stores persist instantly; hot, high-churn stores (economy, XP) are debounced to protect performance.
+- **No database?** If `DATABASE_URL` is unset or unreachable, the store transparently falls back to JSON files in `json_stores/`. The public API is identical.
+- **Bot ↔ dashboard sync** is handled by `utils/storeSync.js`, which maps store updates to the bot's in-memory cache invalidators — instantly in-process, or via a short PostgreSQL poll across hosts.
+- **Graceful shutdown** flushes all unsaved data to the database before exit; the shard manager forwards the signal and waits for the flush to complete so restarts don't drop recent changes.
 
 ---
 
@@ -100,135 +116,131 @@ Activate with `/redeemkey <KEY>` (user) or `/redeemserverkey <KEY>` (server). Ow
 
 ### Prerequisites
 
-- **Node.js** v18+
-- **Java 17+** (for Lavalink)
-- A Discord Bot Token from the [Developer Portal](https://discord.com/developers/applications)
-- (Optional) PostgreSQL — falls back to local JSON files when no database is configured
+- **Node.js** 18 or newer
+- A bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
+- **Java 17+** — only if you want music (Lavalink)
+- **PostgreSQL** — optional; omit to run on local JSON files
 
-### Quick Start
+### Setup
 
 ```bash
-git clone https://github.com/rajeev-0007/xnicobot.git
-cd xnicobot
+git clone <your-fork-url> xnico
+cd xnico
 npm install
-cp .env.example .env   # Configure your token, owner ID, etc.
-npm start              # Starts Lavalink + bot via shard.js
+cp .env.example .env      # then fill in TOKEN, CLIENT_ID, OWNER_ID, …
 ```
 
-### Environment Variables
-
-| Variable | Required | Description |
-|:---------|:--------:|:------------|
-| `TOKEN` | ✓ | Discord bot token |
-| `OWNER_ID` | ✓ | Your Discord user ID |
-| `PREFIX` | | Default command prefix (per-guild override via `/setprefix`) |
-| `CLIENT_ID` | | Bot client ID (auto-detected from token) |
-| `SUPPORT_SERVER` | | Support server invite URL |
-| `BOT_WEBSITE` | | Public website URL (shown in `/botinfo`) |
-| `WEBHOOK_PORT` | | Top.gg webhook port (default: `3000`) |
-| `TOPGG_WEBHOOK_SECRET` | | Top.gg webhook auth secret (for receiving votes) |
-| `TOPGG_TOKEN` | | Top.gg API token (for posting server count) |
-| `PREMIUM_AUDIT_WEBHOOK` | | Optional Discord webhook for premium activation logs |
-
-### Lavalink
-
-Edit `config/lavalink-nodes.json` or use the runtime command:
+### Run
 
 ```bash
--lavalinkconfig add <host> <port> <password> [name] [secure]
--lavalinkconfig list
--lavalinkconfig test
+npm start                 # starts the dashboard + the sharded bot (start.sh)
 ```
+
+Individual processes:
+
+```bash
+npm run start:bot         # bot only (sharded, via shard.js)
+npm run start:bot:noshard # bot only (single process)
+npm run start:dashboard   # dashboard only
+npm run start:lavalink    # Lavalink music server (requires Java)
+```
+
+The dashboard's npm dependencies live in `dashboard/` and install automatically on first `npm start`; to install manually: `cd dashboard && npm install`.
+
+### Discord OAuth2 (for dashboard login)
+
+In the Developer Portal → **OAuth2**:
+
+1. Copy the **Client Secret** into `DISCORD_CLIENT_SECRET`.
+2. Under **Redirects**, add your dashboard callback URL(s), e.g.
+   `http://localhost:3500/api/auth/discord/callback` and your production
+   `https://your-domain/api/auth/discord/callback`.
+
+`DISCORD_REDIRECT` can be left blank — the server auto-detects it from the request host.
+
+---
+
+## Environment Variables
+
+Copy [`.env.example`](.env.example) to `.env`. Required values are marked ✓.
+
+### Core
+
+| Variable | Req | Description |
+|:---|:---:|:---|
+| `TOKEN` | ✓ | Discord bot token |
+| `CLIENT_ID` | ✓ | Application (client) ID |
+| `OWNER_ID` | ✓ | Your Discord user ID (full owner access) |
+| `PREFIX` | | Default message-command prefix (default `-`) |
+| `LOG_LEVEL` | | `NONE` \| `ERROR` \| `WARN` \| `INFO` \| `DEBUG` |
+
+### Database
+
+| Variable | Req | Description |
+|:---|:---:|:---|
+| `DATABASE_URL` | | PostgreSQL connection string. Omit to use local JSON files. **Required for cross-host bot ↔ dashboard sync.** |
+| `FALLBACK_DATABASE_URL` | | Secondary connection string used on failover |
+
+### Dashboard
+
+| Variable | Req | Description |
+|:---|:---:|:---|
+| `DASHBOARD_PORT` | | Dashboard HTTP port (default `3500`) |
+| `DISCORD_CLIENT_SECRET` | ✓¹ | OAuth2 client secret — **required for dashboard login** |
+| `DISCORD_REDIRECT` | | OAuth2 callback URL; blank = auto-detect from request host |
+| `JWT_SECRET` | ✓¹ | Secret for signing dashboard sessions (set a long random value in production) |
+| `DASHBOARD_CORS_ORIGINS` | | Comma-separated allowed browser origins (only when frontend ≠ API origin) |
+| `FRONTEND_URL` | | Public dashboard base URL |
+
+<sub>¹ Required only if you run the dashboard.</sub>
+
+### Integrations (optional)
+
+| Variable | Description |
+|:---|:---|
+| `GROQ_API_KEY` | Powers AI chat, AI moderation and screenshot verification |
+| `TENOR_API_KEY` / `GIPHY_API_KEY` | GIF providers for action commands |
+| `WEBHOOK_PORT` | Top.gg / vote webhook port (default `3000`) |
+| `TOPGG_TOKEN` / `TOPGG_WEBHOOK_SECRET` | Top.gg server-count posting and vote webhooks |
+| `SUPPORT_SERVER` / `BOT_WEBSITE` | Branding links shown in `/botinfo` |
+
+See `.env.example` for the complete annotated list.
 
 ---
 
 ## Project Structure
 
 ```
-xnicobot/
-├── index.js              # Main entry point
-├── shard.js              # Sharding manager
-├── commands/
-│   ├── admin/            # Moderation, security, automod, premium-gated panels
-│   ├── automation/       # Welcomer, tickets, autoresponder, automeme, social-notify
-│   ├── backup/           # Server & config backups
-│   ├── basic/            # Info, role, server commands, help
-│   ├── dm/               # Direct message commands
-│   ├── economy/          # Currency, shop, gambling, pets, battles
-│   ├── fun/              # Games, trivia, memes
-│   ├── games/            # Trivia, Akinator, hangman, wordle
-│   ├── image/            # Image manipulation
-│   ├── leveling/         # XP, rank cards, level roles
-│   ├── music/            # Lavalink music player
-│   ├── owner/            # Bot management
-│   ├── social/           # Profiles, badges, marriage
-│   ├── stats/            # Activity tracking, leaderboards
-│   ├── utility/          # AFK, reminder, snipe, premium tools, downloads
-│   ├── voice/            # Join-to-create, VC management
-│   └── webhook/          # Webhook commands
-├── utils/                # Shared utilities
-│   ├── pagination.js     # Reusable Components V2 pagination
-│   ├── premiumManager.js # Premium key & tier logic
-│   ├── currencyHelper.js # Per-guild currency overrides
-│   ├── inviteManager.js  # Invite tracking
-│   ├── backupManager.js  # Backup utilities
-│   ├── autoMemePoster.js # Scheduled meme posting engine
-│   ├── socialNotifyPoller.js  # YouTube/Twitch RSS poller
-│   ├── interactionGuards.js   # Premium guards & safe-reply
-│   └── ...
-├── config/               # Lavalink & bot config
-└── assets/               # Fonts, images, badges
+xnico/
+├── index.js                # Bot entry point (gateway, events, command loader)
+├── shard.js                # Sharding manager + dashboard launcher
+├── start.sh                # Convenience launcher (dashboard + bot)
+├── commands/               # 17 category folders of command modules
+├── events/                 # Gateway event handlers
+├── utils/                  # Shared libraries
+│   ├── jsonStore.js        # PostgreSQL-backed store (+ local fallback)
+│   ├── storeSync.js        # Bot ↔ dashboard cache sync
+│   ├── database.js         # User/guild data access layer
+│   ├── premiumManager.js   # Premium key & tier logic
+│   ├── levelCard.js        # Rank card renderer
+│   ├── profileCard.js      # Social profile card renderer
+│   └── …
+├── dashboard/              # Express control panel (server + public SPA)
+├── config/                 # Lavalink node config
+├── lavalink/               # Lavalink configuration
+└── assets/                 # Fonts, images, badges
 ```
-
----
-
-## What's New
-
-### Components V2 polish
-- `botinfo` Music Engine block now shows real **Nodes**, **Sessions**, and **Playing** counts (previously read the wrong field and always showed `0`).
-- Bot `@mention` reply rebuilt with avatar section, separators, live latency/uptime stats, and quick-action buttons (Commands, Invite, Support, Vote, Website).
-- Help home page expanded with feature highlights and command/server stats.
-
-### AutoMeme
-- New `/automeme` system — admin-configurable scheduled meme poster.
-- Subcommands: `setup`, `disable`, `reset`, `interval`, `category`, `add-sub`, `remove-sub`, `list-subs`, `ping`, `nsfw`, `test`, `status`.
-- Pulls from curated category presets (English, Hindi, Anime, Gaming, Mixed) with image-only filtering, NSFW gating, and dedup against the last 50 posts per guild.
-- Premium servers can add up to 5 custom subreddits and use intervals as low as 30 minutes; free tier is preset-only with a 60-minute floor.
-- Per-post buttons: Source, Another, Settings.
-
-### AFK rewrite
-- New polished panel with **End AFK**, **Toggle DMs**, **Stats**, and **Help** buttons.
-- Owner-only buttons (other users see a polite "you're not AFK" reply).
-- Fixed double-count bug — sessions now increment exactly once per AFK.
-- `afklist` now shows the actual reason instead of always `"AFK"` (was reading the wrong field).
-
-### Currency sync
-- Eight gambling commands (`wheel`, `tower`, `plinko`, `mines`, `limbo`, `keno`, `crash`, `customshop`) had a hardcoded coin emoji that ignored `/currency set`. They now follow the per-guild override at every render.
-- `/currency reset` description and success message now match the helper's actual default.
-
-### Premium gating polish
-- New premium commands: `feedback`, `suggestion`, `ticket-categories setup`, `ticket-setup`, `customshop`, `currency`, `bot-customize`, `rank-customize`, `profile-customize`, `247`, `download`.
-- Component-level guards on customize panels and ticket setup so panels fail closed when premium expires while a panel is still open.
-- Modal-level gates on rank/profile customize submits.
-
-### Pagination upgrades
-- `vclist`, `vcmod`, `media-only list`, `leveling-ignore list` now paginate with the standard ≪ ◀ ▶ ≫ controls instead of overflowing the Components V2 4 000-char container cap.
-
-### Bug fixes
-- `birthday-setup` panel crashed (`Received one or more errors`) because the Hour select used empty-string descriptions for 22 of 24 options. Now omits the field except for Midnight/Noon markers.
-- AutoMeme custom-font modal handler now respects premium gates.
 
 ---
 
 ## Support
 
 - **Discord:** [discord.gg/Zs35X7Umak](https://discord.gg/Zs35X7Umak)
-- **Top.gg:** [Vote](https://top.gg/bot)
 
 ---
 
 <div align="center">
 
-Built by **Rajeev** · © 2024–2026
+Built by **Rajeev** · Licensed under ISC
 
 </div>
