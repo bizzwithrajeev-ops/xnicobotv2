@@ -272,6 +272,11 @@ html[data-theme="light"] .auth-feature { background: rgba(0,0,0,.025); }
     background: var(--accent-grad);
     filter: blur(60px); opacity: .28; z-index: 0;
     border-radius: 40px;
+    animation: previewGlow 6s ease-in-out infinite alternate;
+}
+@keyframes previewGlow {
+    0%   { opacity: .20; }
+    100% { opacity: .38; }
 }
 .preview-window {
     position: relative; z-index: 1;
@@ -310,6 +315,18 @@ html[data-theme="light"] .auth-feature { background: rgba(0,0,0,.025); }
 .pw-nav.active { background: linear-gradient(90deg, rgba(124,58,237,.55), rgba(6,182,212,.4)); }
 .pw-nav.short { width: 60%; }
 .pw-main { flex: 1; padding: 1rem; display: flex; flex-direction: column; gap: .8rem; min-width: 0; }
+/* Small header row inside the preview so it reads like a real product
+   screenshot rather than an empty skeleton. */
+.pw-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.pw-title { font-size: .82rem; font-weight: 700; color: var(--text); letter-spacing: -.01em; }
+.pw-live {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+    color: var(--success);
+    padding: .15rem .5rem; border-radius: 999px;
+    background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.25);
+}
+.pw-live .d { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
 .pw-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
 .pw-card {
     border: 1px solid var(--border); border-radius: 10px;
@@ -375,18 +392,28 @@ html[data-theme="light"] .auth-feature { background: rgba(0,0,0,.025); }
 
 /* ── Responsive: phones ── */
 @media (max-width: 560px) {
-    .hero-features { grid-template-columns: 1fr; }
+    .hero-features { grid-template-columns: 1fr 1fr; }
     .hero-stats { gap: .55rem; }
     .hero-stat { padding: .75rem .6rem; }
     .hero-cta { flex-direction: column; }
     .hero-cta .auth-btn { width: 100%; }
     .status-pill { display: none; }
-    .landing-preview { display: none; }     /* keep the phone view focused on the CTA */
     .landing-foot { justify-content: center; text-align: center; }
+    /* Keep a proper preview on mobile (requested) — just scale the chrome
+       down and drop the 3D tilt so it reads cleanly on a small screen. */
+    .landing-preview { max-width: 420px; }
+    .pw-body { min-height: 230px; }
+    .pw-side { flex-basis: 54px; }
+    .pw-chart { height: 56px; }
+}
+
+/* ── Very small phones: tighten the feature grid back to one column ── */
+@media (max-width: 380px) {
+    .hero-features { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .landing-hero, .landing-preview, .pw-chart span { animation: none !important; }
+    .landing-hero, .landing-preview, .pw-chart span, .preview-glow { animation: none !important; }
     .preview-window { transition: none; }
 }
 

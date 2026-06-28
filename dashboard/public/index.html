@@ -13,7 +13,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/styles.css?v=4.0.0">
-    <link rel="stylesheet" href="/starfield.css?v=1.0.0">
+    <link rel="stylesheet" href="/starfield.css?v=1.1.0">
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%237c3aed'/%3E%3Cstop offset='100%25' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='16'%3Ex%3C/text%3E%3C/svg%3E">
 </head>
@@ -159,6 +159,10 @@
                                 <span class="pw-nav short"></span>
                             </div>
                             <div class="pw-main">
+                                <div class="pw-head">
+                                    <span class="pw-title">Server Overview</span>
+                                    <span class="pw-live"><span class="d"></span> LIVE</span>
+                                </div>
                                 <div class="pw-row">
                                     <div class="pw-card"><span class="pw-k"></span><span class="pw-v"></span></div>
                                     <div class="pw-card"><span class="pw-k"></span><span class="pw-v"></span></div>
@@ -187,6 +191,31 @@
             </footer>
         </div>
     </div>
+
+    <!--
+        Anti-flash pre-toggle. Runs synchronously during parse (before
+        first paint) so a returning/just-authorized visitor never sees
+        the landing page flash before the dashboard loads. If a session
+        token is present (either freshly in the URL after Discord OAuth,
+        or already saved in localStorage) we hide the landing screen and
+        show the "Connecting…" loader immediately. app.js bootstrap()
+        then verifies the token and reveals the dashboard.
+    -->
+    <script>
+        (function () {
+            try {
+                var hasUrlToken = /[?&]token=/.test(location.search);
+                var hasStored = false;
+                try { hasStored = !!localStorage.getItem('token'); } catch (e) {}
+                if (hasUrlToken || hasStored) {
+                    var s = document.getElementById('auth-screen');
+                    var l = document.getElementById('auth-loading');
+                    if (s) s.classList.add('hidden');
+                    if (l) l.classList.remove('hidden');
+                }
+            } catch (e) {}
+        })();
+    </script>
 
     <!-- Dashboard -->
     <div id="dashboard" class="dashboard hidden">
@@ -300,7 +329,7 @@
 
     <script src="/config.js?v=4.1.0"></script>
     <script src="/modules.js?v=4.1.0"></script>
-    <script src="/app.js?v=4.1.0"></script>
+    <script src="/app.js?v=4.1.1"></script>
     <script src="/welcomer.js?v=4.1.0"></script>
     <script src="/buttons.js?v=4.1.0"></script>
     <script src="/menus.js?v=4.1.0"></script>

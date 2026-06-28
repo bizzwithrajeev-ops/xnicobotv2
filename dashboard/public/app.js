@@ -134,15 +134,48 @@ async function loadAuthStats() {
 }
 
 // ───── session bootstrap ─────────────────────────────────
+//
+// Order matters here. The previous version `await`ed loadAuthStats()
+// (two sequential network calls) BEFORE deciding whether the visitor
+// was logged in. That meant a logged-in user — and, worse, a user who
+// had JUST authorized and arrived on `/?token=…` — stared at the full
+// landing/login page for the whole round-trip before the dashboard
+// appeared. It looked exactly like "login didn't work".
+//
+// Now we decide the auth state FIRST:
+//   • If a token exists, show the connecting loader immediately and
+//     verify it. On success we go straight to the dashboard and let
+//     the public stats load in the background (non-blocking).
+//   • Only when there's no token (or it's invalid) do we render the
+//     landing page, and only then do we await the public stats that
+//     populate it.
 async function bootstrap() {
+    if (state.token) {
+        // Show the connecting loader right away — no landing flash.
+        $('#auth-screen').classList.add('hidden');
+        $('#auth-loading').classList.remove('hidden');
+
+        const me = await api('/api/auth/me');
+        if (me && !me._unauth && me.user) {
+            state.user = me.user;
+            // Public bot info / stats aren't needed to render the
+            // dashboard — load them in the background so the logo and
+            // counters fill in without blocking the transition.
+            loadAuthStats().catch(() => {});
+            return showDashboard();
+        }
+
+        // Token is missing/expired/invalid — clear it and fall through
+        // to the landing page.
+        state.token = null;
+        localStorage.removeItem('token');
+    }
+
+    // Not logged in: render the landing page, then populate its public
+    // stats. showAuth() first so the page is visible immediately even
+    // if the stats call is slow.
+    showAuth();
     await loadAuthStats();
-    if (!state.token) return showAuth();
-
-    const me = await api('/api/auth/me');
-    if (!me || me._unauth || !me.user) return showAuth();
-
-    state.user = me.user;
-    await showDashboard();
 }
 
 function showAuth() {
@@ -155,26 +188,35 @@ async function showDashboard() {
     $('#auth-loading').classList.remove('hidden');
     $('#auth-screen').classList.add('hidden');
 
-    // Sidebar render
-    renderSidebar();
-    renderUserBadge();
+    try {
+        // Sidebar render
+        renderSidebar();
+        renderUserBadge();
 
-    // Load user guilds
-    const guilds = await api('/api/guilds/me');
-    state.guilds = Array.isArray(guilds) ? guilds : [];
+        // Load user guilds (tolerate failure — the rest of the UI still works)
+        const guilds = await api('/api/guilds/me');
+        state.guilds = Array.isArray(guilds) ? guilds : [];
 
-    // Apply saved theme
-    const theme = localStorage.getItem('theme');
-    if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
-    updateThemeIcon();
+        // Apply saved theme
+        const theme = localStorage.getItem('theme');
+        if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        updateThemeIcon();
 
-    $('#dashboard').classList.remove('hidden');
-    $('#auth-loading').classList.add('hidden');
+        $('#dashboard').classList.remove('hidden');
+        $('#auth-loading').classList.add('hidden');
 
-    // Start router
-    window.addEventListener('hashchange', handleRoute);
-    if (!location.hash) location.hash = '#/servers';
-    else handleRoute();
+        // Start router
+        window.addEventListener('hashchange', handleRoute);
+        if (!location.hash) location.hash = '#/servers';
+        else handleRoute();
+    } catch (e) {
+        // A render error must never leave the user stuck on the spinner.
+        // Surface it and drop back to a usable state.
+        console.error('[xNico] Dashboard failed to render:', e);
+        $('#auth-loading').classList.add('hidden');
+        $('#dashboard').classList.remove('hidden');
+        toast('Something went wrong loading the dashboard. Please refresh.', 'error');
+    }
 }
 
 // ───── sidebar ────────────────────────────────────────────
