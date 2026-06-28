@@ -1007,29 +1007,22 @@ app.get('/api/guild/:guildId/premium-status', authMiddleware, (req, res) => {
         if (u) discordId = u.discordId;
     }
 
-    // Check user premium
+    // Check user premium (server premium discontinued — user premium only)
     let userPremium = false;
-    let serverPremium = false;
     let premiumExpiry = null;
     let premiumType = null;
 
     try {
         const premiumManager = require('../utils/premiumManager');
         userPremium = premiumManager.isPremium(discordId);
-        serverPremium = premiumManager.isServerPremium(guildId);
-
         if (userPremium) {
             const status = premiumManager.getPremiumStatus(discordId);
             premiumExpiry = status.expiresAt;
             premiumType = 'user';
-        } else if (serverPremium) {
-            const status = premiumManager.getServerPremiumStatus(guildId);
-            premiumExpiry = status.expiresAt;
-            premiumType = 'server';
         }
     } catch (e) {
-        // premiumManager may not be available in dashboard-only mode
-        // Fall back to jsonStore check
+        // premiumManager may not be available in dashboard-only mode —
+        // fall back to reading the user premium store directly.
         try {
             const premiumData = readBotStore('premium') || [];
             const userEntry = premiumData.find(p => p.userId === discordId);
@@ -1037,15 +1030,6 @@ app.get('/api/guild/:guildId/premium-status', authMiddleware, (req, res) => {
                 userPremium = true;
                 premiumExpiry = userEntry.expiresAt;
                 premiumType = 'user';
-            }
-            const serverData = readBotStore('server-premium') || [];
-            const serverEntry = serverData.find(s => s.guildId === guildId);
-            if (serverEntry && (!serverEntry.expiresAt || new Date(serverEntry.expiresAt) > new Date())) {
-                serverPremium = true;
-                if (!userPremium) {
-                    premiumExpiry = serverEntry.expiresAt;
-                    premiumType = 'server';
-                }
             }
         } catch { }
     }
@@ -1055,9 +1039,9 @@ app.get('/api/guild/:guildId/premium-status', authMiddleware, (req, res) => {
     const isOwner = req.user.role === 'owner' || ownerIds.includes(discordId);
 
     res.json({
-        hasPremium: isOwner || userPremium || serverPremium,
+        hasPremium: isOwner || userPremium,
         userPremium,
-        serverPremium,
+        serverPremium: false,
         isOwner,
         premiumType: isOwner ? 'owner' : premiumType,
         expiresAt: premiumExpiry,
@@ -3522,7 +3506,7 @@ app.get('/api/premium', authMiddleware, ownerOnly, (req, res) => {
     res.json({ keys: [...map.values()].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)) });
 });
 app.post('/api/premium/generate', authMiddleware, ownerOnly, (req, res) => {
-    const tier = ['user', 'server'].includes(req.body.tier) ? req.body.tier : 'user';
+    const tier = 'user'; // Server premium discontinued — only user keys are generated.
     const duration = String(req.body.duration || '30d');
     const key = 'XNICO-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
     const entry = {

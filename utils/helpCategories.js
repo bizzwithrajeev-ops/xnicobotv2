@@ -261,7 +261,7 @@ const CATEGORY_GROUP_RULES = {
         { name: 'Runtime Control',     emoji: '<:Settings:1473037894703779851>',   cmds: ['shutdown', 'restart', 'maintenance', 'reload', 'eval', 'exec', 'emit', 'system'] },
         { name: 'Shard & Deploy',      emoji: '<:Refresh:1473037911581528165>',    cmds: ['force-sync', 'shard-status', 'command-stats'] },
         { name: 'Configuration',       emoji: '<:banhammer:1473367388597780592>',  cmds: ['apikeys', 'globalconfig', 'configview', 'configreset', 'lavalinkconfig', 'lavalinkinfo', 'setavatar', 'fetchmsg'] },
-        { name: 'Premium & Keys',      emoji: '<:Money:1473377877239140529>',      cmds: ['addpremium', 'removepremium', 'premiumstats', 'premiums', 'transferpremium', 'createkey', 'deletekey', 'listkeys', 'createserverkey', 'addserverpremium', 'removeserverpremium', 'activateserverpremium', 'syncpremium'] },
+        { name: 'Premium & Keys',      emoji: '<:Money:1473377877239140529>',      cmds: ['addpremium', 'removepremium', 'premiumstats', 'premiums', 'transferpremium', 'createkey', 'deletekey', 'listkeys', 'syncpremium'] },
         { name: 'Guild Management',    emoji: '<:Pin:1473038806612447500>',        cmds: ['serverlist', 'leaveguild', 'serverinfo-owner', 'guild-search', 'getinvite'] },
         { name: 'User Management',     emoji: '<:Shield:1473038669831995494>',     cmds: ['globalban', 'globalunban', 'blacklist', 'noprefix', 'dmuser', 'userlookup', 'addowner', 'removeowner', 'listowners'] },
         { name: 'Badge System',        emoji: '<:Fire:1473038604812161218>',       cmds: ['badge-create', 'badge-edit', 'badge-give', 'badge-remove', 'badge-list'] },

@@ -58,7 +58,6 @@ module.exports = {
             // Quick actions
             content += `### <:Caretright:1473038207221502106> Quick Actions\n`;
             content += `> \`createkey [days]\` — Create user key\n`;
-            content += `> \`createserverkey [days]\` — Create server key\n`;
             content += `> \`listkeys [filter]\` — Browse all keys\n`;
             content += `> \`deletekey <key>\` — Delete a key\n`;
             content += `> \`addpremium <@user|id> [days]\` — Direct grant\n`;
