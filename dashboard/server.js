@@ -424,6 +424,31 @@ async function updateGuildStore(storeName, guildId, mutator) {
     return all[guildId];
 }
 
+/**
+ * Race-safe single-USER update for the array-shaped `users` store.
+ * Mirrors updateGuildStore but for users keyed by `user_id`. Prevents
+ * the dashboard's whole-array write from clobbering the bot's frequent
+ * users writes (economy/XP/stats) — the root cause of profile/rank
+ * customizations appearing not to persist. Returns the updated record.
+ */
+async function updateUserStore(userId, mutator) {
+    if (typeof jsonStore.updateUserEntry === 'function') {
+        return jsonStore.updateUserEntry(userId, mutator);
+    }
+    // Legacy fallback (older jsonStore without updateUserEntry).
+    const users = readBotStore('users') || [];
+    let rec = users.find(u => u && (u.user_id === userId || u.userId === userId));
+    if (!rec) { rec = { user_id: userId, profile: {}, social: {} }; users.push(rec); }
+    const after = mutator(rec, users);
+    if (after && typeof after === 'object' && after !== rec) {
+        const idx = users.indexOf(rec);
+        if (idx >= 0) users[idx] = after;
+        rec = after;
+    }
+    await writeBotStore('users', users);
+    return rec;
+}
+
 // (jsonStore.init moved to end of file to wrap app.listen)
 
 // Init default admin
@@ -3605,89 +3630,112 @@ app.get('/api/users/me/profile', authMiddleware, (req, res) => {
             progressBarColor: profile.rankCard?.progressBarColor || profile.progressBarColor || '#bcf1e4',
             textColor: profile.rankCard?.textColor || profile.textColor || '#ffffff',
             customBackground: profile.rankCard?.customBackground || profile.customBackground || null,
+            bannerImage: profile.rankCard?.bannerImage || null,
+            bannerMode: profile.rankCard?.bannerMode || 'strip',
             fontFamily: profile.rankCard?.fontFamily || 'Inter',
             backgroundOpacity: profile.rankCard?.backgroundOpacity ?? 0.35
+        },
+        profileCard: {
+            cardStyle: profile.profileCard?.cardStyle || profile.rankCard?.cardStyle || profile.cardStyle || 'default',
+            backgroundColor: profile.profileCard?.backgroundColor || profile.backgroundColor || '#2f3136',
+            accentColor: profile.profileCard?.accentColor || profile.rankCard?.progressBarColor || profile.accentColor || '#bcf1e4',
+            textColor: profile.profileCard?.textColor || profile.textColor || '#ffffff',
+            customBackground: profile.profileCard?.customBackground || profile.customBackground || null,
+            bannerImage: profile.profileCard?.bannerImage || null,
+            bannerMode: profile.profileCard?.bannerMode || 'strip',
+            fontFamily: profile.profileCard?.fontFamily || 'Inter',
+            backgroundOpacity: profile.profileCard?.backgroundOpacity ?? 0.35,
+            badgeStyle: profile.profileCard?.badgeStyle || 'default'
         },
         guilds: guildStats.slice(0, 25),
         afk: { isAfk: !!afk.isAfk, reason: afk.reason || '', since: afk.since || null }
     });
 });
 
-// ── Update user profile (bio, rank card, afk) ────────────────────────────────
-app.put('/api/users/me/profile', authMiddleware, (req, res) => {
+// ── Update user profile (bio, rank card, profile card, afk) ──────────────────
+//
+// Uses updateUserStore (race-safe single-user merge) so the dashboard's
+// write can't clobber the bot's frequent `users` writes. Writes BOTH the
+// rank card (/rank) and the social profile card (/socialprofile) plus
+// banner settings, so a single dashboard edit is reflected everywhere.
+app.put('/api/users/me/profile', authMiddleware, async (req, res) => {
     const discordId = req.user.discordId;
     if (!discordId) return res.status(400).json({ error: 'No Discord ID linked' });
 
-    const users = readBotStore('users') || [];
-    let userRec = users.find(u => u.user_id === discordId);
-    if (!userRec) {
-        userRec = {
-            user_id: discordId,
-            economy: { balance: 0, bank: 0, inventory: [] },
-            social: { reputation: 0 },
-            profile: {},
-            stats: { commandsUsed: 0, botInteractions: 0 },
-            afk: { isAfk: false },
-            votes: { total: 0, platforms: [] },
-            bot_banned: { banned: false },
-            is_owner: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-        users.push(userRec);
-    }
-
     const body = req.body || {};
-    userRec.profile = userRec.profile || {};
-    userRec.profile.rankCard = userRec.profile.rankCard || {};
-    userRec.social = userRec.social || {};
+    const allowedStyles = ['default', 'minimal', 'neon', 'classic', 'modern'];
+    const allowedFonts  = ['Inter', 'Poppins', 'Montserrat', 'Outfit', 'SpaceGrotesk', 'JetBrainsMono', 'Comfortaa', 'Orbitron', 'Rajdhani'];
+    const allowedBadge  = ['default', 'minimal', 'compact'];
+    const allowedBanner = ['strip', 'full'];
+    const isHex = v => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v);
+    // Accept http(s) URLs and inline data:image URIs; null clears the image.
+    const isImg = v => v === null || (typeof v === 'string' && (/^https?:\/\//i.test(v) || v.startsWith('data:image/')));
 
-    if (body.rankCard) {
-        const rc = body.rankCard;
-        const allowedStyles = ['default', 'minimal', 'neon', 'classic', 'modern'];
-        const allowedFonts = ['Inter', 'Poppins', 'Montserrat', 'Outfit', 'SpaceGrotesk', 'JetBrainsMono', 'Comfortaa', 'Orbitron', 'Rajdhani'];
-        if (rc.cardStyle && allowedStyles.includes(String(rc.cardStyle).toLowerCase())) {
-            userRec.profile.rankCard.cardStyle = String(rc.cardStyle).toLowerCase();
-            userRec.profile.cardStyle = userRec.profile.rankCard.cardStyle;
+    // Apply a shared card payload onto a target card object. `isProfile`
+    // toggles the profile-card-only fields (accentColor, badgeStyle) vs
+    // the rank-card-only field (progressBarColor).
+    const applyCard = (target, src, isProfile) => {
+        if (!src || typeof src !== 'object') return;
+        if (src.cardStyle && allowedStyles.includes(String(src.cardStyle).toLowerCase())) target.cardStyle = String(src.cardStyle).toLowerCase();
+        if (src.fontFamily && allowedFonts.includes(src.fontFamily)) target.fontFamily = src.fontFamily;
+        if (isHex(src.backgroundColor)) target.backgroundColor = src.backgroundColor;
+        if (isHex(src.textColor)) target.textColor = src.textColor;
+        if (typeof src.backgroundOpacity === 'number') target.backgroundOpacity = Math.max(0, Math.min(1, src.backgroundOpacity));
+        if (src.customBackground !== undefined && isImg(src.customBackground)) target.customBackground = src.customBackground || null;
+        if (src.bannerImage !== undefined && isImg(src.bannerImage)) target.bannerImage = src.bannerImage || null;
+        if (typeof src.bannerMode === 'string' && allowedBanner.includes(src.bannerMode)) target.bannerMode = src.bannerMode;
+        if (isProfile) {
+            if (isHex(src.accentColor)) target.accentColor = src.accentColor;
+            if (src.badgeStyle && allowedBadge.includes(String(src.badgeStyle).toLowerCase())) target.badgeStyle = String(src.badgeStyle).toLowerCase();
+        } else if (isHex(src.progressBarColor)) {
+            target.progressBarColor = src.progressBarColor;
         }
-        if (typeof rc.backgroundColor === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(rc.backgroundColor)) {
-            userRec.profile.rankCard.backgroundColor = rc.backgroundColor;
-            userRec.profile.backgroundColor = rc.backgroundColor;
-        }
-        if (typeof rc.progressBarColor === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(rc.progressBarColor)) {
-            userRec.profile.rankCard.progressBarColor = rc.progressBarColor;
-            userRec.profile.progressBarColor = rc.progressBarColor;
-        }
-        if (typeof rc.textColor === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(rc.textColor)) {
-            userRec.profile.rankCard.textColor = rc.textColor;
-            userRec.profile.textColor = rc.textColor;
-        }
-        if (rc.customBackground !== undefined) {
-            userRec.profile.rankCard.customBackground = rc.customBackground || null;
-            userRec.profile.customBackground = rc.customBackground || null;
-        }
-        if (rc.fontFamily && allowedFonts.includes(rc.fontFamily)) {
-            userRec.profile.rankCard.fontFamily = rc.fontFamily;
-        }
-        if (typeof rc.backgroundOpacity === 'number') {
-            userRec.profile.rankCard.backgroundOpacity = Math.max(0, Math.min(1, rc.backgroundOpacity));
-        }
+    };
+
+    try {
+        await updateUserStore(discordId, (userRec) => {
+            userRec.profile = userRec.profile || {};
+            userRec.social  = userRec.social  || {};
+            const p = userRec.profile;
+            p.rankCard    = p.rankCard    || {};
+            p.profileCard = p.profileCard || {};
+
+            // `card` is the unified payload from the dashboard editor — it
+            // updates BOTH cards so /rank and /socialprofile stay in sync.
+            // accentColor defaults to the progress-bar colour when omitted.
+            if (body.card) {
+                applyCard(p.rankCard, body.card, false);
+                applyCard(p.profileCard, { ...body.card, accentColor: body.card.accentColor || body.card.progressBarColor }, true);
+            }
+            // Explicit per-card payloads still supported (future-proofing).
+            if (body.rankCard)    applyCard(p.rankCard, body.rankCard, false);
+            if (body.profileCard) applyCard(p.profileCard, body.profileCard, true);
+
+            // Legacy flat mirror — older readers fall back to profile.<field>.
+            if (p.rankCard.cardStyle)        p.cardStyle        = p.rankCard.cardStyle;
+            if (p.rankCard.backgroundColor)  p.backgroundColor  = p.rankCard.backgroundColor;
+            if (p.rankCard.progressBarColor) p.progressBarColor = p.rankCard.progressBarColor;
+            if (p.rankCard.textColor)        p.textColor        = p.rankCard.textColor;
+            if (p.rankCard.customBackground !== undefined) p.customBackground = p.rankCard.customBackground;
+
+            if (typeof body.bio === 'string') userRec.social.bio = body.bio.slice(0, 500);
+
+            if (body.afk) {
+                userRec.afk = userRec.afk || {};
+                if (typeof body.afk.isAfk === 'boolean') userRec.afk.isAfk = body.afk.isAfk;
+                if (typeof body.afk.reason === 'string') userRec.afk.reason = body.afk.reason.slice(0, 200);
+                if (body.afk.isAfk) userRec.afk.since = userRec.afk.since || new Date().toISOString();
+                else userRec.afk.since = null;
+            }
+
+            userRec.updated_at = new Date().toISOString();
+            return userRec;
+        });
+        res.json({ success: true });
+    } catch (e) {
+        console.error('[Dashboard] profile PUT failed:', e?.message || e);
+        res.status(500).json({ error: 'Failed to save profile' });
     }
-
-    if (typeof body.bio === 'string') userRec.social.bio = body.bio.slice(0, 500);
-
-    if (body.afk) {
-        userRec.afk = userRec.afk || {};
-        if (typeof body.afk.isAfk === 'boolean') userRec.afk.isAfk = body.afk.isAfk;
-        if (typeof body.afk.reason === 'string') userRec.afk.reason = body.afk.reason.slice(0, 200);
-        if (body.afk.isAfk) userRec.afk.since = userRec.afk.since || new Date().toISOString();
-        else userRec.afk.since = null;
-    }
-
-    userRec.updated_at = new Date().toISOString();
-    writeBotStore('users', users);
-
-    res.json({ success: true });
 });
 
 // ── User Activity Analytics ──────────────────────────────────────────────────

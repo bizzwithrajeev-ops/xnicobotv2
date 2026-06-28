@@ -1271,19 +1271,24 @@ window.__profileEditBio = () => {
     };
 };
 
-// Edit rank card modal
+// Edit rank + profile card modal
 window.__profileEditCard = () => {
     const d = window.__profileData;
     const rc = d?.rankCard || {};
+    const pc = d?.profileCard || {};
     const styles = ['default', 'minimal', 'neon', 'classic', 'modern'];
     const fonts = ['Inter', 'Poppins', 'Montserrat', 'Outfit', 'SpaceGrotesk', 'JetBrainsMono', 'Comfortaa', 'Orbitron', 'Rajdhani'];
+    const badges = ['default', 'minimal', 'compact'];
+    const banner = rc.bannerImage || pc.bannerImage || '';
+    const bannerMode = rc.bannerMode || pc.bannerMode || 'strip';
+    const accent = pc.accentColor || rc.progressBarColor || '#bcf1e4';
 
     const wrap = document.createElement('div');
     wrap.className = 'modal-wrap';
     wrap.innerHTML = `
         <div class="modal" style="max-width:560px">
-            <h3>Customize Rank Card</h3>
-            <p>These settings affect your rank card when you use <code>/rank</code>.</p>
+            <h3>Customize Cards</h3>
+            <p>Applies to your <code>/rank</code> card and your <code>/profile</code> card.</p>
             <div class="form-row"><label>Card Style</label>
                 <select id="rc-style">${styles.map(s => `<option value="${s}" ${rc.cardStyle === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}</select>
             </div>
@@ -1294,7 +1299,7 @@ window.__profileEditCard = () => {
                 <div class="form-row"><label>Background Color</label>
                     <div class="row"><input type="color" id="rc-bg" value="${esc(rc.backgroundColor || '#2f3136')}"><input type="text" id="rc-bg-hex" value="${esc(rc.backgroundColor || '#2f3136')}" style="flex:1"></div>
                 </div>
-                <div class="form-row"><label>Progress Bar Color</label>
+                <div class="form-row"><label>Progress / Accent Color</label>
                     <div class="row"><input type="color" id="rc-prog" value="${esc(rc.progressBarColor || '#bcf1e4')}"><input type="text" id="rc-prog-hex" value="${esc(rc.progressBarColor || '#bcf1e4')}" style="flex:1"></div>
                 </div>
                 <div class="form-row"><label>Text Color</label>
@@ -1303,9 +1308,21 @@ window.__profileEditCard = () => {
                 <div class="form-row"><label>Background Opacity</label>
                     <input type="number" id="rc-opacity" value="${rc.backgroundOpacity ?? 0.35}" min="0" max="1" step="0.05">
                 </div>
+                <div class="form-row"><label>Badge Style (profile)</label>
+                    <select id="rc-badge">${badges.map(b => `<option value="${b}" ${pc.badgeStyle === b ? 'selected' : ''}>${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('')}</select>
+                </div>
+                <div class="form-row"><label>Banner Mode</label>
+                    <select id="rc-bmode">
+                        <option value="strip" ${bannerMode === 'strip' ? 'selected' : ''}>Strip (top band)</option>
+                        <option value="full" ${bannerMode === 'full' ? 'selected' : ''}>Full (whole card)</option>
+                    </select>
+                </div>
             </div>
             <div class="form-row"><label>Custom Background Image URL</label>
                 <input type="url" id="rc-bgimg" value="${esc(rc.customBackground || '')}" placeholder="https://... (optional)">
+            </div>
+            <div class="form-row"><label>Banner Image URL</label>
+                <input type="url" id="rc-banner" value="${esc(banner)}" placeholder="https://... (optional)">
             </div>
             <div class="row mt-2">
                 <button class="btn" onclick="this.closest('.modal-wrap').remove()">Cancel</button>
@@ -1324,19 +1341,26 @@ window.__profileEditCard = () => {
     });
 
     document.getElementById('rc-save').onclick = async () => {
+        const progress = document.getElementById('rc-prog-hex').value;
+        // Unified payload — the server applies it to BOTH the rank card and
+        // the profile card so /rank and /profile stay in sync.
         const payload = {
-            rankCard: {
+            card: {
                 cardStyle: document.getElementById('rc-style').value,
                 fontFamily: document.getElementById('rc-font').value,
                 backgroundColor: document.getElementById('rc-bg-hex').value,
-                progressBarColor: document.getElementById('rc-prog-hex').value,
+                progressBarColor: progress,
+                accentColor: progress,
                 textColor: document.getElementById('rc-text-hex').value,
                 backgroundOpacity: parseFloat(document.getElementById('rc-opacity').value),
-                customBackground: document.getElementById('rc-bgimg').value || null
+                badgeStyle: document.getElementById('rc-badge').value,
+                bannerMode: document.getElementById('rc-bmode').value,
+                customBackground: document.getElementById('rc-bgimg').value || null,
+                bannerImage: document.getElementById('rc-banner').value || null
             }
         };
         const r = await api('/api/users/me/profile', { method: 'PUT', body: JSON.stringify(payload) });
-        if (r && !r._error) { toast('Rank card saved', 'success'); wrap.remove(); pageProfile(); }
+        if (r && !r._error) { toast('Cards saved', 'success'); wrap.remove(); pageProfile(); }
         else toast(r?.error || 'Save failed', 'error');
     };
 };
