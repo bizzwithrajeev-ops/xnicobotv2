@@ -2,6 +2,7 @@ const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags,
 const { buildErrorResponse, COLORS, EMOJIS } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
+const { createFooterText } = require('../../utils/theme');
 
 function loadConfig() {
     if (!jsonStore.has('antispam')) {
@@ -114,6 +115,8 @@ function buildStatusPanel(guildConfig) {
             '`/antispam whitelist-channel <channel>` — Toggle channel whitelist\n' +
             '`/antispam reset` — Reset all settings'
         ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(createFooterText()))
 ;
 }
 

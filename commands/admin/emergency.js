@@ -33,6 +33,7 @@ const { COLORS, buildErrorResponse } = require('../../utils/responseBuilder');
 const trust = require('../../utils/trustManager');
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
+const { createFooterText } = require('../../utils/theme');
 
 /* ─────────────────── constants ─────────────────── */
 
@@ -252,6 +253,8 @@ function buildPanel(gc, guildName) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(commandsText))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addActionRowComponents(buttonRow)
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(createFooterText()))
 ;
 
     return container;

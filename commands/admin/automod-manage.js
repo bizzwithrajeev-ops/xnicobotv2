@@ -81,6 +81,8 @@ function buildConfigDisplay(guildConfig) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${THEME.EMOJIS.SHIELD} Filters\n${filtersGrid}`))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${THEME.EMOJIS.SETTINGS} Settings\n${settingsText}`))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(createFooterText()))
 ;
 }
 

@@ -1725,6 +1725,41 @@ async function logAntinukeTrigger(guild, payload) {
 }
 
 /**
+ * Anti-Nuke could NOT enforce a punishment (detected the threat but the
+ * action failed — usually missing permission, role hierarchy, or the
+ * offender is the server owner). Surfaced to the same 'security' channel
+ * so admins notice an unenforceable config instead of it failing silently.
+ *
+ * @param {Guild} guild
+ * @param {Object} payload
+ *   - executor:   the offending user ({ id, username })
+ *   - action:     the protection key that tripped (e.g. 'channelDelete')
+ *   - punishment: the configured action that failed (e.g. 'ban')
+ *   - limit, timeWindow, violations: detection stats
+ *   - reason?:    optional short cause hint
+ */
+async function logAntinukeFailure(guild, payload) {
+    const channel = getLogChannel(guild, 'security');
+    if (!channel) return;
+
+    const c = buildLogContainer(0xFEE75C); // warning amber — action needed
+    c.addTextDisplayComponents(text(
+        `# ${E.warning || E.shield} Anti-Nuke Could Not Act\n` +
+        `${E.shine} **Threat:** \`${payload.action}\`\n` +
+        `${E.user} **Offender:** ${payload.executor?.username || 'Unknown'} (<@${payload.executor?.id}>)\n` +
+        `${E.bolt} **Violations:** \`${payload.violations}\` / \`${payload.limit}\` in \`${Math.round((payload.timeWindow || 0) / 1000)}s\`\n` +
+        `${E.moderate} **Attempted:** \`${payload.punishment}\`\n\n` +
+        `-# I detected the threat but could not apply the punishment` +
+        (payload.reason ? ` — ${payload.reason}` : '') + `.\n` +
+        `-# Check that I have the required permission and that my highest role is **above** the offender's.`
+    ));
+    c.addSeparatorComponents(separator());
+    c.addTextDisplayComponents(text(`-# ${E.wdot} ${tsR(new Date())}`));
+
+    await sendLog(channel, c, guild, 'security');
+}
+
+/**
  * Anti-Raid action: a member was kicked/banned for joining during a raid burst,
  * or the guild was auto-locked / unlocked.
  *
@@ -2179,6 +2214,7 @@ module.exports = {
     logCommandUsage,
     // Security (anti-nuke, anti-raid, anti-alt, vanity guard, threat / emergency, whitelist)
     logAntinukeTrigger,
+    logAntinukeFailure,
     logAntiraidAction,
     logAntialtDetection,
     logVanityGuard,
