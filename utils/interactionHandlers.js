@@ -4836,13 +4836,13 @@ async function handleVerificationButtons(interaction) {
 
             const clearButton = new ButtonBuilder()
                 .setCustomId(`captcha_clear_${captchaData.sessionId}`)
-                .setEmoji('1473037847568318605')
+                .setEmoji('<:History:1473037847568318605>')
                 .setLabel('Clear')
                 .setStyle(ButtonStyle.Secondary);
 
             const submitButton = new ButtonBuilder()
                 .setCustomId(`captcha_submit_${captchaData.sessionId}`)
-                .setEmoji('1473038547165384804')
+                .setEmoji('<:Checkedbox:1473038547165384804>')
                 .setLabel('Submit')
                 .setStyle(ButtonStyle.Success);
 

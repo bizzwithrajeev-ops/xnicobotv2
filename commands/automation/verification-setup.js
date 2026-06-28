@@ -75,6 +75,142 @@ function buildVerificationPanelPayload(panelConfig, guild, btnRow) {
     }
 }
 
+// ── Shared helpers (used by BOTH slash execute and prefix executePrefix) ──────
+// Keeping the server-wide permission logic in ONE place means the slash and
+// prefix paths run identical, proven code — no risk of the two drifting apart.
+
+// Hide every channel from @everyone and grant the verified role view access.
+// Returns { hiddenCount, failedCount }.
+async function applyEnablePermissions(guild, channel, role) {
+    let hiddenCount = 0;
+    let failedCount = 0;
+    for (const [, ch] of guild.channels.cache) {
+        if (ch.id === channel.id) continue;
+        try {
+            await ch.permissionOverwrites.edit(guild.id, { ViewChannel: false });
+            await ch.permissionOverwrites.edit(role.id, { ViewChannel: true });
+            hiddenCount++;
+        } catch (err) {
+            console.error(`Verification setup: Failed to set permissions on channel ${ch.name} (${ch.id}):`, err.message);
+            failedCount++;
+        }
+    }
+    // Verification channel stays visible to @everyone (read-only) + the role.
+    try {
+        await channel.permissionOverwrites.edit(guild.id, { ViewChannel: true, SendMessages: false });
+        await channel.permissionOverwrites.edit(role.id, { ViewChannel: true });
+    } catch (err) {
+        console.error(`Verification setup: Failed to set verification channel permissions:`, err.message);
+    }
+    return { hiddenCount, failedCount };
+}
+
+// Revert @everyone ViewChannel overrides and remove the verified-role override.
+// Returns { revertedCount, revertFailedCount }.
+async function applyRevertPermissions(guild, config) {
+    let revertedCount = 0;
+    let revertFailedCount = 0;
+    const roleId = config.roleId;
+    for (const [, ch] of guild.channels.cache) {
+        try {
+            const permsToReset = { ViewChannel: null };
+            if (ch.id === config.channelId) permsToReset.SendMessages = null;
+            await ch.permissionOverwrites.edit(guild.id, permsToReset);
+            const roleOverwrite = ch.permissionOverwrites.cache.get(roleId);
+            if (roleOverwrite) await roleOverwrite.delete('Verification system disabled - reverting permissions');
+            revertedCount++;
+        } catch (err) {
+            console.error(`Verification disable: Failed to revert permissions on channel ${ch.name} (${ch.id}):`, err.message);
+            revertFailedCount++;
+        }
+    }
+    return { revertedCount, revertFailedCount };
+}
+
+// Send the verification panel into the channel and return the sent Message.
+async function sendVerificationPanel(guild, channel, { title, description, captchaType, panelConfig }) {
+    const button = new ButtonBuilder()
+        .setCustomId('verification_start')
+        .setLabel('Verify Me')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('<:Checkedbox:1473038547165384804>');
+    const btnRow = new ActionRowBuilder().addComponents(button);
+    const payload = (panelConfig && panelConfig.mode)
+        ? buildVerificationPanelPayload(panelConfig, guild, btnRow)
+        : buildDefaultVerificationPayload(title, description, captchaType, btnRow);
+    return channel.send(payload);
+}
+
+function buildNoConfigContainer() {
+    return new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `# <:Infotriangle:1473038460456800459> Verification Not Configured\n\n` +
+            `The verification system is not enabled on this server.\n\n` +
+            `### 🚀 Get Started\n` +
+            `Use \`/verification-setup enable\` (or \`verification-setup enable #channel @role\`) to set up verification.\n\n` +
+            `### <:Lightbulbalt:1473038470787240009> Tip\n` +
+            `Use \`verification-setup help\` for a detailed setup guide.`
+        )
+    );
+}
+
+function buildStatusContainer(guild, config) {
+    const channel = guild.channels.cache.get(config.channelId);
+    const role = guild.roles.cache.get(config.roleId);
+    const captchaTypeDisplay = captchaTypeNames[config.captchaType] || 'Random (Any Type)';
+    const captchaDesc = captchaDescriptions[config.captchaType] || captchaDescriptions.random;
+    const difficulty = captchaDifficulty[config.captchaType] || captchaDifficulty.random;
+    return new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `# <:Shield:1473038669831995494> Verification System Status\n\n` +
+            `Protect your server from bots with captcha verification.\n\n` +
+            `### <:Invoice:1473039492217835550> Current Configuration\n` +
+            `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
+            `**Verification Channel:** ${channel ? `${channel}` : '*<:Infotriangle:1473038460456800459> Channel not found*'}\n` +
+            `**Verified Role:** ${role ? `${role}` : '*<:Infotriangle:1473038460456800459> Role not found*'}\n` +
+            `**Captcha Type:** ${captchaTypeDisplay}\n` +
+            `**Difficulty:** ${difficulty}\n\n` +
+            `### <:Bookmark:1473038643492028517> Challenge Description\n` +
+            `${captchaDesc}\n\n` +
+            `### <:Document:1473039496995143731> Management\n` +
+            `\`enable\` reconfigure · \`disable\` turn off · \`help\` detailed guide`
+        )
+    );
+}
+
+function buildHelpContainer() {
+    return new ContainerBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `# <:Clipboard:1473039573037617162> Verification System Guide\n\n` +
+            `Works with **both** \`/verification-setup\` and the prefix \`verification-setup\`.\n\n` +
+            `### <:Settings:1473037894703779851> Setup\n` +
+            `**1.** Create a verification channel and a "Verified" role.\n` +
+            `**2.** Run \`enable #channel @role [captcha-type]\`.\n` +
+            `**3.** The bot hides all other channels from \`@everyone\` and posts a Verify panel.\n` +
+            `**4.** Members complete a captcha → receive the role → gain access.\n\n` +
+            `### <:Bookmark:1473038643492028517> Captcha Types\n` +
+            `\`math\` · \`text\` (unscramble) · \`emoji\` · \`button\` (most secure) · \`random\`\n\n` +
+            `### <:Infotriangle:1473038460456800459> Notes\n` +
+            `• The bot's role must be **above** the verified role.\n` +
+            `• Panel customization (\`panel\`) is interactive — use the slash command \`/verification-setup panel\`.\n\n` +
+            `### <:Document:1473039496995143731> Commands\n` +
+            `\`enable\` · \`disable\` · \`status\` · \`help\` · \`reset-panel\``
+        )
+    );
+}
+
+// Resolve a channel/role from a prefix-command token (mention, ID, or name).
+function resolvePrefixChannel(guild, token) {
+    if (!token) return null;
+    const id = String(token).replace(/[<#>]/g, '');
+    return guild.channels.cache.get(id) || guild.channels.cache.find(c => c.name?.toLowerCase() === String(token).toLowerCase()) || null;
+}
+function resolvePrefixRole(guild, token) {
+    if (!token) return null;
+    const id = String(token).replace(/[<@&>]/g, '');
+    return guild.roles.cache.get(id) || guild.roles.cache.find(r => r.name?.toLowerCase() === String(token).toLowerCase()) || null;
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('verification-setup')
@@ -103,7 +239,8 @@ module.exports = {
     
     description: 'Setup a captcha verification system to protect your server from bots',
     category: 'automation',
-    usage: '/verification-setup <enable/disable/status/help>',
+    aliases: ['vsetup', 'verifysetup'],
+    usage: 'verification-setup <enable #channel @role [type] | disable | status | help | reset-panel>',
 
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
@@ -204,53 +341,13 @@ module.exports = {
                     await btn.update({ components: [loadingContainer] });
 
                     try {
-                        // Apply permissions to all channels
-                        let hiddenCount = 0;
-                        let failedCount = 0;
-                        const guildChannels = interaction.guild.channels.cache;
+                        // Apply permissions to all channels (shared helper)
+                        const { hiddenCount, failedCount } = await applyEnablePermissions(interaction.guild, channel, role);
 
-                        for (const [, ch] of guildChannels) {
-                            if (ch.id === channel.id) continue;
-                            try {
-                                await ch.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false });
-                                await ch.permissionOverwrites.edit(role.id, { ViewChannel: true });
-                                hiddenCount++;
-                            } catch (err) {
-                                console.error(`Verification setup: Failed to set permissions on channel ${ch.name} (${ch.id}):`, err.message);
-                                failedCount++;
-                            }
-                        }
-
-                        // Make verification channel visible to @everyone with restricted messaging
-                        try {
-                            await channel.permissionOverwrites.edit(interaction.guild.id, {
-                                ViewChannel: true,
-                                SendMessages: false
-                            });
-                            await channel.permissionOverwrites.edit(role.id, { ViewChannel: true });
-                        } catch (err) {
-                            console.error(`Verification setup: Failed to set verification channel permissions:`, err.message);
-                        }
-
-                        // Send verification panel
+                        // Send verification panel (shared helper)
                         const existingCfg = getVerificationConfig(interaction.guild.id);
                         const panelConfig = existingCfg?.panelMessage || null;
-
-                        const button = new ButtonBuilder()
-                            .setCustomId('verification_start')
-                            .setLabel('Verify Me')
-                            .setStyle(ButtonStyle.Success)
-                            .setEmoji('<:Checkedbox:1473038547165384804>');
-                        const btnRow = new ActionRowBuilder().addComponents(button);
-
-                        let sendPayload;
-                        if (panelConfig && panelConfig.mode) {
-                            sendPayload = buildVerificationPanelPayload(panelConfig, interaction.guild, btnRow);
-                        } else {
-                            sendPayload = buildDefaultVerificationPayload(title, description, captchaType, btnRow);
-                        }
-
-                        const message = await channel.send(sendPayload);
+                        const message = await sendVerificationPanel(interaction.guild, channel, { title, description, captchaType, panelConfig });
 
                         // Save config
                         const cfgData = {
@@ -413,29 +510,8 @@ module.exports = {
                         );
                     await btn.update({ components: [loadingContainer] });
 
-                    // Revert permissions on all channels
-                    let revertedCount = 0;
-                    let revertFailedCount = 0;
-                    const roleId = config.roleId;
-
-                    for (const [, ch] of interaction.guild.channels.cache) {
-                        try {
-                            // Reset @everyone ViewChannel to default (null)
-                            const permsToReset = { ViewChannel: null };
-                            // Also reset SendMessages on the verification channel
-                            if (ch.id === config.channelId) permsToReset.SendMessages = null;
-                            await ch.permissionOverwrites.edit(interaction.guild.id, permsToReset);
-                            // Remove verified role overwrite if it exists
-                            const roleOverwrite = ch.permissionOverwrites.cache.get(roleId);
-                            if (roleOverwrite) {
-                                await roleOverwrite.delete('Verification system disabled - reverting permissions');
-                            }
-                            revertedCount++;
-                        } catch (err) {
-                            console.error(`Verification disable: Failed to revert permissions on channel ${ch.name} (${ch.id}):`, err.message);
-                            revertFailedCount++;
-                        }
-                    }
+                    // Revert permissions on all channels (shared helper)
+                    const { revertedCount, revertFailedCount } = await applyRevertPermissions(interaction.guild, config);
 
                     deleteVerificationConfig(interaction.guild.id);
 
@@ -501,93 +577,156 @@ module.exports = {
             });
         } else if (subcommand === 'status') {
             const config = getVerificationConfig(interaction.guild.id);
-            
             if (!config) {
-                const noConfigContainer = new ContainerBuilder()
-                    .addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent(
-                            `# <:Infotriangle:1473038460456800459> Verification Not Configured\n\n` +
-                            `The verification system is not enabled on this server.\n\n` +
-                            `### 🚀 Get Started\n` +
-                            `Use \`/verification-setup enable #channel @role\` to set up verification.\n\n` +
-                            `### <:Document:1473039496995143731> Required Parameters\n` +
-                            `**#channel** - Where the verification panel will be displayed\n` +
-                            `**@role** - Role to give members after successful verification\n\n` +
-                            `### <:Lightbulbalt:1473038470787240009> Tip\n` +
-                            `Use \`/verification-setup help\` for a detailed setup guide.`
-                        )
-                    );
-                return await interaction.reply({ components: [noConfigContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+                return await interaction.reply({ components: [buildNoConfigContainer()], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
             }
-            
-            const channel = interaction.guild.channels.cache.get(config.channelId);
-            const role = interaction.guild.roles.cache.get(config.roleId);
-            
-            const captchaTypeDisplay = captchaTypeNames[config.captchaType] || 'Random (Any Type)';
-            const captchaDesc = captchaDescriptions[config.captchaType] || captchaDescriptions.random;
-            const difficulty = captchaDifficulty[config.captchaType] || captchaDifficulty.random;
-            
-            const container = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Shield:1473038669831995494> Verification System Status\n\n` +
-                        `Protect your server from bots with captcha verification.\n\n` +
-                        `### <:Invoice:1473039492217835550> Current Configuration\n` +
-                        `**Status:** <:Toggleon:1473038585501581312> Enabled\n` +
-                        `**Verification Channel:** ${channel ? `${channel}` : '*<:Infotriangle:1473038460456800459> Channel not found*'}\n` +
-                        `**Verified Role:** ${role ? `${role}` : '*<:Infotriangle:1473038460456800459> Role not found*'}\n` +
-                        `**Captcha Type:** ${captchaTypeDisplay}\n` +
-                        `**Difficulty:** ${difficulty}\n\n` +
-                        `### <:Bookmark:1473038643492028517> Challenge Description\n` +
-                        `${captchaDesc}\n\n` +
-                        `### <:Document:1473039496995143731> Management Commands\n` +
-                        `\`/verification-setup enable\` - Reconfigure verification\n` +
-                        `\`/verification-setup disable\` - Turn off verification\n` +
-                        `\`/verification-setup help\` - View detailed guide`
-                    )
-                );
-            
-            await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            await interaction.reply({ components: [buildStatusContainer(interaction.guild, config)], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         } else if (subcommand === 'help') {
-            const helpContainer = new ContainerBuilder()
-                .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent(
-                        `# <:Clipboard:1473039573037617162> Verification System Guide\n\n` +
-                        `Complete guide to setting up and using the captcha verification system.\n\n` +
-                        `### <:Settings:1473037894703779851> Initial Setup (Step-by-Step)\n` +
-                        `**Step 1:** Create a verification channel (e.g., #verify)\n` +
-                        `**Step 2:** Create a "Verified" role with server access\n` +
-                        `**Step 3:** Set \`@everyone\` to only see #verify channel\n` +
-                        `**Step 4:** Run \`/verification-setup enable #verify @Verified\`\n` +
-                        `**Step 5:** Test the verification yourself!\n\n` +
-                        `### <:Bookmark:1473038643492028517> Captcha Types Explained\n` +
-                        `**Math Problem** <:Star:1473038501766369300> - Solve: \`5 + 3 = ?\` (Easy, fast)\n` +
-                        `**Unscramble Word** <:Star:1473038501766369300><:Star:1473038501766369300> - Rearrange: \`LHEOL → HELLO\`\n` +
-                        `**Emoji Recognition** <:Star:1473038501766369300> - Select the matching emoji\n` +
-                        `**Button Letters** <:Star:1473038501766369300><:Star:1473038501766369300><:Star:1473038501766369300> - Type letters from buttons (Most secure)\n` +
-                        `**Random** <:Star:1473038501766369300><:Star:1473038501766369300> - Randomly picks from above types\n\n` +
-                        `### <:Key:1473038690606649375> Security Recommendations\n` +
-                        `• Use \`button\` type for maximum bot protection\n` +
-                        `• Use \`math\` or \`emoji\` for user-friendly verification\n` +
-                        `• Keep verification channel clean - delete old messages\n` +
-                        `• Periodically check if the system is working\n\n` +
-                        `### <:Infotriangle:1473038460456800459> Common Issues\n` +
-                        `**Bot can't send messages:** Check bot permissions in channel\n` +
-                        `**Role not assigned:** Ensure bot role is above the verified role\n` +
-                        `**Users can't see button:** Ensure they can view the channel\n\n` +
-                        `### <:Document:1473039496995143731> All Commands\n` +
-                        `\`/verification-setup enable\` - Enable with custom settings\n` +
-                        `\`/verification-setup disable\` - Disable the system\n` +
-                        `\`/verification-setup status\` - View current config\n` +
-                        `\`/verification-setup help\` - This guide`
-                    )
-                );
-            
-            await interaction.reply({ components: [helpContainer], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+            await interaction.reply({ components: [buildHelpContainer()], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
         }
     },
 
-    // Slash-only command — no prefix support
+    // ── Prefix usage — mirrors the slash command via the shared helpers above ──
+    async executePrefix(message, args) {
+        if (!message.guild) return;
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply({ content: '<:Cancel:1473037949187657818> You need the **Administrator** permission to manage verification.' }).catch(() => {});
+        }
+
+        const sub = (args[0] || 'status').toLowerCase();
+        const guild = message.guild;
+
+        if (sub === 'status') {
+            const config = getVerificationConfig(guild.id);
+            return message.reply({ components: [config ? buildStatusContainer(guild, config) : buildNoConfigContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (sub === 'help') {
+            return message.reply({ components: [buildHelpContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+        }
+        if (sub === 'panel') {
+            return message.reply({ content: '<:Infotriangle:1473038460456800459> Panel customization is interactive — please use the slash command `/verification-setup panel`.' }).catch(() => {});
+        }
+        if (sub === 'reset-panel' || sub === 'resetpanel') {
+            const config = getVerificationConfig(guild.id);
+            if (!config) return message.reply({ components: [buildNoConfigContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+            delete config.panelMessage;
+            setVerificationConfig(guild.id, config);
+            return message.reply({ content: '<:Checkedbox:1473038547165384804> Verification panel reset to default. Re-run `verification-setup enable` to repost it.' }).catch(() => {});
+        }
+
+        if (sub === 'enable') {
+            const channel = resolvePrefixChannel(guild, args[1]);
+            const role = resolvePrefixRole(guild, args[2]);
+            const captchaType = ['math', 'text', 'emoji', 'button', 'random'].includes((args[3] || '').toLowerCase()) ? args[3].toLowerCase() : 'random';
+            if (!channel || channel.type === ChannelType.GuildCategory) {
+                return message.reply({ content: '<:Cancel:1473037949187657818> Usage: `verification-setup enable #channel @role [math|text|emoji|button|random]`' }).catch(() => {});
+            }
+            if (!role) {
+                return message.reply({ content: '<:Cancel:1473037949187657818> Provide a valid **role**. Usage: `verification-setup enable #channel @role [type]`' }).catch(() => {});
+            }
+            if (role.position >= guild.members.me.roles.highest.position) {
+                return message.reply({ content: '<:Cancel:1473037949187657818> My highest role must be **above** the verified role for me to assign it.' }).catch(() => {});
+            }
+
+            const confirmRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('vsetup_pfx_confirm').setLabel('Activate Verification').setStyle(ButtonStyle.Danger).setEmoji('<:Shield:1473038669831995494>'),
+                new ButtonBuilder().setCustomId('vsetup_pfx_cancel').setLabel('Cancel').setStyle(ButtonStyle.Secondary).setEmoji('<:Cancel:1473037949187657818>')
+            );
+            const confirmContainer = new ContainerBuilder().setAccentColor(0xFEE75C).addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                    `# <:Infotriangle:1473038460456800459> Confirm Verification Setup\n\n` +
+                    `This will **hide all channels** from \`@everyone\` so only ${role} can see them. ` +
+                    `${channel} stays visible as the verification channel.\n\n` +
+                    `**Captcha:** ${captchaTypeNames[captchaType]}\n\n` +
+                    `Click **Activate** to continue.`
+                )
+            ).addActionRowComponents(confirmRow);
+
+            const promptMsg = await message.reply({ components: [confirmContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
+            if (!promptMsg) return;
+
+            const collector = promptMsg.createMessageComponentCollector({ filter: i => i.user.id === message.author.id, time: 60000 });
+            collector.on('collect', async (btn) => {
+                if (btn.customId === 'vsetup_pfx_cancel') {
+                    collector.stop();
+                    return btn.update({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Cancelled\n\nNo changes were made.'))] }).catch(() => {});
+                }
+                if (btn.customId !== 'vsetup_pfx_confirm') return;
+                await btn.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('# <a:Loading:1485248248720658472> Activating…\n\nSecuring channels — this may take a moment.'))] }).catch(() => {});
+                try {
+                    const { hiddenCount, failedCount } = await applyEnablePermissions(guild, channel, role);
+                    const existingCfg = getVerificationConfig(guild.id);
+                    const panelConfig = existingCfg?.panelMessage || null;
+                    const title = '<:Shield:1473038669831995494> Server Verification';
+                    const description = 'Complete a quick captcha to verify you are human and gain access to the server!';
+                    const panelMsg = await sendVerificationPanel(guild, channel, { title, description, captchaType, panelConfig });
+                    const cfgData = { enabled: true, channelId: channel.id, roleId: role.id, messageId: panelMsg.id, title, description, captchaType };
+                    if (panelConfig) cfgData.panelMessage = panelConfig;
+                    setVerificationConfig(guild.id, cfgData);
+                    await promptMsg.edit({ components: [new ContainerBuilder().setAccentColor(0x57F287).addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `# <:Checkedbox:1473038547165384804> Verification Activated\n\n` +
+                        `**Channels secured:** ${hiddenCount}${failedCount ? ` (failed: ${failedCount})` : ''}\n` +
+                        `**Verification channel:** ${channel}\n` +
+                        `**Verified role:** ${role}\n` +
+                        `**Captcha:** ${captchaTypeNames[captchaType]}`
+                    ))] }).catch(() => {});
+                } catch (err) {
+                    console.error('Error setting up verification (prefix):', err);
+                    await promptMsg.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Setup Failed\n\nCheck that I have **Manage Channels** + **Manage Roles** and that my role is above the verified role.'))] }).catch(() => {});
+                }
+                collector.stop();
+            });
+            collector.on('end', (collected, reason) => {
+                if (reason === 'time' && collected.size === 0) {
+                    promptMsg.edit({ components: [new ContainerBuilder().setAccentColor(0x95A5A6).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:History:1473037847568318605> Timed Out\n\nNo changes were made.'))] }).catch(() => {});
+                }
+            });
+            return;
+        }
+
+        if (sub === 'disable') {
+            const config = getVerificationConfig(guild.id);
+            if (!config) {
+                return message.reply({ content: '<:Cancel:1473037949187657818> Verification system is not enabled.' }).catch(() => {});
+            }
+            const confirmRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('vsetup_pfx_disable_revert').setLabel('Disable & Revert Permissions').setStyle(ButtonStyle.Danger).setEmoji('<:History:1473037847568318605>'),
+                new ButtonBuilder().setCustomId('vsetup_pfx_disable_keep').setLabel('Disable Only').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('vsetup_pfx_disable_cancel').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
+            );
+            const confirmContainer = new ContainerBuilder().setAccentColor(0xFEE75C).addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(`# <:Infotriangle:1473038460456800459> Disable Verification?\n\nChoose whether to also **revert channel permissions** (make channels visible to \`@everyone\` again).`)
+            ).addActionRowComponents(confirmRow);
+            const promptMsg = await message.reply({ components: [confirmContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => null);
+            if (!promptMsg) return;
+            const collector = promptMsg.createMessageComponentCollector({ filter: i => i.user.id === message.author.id, time: 60000 });
+            collector.on('collect', async (btn) => {
+                if (btn.customId === 'vsetup_pfx_disable_cancel') {
+                    collector.stop();
+                    return btn.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:Cancel:1473037949187657818> Cancelled\n\nVerification remains **active**.'))] }).catch(() => {});
+                }
+                const revert = btn.customId === 'vsetup_pfx_disable_revert';
+                await btn.update({ components: [new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent('# <a:Loading:1485248248720658472> Disabling…'))] }).catch(() => {});
+                let summary = '';
+                if (revert) {
+                    const { revertedCount, revertFailedCount } = await applyRevertPermissions(guild, config);
+                    summary = `\n**Channels restored:** ${revertedCount}${revertFailedCount ? ` (failed: ${revertFailedCount})` : ''}`;
+                }
+                deleteVerificationConfig(guild.id);
+                await promptMsg.edit({ components: [new ContainerBuilder().setAccentColor(0xED4245).addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <:Toggleoff:1473038582813032590> Verification Disabled${summary}`))] }).catch(() => {});
+                collector.stop();
+            });
+            collector.on('end', (collected, reason) => {
+                if (reason === 'time' && collected.size === 0) {
+                    promptMsg.edit({ components: [new ContainerBuilder().setAccentColor(0x95A5A6).addTextDisplayComponents(new TextDisplayBuilder().setContent('# <:History:1473037847568318605> Timed Out\n\nVerification remains **active**.'))] }).catch(() => {});
+                }
+            });
+            return;
+        }
+
+        // Unknown subcommand → show the guide.
+        return message.reply({ components: [buildHelpContainer()], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+    },
 
     async handlePanel(interaction) {
         const config = getVerificationConfig(interaction.guild.id);
