@@ -420,9 +420,10 @@ module.exports = {
                         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
                 );
                 await interaction.reply({
-                    content: '<:Add:1473038100862337035> Pick the channel where the public Submit panel should be posted:',
-                    components: [row],
-                    flags: MessageFlags.Ephemeral
+                    components: [new ContainerBuilder()
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Add:1473038100862337035> Pick the channel where the public Submit panel should be posted:'))
+                        .addActionRowComponents(row)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                 });
                 return true;
             }
@@ -640,9 +641,10 @@ module.exports = {
                         .setStyle(ButtonStyle.Secondary)
                 );
                 await interaction.reply({
-                    content: '<:Cancel:1473037949187657818> Clear-log will delete every author/text record. Confessions already posted in your channel are not affected.\nContinue?',
-                    components: [confirmRow],
-                    flags: MessageFlags.Ephemeral
+                    components: [new ContainerBuilder()
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Cancel:1473037949187657818> Clear-log will delete every author/text record. Confessions already posted in your channel are not affected.\nContinue?'))
+                        .addActionRowComponents(confirmRow)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                 });
                 return true;
             }
@@ -678,9 +680,10 @@ module.exports = {
                         .setStyle(ButtonStyle.Secondary)
                 );
                 await interaction.reply({
-                    content: '<:Cancel:1473037949187657818> Reset clears channels, toggles, bans, and blocked words. The confession log is preserved.\nContinue?',
-                    components: [confirmRow],
-                    flags: MessageFlags.Ephemeral
+                    components: [new ContainerBuilder()
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent('<:Cancel:1473037949187657818> Reset clears channels, toggles, bans, and blocked words. The confession log is preserved.\nContinue?'))
+                        .addActionRowComponents(confirmRow)],
+                    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
                 });
                 return true;
             }

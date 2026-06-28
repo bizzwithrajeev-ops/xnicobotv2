@@ -746,9 +746,10 @@ module.exports = {
                     default: guildConfig.embedColor === key,
                 })));
             await interaction.reply({
-                content: `${E.palette} Select a new embed color:`,
-                components: [new ActionRowBuilder().addComponents(colorSelect)],
-                flags: MessageFlags.Ephemeral,
+                components: [new ContainerBuilder()
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${E.palette} Select a new embed color:`))
+                    .addActionRowComponents(new ActionRowBuilder().addComponents(colorSelect))],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
             return true;
         }
@@ -992,9 +993,10 @@ module.exports = {
                     default: guildConfig.language === key,
                 })));
             await interaction.reply({
-                content: `${E.book} Select language tag (stored only — translations not yet wired up):`,
-                components: [new ActionRowBuilder().addComponents(langSelect)],
-                flags: MessageFlags.Ephemeral,
+                components: [new ContainerBuilder()
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${E.book} Select language tag (stored only — translations not yet wired up):`))
+                    .addActionRowComponents(new ActionRowBuilder().addComponents(langSelect))],
+                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
             });
             return true;
         }
