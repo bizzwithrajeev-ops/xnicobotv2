@@ -29,7 +29,6 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const jsonStore = require('../../utils/jsonStore');
-const { } = require('../../utils/responseBuilder');
 
 /* ─────────────────────────── store helpers ─────────────────────── */
 

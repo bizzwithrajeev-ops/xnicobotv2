@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
-const { } = require('../../utils/responseBuilder');
 const { getProviderStatus, GOOGLE_VOICES, AZURE_VOICES } = require('../../utils/ttsEngine');
 
 const jsonStore = require('../../utils/jsonStore');

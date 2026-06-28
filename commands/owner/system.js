@@ -1,7 +1,6 @@
 const { isOwner } = require('../../utils/helpers');
 const { MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } = require('discord.js');
 const os = require('os');
-const { } = require('../../utils/responseBuilder');
 
 module.exports = {
     name: 'system',

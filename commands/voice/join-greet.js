@@ -5,7 +5,6 @@ const {
     ContainerBuilder, TextDisplayBuilder,
     SeparatorBuilder, SeparatorSpacingSize
 } = require('discord.js');
-const { } = require('../../utils/responseBuilder');
 const jsonStore = require('../../utils/jsonStore');
 const log = require('../../utils/logger-styled');
 
