@@ -132,6 +132,17 @@ const LB_TYPES = {
         field: 'invites.invites',
         globalField: 'invites',
     },
+    interaction: {
+        label: 'Interactions',
+        emoji: E.spark,
+        accent: 0x38BDF8,
+        menuDesc: 'Most commands & bot interactions',
+        format: (v) => `${formatNumber(v)} interactions`,
+        unit: 'interactions',
+        unitLabel: 'commands & interactions',
+        field: 'leveling.commandsUsed',
+        globalField: 'commandsUsed',
+    },
     economy: {
         label: 'Economy',
         emoji: E.economy,
@@ -252,6 +263,42 @@ function getInvitesEntries(guild, scope) {
     return entries.filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
 }
 
+/**
+ * Interaction counts (slash/prefix commands + button/menu uses) live in
+ * the `guild_members` store under stats.botInteractions / stats.commandsUsed
+ * / leveling.commandsUsed. Read it directly so server + global both work.
+ */
+function getInteractionEntries(guild, scope) {
+    const members = jsonStore.read('guild_members') || [];
+    const arr = Array.isArray(members) ? members : Object.values(members || {});
+    const valueOf = (m) => {
+        const s = m.stats || {};
+        const lv = m.leveling || {};
+        return Math.max(
+            Number(s.botInteractions || 0),
+            Number(s.commandsUsed || 0),
+            Number(lv.commandsUsed || 0)
+        );
+    };
+
+    let rows;
+    if (scope === 'global') {
+        const agg = new Map();
+        for (const m of arr) {
+            const uid = m.user_id || m.userId;
+            if (!uid) continue;
+            agg.set(uid, (agg.get(uid) || 0) + valueOf(m));
+        }
+        rows = [...agg.entries()].map(([userId, value]) => ({ userId, value }));
+    } else {
+        const gid = guild?.id;
+        rows = arr
+            .filter((m) => (m.guild_id || m.guildId) === gid)
+            .map((m) => ({ userId: m.user_id || m.userId, value: valueOf(m) }));
+    }
+    return rows.filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
+}
+
 function getEconomyEntries(guild, scope) {
     const economy = economyManager.loadEconomy();
     let entries = Object.entries(economy)
@@ -276,6 +323,7 @@ async function loadAllEntries(guild, type, scope) {
 
     if (type === 'leveling') return getLevelingEntries(guild, scope);
     if (type === 'invites') return getInvitesEntries(guild, scope);
+    if (type === 'interaction') return getInteractionEntries(guild, scope);
     if (type === 'economy') return getEconomyEntries(guild, scope);
 
     if (scope === 'global') {
@@ -615,6 +663,7 @@ module.exports = {
                     { name: '💬 Messages',    value: 'messages' },
                     { name: '🔊 Voice Time',  value: 'voice'    },
                     { name: '📨 Invites',     value: 'invites'  },
+                    { name: '⚡ Interactions', value: 'interaction' },
                     { name: '💰 Economy',     value: 'economy'  },
                 )
         )

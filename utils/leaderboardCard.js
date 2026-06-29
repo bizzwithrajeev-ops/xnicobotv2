@@ -158,7 +158,7 @@ async function generateLeaderboardCard(entries, opts) {
     ctx.textBaseline = 'alphabetic';
     await drawTextWithEmoji(
         ctx,
-        `${opts.accentEmoji}  ${opts.scopeLabel} Economy Leaderboard`,
+        `${opts.accentEmoji}  ${opts.scopeLabel} ${opts.titleLabel || 'Economy'} Leaderboard`,
         hTX, 50, 30
     );
 
