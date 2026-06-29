@@ -350,10 +350,22 @@ async function fetchAllBotGuildIds() {
 }
 
 function readBotGuildIdsFromLocalStore() {
-    // Fallback: any guild the bot has ever recorded a member for is
-    // a guild the bot is (or was) in. Better than nothing if the API
-    // call fails.
     const ids = new Set();
+    // Primary: the authoritative guild list the bot persists on ready,
+    // guildCreate and guildDelete (see syncBotGuildsList in index.js).
+    // This is the source of truth that lets the dashboard resolve bot
+    // presence over a shared database WITHOUT needing a BOT_TOKEN, and
+    // it includes guilds the bot just joined that have no activity yet.
+    try {
+        const list = readBotStore('bot_guilds') || [];
+        const arr = Array.isArray(list) ? list : Object.values(list || {});
+        for (const g of arr) {
+            const gid = typeof g === 'string' ? g : (g?.id || g?.guild_id || g?.guildId);
+            if (gid) ids.add(String(gid));
+        }
+    } catch {}
+    // Secondary: any guild the bot has recorded a member for is a guild
+    // the bot is (or was) in — covers older data written before bot_guilds.
     try {
         const members = readBotStore('guild_members') || [];
         const arr = Array.isArray(members) ? members : Object.values(members || {});
@@ -382,25 +394,44 @@ async function getBotGuildIds({ force = false } = {}) {
     if (_botGuildsCache.refreshing) return _botGuildsCache.refreshing;
 
     _botGuildsCache.refreshing = (async () => {
+        // Resolve bot presence from BOTH sources and union them. A guild
+        // counts as "bot present" if it appears in EITHER:
+        //   1. the Discord API (authoritative, needs a valid BOT_TOKEN), or
+        //   2. the bot's own data store (guild_members / guilds) — which works
+        //      whenever the dashboard shares the bot's database, even if
+        //      BOT_TOKEN is missing/expired on this deployment.
+        //
+        // The previous logic used the local store ONLY when the API returned
+        // empty. That meant a missing/expired BOT_TOKEN (API → empty) combined
+        // with any momentary local miss flipped EVERY server to "Invite",
+        // which is exactly the "invite required even though the bot is here"
+        // bug. Unioning makes detection resilient to either source failing.
+        const merged = new Set();
+
         try {
-            const ids = await fetchAllBotGuildIds();
-            if (ids.size > 0) {
-                _botGuildsCache.ids = ids;
-                _botGuildsCache.fetchedAt = Date.now();
-                return ids;
-            }
+            const apiIds = await fetchAllBotGuildIds();
+            for (const id of apiIds) merged.add(String(id));
         } catch (e) {
             console.warn('[botGuilds] Discord API fetch failed:', e?.message || e);
         }
-        // API failed — fall back to local store, but don't cache the
-        // fallback result for long so we'll retry the API soon.
-        const local = readBotGuildIdsFromLocalStore();
-        if (local.size > 0) {
-            _botGuildsCache.ids = local;
-            _botGuildsCache.fetchedAt = now - (BOT_GUILDS_TTL_MS - 5000); // expire in 5s
-            return local;
+
+        try {
+            const local = readBotGuildIdsFromLocalStore();
+            for (const id of local) merged.add(String(id));
+        } catch (e) {
+            console.warn('[botGuilds] Local store read failed:', e?.message || e);
         }
-        return _botGuildsCache.ids || new Set();
+
+        if (merged.size > 0) {
+            _botGuildsCache.ids = merged;
+            _botGuildsCache.fetchedAt = Date.now();
+            return merged;
+        }
+
+        // Neither source produced anything (no token + no shared/populated
+        // store). Keep the last known-good result rather than flipping every
+        // server to "Invite".
+        return _botGuildsCache.ids || merged;
     })().finally(() => { _botGuildsCache.refreshing = null; });
 
     return _botGuildsCache.refreshing;

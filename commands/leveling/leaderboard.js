@@ -35,6 +35,7 @@ const {
 } = require('discord.js');
 
 const { getLeaderboard, getGlobalLeaderboard } = require('../../utils/database');
+const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
 const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
 
@@ -188,6 +189,69 @@ function escapeMarkdown(text) {
 
 /* ─────────────────────────── Data loaders ─────────────────────────── */
 
+/**
+ * Leveling XP lives in the dedicated `leveling` jsonStore
+ * ({ [guildId]: { [userId]: { xp, level, messages } } }) — that's where
+ * the message handler awards XP. The shared getLeaderboard() helper reads
+ * `guild_members.leveling.xp`, which the XP handler never writes, so the
+ * leveling board came back empty. Source it from the real store instead.
+ */
+function getLevelingEntries(guild, scope) {
+    const store = jsonStore.read('leveling') || {};
+
+    if (scope === 'global') {
+        const agg = new Map();
+        for (const users of Object.values(store)) {
+            if (!users || typeof users !== 'object') continue;
+            for (const [userId, d] of Object.entries(users)) {
+                const xp = Number(d?.xp || 0);
+                if (xp > 0) agg.set(userId, (agg.get(userId) || 0) + xp);
+            }
+        }
+        return [...agg.entries()]
+            .map(([userId, value]) => ({ userId, value }))
+            .filter((e) => e.value > 0)
+            .sort((a, b) => b.value - a.value);
+    }
+
+    const guildData = (guild && store[guild.id]) || {};
+    return Object.entries(guildData)
+        .map(([userId, d]) => ({ userId, value: Number(d?.xp || 0) }))
+        .filter((e) => e.value > 0)
+        .sort((a, b) => b.value - a.value);
+}
+
+/**
+ * Invite counts live in the `invites` store
+ * ({ [guildId]: { totals: { [userId]: { regular, bonus, ... } } } }).
+ * Effective invites = regular + bonus (same as the dashboard). The shared
+ * getLeaderboard() helper can't read this (invites.invites isn't a allowed
+ * leaderboard field and guild_members isn't the source of truth), so source
+ * it directly here.
+ */
+function getInvitesEntries(guild, scope) {
+    const store = jsonStore.read('invites') || {};
+    const fromGuild = (gid) => {
+        const totals = store[gid]?.totals || {};
+        return Object.entries(totals).map(([userId, t]) => ({
+            userId,
+            value: Math.max(0, Number(t?.regular || 0) + Number(t?.bonus || 0)),
+        }));
+    };
+
+    let entries;
+    if (scope === 'global') {
+        const agg = new Map();
+        for (const gid of Object.keys(store)) {
+            for (const e of fromGuild(gid)) agg.set(e.userId, (agg.get(e.userId) || 0) + e.value);
+        }
+        entries = [...agg.entries()].map(([userId, value]) => ({ userId, value }));
+    } else {
+        entries = guild ? fromGuild(guild.id) : [];
+    }
+    return entries.filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
+}
+
 function getEconomyEntries(guild, scope) {
     const economy = economyManager.loadEconomy();
     let entries = Object.entries(economy)
@@ -210,6 +274,8 @@ async function loadAllEntries(guild, type, scope) {
     const cfg = LB_TYPES[type];
     if (!cfg) return [];
 
+    if (type === 'leveling') return getLevelingEntries(guild, scope);
+    if (type === 'invites') return getInvitesEntries(guild, scope);
     if (type === 'economy') return getEconomyEntries(guild, scope);
 
     if (scope === 'global') {
@@ -511,8 +577,15 @@ async function buildLeaderboardReply(client, guild, type, scope, page, requester
         leaderValue,
     });
 
+    // Nest the category select + control buttons INSIDE the container
+    // (Components V2 supports action rows inside a ContainerBuilder via
+    // addActionRowComponents). The container is rebuilt fresh on every
+    // call, so adding rows here never double-appends across updates.
+    const controlRows = buildControls(validType, validScope, safePage, totalPages);
+    for (const row of controlRows) container.addActionRowComponents(row);
+
     return {
-        components: [container, ...buildControls(validType, validScope, safePage, totalPages)],
+        components: [container],
         flags: MessageFlags.IsComponentsV2,
     };
 }

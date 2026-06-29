@@ -1264,6 +1264,20 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 const { Events } = require('discord.js');
+// Persist the authoritative list of guild IDs the bot is currently in to
+// the shared `bot_guilds` store. The web dashboard reads this (over the
+// shared database) to decide whether to show "Manage" vs "Invite Bot" for
+// each server — so it stays correct even when the dashboard has no bot
+// token of its own. Called on ready, guildCreate and guildDelete.
+function syncBotGuildsList() {
+    try {
+        const ids = client.guilds.cache.map(g => g.id);
+        jsonStore.write('bot_guilds', ids);
+    } catch (e) {
+        try { log.debug(`[bot_guilds] sync failed: ${e?.message || e}`); } catch {}
+    }
+}
+
 client.on(Events.ClientReady, async () => {
     log.startup();
     log.bot(`${client.user.username}`);
@@ -1277,6 +1291,9 @@ client.on(Events.ClientReady, async () => {
 
     try {
         await connectDatabase();
+        // Now that the store is initialized, publish the current guild list
+        // so the dashboard's bot-presence detection is accurate immediately.
+        syncBotGuildsList();
         await loadAutoresponderConfig();
         await loadAutoreactConfig();
         await loadAutomodConfig();
@@ -11706,6 +11723,9 @@ client.on('inviteDelete', async (invite) => {
 
 client.on('guildCreate', async (guild) => {
     log.info(`Joined new guild: ${guild.name}`);
+    // Keep the dashboard's bot-presence list in sync (cache already includes
+    // the new guild at guildCreate time).
+    syncBotGuildsList();
     await preloadGuildInvites(guild);
 
     // Register guild-specific slash commands for the new server so it gets the
@@ -11918,6 +11938,9 @@ client.on('guildCreate', async (guild) => {
 // ── Guild Delete (Bot removed/left a server) ──
 client.on('guildDelete', async (guild) => {
     log.info(`Left guild: ${guild.name} (${guild.id})`);
+    // Cache has already removed the guild at guildDelete time, so this
+    // publishes the post-leave list for the dashboard.
+    syncBotGuildsList();
 
     try {
         const GUILD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1485129013197275166/wabz1wW6nsBMNEfLs_d0njuq1LOf5pipNxqj07UjBpJYrmv1uhyaCoEcpP42yYkBtRdf';
