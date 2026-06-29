@@ -93,11 +93,11 @@ function _renderWebhookPage(g, data) {
         <div class="card mb-2" style="font-size:.85rem">
             <h3>About Webhooks</h3>
             <div class="grid g-2 mt-2">
-                <div style="padding:.75rem;background:rgba(124,58,237,.06);border-radius:10px;border:1px solid rgba(124,58,237,.15)">
+                <div style="padding:.75rem;background:rgba(99,102,241,.06);border-radius:10px;border:1px solid rgba(99,102,241,.15)">
                     <div class="bold" style="color:var(--accent)">Creating</div>
                     <div class="text-xs text-mute mt-1">Create webhooks in any text channel. The bot needs Manage Webhooks permission.</div>
                 </div>
-                <div style="padding:.75rem;background:rgba(6,182,212,.06);border-radius:10px;border:1px solid rgba(6,182,212,.15)">
+                <div style="padding:.75rem;background:rgba(99,102,241,.06);border-radius:10px;border:1px solid rgba(99,102,241,.15)">
                     <div class="bold" style="color:var(--accent-2)">Sending</div>
                     <div class="text-xs text-mute mt-1">Use <code>/webhook send</code> to post messages via any webhook with custom name and avatar.</div>
                 </div>
@@ -215,7 +215,7 @@ function _renderBotIgnorePage(g) {
 
         <!-- Ignored Channels -->
         <div class="card mb-2">
-            <div class="card-h"><div class="ic" style="background:rgba(124,58,237,.12);color:var(--accent)">${icon('hash')}</div><div class="tt"><div class="t">Ignored Channels (${(w.ignoredChannels || []).length})</div><div class="s">The bot won't respond to any commands or events in these channels.</div></div></div>
+            <div class="card-h"><div class="ic" style="background:rgba(99,102,241,.12);color:var(--accent)">${icon('hash')}</div><div class="tt"><div class="t">Ignored Channels (${(w.ignoredChannels || []).length})</div><div class="s">The bot won't respond to any commands or events in these channels.</div></div></div>
             <div class="chips mb-2">${channelChips}</div>
             <div class="row">
                 <select id="bi-ch-add" style="flex:1"><option value="">— Select channel —</option>${textCh.map(c => `<option value="${esc(c.id)}">#${esc(c.name)}</option>`).join('')}</select>
@@ -225,7 +225,7 @@ function _renderBotIgnorePage(g) {
 
         <!-- Ignored Roles -->
         <div class="card mb-2">
-            <div class="card-h"><div class="ic" style="background:rgba(6,182,212,.12);color:var(--accent-2)">${icon('shield')}</div><div class="tt"><div class="t">Ignored Roles (${(w.ignoredRoles || []).length})</div><div class="s">Members with these roles won't trigger any bot commands.</div></div></div>
+            <div class="card-h"><div class="ic" style="background:rgba(99,102,241,.12);color:var(--accent-2)">${icon('shield')}</div><div class="tt"><div class="t">Ignored Roles (${(w.ignoredRoles || []).length})</div><div class="s">Members with these roles won't trigger any bot commands.</div></div></div>
             <div class="chips mb-2">${roleChips}</div>
             <div class="row">
                 <select id="bi-role-add" style="flex:1"><option value="">— Select role —</option>${state.roles.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}</select>
@@ -248,11 +248,11 @@ function _renderBotIgnorePage(g) {
         <div class="card mb-2" style="font-size:.85rem">
             <h3>How Bot Ignore Works</h3>
             <div class="grid g-2 mt-2">
-                <div style="padding:.75rem;background:rgba(124,58,237,.06);border-radius:10px;border:1px solid rgba(124,58,237,.15)">
+                <div style="padding:.75rem;background:rgba(99,102,241,.06);border-radius:10px;border:1px solid rgba(99,102,241,.15)">
                     <div class="bold" style="color:var(--accent)">Channel Ignore</div>
                     <div class="text-xs text-mute mt-1">Bot will not respond to any prefix commands, automod triggers, leveling XP, or event processing in ignored channels.</div>
                 </div>
-                <div style="padding:.75rem;background:rgba(6,182,212,.06);border-radius:10px;border:1px solid rgba(6,182,212,.15)">
+                <div style="padding:.75rem;background:rgba(99,102,241,.06);border-radius:10px;border:1px solid rgba(99,102,241,.15)">
                     <div class="bold" style="color:var(--accent-2)">Role Ignore</div>
                     <div class="text-xs text-mute mt-1">Members with an ignored role are treated as invisible to the bot. Useful for excluding staff bots or service accounts.</div>
                 </div>
