@@ -695,6 +695,10 @@ async function buildLeaderboardReply(client, guild, type, scope, page, requester
             content:
                 `### ${cfg.emoji} ${cfg.label} Leaderboard\n` +
                 `No ranked users yet — earn some ${cfg.unit} (${cfg.unitLabel}) to claim a spot.`,
+            // Clear any image from a previously-rendered (populated) category
+            // when switching to an empty one via the select menu / buttons.
+            attachments: [],
+            files: [],
             components: controlRows,
         };
     }
@@ -715,6 +719,7 @@ async function buildLeaderboardReply(client, guild, type, scope, page, requester
     });
 
     return {
+        content: '',
         files: [new AttachmentBuilder(buffer, { name: 'leaderboard.png' })],
         components: controlRows,
     };
@@ -830,8 +835,9 @@ module.exports = {
             console.error('[leaderboard] button error:', err);
             try {
                 await interaction.editReply({
-                    components: [buildErrorContainer(err.message)],
-                    flags: MessageFlags.IsComponentsV2,
+                    content: '<:Cancel:1473037949187657818> Could not update the leaderboard. Please try again.',
+                    attachments: [],
+                    components: [],
                 });
             } catch {}
         }
@@ -854,8 +860,9 @@ module.exports = {
             console.error('[leaderboard] select error:', err);
             try {
                 await interaction.editReply({
-                    components: [buildErrorContainer(err.message)],
-                    flags: MessageFlags.IsComponentsV2,
+                    content: '<:Cancel:1473037949187657818> Could not update the leaderboard. Please try again.',
+                    attachments: [],
+                    components: [],
                 });
             } catch {}
         }
