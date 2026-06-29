@@ -434,6 +434,80 @@ window.XNICO_MODULES = [
         description: 'Browse the real moderation cases logged by /warn, /ban, /kick, /timeout.',
         icon: 'log',
         custom: true
+    },
+
+    // ── Parity additions (dashboard v4.2): systems the bot supports that
+    //    previously had no dashboard surface. ───────────────────────────
+    {
+        id: 'botignore',
+        name: 'Bot Ignore',
+        group: 'Moderation',
+        description: "Stop the bot responding to commands from chosen channels, roles or users.",
+        icon: 'user-x',
+        custom: true   // dedicated page lives in webhook-botignore.js
+    },
+    {
+        id: 'webhook',
+        name: 'Webhook Manager',
+        group: 'Utility',
+        description: 'View, create and delete this server\u2019s webhooks via the bot.',
+        icon: 'link',
+        custom: true   // dedicated page lives in webhook-botignore.js
+    },
+    {
+        id: 'vote-config',
+        name: 'Vote Rewards',
+        group: 'Engagement',
+        description: 'Announce and ping when members vote for the bot on listing sites.',
+        icon: 'bell',
+        fields: [
+            { key: 'enabled', label: 'Enable Vote Notifications', type: 'toggle' },
+            { key: 'channelId', label: 'Announcement Channel', type: 'channel' },
+            { key: 'pingRoleId', label: 'Ping Role', type: 'role', desc: 'Role pinged when someone votes (optional).' }
+        ]
+    },
+    {
+        id: 'social-notify',
+        name: 'Social Alerts',
+        group: 'Engagement',
+        description: 'Announce new YouTube uploads and live streams in a channel.',
+        icon: 'bell',
+        fields: [
+            { key: 'youtube.enabled', label: 'Enable YouTube Alerts', type: 'toggle' },
+            { key: 'youtube.notifyChannel', label: 'Announcement Channel', type: 'channel' },
+            { key: 'youtube.pingRole', label: 'Ping Role', type: 'role' },
+            { key: 'youtube.channels', label: 'YouTube Channels', type: 'tags', desc: 'Channel IDs or handles to watch.' },
+            { key: 'youtube.message', label: 'Upload Message', type: 'textarea', desc: 'Placeholders: {channel} {title} {url}' },
+            { key: 'youtube.liveEnabled', label: 'Announce Live Streams', type: 'toggle' },
+            { key: 'youtube.liveMessage', label: 'Live Message', type: 'textarea', desc: 'Placeholders: {channel} {url}' }
+        ]
+    },
+    {
+        id: 'servertag',
+        name: 'Server Tag',
+        group: 'Utility',
+        description: 'Reward members who include your server tag in their name with a role, coins or XP.',
+        icon: 'tag',
+        fields: [
+            { key: 'enabled', label: 'Enable Server Tag', type: 'toggle' },
+            { key: 'tag', label: 'Tag Text', type: 'text', desc: 'The text members must include in their name.' },
+            { key: 'roleId', label: 'Reward Role', type: 'role' },
+            { key: 'notifyChannel', label: 'Notify Channel', type: 'channel' },
+            { key: 'coinReward', label: 'Coin Reward', type: 'number', min: 0, max: 1000000 },
+            { key: 'xpReward', label: 'XP Reward', type: 'number', min: 0, max: 1000000 },
+            { key: 'dmNotify', label: 'DM member on reward', type: 'toggle' }
+        ]
+    },
+    {
+        id: 'guildtags',
+        name: 'Guild Tag',
+        group: 'Utility',
+        description: 'Set the guild tag used by the bot\u2019s tag features.',
+        icon: 'tag',
+        fields: [
+            { key: 'enabled', label: 'Enable Guild Tag', type: 'toggle' },
+            { key: 'tag', label: 'Guild Tag', type: 'text' }
+        ]
     }
 ];
 
@@ -470,5 +544,7 @@ window.XNICO_ICONS = {
     code: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
     crown: '<path d="M3 17l2-10 5 5 2-7 2 7 5-5 2 10"/>',
     chart: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
-    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'
+    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    tag: '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+    bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
 };
