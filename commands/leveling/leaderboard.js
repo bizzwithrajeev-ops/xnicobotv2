@@ -110,6 +110,17 @@ const LB_TYPES = {
         field: 'analytics.totalMessages',
         globalField: 'totalMessages',
     },
+    dailymessages: {
+        label: 'Daily Messages',
+        emoji: E.messages,
+        accent: 0x60A5FA,
+        menuDesc: 'Most messages sent today',
+        format: (v) => `${formatNumber(v)} today`,
+        unit: 'msgs',
+        unitLabel: 'messages today',
+        field: null,        // sourced from the leveling store's daily counter
+        globalField: null,
+    },
     voice: {
         label: 'Voice Time',
         emoji: E.voice,
@@ -264,6 +275,33 @@ function getInvitesEntries(guild, scope) {
 }
 
 /**
+ * Messages sent today, from the `leveling` store's per-user daily counter
+ * ({ daily: { date: 'YYYY-MM-DD', count } }). Only counts entries whose
+ * daily.date is today (the counter resets on date rollover).
+ */
+function getDailyMessagesEntries(guild, scope) {
+    const store = jsonStore.read('leveling') || {};
+    const today = new Date().toISOString().slice(0, 10);
+    const fromGuild = (users) => Object.entries(users || {}).map(([userId, d]) => ({
+        userId,
+        value: d?.daily?.date === today ? Number(d.daily.count || 0) : 0,
+    }));
+
+    let rows;
+    if (scope === 'global') {
+        const agg = new Map();
+        for (const users of Object.values(store)) {
+            if (!users || typeof users !== 'object') continue;
+            for (const e of fromGuild(users)) agg.set(e.userId, (agg.get(e.userId) || 0) + e.value);
+        }
+        rows = [...agg.entries()].map(([userId, value]) => ({ userId, value }));
+    } else {
+        rows = guild ? fromGuild(store[guild.id]) : [];
+    }
+    return rows.filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
+}
+
+/**
  * Interaction counts (slash/prefix commands + button/menu uses) live in
  * the `guild_members` store under stats.botInteractions / stats.commandsUsed
  * / leveling.commandsUsed. Read it directly so server + global both work.
@@ -323,6 +361,7 @@ async function loadAllEntries(guild, type, scope) {
 
     if (type === 'leveling') return getLevelingEntries(guild, scope);
     if (type === 'invites') return getInvitesEntries(guild, scope);
+    if (type === 'dailymessages') return getDailyMessagesEntries(guild, scope);
     if (type === 'interaction') return getInteractionEntries(guild, scope);
     if (type === 'economy') return getEconomyEntries(guild, scope);
 
@@ -661,6 +700,7 @@ module.exports = {
                 .addChoices(
                     { name: '🏆 Leveling',    value: 'leveling' },
                     { name: '💬 Messages',    value: 'messages' },
+                    { name: '📅 Daily Messages', value: 'dailymessages' },
                     { name: '🔊 Voice Time',  value: 'voice'    },
                     { name: '📨 Invites',     value: 'invites'  },
                     { name: '⚡ Interactions', value: 'interaction' },
@@ -781,5 +821,6 @@ module.exports = {
 
     // Re-exported so /statboard can share the implementation
     buildLeaderboardReply,
+    loadAllEntries,
     LB_TYPES,
 };

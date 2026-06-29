@@ -10012,6 +10012,15 @@ client.on('messageCreate', async (message) => {
                             const userData = leveling[guildId][message.author.id];
                             // Track total messages regardless of XP cooldown
                             userData.messages = (userData.messages || 0) + 1;
+                            // Track messages sent *today* (UTC). Resets automatically
+                            // when the calendar date rolls over, so `daily.count` is
+                            // always "messages today" — surfaced by the Daily Messages
+                            // leaderboard / stats category.
+                            const todayKey = new Date().toISOString().slice(0, 10);
+                            if (!userData.daily || userData.daily.date !== todayKey) {
+                                userData.daily = { date: todayKey, count: 0 };
+                            }
+                            userData.daily.count += 1;
                             const now = Date.now();
                             const xpCooldown = (xpSettings.cooldown || 60) * 1000;
 

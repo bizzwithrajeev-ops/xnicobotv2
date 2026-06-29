@@ -1,93 +1,138 @@
 'use strict';
 
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, MessageFlags } = require('discord.js');
-const { getGuildMember, getLeaderboard, getGlobalUserStats, getGlobalLeaderboard } = require('../../utils/database');
-const { generateStatsCard } = require('../../utils/statsCard');
-const { getUserData: getMainUserData } = require('../../utils/dataManager');
+/**
+ * /stats — One clean personal-stats panel (Components V2 container).
+ *
+ * Consolidates the per-metric checks into a single command: messages,
+ * daily messages, voice time, invites, XP/level and interactions — each
+ * with the user's value AND their server/global rank. Data is sourced
+ * through the leaderboard's shared loaders (loadAllEntries / LB_TYPES) so
+ * the numbers always match the /leaderboard board exactly (and use the
+ * correct stores — XP from `leveling`, invites from `invites`, etc.).
+ *
+ * The leaderboard itself stays in canvas; personal stats stay in a clean
+ * container per the project's UI direction.
+ */
 
-async function getServerRank(guildId, userId) {
-    try {
-        const lb = await getLeaderboard(guildId, 'analytics.totalMessages', 99999);
-        const pos = lb.findIndex(m => m.userId === userId);
-        return pos !== -1 ? pos + 1 : 'N/A';
-    } catch { return 'N/A'; }
+const {
+    SlashCommandBuilder,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SectionBuilder,
+    ThumbnailBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags,
+} = require('discord.js');
+
+const { loadAllEntries, LB_TYPES } = require('../leveling/leaderboard');
+
+// Order shown in the panel. Each maps to an LB_TYPES key so labels,
+// emojis and value formatting stay consistent with the leaderboard.
+const STAT_ORDER = ['leveling', 'messages', 'dailymessages', 'voice', 'invites', 'interaction'];
+
+const BRAND = '<:xnico:1486755083390550036>';
+const PIN = '<:pin:1473038806612447500>';
+
+function escapeMarkdown(text) {
+    return String(text || '').replace(/[*_~`|>\\]/g, (m) => `\\${m}`);
 }
 
-function getGlobalRank(userId) {
-    const lb = getGlobalLeaderboard('totalMessages', 99999);
-    const pos = lb.findIndex(e => e.userId === userId);
-    return pos !== -1 ? pos + 1 : 'N/A';
+/**
+ * Resolve the user's value + rank for every tracked category in one scope.
+ */
+async function collectStats(guild, userId, scope) {
+    const out = [];
+    for (const type of STAT_ORDER) {
+        const cfg = LB_TYPES[type];
+        if (!cfg) continue;
+        let entries = [];
+        try { entries = await loadAllEntries(guild, type, scope); } catch { entries = []; }
+        const idx = entries.findIndex((e) => e.userId === userId);
+        const value = idx >= 0 ? entries[idx].value : 0;
+        out.push({
+            type,
+            label: cfg.label,
+            emoji: cfg.emoji,
+            valueStr: cfg.format(value, guild?.id),
+            rank: idx >= 0 ? idx + 1 : null,
+            total: entries.length,
+            ranked: idx >= 0,
+        });
+    }
+    return out;
 }
 
 async function buildStatsReply(client, guild, targetUser, scope) {
-    let cardData;
+    const validScope = scope === 'global' ? 'global' : 'server';
+    const stats = await collectStats(guild, targetUser.id, validScope);
 
-    if (scope === 'global') {
-        const globalStats = getGlobalUserStats(targetUser.id);
-        const rank = getGlobalRank(targetUser.id);
-        cardData = {
-            username: targetUser.username,
-            avatarURL: targetUser.displayAvatarURL({ size: 256, extension: 'png' }),
-            totalMessages: globalStats.totalMessages,
-            voiceTime: globalStats.voiceTime,
-            xp: globalStats.xp,
-            level: globalStats.level,
-            invites: globalStats.invites,
-            commandsUsed: globalStats.commandsUsed,
-            rank,
-            scope: 'global',
-            guildsActive: globalStats.guildsActive
-        };
-    } else {
-        const memberData = await getGuildMember(guild.id, targetUser.id).catch(() => null);
-        const rank = await getServerRank(guild.id, targetUser.id);
-        cardData = {
-            username: targetUser.username,
-            avatarURL: targetUser.displayAvatarURL({ size: 256, extension: 'png' }),
-            totalMessages: memberData?.analytics?.totalMessages || 0,
-            voiceTime: memberData?.analytics?.voiceTime || 0,
-            xp: memberData?.leveling?.xp || 0,
-            level: memberData?.leveling?.level || 0,
-            invites: memberData?.invites?.invites || 0,
-            commandsUsed: memberData?.leveling?.commandsUsed || 0,
-            rank,
-            scope: 'server',
-            scopeLabel: `Stats in ${guild.name}`
-        };
+    const scopeLabel = validScope === 'global' ? 'Global Network' : (guild?.name || 'This Server');
+    const scopeIcon = validScope === 'global' ? '🌍' : '🏠';
+
+    const container = new ContainerBuilder().setAccentColor(0x5865F2);
+
+    // Header with avatar thumbnail.
+    const headerText = [
+        `# ${escapeMarkdown(targetUser.globalName || targetUser.username)}`,
+        `### ${scopeIcon} Stats · ${escapeMarkdown(scopeLabel)}`,
+    ].join('\n');
+
+    const avatarUrl = targetUser.displayAvatarURL({ size: 256, extension: 'png' });
+    try {
+        const header = new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText))
+            .setThumbnailAccessory(new ThumbnailBuilder({ media: { url: avatarUrl } }));
+        container.addSectionComponents(header);
+    } catch {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerText));
     }
 
-    let statsFontFamily = 'Inter';
-    try {
-        const mainUserData = await getMainUserData(targetUser.id);
-        statsFontFamily = mainUserData?.profile?.rankCard?.fontFamily || mainUserData?.profile?.profileCard?.fontFamily || 'Inter';
-    } catch {}
-    cardData.fontFamily = statsFontFamily;
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
 
-    const buffer = await generateStatsCard(cardData);
-    const attachment = new AttachmentBuilder(buffer, { name: 'stats.png' });
+    // One clean line per category: value + rank.
+    const lines = stats.map((s) => {
+        const rankStr = s.ranked ? `rank \`#${s.rank}\`` : '`unranked`';
+        return `${s.emoji}  **${s.label}** — ${s.valueStr}  ·  ${rankStr}`;
+    });
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
 
+    container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `-# ${BRAND} xNico  ·  ${PIN} ${validScope === 'global' ? 'Across all servers' : 'This server'}`
+    ));
+
+    // Server ↔ Global toggle, nested inside the container.
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`sc_server_${targetUser.id}`)
             .setLabel('Server')
             .setEmoji('🏠')
-            .setStyle(scope === 'server' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .setDisabled(scope === 'server'),
+            .setStyle(validScope === 'server' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .setDisabled(validScope === 'server'),
         new ButtonBuilder()
             .setCustomId(`sc_global_${targetUser.id}`)
             .setLabel('Global')
             .setEmoji('🌍')
-            .setStyle(scope === 'global' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .setDisabled(scope === 'global')
+            .setStyle(validScope === 'global' ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .setDisabled(validScope === 'global')
     );
+    container.addActionRowComponents(row);
 
-    return { files: [attachment], components: [row] };
+    return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stats')
-        .setDescription('View a visual stat card for any user')
+        .setDescription('View a clean stat panel — messages, daily, voice, invites, XP, interactions')
         .addUserOption(o =>
             o.setName('user')
                 .setDescription('User to check (defaults to yourself)')
@@ -95,65 +140,59 @@ module.exports = {
         ),
 
     prefix: 'stats',
-    aliases: ['statcard', 'sc'],
-    description: 'View a visual stat card for any user',
+    aliases: ['statcard', 'sc', 'mystats'],
+    description: 'View a clean personal stat panel with value + rank for every category',
     usage: 'stats [@user]',
     category: 'stats',
 
     async execute(interaction) {
         await interaction.deferReply();
-
         const targetUser = interaction.options.getUser('user') || interaction.user;
-
         try {
             const reply = await buildStatsReply(interaction.client, interaction.guild, targetUser, 'server');
             await interaction.editReply(reply);
         } catch (err) {
             console.error('stats command error:', err);
-            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to generate stat card.' });
+            await interaction.editReply({ content: '<:Cancel:1473037949187657818> Failed to load stats.' });
         }
     },
 
     async executePrefix(message, args) {
         const { resolveUser } = require('../../utils/resolveUser');
         const targetUser = (await resolveUser(message, args)) || message.author;
-
         try {
             const reply = await buildStatsReply(message.client, message.guild, targetUser, 'server');
             await message.reply(reply);
         } catch (err) {
             console.error('stats prefix error:', err);
-            await message.reply('<:Cancel:1473037949187657818> Failed to generate stat card.');
+            await message.reply('<:Cancel:1473037949187657818> Failed to load stats.');
         }
     },
 
     async handleButton(interaction) {
         const parts = interaction.customId.split('_');
-        if (parts.length < 3) {
-            await interaction.deferUpdate();
+        if (parts.length < 3 || parts[0] !== 'sc') {
+            await interaction.deferUpdate().catch(() => {});
             return true;
         }
-
-        const scope = parts[1];
+        const scope = parts[1] === 'global' ? 'global' : 'server';
         const targetUserId = parts[2];
 
         let targetUser;
         try {
             targetUser = await interaction.client.users.fetch(targetUserId);
         } catch {
-            await interaction.deferUpdate();
+            await interaction.deferUpdate().catch(() => {});
             return true;
         }
 
-        const validScope = scope === 'global' ? 'global' : 'server';
-
         try {
-            const reply = await buildStatsReply(interaction.client, interaction.guild, targetUser, validScope);
-            await interaction.update(reply);
+            await interaction.deferUpdate();
+            const reply = await buildStatsReply(interaction.client, interaction.guild, targetUser, scope);
+            await interaction.editReply(reply);
         } catch (err) {
             console.error('stats button error:', err);
-            await interaction.deferUpdate();
         }
         return true;
-    }
+    },
 };
