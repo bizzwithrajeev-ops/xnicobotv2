@@ -22,7 +22,7 @@ const NEW_COMMANDS = new Set([
     'leetspeak', 'morse', 'octal', 'qrcode', 'randomcase', 'reddit',
     'rot13', 'upside-down', 'urbanrandom', 'userstats', 'uuid',
     'weather', 'wordcount', 'zalgo', 'pay', 'work',
-    'leveling-announcement', 'leveling-ignore', 'levels',
+    'leveling-announcement', 'leveling-ignore',
     'profile-customize', 'rank-customize',
     'sticky-message', 'autoresponder', 'autoreact', 'reactionroles', 'roletemplate',
     'spotify-link',
@@ -238,7 +238,7 @@ const CATEGORY_GROUP_RULES = {
 
     // ── 22. Leveling ──────────────────────────────────────────
     leveling: [
-        { name: 'User',                emoji: '<:Bookopen:1473038576391557130>',   cmds: ['rank', 'levels', 'leaderboard', 'rank-customize'] },
+        { name: 'User',                emoji: '<:Bookopen:1473038576391557130>',   cmds: ['rank', 'leaderboard', 'rank-customize'] },
         { name: 'Admin Controls',      emoji: '<:Settings:1473037894703779851>',   cmds: ['setlevel', 'resetlevel', 'levelroles', 'toggleleveling', 'levelmultiplier', 'levelchannel'] },
         { name: 'Setup',               emoji: '<:banhammer:1473367388597780592>',  cmds: ['leveling-setup', 'leveling-announcement', 'leveling-ignore'] },
     ],

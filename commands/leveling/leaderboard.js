@@ -31,6 +31,7 @@ const {
     ButtonStyle,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
+    AttachmentBuilder,
     MessageFlags,
 } = require('discord.js');
 
@@ -38,6 +39,7 @@ const { getLeaderboard, getGlobalLeaderboard } = require('../../utils/database')
 const jsonStore = require('../../utils/jsonStore');
 const economyManager = require('../../utils/economyManager');
 const { formatCoins, coinIcon } = require('../../utils/currencyHelper');
+const { generateLeaderboardCard } = require('../../utils/leaderboardCard');
 
 /* ─────────────────────────── Constants ─────────────────────────── */
 
@@ -618,6 +620,39 @@ function buildControls(type, scope, page, totalPages) {
 
 /* ─────────────────────────── Top-level builder ─────────────────────────── */
 
+// Map a resolved leaderboard entry to the canvas card's row contract
+// ({ rank, name, avatar, isRequester, primaryValue|valueText, primaryLabel,
+// statLine }) with per-category labels so every board reads correctly.
+function buildCardEntry(type, e, requesterId) {
+    const base = {
+        rank: e.rank,
+        name: e.username,
+        avatar: e.avatarURL,
+        isRequester: e.userId === requesterId,
+        primaryValue: Number(e.value) || 0,
+    };
+    switch (type) {
+        case 'leveling':
+            return { ...base, primaryLabel: 'XP', statLine: `Level ${Math.floor(0.1 * Math.sqrt(e.value || 0))}` };
+        case 'messages':
+            return { ...base, primaryLabel: 'messages', statLine: 'Total messages' };
+        case 'dailymessages':
+            return { ...base, primaryLabel: 'today', statLine: 'Messages today' };
+        case 'voice':
+            // Voice is seconds — pass a human-readable string so the card
+            // doesn't render raw seconds via its numeric formatter.
+            return { ...base, valueText: formatVoiceTime(e.value), primaryLabel: '', statLine: 'Voice time' };
+        case 'invites':
+            return { ...base, primaryLabel: 'invites', statLine: 'Invites' };
+        case 'interaction':
+            return { ...base, primaryLabel: 'uses', statLine: 'Interactions' };
+        case 'economy':
+            return { ...base, primaryLabel: 'coins', statLine: 'Net worth' };
+        default:
+            return { ...base, primaryLabel: '', statLine: '' };
+    }
+}
+
 async function buildLeaderboardReply(client, guild, type, scope, page, requesterId) {
     const validType = LB_TYPES[type] ? type : 'leveling';
     const validScope = scope === 'global' ? 'global' : 'server';
@@ -627,7 +662,6 @@ async function buildLeaderboardReply(client, guild, type, scope, page, requester
     const totalCount = allEntries.length;
     const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
     const safePage = Math.max(0, Math.min(page, totalPages - 1));
-    const leaderValue = allEntries[0]?.value || 0;
 
     const slice = allEntries.slice(safePage * PER_PAGE, (safePage + 1) * PER_PAGE);
     const resolved = await resolveUsers(client, slice);
@@ -646,34 +680,43 @@ async function buildLeaderboardReply(client, guild, type, scope, page, requester
         const gap = (above?.value || 0) - (requesterEntry.value || 0);
         if (gap > 0) {
             const formatted = validType === 'voice' ? formatVoiceTime(gap) : formatNumber(gap);
-            gapText = `${formatted} behind rank \`#${requesterIdx}\``;
+            gapText = `${formatted} behind rank #${requesterIdx}`;
         }
     }
 
-    const container = buildPanel({
-        client, guild,
-        type: validType,
-        scope: validScope,
+    // Category select + scope/pagination controls travel as normal action
+    // rows beneath the canvas image (no Components V2 needed for an image).
+    const controlRows = buildControls(validType, validScope, safePage, totalPages);
+
+    // Empty state — no canvas; show a prompt plus the category switcher so
+    // the user can still flip to a populated board.
+    if (pageEntries.length === 0) {
+        return {
+            content:
+                `### ${cfg.emoji} ${cfg.label} Leaderboard\n` +
+                `No ranked users yet — earn some ${cfg.unit} (${cfg.unitLabel}) to claim a spot.`,
+            components: controlRows,
+        };
+    }
+
+    const cardEntries = pageEntries.map((e) => buildCardEntry(validType, e, requesterId));
+
+    const buffer = await generateLeaderboardCard(cardEntries, {
+        accentInt:   cfg.accent,
+        accentEmoji: cfg.emoji,
+        titleLabel:  cfg.label,
+        modeLabel:   validScope === 'global' ? 'Global' : 'Server',
+        scopeLabel:  validScope === 'global' ? 'Global' : (guild?.name || 'Server'),
+        scopeEmoji:  validScope === 'global' ? '🌍' : '🏠',
+        totalCount,
         page: safePage,
         totalPages,
-        totalCount,
-        pageEntries,
-        requesterEntry,
-        requesterRank,
-        gapText,
-        leaderValue,
+        requester: requesterEntry ? { rank: requesterRank, gapText } : null,
     });
 
-    // Nest the category select + control buttons INSIDE the container
-    // (Components V2 supports action rows inside a ContainerBuilder via
-    // addActionRowComponents). The container is rebuilt fresh on every
-    // call, so adding rows here never double-appends across updates.
-    const controlRows = buildControls(validType, validScope, safePage, totalPages);
-    for (const row of controlRows) container.addActionRowComponents(row);
-
     return {
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
+        files: [new AttachmentBuilder(buffer, { name: 'leaderboard.png' })],
+        components: controlRows,
     };
 }
 

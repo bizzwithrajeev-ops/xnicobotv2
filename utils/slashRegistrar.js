@@ -90,7 +90,7 @@ const GLOBAL_PRIORITY = new Set([
     'battle', 'pets',
 
     // ── Leveling & social ──
-    'rank', 'levels', 'leveling-setup', 'levelroles',
+    'rank', 'leveling-setup', 'levelroles',
     'socialprofile', 'badges',
 
     // ── Fun ──

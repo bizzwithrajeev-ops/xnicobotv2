@@ -390,7 +390,9 @@ async function generateLeaderboardCard(entries, opts) {
         ctx.fillStyle    = isPod ? mc : accentHex;
         ctx.textAlign    = 'right';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(fmtN(e.primaryValue), statX, valY);
+        // Use a pre-formatted value string when provided (e.g. voice time
+        // like "12h 30m"); otherwise format the numeric primaryValue.
+        ctx.fillText(e.valueText != null ? String(e.valueText) : fmtN(e.primaryValue), statX, valY);
         ctx.restore();
 
         ctx.font         = FT(11);
