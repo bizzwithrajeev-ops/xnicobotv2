@@ -3844,6 +3844,36 @@ app.get('/api/discord-config', (req, res) => {
     res.json({ clientId: DISCORD_CLIENT_ID, redirectUri: resolveRedirectUri(req), hasOAuth: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET) });
 });
 
+// ── Health / sync diagnostics (public) ───────────────────────────────────────
+//
+// The #1 reason dashboard edits appear to "not affect the bot" is that the
+// dashboard and the bot are NOT sharing the same datastore. The dashboard
+// writes via jsonStore; the bot reads via jsonStore. They only stay in sync
+// when BOTH point at the SAME backend:
+//   • the SAME PostgreSQL `DATABASE_URL` (recommended for split hosting), OR
+//   • the SAME local `json_stores/` directory (only possible when the bot and
+//     dashboard run on the same host/filesystem).
+//
+// This endpoint reports which backend the dashboard is using so operators can
+// confirm the two halves are actually connected. If this says `local` while
+// the bot runs elsewhere (e.g. dashboard on Vercel, bot on a VPS), saves will
+// never reach the bot — set a shared DATABASE_URL on both.
+app.get('/api/health', (req, res) => {
+    let store = 'unknown';
+    try {
+        if (!jsonStore.initialized) store = 'initializing';
+        else store = jsonStore._localMode ? 'local' : 'postgres';
+    } catch {}
+    res.json({
+        ok: true,
+        store,                       // 'postgres' | 'local' | 'initializing'
+        sharedStoreRequired: store === 'local',
+        oauthConfigured: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET),
+        botTokenConfigured: !!BOT_TOKEN,
+        time: new Date().toISOString()
+    });
+});
+
 // ── Catch-all SPA ────────────────────────────────────────────────────────────
 app.get('/{*splat}', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 

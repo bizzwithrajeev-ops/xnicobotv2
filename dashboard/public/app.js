@@ -916,7 +916,7 @@ function renderField(f, working) {
         case 'textarea':
             return `<div class="form-row"><label>${esc(f.label)}</label><textarea data-key="${esc(f.key)}">${esc(val || '')}</textarea>${desc}</div>`;
         case 'color':
-            return `<div class="form-row"><label>${esc(f.label)}</label><div class="row"><input type="color" data-key="${esc(f.key)}" value="${esc(normalizeColor(val))}"><input type="text" data-key="${esc(f.key)}" value="${esc(val || '')}" placeholder="#7c3aed" style="flex:1"></div>${desc}</div>`;
+            return `<div class="form-row"><label>${esc(f.label)}</label><div class="row"><input type="color" data-key="${esc(f.key)}" value="${esc(normalizeColor(val))}"><input type="text" data-key="${esc(f.key)}" value="${esc(val || '')}" placeholder="#6366f1" style="flex:1"></div>${desc}</div>`;
         case 'select': {
             const opts = (f.options || []).map(o => `<option value="${esc(o)}" ${val === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
             return `<div class="form-row"><label>${esc(f.label)}</label><select data-key="${esc(f.key)}">${opts}</select>${desc}</div>`;
@@ -939,10 +939,10 @@ function renderField(f, working) {
 }
 
 function normalizeColor(v) {
-    if (!v) return '#7c3aed';
+    if (!v) return '#6366f1';
     const s = String(v);
     if (s.startsWith('#') && (s.length === 7 || s.length === 4)) return s;
-    return '#7c3aed';
+    return '#6366f1';
 }
 
 function renderChannelSelect(key, val, type) {
@@ -1158,7 +1158,7 @@ async function pageProfile() {
 
     page.innerHTML = `
         <!-- PROFILE HEADER -->
-        <div class="card mb-2" style="background:linear-gradient(135deg, rgba(124,58,237,.15), rgba(6,182,212,.08));border:1px solid var(--border-2)">
+        <div class="card mb-2" style="border:1px solid var(--border-2)">
             <div class="row wrap" style="gap:1.5rem;align-items:center">
                 <div style="width:96px;height:96px;border-radius:50%;background:var(--accent-grad);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:2.5rem;overflow:hidden;border:3px solid rgba(255,255,255,.1)">
                     ${avatarContent}
