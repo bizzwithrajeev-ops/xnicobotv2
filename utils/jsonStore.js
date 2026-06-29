@@ -143,6 +143,31 @@ class JsonStore extends EventEmitter {
         try {
             const { getPool } = require('./pgPool');
             const pool = getPool();
+
+            // Ensure the schema exists BEFORE the first SELECT. This is the
+            // difference between "just add DATABASE_URL and it works" and the
+            // store silently falling back to local-file mode on a fresh DB.
+            //
+            // The bot's connectDatabase() already calls initializeSchema()
+            // before init(), but the dashboard (dashboard/server.js) calls
+            // jsonStore.init() directly with no schema step. On a brand-new
+            // database the `json_store` table wouldn't exist yet, the SELECT
+            // below would throw, and we'd drop into local mode — so dashboard
+            // edits would never reach the bot even though DATABASE_URL was set.
+            //
+            // CREATE TABLE IF NOT EXISTS is idempotent, so running it here is
+            // safe even when the bot already created the table. Lazily required
+            // to avoid any load-order coupling.
+            try {
+                const { initializeSchema } = require('./pgSchema');
+                await initializeSchema();
+            } catch (schemaErr) {
+                // If schema creation fails (e.g. read-only role), fall through
+                // to the SELECT — it will either work against an existing table
+                // or throw and trigger the local fallback, exactly as before.
+                log.warning(`[JsonStore] Schema ensure skipped: ${schemaErr.message?.slice(0, 80)}`);
+            }
+
             // Pull updated_at too so smartRefresh doesn't treat every
             // already-loaded row as a fresh change on its first poll.
             // Without seeding _timestamps here, the very next 3s poll
