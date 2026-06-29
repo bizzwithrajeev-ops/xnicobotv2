@@ -467,6 +467,9 @@ async function handleRoute() {
             if (mod.custom && mod.id === 'confessions') return pageConfessions();
             if (mod.custom && mod.id === 'ignored-channels') return pageIgnoredChannels();
             if (mod.custom && mod.id === 'modlogs') return pageModLogs();
+            // Parity additions — dedicated pages in webhook-botignore.js
+            if (mod.custom && mod.id === 'webhook') return pageWebhook();
+            if (mod.custom && mod.id === 'botignore') return pageBotIgnore();
             return pageModule(mod);
         } else {
             pageNotFound();
