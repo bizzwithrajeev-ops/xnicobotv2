@@ -719,8 +719,7 @@ app.post('/api/auth/logout', (req, res) => { res.clearCookie('token'); res.json(
 // it's also enforced server-side, but the client check keeps the
 // chrome clean.
 app.get('/api/auth/me', authMiddleware, (req, res) => {
-    const ownerIds = (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '').split(',').map(s => s.trim()).filter(Boolean);
-    const isOwner = req.user.role === 'owner' || (req.user.discordId && ownerIds.includes(req.user.discordId));
+    const isOwner = isBotOwner(req);
 
     let hasPremium = isOwner;
     let premiumExpiresAt = null;
@@ -1051,8 +1050,7 @@ app.get('/api/guild/:guildId/premium-status', authMiddleware, (req, res) => {
     }
 
     // Also check if user is a bot owner (always has premium)
-    const ownerIds = (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '').split(',').map(s => s.trim()).filter(Boolean);
-    const isOwner = req.user.role === 'owner' || ownerIds.includes(discordId);
+    const isOwner = isBotOwner(req);
 
     res.json({
         hasPremium: isOwner || userPremium || serverPremium,
@@ -1529,8 +1527,7 @@ function checkPremiumStatus(req, guildId) {
         const u = users.find(x => x.id === req.user.id);
         if (u) discordId = u.discordId;
     }
-    const ownerIds = (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '').split(',').map(s => s.trim()).filter(Boolean);
-    const isOwner = req.user.role === 'owner' || ownerIds.includes(discordId);
+    const isOwner = isBotOwner(req);
     if (isOwner) return { hasPremium: true, isOwner: true };
     try {
         const premiumManager = require('../utils/premiumManager');
@@ -3467,8 +3464,7 @@ app.get('/api/commands', authMiddleware, (req, res) => {
 
     // Resolve the viewer's premium standing once so the client can
     // render a "you have access" hint without an extra round-trip.
-    const ownerIds = (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '').split(',').map(s => s.trim()).filter(Boolean);
-    const isOwner = req.user.role === 'owner' || ownerIds.includes(req.user.discordId);
+    const isOwner = isBotOwner(req);
     let viewerHasPremium = isOwner;
     if (!viewerHasPremium && req.user.discordId) {
         try {
@@ -3504,10 +3500,52 @@ app.get('/api/commands', authMiddleware, (req, res) => {
 // access can claim un-redeemed keys). The dashboard's `pagePremium()`
 // also hides itself from non-owners, but server-side enforcement is
 // what actually protects the data.
+// ── Canonical bot-owner check ────────────────────────────────────────────────
+//
+// Mirrors the bot's utils/helpers.isOwner() so the dashboard and the bot
+// agree on exactly who is an owner. Ownership is a DISCORD identity — it is
+// NEVER granted by the local username/password "owner" role. The seeded
+// admin account (admin/admin123) must NOT be able to reach owner-only tooling
+// like the premium key generator; otherwise anyone who finds the dashboard
+// could log in with the default credentials and mint premium keys.
+//
+// A user is an owner when their resolved Discord ID is any of:
+//   • OWNER_ID / OWNER_IDS / OWNERS env (comma-separated), OR
+//   • one of EXTRA_OWNERS (kept in lock-step with utils/helpers.js), OR
+//   • present in the bot's `owners` store (managed via /addowner).
+const EXTRA_OWNERS = ['699163868269641789'];
+
+function ownerIdList() {
+    return (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '')
+        .split(',').map(s => s.trim()).filter(Boolean);
+}
+
+// Resolve the caller's Discord ID from the JWT, falling back to the local
+// users.json record (for password logins that were later linked to Discord).
+function resolveDiscordId(req) {
+    if (req.user?.discordId) return String(req.user.discordId);
+    try {
+        const users = readJSON('users.json', []);
+        const u = users.find(x => x.id === req.user?.id);
+        if (u?.discordId) return String(u.discordId);
+    } catch {}
+    return null;
+}
+
+function isBotOwner(req) {
+    const discordId = resolveDiscordId(req);
+    if (!discordId) return false;
+    if (ownerIdList().includes(discordId)) return true;
+    if (EXTRA_OWNERS.includes(discordId)) return true;
+    try {
+        const owners = readBotStore('owners');
+        if (Array.isArray(owners) && owners.includes(discordId)) return true;
+    } catch {}
+    return false;
+}
+
 function ownerOnly(req, res, next) {
-    const ownerIds = (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '').split(',').map(s => s.trim()).filter(Boolean);
-    const isOwner = req.user?.role === 'owner' || (req.user?.discordId && ownerIds.includes(req.user.discordId));
-    if (!isOwner) return res.status(403).json({ error: 'Owner only.' });
+    if (!isBotOwner(req)) return res.status(403).json({ error: 'Owner only.' });
     next();
 }
 
@@ -3580,7 +3618,7 @@ app.get('/api/users/me/profile', authMiddleware, (req, res) => {
             user: {
                 id: req.user.id, discordId: null, username: req.user.username,
                 email: req.user.email || null, avatar: req.user.avatar || null,
-                role: req.user.role || 'member', isOwner: req.user.role === 'owner',
+                role: req.user.role || 'member', isOwner: false,
                 hasPremium: false, premiumExpires: null, memberSince: null
             },
             economy: { wallet: 0, bank: 0, total: 0, inventory: [], lastDaily: null, lastWeekly: null, lastWork: null },
@@ -3647,8 +3685,7 @@ app.get('/api/users/me/profile', authMiddleware, (req, res) => {
     const now = new Date();
     const premiumEntry = Array.isArray(premiumStore) ? premiumStore.find(p => p.userId === discordId) : null;
     const hasPremium = !!(premiumEntry && (!premiumEntry.expiresAt || new Date(premiumEntry.expiresAt) > now));
-    const ownerIds = (process.env.OWNER_IDS || process.env.OWNERS || process.env.OWNER_ID || '').split(',').map(s => s.trim()).filter(Boolean);
-    const isOwner = req.user.role === 'owner' || ownerIds.includes(discordId);
+    const isOwner = isBotOwner(req);
 
     res.json({
         user: {
