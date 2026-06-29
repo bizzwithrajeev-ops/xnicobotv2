@@ -10131,6 +10131,24 @@ client.on('messageCreate', async (message) => {
                                                     || _ud?.profile?.customBackground
                                                     || null;
                                             } catch { }
+                                            // Custom level-up message + placement (set via /leveling-setup).
+                                            // {user} resolves to a mention outside the card, or the
+                                            // display name when rendered on the card.
+                                            const lvlMode = announceConfig.messageMode === 'inside' ? 'inside' : 'outside';
+                                            const lvlTpl = (announceConfig.message && announceConfig.message.trim()) ? announceConfig.message : null;
+                                            const fillLvlTpl = (uVal) => lvlTpl
+                                                .replace(/{user}/g, uVal)
+                                                .replace(/{level}/g, String(newLevel))
+                                                .replace(/{oldlevel}/g, String(oldLevel))
+                                                .replace(/{xp}/g, userData.xp.toLocaleString())
+                                                .replace(/{rank}/g, String(userRank))
+                                                .replace(/{xpgain}/g, String(xpGain))
+                                                .replace(/{server}/g, message.guild.name);
+
+                                            const insideLine = (lvlMode === 'inside' && lvlTpl)
+                                                ? fillLvlTpl(message.author.globalName || message.author.username)
+                                                : null;
+
                                             const cardBuffer = await generateLevelUpCard(message.author, {
                                                 oldLevel: oldLevel,
                                                 newLevel: newLevel,
@@ -10138,12 +10156,20 @@ client.on('messageCreate', async (message) => {
                                                 rank: userRank,
                                                 xpGain: xpGain,
                                                 fontFamily: levelUpFontFamily,
-                                                backgroundImage: levelUpBackground
+                                                backgroundImage: levelUpBackground,
+                                                style: announceConfig.cardStyle || 'default',
+                                                customLine: insideLine
                                             });
+
+                                            // Message text shown above the card (outside placement).
+                                            let announceContent = `${message.author}`;
+                                            if (lvlMode === 'outside' && lvlTpl) {
+                                                announceContent = fillLvlTpl(message.author.toString());
+                                            }
 
                                             const attachment = new AttachmentBuilder(cardBuffer, { name: 'level-up.png' });
                                             await announceChannel.send({
-                                                content: `${message.author}`,
+                                                content: announceContent,
                                                 files: [attachment],
                                                 allowedMentions: { users: [message.author.id] }
                                             }).catch(() => { });

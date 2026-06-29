@@ -18,6 +18,7 @@ const { buildPermissionDenied } = require('../../utils/responseBuilder');
 
 const jsonStore = require('../../utils/jsonStore');
 const { checkAndExpire } = require('../../utils/panelExpiration');
+const { LEVELUP_STYLES, LEVELUP_STYLE_KEYS } = require('../../utils/levelUpCard');
 
 /** Clamp a string to discord.js TextDisplay limits (1–4000 chars) */
 function safeContent(str) {
@@ -68,6 +69,11 @@ function buildMainPanel(config, guild) {
     content += `**Stack Roles:** ${levelingConfig.stackRoles ? '<:Toggleon:1473038585501581312> Yes' : '<:Toggleoff:1473038582813032590> No'}\n`;
     content += `**Level Roles:** ${levelingConfig.roles?.length || 0} configured\n\n`;
     
+    content += `### <:Bullhorn:1473038903157199093> Level-Up Announcement\n`;
+    content += `**Card Style:** ${(LEVELUP_STYLES[(levelingConfig.announcements||{}).cardStyle] || LEVELUP_STYLES.default).label}\n`;
+    content += `**Message Placement:** ${(levelingConfig.announcements||{}).messageMode === 'inside' ? 'On the card' : 'Above the card'}\n`;
+    content += `**Custom Message:** ${(levelingConfig.announcements||{}).message && (levelingConfig.announcements||{}).message.trim() ? (((levelingConfig.announcements||{}).message.length > 60) ? (levelingConfig.announcements||{}).message.slice(0,57) + '...' : (levelingConfig.announcements||{}).message) : '*Default*'}\n\n`;
+
     content += `### <:Commentblock:1473370739351490794> Exclusions\n`;
     content += `**Ignored Channels:** ${levelingConfig.ignoreChannels?.length || 0}\n`;
     content += `**Ignored Roles:** ${levelingConfig.ignoreRoles?.length || 0}`;
@@ -95,6 +101,7 @@ function buildContainer(config, guild) {
     container.addActionRowComponents(createControlRow(levelingConfig));
     container.addActionRowComponents(createSettingsRow(levelingConfig));
     container.addActionRowComponents(createAdvancedRow(levelingConfig));
+    container.addActionRowComponents(createAnnounceRow(levelingConfig));
     
     return container;
 }
@@ -154,6 +161,30 @@ function createAdvancedRow(levelingConfig) {
                 .setLabel('Reset All XP')
                 .setStyle(ButtonStyle.Danger)
                 .setEmoji('<:Trash:1473038090074591293>')
+        );
+}
+
+function createAnnounceRow(levelingConfig) {
+    const ann = levelingConfig.announcements || {};
+    const hasMsg = !!(ann.message && ann.message.trim());
+    const inside = ann.messageMode === 'inside';
+    return new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('leveling_message')
+                .setLabel('Level-Up Message')
+                .setStyle(hasMsg ? ButtonStyle.Success : ButtonStyle.Primary)
+                .setEmoji('<:Commentblock:1473370739351490794>'),
+            new ButtonBuilder()
+                .setCustomId('leveling_msgmode')
+                .setLabel(inside ? 'Message: On Card' : 'Message: Above Card')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Bookopen:1473038576391557130>'),
+            new ButtonBuilder()
+                .setCustomId('leveling_cardstyle')
+                .setLabel(`Card Style: ${(LEVELUP_STYLES[ann.cardStyle] || LEVELUP_STYLES.default).label}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('<:Sketch:1473038248493453352>')
         );
 }
 
@@ -554,6 +585,54 @@ module.exports = {
                 return true;
             }
             
+            if (customId === 'leveling_message') {
+                const ann = levelingConfig.announcements || {};
+                const modal = new ModalBuilder()
+                    .setCustomId('leveling_modal_message')
+                    .setTitle('Custom Level-Up Message');
+
+                const msgInput = new TextInputBuilder()
+                    .setCustomId('message')
+                    .setLabel('Message (blank = default)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('GG {user}, you reached Level {level}! Total XP: {xp}')
+                    .setValue(ann.message || '')
+                    .setMaxLength(1000)
+                    .setRequired(false);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(msgInput));
+                await interaction.showModal(modal);
+                return true;
+            }
+
+            if (customId === 'leveling_msgmode') {
+                if (!levelingConfig.announcements) levelingConfig.announcements = {};
+                levelingConfig.announcements.messageMode =
+                    levelingConfig.announcements.messageMode === 'inside' ? 'outside' : 'inside';
+                await updateGuildConfig(guildId, { leveling: levelingConfig });
+
+                guildConfig = await getGuildConfig(guildId);
+                await interaction.update({ components: [buildContainer(guildConfig, interaction.guild)], flags: MessageFlags.IsComponentsV2 });
+                return true;
+            }
+
+            if (customId === 'leveling_cardstyle') {
+                if (!levelingConfig.announcements) levelingConfig.announcements = {};
+                const cur = levelingConfig.announcements.cardStyle || 'default';
+                const idx = LEVELUP_STYLE_KEYS.indexOf(cur);
+                const next = LEVELUP_STYLE_KEYS[(idx + 1) % LEVELUP_STYLE_KEYS.length];
+                levelingConfig.announcements.cardStyle = next;
+                await updateGuildConfig(guildId, { leveling: levelingConfig });
+
+                guildConfig = await getGuildConfig(guildId);
+                await interaction.update({ components: [buildContainer(guildConfig, interaction.guild)], flags: MessageFlags.IsComponentsV2 });
+                await interaction.followUp({
+                    content: `<:Checkedbox:1473038547165384804> Level-up card style set to **${(LEVELUP_STYLES[next] || LEVELUP_STYLES.default).label}**.`,
+                    flags: MessageFlags.Ephemeral
+                }).catch(() => {});
+                return true;
+            }
+
             if (customId === 'leveling_back') {
                 guildConfig = await getGuildConfig(guildId);
                 const container = buildContainer(guildConfig, interaction.guild);
@@ -563,6 +642,24 @@ module.exports = {
         }
         
         if (interaction.isModalSubmit()) {
+            if (customId === 'leveling_modal_message') {
+                const msg = interaction.fields.getTextInputValue('message').trim();
+                if (!levelingConfig.announcements) levelingConfig.announcements = {};
+                levelingConfig.announcements.message = msg || null;
+                await updateGuildConfig(guildId, { leveling: levelingConfig });
+
+                await interaction.reply({
+                    content: msg
+                        ? '<:Checkedbox:1473038547165384804> Custom level-up message saved! Use {user}, {level}, {xp}, {rank}, {server} as placeholders.'
+                        : '<:Checkedbox:1473038547165384804> Reverted to the default level-up message.',
+                    flags: MessageFlags.Ephemeral
+                });
+
+                guildConfig = await getGuildConfig(guildId);
+                await refreshPanel(interaction, buildContainer(guildConfig, interaction.guild));
+                return true;
+            }
+
             if (customId === 'leveling_modal_channel') {
                 const channelId = interaction.fields.getTextInputValue('channel_id').trim();
                 

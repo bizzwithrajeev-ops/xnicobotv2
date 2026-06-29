@@ -32,6 +32,25 @@ const W = 900;
 const H = 260;
 const RAD = 20;
 
+// Selectable level-up card styles. Each is a clean, minimal palette
+// (background gradient + two accents) — the layout stays identical so
+// every style stays professional and legible. Admins pick one via
+// /leveling-setup → Card Style.
+const LEVELUP_STYLES = {
+    default:  { label: 'Default',  accent: '#5865f2', accent2: '#a855f7', bgTop: '#26272b', bgBottom: '#1c1d21' },
+    midnight: { label: 'Midnight', accent: '#3b82f6', accent2: '#6366f1', bgTop: '#1a1d2b', bgBottom: '#12131c' },
+    emerald:  { label: 'Emerald',  accent: '#10b981', accent2: '#34d399', bgTop: '#16241f', bgBottom: '#0f1814' },
+    crimson:  { label: 'Crimson',  accent: '#ef4444', accent2: '#f87171', bgTop: '#261a1c', bgBottom: '#1a1113' },
+    gold:     { label: 'Gold',     accent: '#f59e0b', accent2: '#fbbf24', bgTop: '#2a2419', bgBottom: '#1c180f' },
+    aqua:     { label: 'Aqua',     accent: '#06b6d4', accent2: '#22d3ee', bgTop: '#16242a', bgBottom: '#0f1a1e' },
+    mono:     { label: 'Mono',     accent: '#e5e7eb', accent2: '#9ca3af', bgTop: '#1f2023', bgBottom: '#161719' },
+};
+const LEVELUP_STYLE_KEYS = Object.keys(LEVELUP_STYLES);
+
+function resolveStyle(name) {
+    return LEVELUP_STYLES[String(name || '').toLowerCase()] || LEVELUP_STYLES.default;
+}
+
 function fmtNum(n) {
     n = Number(n) || 0;
     if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
@@ -75,16 +94,17 @@ async function _renderCard(user, data = {}) {
     const rank     = Number(data.rank)     || 0;
     const xpGain   = Number(data.xpGain)   || 0;
 
-    const accent = '#5865f2';
-    const accent2 = '#a855f7';
+    const accent = resolveStyle(data.style).accent;
+    const accent2 = resolveStyle(data.style).accent2;
+    const _style = resolveStyle(data.style);
 
     /* ── 1. Background (single flat gradient + optional user image) ── */
     ctx.save();
     drawRoundedRect(ctx, 0, 0, W, H, RAD);
     ctx.clip();
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#26272b');
-    bg.addColorStop(1, '#1c1d21');
+    bg.addColorStop(0, _style.bgTop);
+    bg.addColorStop(1, _style.bgBottom);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -224,14 +244,27 @@ async function _renderCard(user, data = {}) {
     if (username !== String(user.globalName || user.username)) username += '…';
     await drawTextWithEmoji(ctx, username, tx, avY + 64, 30);
 
-    // "Advanced to Level N"
-    ctx.font = fh.getMedium ? fh.getMediumFont(15) : fh.getFont(15);
-    ctx.fillStyle = DESIGN.colors.textMuted;
-    ctx.fillText('Advanced to ', tx, avY + 90);
-    const advW = ctx.measureText('Advanced to ').width;
-    ctx.font = fh.getBoldFont(15);
-    ctx.fillStyle = accent;
-    ctx.fillText(`Level ${newLevel}`, tx + advW, avY + 90);
+    // Subtitle line: either the admin's custom message (rendered ON the
+    // card when placement = "inside") or the default "Advanced to Level N".
+    if (data.customLine) {
+        let line = String(data.customLine);
+        ctx.font = fh.getMediumFont ? fh.getMediumFont(15) : fh.getFont(15);
+        while (measureMixedText(ctx, line, 15) > tw && line.length > 1) {
+            line = line.slice(0, -1);
+        }
+        if (line !== String(data.customLine)) line += '…';
+        ctx.fillStyle = DESIGN.colors.textMuted;
+        await drawTextWithEmoji(ctx, line, tx, avY + 90, 15);
+    } else {
+        // "Advanced to Level N"
+        ctx.font = fh.getMedium ? fh.getMediumFont(15) : fh.getFont(15);
+        ctx.fillStyle = DESIGN.colors.textMuted;
+        ctx.fillText('Advanced to ', tx, avY + 90);
+        const advW = ctx.measureText('Advanced to ').width;
+        ctx.font = fh.getBoldFont(15);
+        ctx.fillStyle = accent;
+        ctx.fillText(`Level ${newLevel}`, tx + advW, avY + 90);
+    }
 
     /* ── 5. Stats row (single baseline, dotted separators) ── */
     const statY = avY + avSize - 2;
@@ -270,4 +303,4 @@ async function _renderCard(user, data = {}) {
     return canvas.toBuffer('image/png');
 }
 
-module.exports = { generateLevelUpCard };
+module.exports = { generateLevelUpCard, LEVELUP_STYLES, LEVELUP_STYLE_KEYS };
